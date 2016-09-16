@@ -1,0 +1,6 @@
+.DS_Store
+*.swp
+*.o
+*.so
+install/
+deps/
