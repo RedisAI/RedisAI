@@ -11,7 +11,7 @@ INSTALL=install
 
 TS_OBJ = redistf.o
 
-INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/tensorflow/tensorflow/c
+INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/tensorflow
 LDPATH_FLAGS=-L $(DEPS_PATH)/tensorflow/bazel-bin/tensorflow
 
 ifeq ($(uname_S),Linux)
