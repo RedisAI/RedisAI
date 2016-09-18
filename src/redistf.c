@@ -368,9 +368,9 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     return RedisModule_ReplyWithError(ctx,"ERR key/name pairs less than ninputs");
   }
 
-  //if ((argc - pairoffset) % 2 != 0) {
-  //  return RedisModule_ReplyWithError(ctx,"ERR odd key/name pairs");
-  //}
+  if ((argc - pairoffset) % 2 != 0) {
+    return RedisModule_ReplyWithError(ctx,"ERR odd key/name pairs");
+  }
 
   TF_Tensor **intensors = RedisModule_PoolAlloc(ctx, ninputs*sizeof(TF_Tensor*));
   TF_Tensor **outtensors = RedisModule_PoolAlloc(ctx, noutputs*sizeof(TF_Tensor*));
@@ -550,5 +550,4 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
   return REDISMODULE_OK;
 }
-
 
