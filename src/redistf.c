@@ -433,6 +433,11 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     RedisModule_ModuleTypeSetValue(outkey,TFTensorType,tto);
   }
 
+  TF_CloseSession(session,status);
+  TF_DeleteStatus(status);
+  TF_DeleteSessionOptions(options);
+  TF_DeleteSession(session);
+
   RedisModule_ReplyWithSimpleString(ctx, "OK");
   //RedisModule_ReplicateVerbatim(ctx);
 
