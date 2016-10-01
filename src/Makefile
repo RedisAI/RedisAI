@@ -35,10 +35,10 @@ redistf.so: $(TS_OBJ)
 clean:
 	rm *.o *.so
 
-instclean:
+cleaninst:
 	rm -rf $(INSTALL_PATH)
 
-depsclean: clean
+cleandeps: clean
 	rm -rf $(DEPS_PATH)
 
 install: all
