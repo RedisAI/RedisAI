@@ -3,9 +3,7 @@
 #include <string.h>
 
 static RedisModuleType *TFTensorType;
-#if 0
 static RedisModuleType *TFGraphType;
-#endif
 
 size_t TFDataSize(TF_DataType type) {
   switch (type) {
@@ -60,7 +58,6 @@ struct TFTensorTypeObject *createTensorTypeObject(TF_Tensor* tensor) {
   return o;
 }
 
-#if 0
 struct TFGraphTypeObject {
   void *graph;
 };
@@ -70,20 +67,17 @@ struct TFGraphTypeObject *createGraphTypeObject(TF_Graph* graph) {
   o->graph = graph;
   return o;
 }
-#endif
 
 void TFTensorTypeReleaseObject(struct TFTensorTypeObject* o) {
   TF_DeleteTensor(o->tensor);
   RedisModule_Free(o);
 }
 
-#if 0
 void TFGraphTypeReleaseObject(struct TFGraphTypeObject* o) {
 
   TF_DeleteGraph(o->graph);
   RedisModule_Free(o);
 }
-#endif
 
 
 // ================================
@@ -303,11 +297,11 @@ int TF_Data_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
 // ================================
 
-#if 0
+// key graphbuf [prefix]
 int TF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
-  if (argc < 2) return RedisModule_WrongArity(ctx);
+  if ((argc != 3) && (argc != 4)) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
@@ -317,189 +311,21 @@ int TF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
     return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
+  size_t graphlen;
+  const char* graphdef = RedisModule_StringPtrLen(argv[2],&graphlen);
+
   TF_Graph* graph = TF_NewGraph();
 
-  struct TFGraphTypeObject *gto = createGraphTypeObject(graph);
-  RedisModule_ModuleTypeSetValue(key,TFGraphType,gto);
-
-  RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
-
-  return REDISMODULE_OK;
-}
-#endif
-
-#define NEW_TF_CAPI
-
-#ifndef NEW_TF_CAPI
-// graph, ninputs, (input key, input name)..., (output key, output name)...
-int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModule_AutoMemory(ctx);
-
-  if (argc < 2) return RedisModule_WrongArity(ctx);
-
-  //RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],
-  //                                          REDISMODULE_READ|REDISMODULE_WRITE);
-  //int type = RedisModule_KeyType(key);
-  //if (type != REDISMODULE_KEYTYPE_EMPTY &&
-  //    RedisModule_ModuleTypeGetType(key) != TFGraphType)
-  //  {
-  //    return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-  //  }
-
-  //struct TFGraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
-
-  //TF_Graph* graph = gto->graph;
-
-  RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_READ);
-  int type = RedisModule_KeyType(key);
-  if (RedisModule_KeyType(key) != REDISMODULE_KEYTYPE_STRING) {
-    return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-  }
-
-  long long ninputs;
-  if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
-      || ninputs < 0) {
-    return RedisModule_ReplyWithError(ctx,"ERR invalid ninputs");
-  }
-
-  int pairoffset = 3;
-  int npairs = (argc - pairoffset) / 2;
-  int noutputs = npairs - ninputs;
-
-  if (npairs < ninputs) {
-    return RedisModule_ReplyWithError(ctx,"ERR key/name pairs less than ninputs");
-  }
-
-  if ((argc - pairoffset) % 2 != 0) {
-    return RedisModule_ReplyWithError(ctx,"ERR odd key/name pairs");
-  }
-
-  TF_Tensor **intensors = RedisModule_PoolAlloc(ctx, ninputs*sizeof(TF_Tensor*));
-  TF_Tensor **outtensors = RedisModule_PoolAlloc(ctx, noutputs*sizeof(TF_Tensor*));
-
-  const char **innames = RedisModule_PoolAlloc(ctx, ninputs*sizeof(char*));
-  const char **outnames = RedisModule_PoolAlloc(ctx, noutputs*sizeof(char*));
-
-  for (int i=pairoffset; i<argc; i+=2) {
-    int isinput = i < pairoffset + 2 * ninputs;
-    int flags = isinput ? REDISMODULE_READ : REDISMODULE_READ|REDISMODULE_WRITE;
-
-    RedisModuleKey *argkey = RedisModule_OpenKey(ctx,argv[i],flags);
-    int argtype = RedisModule_KeyType(argkey);
-
-    size_t namelen;
-    RedisModuleString* argname = argv[i+1];
-
-    if (isinput) {
-      if (RedisModule_ModuleTypeGetType(argkey) != TFTensorType) {
-        return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-      }
-      struct TFTensorTypeObject *tto = RedisModule_ModuleTypeGetValue(argkey);
-      intensors[(i-pairoffset)/2] = clone(ctx,tto->tensor);
-      innames[(i-pairoffset)/2] = RedisModule_StringPtrLen(argname,&namelen);
-    } else {
-      outnames[(i-pairoffset)/2-ninputs] = RedisModule_StringPtrLen(argname,&namelen);
-    }
-  }
-
-  TF_SessionOptions *options = TF_NewSessionOptions();
-  TF_Status *status = TF_NewStatus();
-
-  TF_Session *session = TF_NewSession(options,status);
-
-  size_t graphlen;
-  const char* graphdef = RedisModule_StringDMA(key,&graphlen,REDISMODULE_READ);
-
-  TF_ExtendGraph(session,graphdef,graphlen,status);
-  if (TF_GetCode(status) != TF_OK) {
-    return RedisModule_ReplyWithError(ctx,TF_Message(status));
-  }
-
-  TF_Run(session,NULL,
-         innames,intensors,ninputs,
-         outnames,outtensors,noutputs,
-         NULL,0,NULL,status);
-  if (TF_GetCode(status) != TF_OK) {
-    return RedisModule_ReplyWithError(ctx,TF_Message(status));
-  }
-
-  for (int i=0; i<noutputs; i++) {
-    RedisModuleKey *outkey = RedisModule_OpenKey(ctx,argv[pairoffset+2*ninputs+2*i],
-                                                 REDISMODULE_READ|REDISMODULE_WRITE);
-    int type = RedisModule_KeyType(outkey);
-    if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        RedisModule_ModuleTypeGetType(outkey) != TFTensorType) {
-      return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-    }
-    struct TFTensorTypeObject *tto = createTensorTypeObject(outtensors[i]);
-    RedisModule_ModuleTypeSetValue(outkey,TFTensorType,tto);
-  }
-
-  TF_CloseSession(session,status);
-  TF_DeleteStatus(status);
-  TF_DeleteSessionOptions(options);
-  TF_DeleteSession(session);
-
-  RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
-
-  return REDISMODULE_OK;
-}
-#else
-// graph, ninputs, (input key, input name)..., (output key, output name)...
-int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModule_AutoMemory(ctx);
-
-  if (argc < 2) return RedisModule_WrongArity(ctx);
-
-  //RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],
-  //                                          REDISMODULE_READ|REDISMODULE_WRITE);
-  //int type = RedisModule_KeyType(key);
-  //if (type != REDISMODULE_KEYTYPE_EMPTY &&
-  //    RedisModule_ModuleTypeGetType(key) != TFGraphType)
-  //  {
-  //    return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-  //  }
-
-  //struct TFGraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
-
-  //TF_Graph* graph = gto->graph;
-
-  RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_READ);
-  int type = RedisModule_KeyType(key);
-  if (RedisModule_KeyType(key) != REDISMODULE_KEYTYPE_STRING) {
-    return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
-  }
-
-  long long ninputs;
-  if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
-      || ninputs < 0) {
-    return RedisModule_ReplyWithError(ctx,"ERR invalid ninputs");
-  }
-
-  int pairoffset = 3;
-  int npairs = (argc - pairoffset) / 2;
-  int noutputs = npairs - ninputs;
-
-  if (npairs < ninputs) {
-    return RedisModule_ReplyWithError(ctx,"ERR key/name pairs less than ninputs");
-  }
-
-  if ((argc - pairoffset) % 2 != 0) {
-    return RedisModule_ReplyWithError(ctx,"ERR odd key/name pairs");
-  }
-
-  // Create the graph and import its definition
-
-  TF_Graph *graph = TF_NewGraph();
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 
-  const char *cprefix = "";
-  TF_ImportGraphDefOptionsSetPrefix(options, cprefix);
-
-  size_t graphlen;
-  const char* graphdef = RedisModule_StringDMA(key,&graphlen,REDISMODULE_READ);
+  if (argc == 4) {
+    size_t prefixlen;
+    const char* prefix = RedisModule_StringPtrLen(argv[3],&prefixlen);
+    TF_ImportGraphDefOptionsSetPrefix(options, prefix);
+  }
+  else {
+    TF_ImportGraphDefOptionsSetPrefix(options, "");
+  }
 
   TF_Buffer *buffer = TF_NewBuffer();
   buffer->length = graphlen;
@@ -512,6 +338,56 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
   if (TF_GetCode(status) != TF_OK) {
     return RedisModule_ReplyWithError(ctx,TF_Message(status));
   }
+
+  TF_DeleteImportGraphDefOptions(options);
+  TF_DeleteBuffer(buffer);
+  TF_DeleteStatus(status);
+
+  struct TFGraphTypeObject *gto = createGraphTypeObject(graph);
+  RedisModule_ModuleTypeSetValue(key,TFGraphType,gto);
+
+  RedisModule_ReplyWithSimpleString(ctx, "OK");
+  //RedisModule_ReplicateVerbatim(ctx);
+
+  return REDISMODULE_OK;
+}
+
+// graph key, ninputs, (input key, input name)..., (output key, output name)...
+int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  RedisModule_AutoMemory(ctx);
+
+  if (argc < 2) return RedisModule_WrongArity(ctx);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_READ);
+  if (RedisModule_ModuleTypeGetType(key) != TFGraphType) {
+    return RedisModule_ReplyWithError(ctx,REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  // Get the graph
+
+  struct TFGraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
+
+  TF_Graph* graph = gto->graph;
+
+  long long ninputs;
+  if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
+      || ninputs < 0) {
+    return RedisModule_ReplyWithError(ctx,"ERR invalid ninputs");
+  }
+
+  int pairoffset = 3;
+  int npairs = (argc - pairoffset) / 2;
+  int noutputs = npairs - ninputs;
+
+  if (npairs < ninputs) {
+    return RedisModule_ReplyWithError(ctx,"ERR key/name pairs less than ninputs");
+  }
+
+  if ((argc - pairoffset) % 2 != 0) {
+    return RedisModule_ReplyWithError(ctx,"ERR odd key/name pairs");
+  }
+
+  TF_Status *status = TF_NewStatus();
 
   // Build input/output ports (TODO: targets)
 
@@ -552,8 +428,8 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 
   // Create session and run the graph
 
-  TF_SessionOptions *soptions = TF_NewSessionOptions();
-  TF_SessionWithGraph *session = TF_NewSessionWithGraph(graph,soptions,status);
+  TF_SessionOptions *options = TF_NewSessionOptions();
+  TF_SessionWithGraph *session = TF_NewSessionWithGraph(graph,options,status);
 
   if (TF_GetCode(status) != TF_OK) {
     return RedisModule_ReplyWithError(ctx,TF_Message(status));
@@ -584,10 +460,10 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
   TF_CloseSessionWithGraph(session,status);
 
   TF_DeleteSessionWithGraph(session,status);
-  TF_DeleteSessionOptions(soptions);
-  TF_DeleteImportGraphDefOptions(options);
-  TF_DeleteGraph(graph);
-  TF_DeleteBuffer(buffer);
+  TF_DeleteSessionOptions(options);
+  //TF_DeleteImportGraphDefOptions(options);
+  //TF_DeleteGraph(graph);
+  //TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
@@ -595,7 +471,6 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 
   return REDISMODULE_OK;
 }
-#endif
 
 
 // ================================
@@ -627,7 +502,6 @@ void TFTensorTypeFree(void *value) {
 
 // ================================
 
-#if 0
 void *TFGraphTypeRdbLoad(RedisModuleIO *rdb, int encver) {
   //if (encver != 0) {
   //  /* RedisModule_Log("warning","Can't load data with version %d", encver);*/
@@ -652,7 +526,6 @@ void TFGraphTypeDigest(RedisModuleDigest *digest, void *value) {
 void TFGraphTypeFree(void *value) {
   TFGraphTypeReleaseObject(value);
 }
-#endif
 
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -665,12 +538,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                                             TFTensorTypeDigest,TFTensorTypeFree);
   if (TFTensorType == NULL) return REDISMODULE_ERR;
 
-#if 0
   TFGraphType = RedisModule_CreateDataType(ctx,"TF_TENSOR",0,TFGraphTypeRdbLoad,
                                             TFGraphTypeRdbSave,TFGraphTypeAofRewrite,
                                             TFGraphTypeDigest,TFGraphTypeFree);
   if (TFGraphType == NULL) return REDISMODULE_ERR;
-#endif
 
   if (RedisModule_CreateCommand(ctx,"tf.tensor",TF_Tensor_RedisCommand,"write",1,1,1)
       == REDISMODULE_ERR)
@@ -696,11 +567,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-#if 0
   if (RedisModule_CreateCommand(ctx,"tf.graph",TF_Graph_RedisCommand,"write",1,1,1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
-#endif
 
   if (RedisModule_CreateCommand(ctx,"tf.run",TF_Run_RedisCommand,"write",1,-1,2)
       == REDISMODULE_ERR)
