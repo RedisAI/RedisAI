@@ -502,12 +502,8 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
   const char* graphdef = RedisModule_StringDMA(key,&graphlen,REDISMODULE_READ);
 
   TF_Buffer *buffer = TF_NewBuffer();
-  buffer.length = graphlen;
-  buffer.data = RedisModule_PoolAlloc(ctx,graphlen);
-  if (buffer.data == 0) {
-    return RedisModule_ReplyWithError(ctx,"ERR unable to allocate memory");
-  }
-  memcpy(buffer.data,graphdef,graphlen);
+  buffer->length = graphlen;
+  buffer->data = graphdef;
 
   TF_Status *status = TF_NewStatus();
 
@@ -541,27 +537,31 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
       struct TFTensorTypeObject *tto = RedisModule_ModuleTypeGetValue(argkey);
       intensors[(i-pairoffset)/2] = clone(ctx,tto->tensor);
       const char* opname = RedisModule_StringPtrLen(argname,&namelen);
-      TF_Operation *operation = TF_GraphOperationByName(graph,opname);
-      inports[(i-pairoffset)/2] = {operation, 0};
+      TF_Port port;
+      port.oper = TF_GraphOperationByName(graph,opname);
+      port.index = 0;
+      inports[(i-pairoffset)/2] = port;
     } else {
       const char* opname = RedisModule_StringPtrLen(argname,&namelen);
-      TF_Operation *operation = TF_GraphOperationByName(graph,opname);
-      outports[(i-pairoffset)/2-ninputs] = {operation, 0};
+      TF_Port port;
+      port.oper = TF_GraphOperationByName(graph,opname);
+      port.index = 0;
+      outports[(i-pairoffset)/2-ninputs] = port;
     }
   }
 
   // Create session and run the graph
 
   TF_SessionOptions *soptions = TF_NewSessionOptions();
-  TF_SessionWithGraph *session = TF_NewSessionWithGraph(graph,options,status);
+  TF_SessionWithGraph *session = TF_NewSessionWithGraph(graph,soptions,status);
 
   if (TF_GetCode(status) != TF_OK) {
     return RedisModule_ReplyWithError(ctx,TF_Message(status));
   }
 
   TF_SessionRun(session,NULL,
-                innames,intensors,ninputs,
-                outnames,outtensors,noutputs,
+                inports,intensors,ninputs,
+                outports,outtensors,noutputs,
                 NULL,0,
                 NULL,
                 status);
@@ -583,7 +583,7 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 
   TF_CloseSessionWithGraph(session,status);
 
-  TF_DeleteSessionWithGraph(session);
+  TF_DeleteSessionWithGraph(session,status);
   TF_DeleteSessionOptions(soptions);
   TF_DeleteImportGraphDefOptions(options);
   TF_DeleteGraph(graph);
