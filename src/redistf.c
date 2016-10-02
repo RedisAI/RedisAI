@@ -356,7 +356,7 @@ int TF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
 int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
-  if (argc < 2) return RedisModule_WrongArity(ctx);
+  if (argc < 3) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx,argv[1],REDISMODULE_READ);
   if (RedisModule_ModuleTypeGetType(key) != TFGraphType) {
