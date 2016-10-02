@@ -25,7 +25,7 @@ python tf-minimal.py
 
 On the client, load the graph
 ```
-redis-cli -x SET foo < graph.pb
+redis-cli -x TF.GRAPH foo < graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
