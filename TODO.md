@@ -1,5 +1,6 @@
-# redis-tf todo list
+# redis-tf TODO list
 
-* Adopt the new C API (in the works)
+* Make graph a Redis data structure (in progress)
+* Implement serialization functions
 * Have Run execute in a thread (a-la neural-redis) so redis is responsive while running
 
