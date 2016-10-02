@@ -461,9 +461,6 @@ int TF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 
   TF_DeleteSessionWithGraph(session,status);
   TF_DeleteSessionOptions(options);
-  //TF_DeleteImportGraphDefOptions(options);
-  //TF_DeleteGraph(graph);
-  //TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
