@@ -29,14 +29,16 @@ redis-cli -x TF.GRAPH foo < graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
-* `TF.TENSOR tensor_key data_type ndims dim1 dim2 ... [data]`
+* `TF.TENSOR tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
 * `TF.RUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
 ```
 redis-cli
-> TF.TENSOR bar UINT8 1 1 1
-> TF.TENSOR baz UINT8 1 1 1
+> TF.TENSOR bar UINT8 1 2 VALUES 2 3
+> TF.TENSOR baz UINT8 1 2 VALUES 2 3
 > TF.RUN foo 2 bar a baz b jez c
-> TF.DATA jez
+> TF.VALUES jez
+1) (integer) 4
+2) (integer) 9
 ```
 
 ## Acknowledgements

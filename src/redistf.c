@@ -154,7 +154,7 @@ enum RedisTF_DataFmt {
 
 // ================================
 
-// key, type, ndims, dim1 .. dimN, [datafmt[BLOB | VALUES]], [data | val1 .. valN]
+// key type ndims dim1..dimN [BLOB data | VALUES val1..valN]
 int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
