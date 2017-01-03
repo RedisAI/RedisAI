@@ -1,4 +1,4 @@
-# redis-tf
+# RedisTF
 
 A Redis module for serving Tensorflow tensors and executing graphs.
 
