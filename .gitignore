@@ -4,3 +4,4 @@
 *.so
 install/
 deps/
+.vscode

@@ -6,7 +6,7 @@ with tf.Session() as sess:
     a = tf.Variable(tf.convert_to_tensor(5, dtype=tf.uint8), name='a')
     b = tf.Variable(tf.convert_to_tensor(6, dtype=tf.uint8), name='b')
  
-    c = tf.mul(a, b, name="c")
+    c = tf.multiply(a, b, name="c")
 
     sess.run(tf.initialize_all_variables())
 
