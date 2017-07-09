@@ -12,7 +12,8 @@ echo "Building Tensorflow"
 git clone --recurse-submodules https://github.com/tensorflow/tensorflow.git
 cd tensorflow
 ./configure
-bazel build -c opt //tensorflow:libtensorflow_c.so
+bazel build -c opt //tensorflow:libtensorflow_cc.so
+
 cd ..
 
 cd ..
