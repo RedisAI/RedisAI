@@ -1,4 +1,4 @@
-<img src="https://azurecomcdn.azureedge.net/cvt-13f9af988a3bce151b5f3666660fb76825069825048a47e2c3f78ca61c38c685/images/page/services/cache/redis.png" width="256">
+<img src="https://camo.githubusercontent.com/8188ec467c9580f0c9614df2bfdc26e1b471d0c5/68747470733a2f2f63646e342e69636f6e66696e6465722e636f6d2f646174612f69636f6e732f72656469732d322f313435312f556e7469746c65642d322d3531322e706e67" width="256">
 <img src="http://www.clipartbest.com/cliparts/Bdc/reK/BdcreKoT9.jpeg" width="256">
 <img src="https://avatars0.githubusercontent.com/u/15658638?v=3&s=400" width="256">
 
@@ -7,9 +7,9 @@
 A Redis module for serving Tensorflow tensors and executing graphs.
 
 ## Building
-This will checkout and build Redis and Tensorflow (you'll need bazel for the latter).
+This will checkout and build Redis and download the libtensorflow binaries for your platform.
 ```
-sh build_deps.sh
+sh get_deps.sh
 make install
 ```
 
@@ -53,5 +53,5 @@ redis-cli
 
 BSD license https://opensource.org/licenses/BSD-3-Clause
 
-Copyright 2016, Luca Antiga, Orobix Srl (www.orobix.com).
+Copyright 2018, Luca Antiga, Orobix Srl (www.orobix.com).
 

@@ -11,16 +11,18 @@ INSTALL=install
 
 TS_OBJ = redistf.o
 
-INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/tensorflow
-LDPATH_FLAGS=-L $(DEPS_PATH)/tensorflow/bazel-bin/tensorflow
+INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
+LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
 
 ifeq ($(uname_S),Linux)
 	FINAL_CFLAGS += -fPIC -std=gnu99
-	FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow_c
+	# FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow_c
+	FINAL_LDFLAGS += -shared -lc -ltensorflow_c
 	FINAL_LDPATH += LD_LIBRARY_PATH=$(INSTALL_PATH)
 else
 	FINAL_CFLAGS += -dynamic -fno-common -std=c99
-	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc -ltensorflow_c
+	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc -ltensorflow
+	# FINAL_LDFLAGS += -lc -ltensorflow
 	FINAL_LDPATH += DYLD_LIBRARY_PATH=$(INSTALL_PATH)
 endif
 
@@ -45,7 +47,7 @@ install: all
 	@mkdir -p $(INSTALL_PATH)
 	$(INSTALL) redistf.so $(INSTALL_PATH)
 	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
-	$(INSTALL) $(DEPS_PATH)/tensorflow/bazel-bin/tensorflow/libtensorflow_c.so $(INSTALL_PATH)
+	$(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
 
 run: install
 	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redistf.so
