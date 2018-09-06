@@ -37,8 +37,8 @@ Then create the input tensors, run the computation graph and get the output tens
 * `TF.RUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
 ```
 redis-cli
-> TF.TENSOR bar UINT8 1 2 VALUES 2 3
-> TF.TENSOR baz UINT8 1 2 VALUES 2 3
+> TF.TENSOR bar FLOAT 1 2 VALUES 2 3
+> TF.TENSOR baz FLOAT 1 2 VALUES 2 3
 > TF.RUN foo 2 bar a baz b jez c
 > TF.VALUES jez
 1) (integer) 4
