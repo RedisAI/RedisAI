@@ -1,3 +1,4 @@
+export UNAME_S := $(shell uname -s)
 
 default: all
 
