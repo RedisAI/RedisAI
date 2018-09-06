@@ -15,6 +15,16 @@ echo "RUN GRAPH"
 $REDIS_CLI TF.RUN foo 2 a a b b c mul
 
 echo "GET TENSOR"
-$REDIS_CLI --raw TF.DATA c
 $REDIS_CLI TF.VALUES c
+
+echo "GET TENSOR RAW"
+$REDIS_CLI --raw TF.DATA c
+
+echo "NDIMS" `$REDIS_CLI TF.NDIMS c`
+
+echo "DIMS" `$REDIS_CLI TF.DIMS c`
+
+echo "TYPE" `$REDIS_CLI TF.TYPE c`
+
+echo "SIZE" `$REDIS_CLI TF.SIZE c`
 
