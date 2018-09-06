@@ -14,15 +14,13 @@ TS_OBJ = redistf.o
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
 
-ifeq ($(uname_S),Linux)
+ifeq ($(uname),Linux)
 	FINAL_CFLAGS += -fPIC -std=gnu99
-	# FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow_c
-	FINAL_LDFLAGS += -shared -lc -ltensorflow_c
+	FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow
 	FINAL_LDPATH += LD_LIBRARY_PATH=$(INSTALL_PATH)
 else
 	FINAL_CFLAGS += -dynamic -fno-common -std=c99
 	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc -ltensorflow
-	# FINAL_LDFLAGS += -lc -ltensorflow
 	FINAL_LDPATH += DYLD_LIBRARY_PATH=$(INSTALL_PATH)
 endif
 
