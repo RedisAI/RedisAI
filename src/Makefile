@@ -14,7 +14,7 @@ TS_OBJ = redistf.o
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
 
-ifeq ($(uname),Linux)
+ifeq ($(shell uname),Linux)
 	FINAL_CFLAGS += -fPIC -std=gnu99
 	FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow
 	FINAL_LDPATH += LD_LIBRARY_PATH=$(INSTALL_PATH)
