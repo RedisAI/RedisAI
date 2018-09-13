@@ -4,7 +4,7 @@ mkdir -p deps
 cd deps
 
 echo "Building Redis"
-git clone https://github.com/antirez/redis.git
+git clone --branch 5.0 https://github.com/antirez/redis.git
 cd redis
 make
 cd ..
