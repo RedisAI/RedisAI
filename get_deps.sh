@@ -6,7 +6,7 @@ cd deps
 echo "Building Redis"
 git clone --branch 5.0 https://github.com/antirez/redis.git
 cd redis
-make
+make MALLOC=libc
 cd ..
 
 echo "Downloading libtensorflow"
@@ -26,6 +26,9 @@ cd ..
 
 cd test
 
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTF_DIRECTORY/lib
+fi
 gcc -I$LIBTF_DIRECTORY/include -L$LIBTF_DIRECTORY/lib tf_api_test.c -ltensorflow && ./a.out && rm a.out
 
 cd ..
