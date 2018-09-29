@@ -9,17 +9,82 @@
 #include <pthread.h>
 #endif
 #include <sys/time.h>
-
-// FIXME
-// The blocking version crashes if two scripts operate on the same keys
-// Update: the issue is overwriting the graph. If a graph is re-written
-// while it's being used Redis crashes (of course). This needs to be
-// solved by queuing the operations, since duplicating graphs is not
-// going to be a good idea
-// Have a single thread running graphs, with a queue in the middle
+#include <unistd.h>
 
 static RedisModuleType *RedisTF_TensorType;
 static RedisModuleType *RedisTF_GraphType;
+
+typedef struct queueItem {
+  struct queueItem *next;
+  void *value;
+} queueItem;
+
+typedef struct queue {
+  queueItem *front;
+  queueItem *back;
+  void (*free)(void *ptr);
+  unsigned long len;
+} queue;
+
+queue *queueCreate(void) {
+  struct queue *queue;
+
+  if ((queue = RedisModule_Alloc(sizeof(*queue))) == NULL)
+    return NULL;
+
+  queue->front = queue->back = NULL;
+  queue->len = 0;
+  queue->free = NULL;
+  return queue;
+}
+
+void queuePush(queue *queue, void *value) {
+  queueItem *item;
+
+  if ((item = RedisModule_Alloc(sizeof(*item))) == NULL)
+    return;
+  item->value = value;
+  item->next = NULL;
+
+  if (queue->len == 0) {
+    queue->front = queue->back = item;
+  } else {
+    queue->back->next = item;
+    queue->back = item;
+  }
+  queue->len++;
+}
+
+queueItem *queuePop(queue *queue) {
+  queueItem *item = queue->front;
+  if (item == NULL) {
+    return NULL;
+  }
+  queue->front = item->next;
+  if (item == queue->back) {
+    queue->back = NULL;
+  }
+  item->next = NULL;
+  queue->len--;
+  return item;
+}
+
+void queueRelease(queue *queue) {
+  unsigned long len;
+  queueItem *current;
+
+  len = queue->len;
+  while(len--) {
+    current = queuePop(queue);
+    if (current && queue->free) queue->free(current->value);
+    RedisModule_Free(current);
+  }
+  queue->front = queue->back = NULL;
+  queue->len = 0;
+}
+
+static pthread_mutex_t runQueueMutex = PTHREAD_MUTEX_INITIALIZER;
+static queue *runQueue;
 
 long long ustime(void) {
     struct timeval tv;
@@ -779,10 +844,23 @@ struct RedisTF_RunInfo {
   TF_Output *outputs;
   TF_Tensor **output_values;
   long long noutputs;
+  RedisModuleKey *graphkey;
   RedisModuleString **outkeys;
 };
 
-void *RedisTF_Run_ThreadMain(void *arg) {
+void RedisTF_FreeRunInfo(struct RedisTF_RunInfo *rinfo) {
+  RedisModule_Free(rinfo->inputs);
+  for (int i=0; i<rinfo->ninputs; i++) {
+    TF_DeleteTensor(rinfo->input_values[i]);
+  }
+  RedisModule_Free(rinfo->input_values);
+  RedisModule_Free(rinfo->outputs);
+  RedisModule_Free(rinfo->output_values);
+  RedisModule_Free(rinfo->outkeys);
+  RedisModule_Free(rinfo);
+}
+
+void *RedisTF_RunSession(void *arg) {
   struct RedisTF_RunInfo *rinfo = (struct RedisTF_RunInfo*)arg;
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
@@ -800,13 +878,6 @@ void *RedisTF_Run_ThreadMain(void *arg) {
 
   mstime_t end = mstime();
 
-  // FIXME: close the graph key when it's time
-  // Should we pass the graph key and re-open it here?
-
-  //RedisModule_ThreadSafeContextLock(ctx);
-  //RedisModule_CloseKey(key);
-  //RedisModule_ThreadSafeContextUnlock(ctx);
-
   RedisModule_ThreadSafeContextLock(ctx);
   RedisModule_Log(ctx, "notice", "TF_SessionRun took %fs", (end - start) / 1000.0);
   RedisModule_ThreadSafeContextUnlock(ctx);
@@ -823,7 +894,6 @@ void *RedisTF_Run_ThreadMain(void *arg) {
 
   RedisModule_FreeThreadSafeContext(ctx);
 
-  // TODO: pass private data to UnblockClient
   RedisModule_UnblockClient(rinfo->client, rinfo);
 
   return NULL;
@@ -840,17 +910,14 @@ int RedisTF_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argc);
   struct RedisTF_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
-  // TODO: figure out how to lock the key to other threads
-  // In fact there will only every be ONE thread doing the
-  // computations, so this will be a bit more ordered
   for (int i=0; i<rinfo->noutputs; i++) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         RedisModule_ModuleTypeGetType(outkey) != RedisTF_TensorType) {
-      // FIXME: watch out for leaks
       RedisModule_CloseKey(outkey);
+      RedisTF_FreeRunInfo(rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     struct RedisTF_TensorTypeObject *tto = createTensorTypeObject(rinfo->output_values[i]);
@@ -858,15 +925,10 @@ int RedisTF_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModule_CloseKey(outkey);
   }
 
-  RedisModule_Free(rinfo->inputs);
-  for (int i=0; i<rinfo->ninputs; i++) {
-    TF_DeleteTensor(rinfo->input_values[i]);
-  }
-  RedisModule_Free(rinfo->input_values);
-  RedisModule_Free(rinfo->outputs);
-  RedisModule_Free(rinfo->output_values);
-  RedisModule_Free(rinfo->outkeys);
-  RedisModule_Free(rinfo);
+  // FIXME This crashes Redis, we need to investigate.
+  //RedisModule_CloseKey(rinfo->graphkey);
+
+  RedisTF_FreeRunInfo(rinfo);
 
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
@@ -892,8 +954,6 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
-
-  // Get the graph and cached session
 
   struct RedisTF_GraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
 
@@ -978,19 +1038,15 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   rinfo->outputs = outputs;
   rinfo->output_values = output_values;
   rinfo->noutputs = noutputs;
+  rinfo->graphkey = key;
   rinfo->outkeys = outkeys;
 
-  // For the single worker thread design:
-  // All we need is a container for RunInfo that acts like a queue.
-  // The single thread is always spinning, here we don't start the thread, we
-  // just mutex the container and push a rinfo in it.
-  // The thread loops, mutex the container and pops one item at a time from it.
-  // It sleeps one millisecond if the list is empty.
+  //  RedisModule_AbortBlock(bc);
+  //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
 
-  if (pthread_create(&tid, NULL, RedisTF_Run_ThreadMain, rinfo) != 0) {
-    RedisModule_AbortBlock(bc);
-    return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
-  }
+  pthread_mutex_lock(&runQueueMutex);
+  queuePush(runQueue, rinfo);
+  pthread_mutex_unlock(&runQueueMutex);
 
   return REDISMODULE_OK;
 }
@@ -1061,6 +1117,35 @@ void RedisTF_GraphType_Free(void *value) {
   RedisTF_GraphType_ReleaseObject(value);
 }
 
+void *RedisTF_Run_ThreadMain(void *arg) {
+
+  while(1) {
+    pthread_mutex_lock(&runQueueMutex);
+    queueItem *item = queuePop(runQueue);
+    pthread_mutex_unlock(&runQueueMutex);
+
+    if (item) {
+      RedisTF_RunSession(item->value);
+    }
+
+    // release item (note: the callback does it; verify)
+    // unblock (the callback does it)
+
+    usleep(1000);
+  }
+}
+
+int RedisTF_StartRunThread() {
+  pthread_t tid;
+
+  runQueue = queueCreate();
+
+  if (pthread_create(&tid, NULL, RedisTF_Run_ThreadMain, NULL) != 0) {
+    return REDISMODULE_ERR;
+  }
+
+  return REDISMODULE_OK;
+}
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
@@ -1127,6 +1212,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
   if (RedisModule_CreateCommand(ctx, "tf.run", RedisTF_Run_RedisCommand, "write", 1, -1, 2)
       == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisTF_StartRunThread() == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
   return REDISMODULE_OK;
