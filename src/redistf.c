@@ -1,9 +1,24 @@
 #include "redismodule.h"
 #include "tensorflow/c/c_api.h"
 #include <string.h>
+#include <sys/time.h>
 
 static RedisModuleType *RedisTF_TensorType;
 static RedisModuleType *RedisTF_GraphType;
+
+long long ustime(void) {
+    struct timeval tv;
+    long long ust;
+
+    gettimeofday(&tv, NULL);
+    ust = ((long long)tv.tv_sec)*1000000;
+    ust += tv.tv_usec;
+    return ust;
+}
+
+mstime_t mstime(void) {
+    return ustime()/1000;
+}
 
 size_t RedisTF_DataSize(TF_DataType type) {
   switch (type) {
@@ -102,7 +117,6 @@ int RedisTF_GetValueAsLongLong(TF_Tensor* tensor, long long i, long long* val) {
   return 0;
 }
 
-
 TF_Tensor* clone(RedisModuleCtx *ctx, const TF_Tensor *tensor) {
   int ndims = TF_NumDims(tensor);
   long long *dims = RedisModule_PoolAlloc(ctx, ndims * sizeof(long long));
@@ -129,11 +143,30 @@ struct RedisTF_TensorTypeObject *createTensorTypeObject(TF_Tensor* tensor) {
 
 struct RedisTF_GraphTypeObject {
   void *graph;
+  void *session;
+  // TODO: use session pool? The ideal would be to use one session per client.
+  //       If a client disconnects, we dispose the session or reuse it for
+  //       another client.
 };
 
 struct RedisTF_GraphTypeObject *createGraphTypeObject(TF_Graph* graph) {
+  TF_Status *status = TF_NewStatus();
+
+  TF_SessionOptions *options = TF_NewSessionOptions();
+  TF_Session *session = TF_NewSession(graph, options, status);
+
+  if (TF_GetCode(status) != TF_OK) {
+    // TODO: raise error but we don't have a hold on ctx
+    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    return RedisModule_Alloc(sizeof(struct RedisTF_GraphTypeObject));
+  }
+
+  TF_DeleteSessionOptions(options);
+  TF_DeleteStatus(status);
+
   struct RedisTF_GraphTypeObject *o = RedisModule_Alloc(sizeof(*o));
   o->graph = graph;
+  o->session = session;
   return o;
 }
 
@@ -143,7 +176,30 @@ void RedisTF_TensorType_ReleaseObject(struct RedisTF_TensorTypeObject* o) {
 }
 
 void RedisTF_GraphType_ReleaseObject(struct RedisTF_GraphTypeObject* o) {
+
+  TF_Status *status = TF_NewStatus();
+  TF_CloseSession(o->session, status);
+
+  if (TF_GetCode(status) != TF_OK) {
+    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
+    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    return;
+  }
+
+  TF_DeleteSession(o->session, status);
+  o->session = NULL;
+
+  if (TF_GetCode(status) != TF_OK) {
+    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
+    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    return;
+  }
+
   TF_DeleteGraph(o->graph);
+  o->graph = NULL;
+
+  TF_DeleteStatus(status);
+
   RedisModule_Free(o);
 }
 
@@ -220,13 +276,14 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     return RedisModule_WrongArity(ctx);
   }
 
-  int hasdata = argc > 4 + ndims;
+  int datafmt_arg = 4 + ndims;
+  int hasdata = argc > datafmt_arg;
 
   size_t fmtlen;
   const char* fmtstr;
   int datafmt;
   if (hasdata) {
-    fmtstr = RedisModule_StringPtrLen(argv[5], &fmtlen);
+    fmtstr = RedisModule_StringPtrLen(argv[datafmt_arg], &fmtlen);
     if (strcasecmp(fmtstr, "BLOB") == 0) datafmt = REDISTF_DATA_BLOB;
     else if (strcasecmp(fmtstr, "VALUES") == 0) datafmt = REDISTF_DATA_VALUES;
     else return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
@@ -241,7 +298,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   size_t datalen;
   const char* data;
   if (hasdata) {
-    data = RedisModule_StringPtrLen(argv[6], &datalen);
+    data = RedisModule_StringPtrLen(argv[datafmt_arg + 1], &datalen);
     if (datafmt == REDISTF_DATA_BLOB && datalen != nbytes) {
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
@@ -261,7 +318,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     if (datatype == TF_FLOAT || datatype == TF_DOUBLE) {
       double val;
       for (i=0; i<len; i++) {
-        if ((RedisModule_StringToDouble(argv[6+i], &val) != REDISMODULE_OK)) {
+        if ((RedisModule_StringToDouble(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           TF_DeleteTensor(tensor);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
@@ -275,7 +332,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     else {
       long long val;
       for (i=0; i<len; i++) {
-        if ((RedisModule_StringToLongLong(argv[6+i], &val) != REDISMODULE_OK)) {
+        if ((RedisModule_StringToLongLong(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           TF_DeleteTensor(tensor);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
@@ -310,8 +367,6 @@ int RedisTF_Type_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   }
 
   struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(key);
-
-  //RedisModule_Log(ctx, "warning", "%s", THByteTensor_desc(tto->tensor).str);
 
   switch (TF_TensorType(tto->tensor)) {
   case TF_FLOAT:
@@ -536,11 +591,12 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  // Get the graph
+  // Get the graph and cached session
 
   struct RedisTF_GraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
 
   TF_Graph* graph = gto->graph;
+  TF_Session* session = gto->session;
 
   long long ninputs;
   if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
@@ -590,28 +646,25 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
       TF_Output port;
       port.oper = TF_GraphOperationByName(graph, opname);
       port.index = 0;
+      if (port.oper == NULL) {
+        return RedisModule_ReplyWithError(ctx, "Input key not found.");
+      }
       inputs[(i-pairoffset)/2] = port;
     } else {
       const char* opname = RedisModule_StringPtrLen(argname, &namelen);
       TF_Output port;
       port.oper = TF_GraphOperationByName(graph, opname);
       port.index = 0;
+      if (port.oper == NULL) {
+        return RedisModule_ReplyWithError(ctx, "Output key not found.");
+      }
       outputs[(i-pairoffset)/2-ninputs] = port;
     }
   }
 
-  // TODO: create target ops, e.g.:
-  //TF_Operation *init = TF_GraphOperationByName(graph, "init_op");
-  // We need to change the command to allow for specific targets to be specified by name
-
   // Create session and run the graph
 
-  TF_SessionOptions *options = TF_NewSessionOptions();
-  TF_Session *session = TF_NewSession(graph, options, status);
-
-  if (TF_GetCode(status) != TF_OK) {
-    return RedisModule_ReplyWithError(ctx, TF_Message(status));
-  }
+  mstime_t start = mstime();
 
   TF_SessionRun(session, NULL /* run_options */,
                 inputs, input_values, ninputs,
@@ -620,16 +673,12 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
                 NULL /* run_Metadata */,
                 status);
 
-  // TF_SessionRun(session, NULL,
-  //               inputs, input_values, ninputs,
-  //               outputs, output_values, noutputs,
-  //               NULL, 0,
-  //               NULL,
-  //               status);
+  mstime_t end = mstime();
+  RedisModule_Log(ctx, "notice", "TF_SessionRun took %fs", (end - start) / 1000.0);
+
   if (TF_GetCode(status) != TF_OK) {
     return RedisModule_ReplyWithError(ctx, TF_Message(status));
   }
-  // TODO: handle case in which code is not TF_OK
 
   for (int i=0; i<noutputs; i++) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, argv[pairoffset+2*ninputs+2*i],
@@ -643,10 +692,6 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     RedisModule_ModuleTypeSetValue(outkey, RedisTF_TensorType, tto);
   }
 
-  TF_CloseSession(session, status);
-
-  TF_DeleteSession(session, status);
-  TF_DeleteSessionOptions(options);
   TF_DeleteStatus(status);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
