@@ -1,7 +1,22 @@
+#define REDISTF_BLOCKING
+#ifdef REDISTF_BLOCKING
+#define REDISMODULE_EXPERIMENTAL_API
+#endif
 #include "redismodule.h"
 #include "tensorflow/c/c_api.h"
 #include <string.h>
+#ifdef REDISTF_BLOCKING
+#include <pthread.h>
+#endif
 #include <sys/time.h>
+
+// FIXME
+// The blocking version crashes if two scripts operate on the same keys
+// Update: the issue is overwriting the graph. If a graph is re-written
+// while it's being used Redis crashes (of course). This needs to be
+// solved by queuing the operations, since duplicating graphs is not
+// going to be a good idea
+// Have a single thread running graphs, with a queue in the middle
 
 static RedisModuleType *RedisTF_TensorType;
 static RedisModuleType *RedisTF_GraphType;
@@ -117,7 +132,7 @@ int RedisTF_GetValueAsLongLong(TF_Tensor* tensor, long long i, long long* val) {
   return 0;
 }
 
-TF_Tensor* clone(RedisModuleCtx *ctx, const TF_Tensor *tensor) {
+TF_Tensor* RedisTF_clone(RedisModuleCtx *ctx, const TF_Tensor *tensor) {
   int ndims = TF_NumDims(tensor);
   long long *dims = RedisModule_PoolAlloc(ctx, ndims * sizeof(long long));
   for (int j=0; j<ndims; j++) {
@@ -143,10 +158,10 @@ struct RedisTF_TensorTypeObject *createTensorTypeObject(TF_Tensor* tensor) {
 
 struct RedisTF_GraphTypeObject {
   void *graph;
-  void *session;
   // TODO: use session pool? The ideal would be to use one session per client.
   //       If a client disconnects, we dispose the session or reuse it for
   //       another client.
+  void *session;
 };
 
 struct RedisTF_GraphTypeObject *createGraphTypeObject(TF_Graph* graph) {
@@ -221,6 +236,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
       RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -247,16 +263,19 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   else typerr = 1;
 
   if (typerr) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR invalid type");
   }
 
   long long ndims = 0;
   if ((RedisModule_StringToLongLong(argv[3], &ndims) != REDISMODULE_OK)
       || ndims < 0) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR invalid ndims");
   }
 
   if (argc < 4 + ndims) {
+    RedisModule_CloseKey(key);
     return RedisModule_WrongArity(ctx);
   }
 
@@ -265,6 +284,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   for (long long i=0; i<ndims; i++) {
     if ((RedisModule_StringToLongLong(argv[4+i], dims+i) != REDISMODULE_OK)
         || dims[i] < 0) {
+      RedisModule_CloseKey(key);
       return RedisModule_ReplyWithError(ctx, "ERR invalid dims");
     }
     len *= dims[i];
@@ -273,6 +293,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   if (argc != 4 + ndims &&
       argc != 4 + ndims + 1 + 1 &&
       argc != 4 + ndims + 1 + len) {
+    RedisModule_CloseKey(key);
     return RedisModule_WrongArity(ctx);
   }
 
@@ -286,11 +307,15 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     fmtstr = RedisModule_StringPtrLen(argv[datafmt_arg], &fmtlen);
     if (strcasecmp(fmtstr, "BLOB") == 0) datafmt = REDISTF_DATA_BLOB;
     else if (strcasecmp(fmtstr, "VALUES") == 0) datafmt = REDISTF_DATA_VALUES;
-    else return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
+    else {
+      RedisModule_CloseKey(key);
+      return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
+    }
   }
 
   size_t datasize = RedisTF_DataSize(datatype);
   if (datasize == 0) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR unsupported type");
   }
   size_t nbytes = len * datasize;
@@ -300,11 +325,13 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   if (hasdata) {
     data = RedisModule_StringPtrLen(argv[datafmt_arg + 1], &datalen);
     if (datafmt == REDISTF_DATA_BLOB && datalen != nbytes) {
+      RedisModule_CloseKey(key);
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
   }
 
   if (hasdata && datafmt == REDISTF_DATA_VALUES && argc != len + 6) {
+    RedisModule_CloseKey(key);
     return RedisModule_WrongArity(ctx);
   }
 
@@ -320,11 +347,13 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToDouble(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           TF_DeleteTensor(tensor);
+          RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
         int ret = RedisTF_SetValueFromDouble(tensor, i, val);
         if (ret == -1) {
           TF_DeleteTensor(tensor);
+          RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
@@ -334,11 +363,13 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToLongLong(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           TF_DeleteTensor(tensor);
+          RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
         int ret = RedisTF_SetValueFromLongLong(tensor, i, val);
         if (ret == -1) {
           TF_DeleteTensor(tensor);
+          RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
@@ -347,6 +378,8 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
   struct RedisTF_TensorTypeObject *tto = createTensorTypeObject(tensor);
   RedisModule_ModuleTypeSetValue(key, RedisTF_TensorType, tto);
+
+  RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
   //RedisModule_ReplicateVerbatim(ctx);
@@ -363,12 +396,17 @@ int RedisTF_Type_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
   struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(key);
 
-  switch (TF_TensorType(tto->tensor)) {
+  TF_DataType data_type = TF_TensorType(tto->tensor);
+
+  RedisModule_CloseKey(key);
+
+  switch (data_type) {
   case TF_FLOAT:
     return RedisModule_ReplyWithSimpleString(ctx, "FLOAT");
   case TF_DOUBLE:
@@ -399,12 +437,15 @@ int RedisTF_NDims_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, in
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
   struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(key);
 
   long long ndims = TF_NumDims(tto->tensor);
+
+  RedisModule_CloseKey(key);
 
   return RedisModule_ReplyWithLongLong(ctx, ndims);
 }
@@ -418,6 +459,7 @@ int RedisTF_Dims_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -431,6 +473,8 @@ int RedisTF_Dims_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     RedisModule_ReplyWithLongLong(ctx, dim);
   }
 
+  RedisModule_CloseKey(key);
+
   return REDISMODULE_OK;
 }
 
@@ -443,12 +487,15 @@ int RedisTF_Size_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
   struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(key);
 
   long long size = TF_TensorByteSize(tto->tensor);
+
+  RedisModule_CloseKey(key);
 
   return RedisModule_ReplyWithLongLong(ctx, size);
 }
@@ -462,6 +509,7 @@ int RedisTF_Data_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -470,7 +518,11 @@ int RedisTF_Data_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   long long size = TF_TensorByteSize(tto->tensor);
   char *data = TF_TensorData(tto->tensor);
 
-  return RedisModule_ReplyWithStringBuffer(ctx, data, size);
+  int ret = RedisModule_ReplyWithStringBuffer(ctx, data, size);
+
+  RedisModule_CloseKey(key);
+
+  return ret;
 }
 
 int RedisTF_Values_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -482,6 +534,7 @@ int RedisTF_Values_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_TensorType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -503,6 +556,7 @@ int RedisTF_Values_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     for (i=0; i<len; i++) {
       int ret = RedisTF_GetValueAsDouble(tto->tensor, i, &val);
       if (ret == -1) {
+        RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
       }
       RedisModule_ReplyWithDouble(ctx, val);
@@ -513,11 +567,14 @@ int RedisTF_Values_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     for (i=0; i<len; i++) {
       int ret = RedisTF_GetValueAsLongLong(tto->tensor, i, &val);
       if (ret == -1) {
+        RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
       }
       RedisModule_ReplyWithLongLong(ctx, val);
     }
   }
+
+  RedisModule_CloseKey(key);
 
   return REDISMODULE_OK;
 }
@@ -536,6 +593,7 @@ int RedisTF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, in
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
       RedisModule_ModuleTypeGetType(key) != RedisTF_GraphType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -564,6 +622,7 @@ int RedisTF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, in
   TF_GraphImportGraphDef(graph, buffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, TF_Message(status));
   }
 
@@ -574,12 +633,15 @@ int RedisTF_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, in
   struct RedisTF_GraphTypeObject *gto = createGraphTypeObject(graph);
   RedisModule_ModuleTypeSetValue(key, RedisTF_GraphType, gto);
 
+  RedisModule_CloseKey(key);
+
   RedisModule_ReplyWithSimpleString(ctx, "OK");
   //RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
 
+#ifndef REDISTF_BLOCKING
 // graph key, ninputs, (input key, input name)..., (output key, output name)...
 int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
@@ -588,6 +650,7 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
   if (RedisModule_ModuleTypeGetType(key) != RedisTF_GraphType) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -601,6 +664,7 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   long long ninputs;
   if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
       || ninputs < 0) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR invalid ninputs");
   }
 
@@ -609,10 +673,12 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   int noutputs = npairs - ninputs;
 
   if (npairs < ninputs) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR key/name pairs less than ninputs");
   }
 
   if ((argc - pairoffset) % 2 != 0) {
+    RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR odd key/name pairs");
   }
 
@@ -627,20 +693,19 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   for (int i=pairoffset; i<argc; i+=2) {
     int isinput = i < pairoffset + 2 * ninputs;
-    int flags = isinput ? REDISMODULE_READ : REDISMODULE_READ|REDISMODULE_WRITE;
-
-    RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], flags);
-    int argtype = RedisModule_KeyType(argkey);
 
     size_t namelen;
     RedisModuleString* argname = argv[i+1];
 
     if (isinput) {
+      RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
       if (RedisModule_ModuleTypeGetType(argkey) != RedisTF_TensorType) {
+        RedisModule_CloseKey(argkey);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
       }
       struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(argkey);
-      input_values[(i-pairoffset)/2] = clone(ctx, tto->tensor);
+      input_values[(i-pairoffset)/2] = RedisTF_clone(ctx, tto->tensor);
+      RedisModule_CloseKey(argkey);
       const char* opname = RedisModule_StringPtrLen(argname, &namelen);
       // RedisModule_Log(ctx, "warning", "%s", opname);
       TF_Output port;
@@ -662,8 +727,6 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     }
   }
 
-  // Create session and run the graph
-
   mstime_t start = mstime();
 
   TF_SessionRun(session, NULL /* run_options */,
@@ -676,6 +739,8 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   mstime_t end = mstime();
   RedisModule_Log(ctx, "notice", "TF_SessionRun took %fs", (end - start) / 1000.0);
 
+  RedisModule_CloseKey(key);
+
   if (TF_GetCode(status) != TF_OK) {
     return RedisModule_ReplyWithError(ctx, TF_Message(status));
   }
@@ -686,10 +751,12 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     int type = RedisModule_KeyType(outkey);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         RedisModule_ModuleTypeGetType(outkey) != RedisTF_TensorType) {
+      RedisModule_CloseKey(outkey);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     struct RedisTF_TensorTypeObject *tto = createTensorTypeObject(output_values[i]);
     RedisModule_ModuleTypeSetValue(outkey, RedisTF_TensorType, tto);
+    RedisModule_CloseKey(outkey);
   }
 
   TF_DeleteStatus(status);
@@ -699,7 +766,236 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   return REDISMODULE_OK;
 }
+#else
 
+//static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
+
+struct RedisTF_RunInfo {
+  RedisModuleBlockedClient *client;
+  TF_Session *session;
+  TF_Output *inputs;
+  TF_Tensor **input_values;
+  long long ninputs;
+  TF_Output *outputs;
+  TF_Tensor **output_values;
+  long long noutputs;
+  RedisModuleString **outkeys;
+};
+
+void *RedisTF_Run_ThreadMain(void *arg) {
+  struct RedisTF_RunInfo *rinfo = (struct RedisTF_RunInfo*)arg;
+
+  RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
+
+  mstime_t start = mstime();
+
+  TF_Status *status = TF_NewStatus();
+
+  TF_SessionRun(rinfo->session, NULL /* run_options */,
+                rinfo->inputs, rinfo->input_values, rinfo->ninputs,
+                rinfo->outputs, rinfo->output_values, rinfo->noutputs,
+                NULL /* target_opers */, 0 /* ntargets */,
+                NULL /* run_Metadata */,
+                status);
+
+  mstime_t end = mstime();
+
+  // FIXME: close the graph key when it's time
+  // Should we pass the graph key and re-open it here?
+
+  //RedisModule_ThreadSafeContextLock(ctx);
+  //RedisModule_CloseKey(key);
+  //RedisModule_ThreadSafeContextUnlock(ctx);
+
+  RedisModule_ThreadSafeContextLock(ctx);
+  RedisModule_Log(ctx, "notice", "TF_SessionRun took %fs", (end - start) / 1000.0);
+  RedisModule_ThreadSafeContextUnlock(ctx);
+
+  if (TF_GetCode(status) != TF_OK) {
+    TF_DeleteStatus(status);
+    RedisModule_ReplyWithError(ctx, TF_Message(status));
+    RedisModule_FreeThreadSafeContext(ctx);
+    RedisModule_UnblockClient(rinfo->client, NULL);
+    return NULL;
+  }
+
+  TF_DeleteStatus(status);
+
+  RedisModule_FreeThreadSafeContext(ctx);
+
+  // TODO: pass private data to UnblockClient
+  RedisModule_UnblockClient(rinfo->client, rinfo);
+
+  return NULL;
+}
+
+//void RedisTF_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
+//  RedisModule_Log(ctx,"warning","Blocked client %p disconnected!", (void*)bc);
+//
+//  // TODO: clean up
+//}
+
+int RedisTF_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  REDISMODULE_NOT_USED(argv);
+  REDISMODULE_NOT_USED(argc);
+  struct RedisTF_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
+
+  // TODO: figure out how to lock the key to other threads
+  // In fact there will only every be ONE thread doing the
+  // computations, so this will be a bit more ordered
+  for (int i=0; i<rinfo->noutputs; i++) {
+    RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
+                                                 REDISMODULE_READ|REDISMODULE_WRITE);
+    int type = RedisModule_KeyType(outkey);
+    if (type != REDISMODULE_KEYTYPE_EMPTY &&
+        RedisModule_ModuleTypeGetType(outkey) != RedisTF_TensorType) {
+      // FIXME: watch out for leaks
+      RedisModule_CloseKey(outkey);
+      return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    }
+    struct RedisTF_TensorTypeObject *tto = createTensorTypeObject(rinfo->output_values[i]);
+    RedisModule_ModuleTypeSetValue(outkey, RedisTF_TensorType, tto);
+    RedisModule_CloseKey(outkey);
+  }
+
+  RedisModule_Free(rinfo->inputs);
+  for (int i=0; i<rinfo->ninputs; i++) {
+    TF_DeleteTensor(rinfo->input_values[i]);
+  }
+  RedisModule_Free(rinfo->input_values);
+  RedisModule_Free(rinfo->outputs);
+  RedisModule_Free(rinfo->output_values);
+  RedisModule_Free(rinfo->outkeys);
+  RedisModule_Free(rinfo);
+
+  return RedisModule_ReplyWithSimpleString(ctx, "OK");
+}
+
+// graph key, ninputs, (input key, input name)..., (output key, output name)...
+int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  // 1. clone inputs as needed in the main thread (only the alternative is to lock)
+  // 2. spawn the new thread for running the graph
+  // 3. have reply callback put the data back into the key
+  // This way we avoid any race condition. The only gotcha is making sure no one
+  // overwrites the graph until it's done computing.
+  // This means that setGraph will decode on a candidate pointer, and will then
+  // be picked up on the next round. We also need to signal when it's time to dispose
+  // of the old graph.
+  // The key is having a single thread looping for execution
+
+  RedisModule_AutoMemory(ctx);
+
+  if (argc < 3) return RedisModule_WrongArity(ctx);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  if (RedisModule_ModuleTypeGetType(key) != RedisTF_GraphType) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  // Get the graph and cached session
+
+  struct RedisTF_GraphTypeObject *gto = RedisModule_ModuleTypeGetValue(key);
+
+  TF_Graph* graph = gto->graph;
+  TF_Session* session = gto->session;
+
+  long long ninputs;
+  if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
+      || ninputs < 0) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR invalid ninputs");
+  }
+
+  int pairoffset = 3;
+  int npairs = (argc - pairoffset) / 2;
+  int noutputs = npairs - ninputs;
+
+  if (npairs < ninputs) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR key/name pairs less than ninputs");
+  }
+
+  if ((argc - pairoffset) % 2 != 0) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR odd key/name pairs");
+  }
+
+  TF_Output *inputs = RedisModule_Alloc(ninputs*sizeof(TF_Output));
+  TF_Output *outputs = RedisModule_Alloc(noutputs*sizeof(TF_Output));
+  TF_Tensor **input_values = RedisModule_Alloc(ninputs*sizeof(TF_Tensor*));
+  TF_Tensor **output_values = RedisModule_Alloc(noutputs*sizeof(TF_Tensor*));
+
+  RedisModuleString **outkeys = RedisModule_Alloc(noutputs*sizeof(RedisModuleString*));
+
+  for (int i=pairoffset; i<argc; i+=2) {
+    int isinput = i < pairoffset + 2 * ninputs;
+
+    size_t namelen;
+    RedisModuleString* argname = argv[i+1];
+
+    if (isinput) {
+      RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
+      if (RedisModule_ModuleTypeGetType(argkey) != RedisTF_TensorType) {
+        RedisModule_CloseKey(argkey);
+        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+      }
+      struct RedisTF_TensorTypeObject *tto = RedisModule_ModuleTypeGetValue(argkey);
+      input_values[(i-pairoffset)/2] = RedisTF_clone(ctx, tto->tensor);
+      RedisModule_CloseKey(argkey);
+      const char* opname = RedisModule_StringPtrLen(argname, &namelen);
+      // RedisModule_Log(ctx, "warning", "%s", opname);
+      TF_Output port;
+      port.oper = TF_GraphOperationByName(graph, opname);
+      port.index = 0;
+      if (port.oper == NULL) {
+        return RedisModule_ReplyWithError(ctx, "Input key not found.");
+      }
+      inputs[(i-pairoffset)/2] = port;
+    } else {
+      const char* opname = RedisModule_StringPtrLen(argname, &namelen);
+      TF_Output port;
+      port.oper = TF_GraphOperationByName(graph, opname);
+      port.index = 0;
+      if (port.oper == NULL) {
+        return RedisModule_ReplyWithError(ctx, "Output key not found.");
+      }
+      outputs[(i-pairoffset)/2-ninputs] = port;
+      outkeys[(i-pairoffset)/2-ninputs] = argv[i];
+    }
+  }
+
+  pthread_t tid;
+
+  RedisModuleBlockedClient *bc = RedisModule_BlockClient(ctx, RedisTF_Run_Reply, NULL, NULL, 0);
+
+  struct RedisTF_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisTF_RunInfo));
+  rinfo->client = bc;
+  rinfo->session = session;
+  rinfo->inputs = inputs;
+  rinfo->input_values = input_values;
+  rinfo->ninputs = ninputs;
+  rinfo->outputs = outputs;
+  rinfo->output_values = output_values;
+  rinfo->noutputs = noutputs;
+  rinfo->outkeys = outkeys;
+
+  // For the single worker thread design:
+  // All we need is a container for RunInfo that acts like a queue.
+  // The single thread is always spinning, here we don't start the thread, we
+  // just mutex the container and push a rinfo in it.
+  // The thread loops, mutex the container and pops one item at a time from it.
+  // It sleeps one millisecond if the list is empty.
+
+  if (pthread_create(&tid, NULL, RedisTF_Run_ThreadMain, rinfo) != 0) {
+    RedisModule_AbortBlock(bc);
+    return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
+  }
+
+  return REDISMODULE_OK;
+}
+
+#endif
 
 // ================================
 
