@@ -28,6 +28,8 @@ cd test
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
   export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$LIBTF_DIRECTORY/lib
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:$LIBTF_DIRECTORY/lib
 fi
 gcc -I$LIBTF_DIRECTORY/include -L$LIBTF_DIRECTORY/lib tf_api_test.c -ltensorflow && ./a.out && rm a.out
 
