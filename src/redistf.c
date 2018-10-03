@@ -1025,8 +1025,6 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     }
   }
 
-  pthread_t tid;
-
   RedisModuleBlockedClient *bc = RedisModule_BlockClient(ctx, RedisTF_Run_Reply, NULL, NULL, 0);
 
   struct RedisTF_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisTF_RunInfo));
