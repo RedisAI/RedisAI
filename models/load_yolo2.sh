@@ -13,7 +13,7 @@ IMAGE_HEIGHT=375
 #IMAGE_HEIGHT=576
 
 echo "SET GRAPH"
-$REDIS_CLI -x TF.GRAPH $GRAPH_KEY < tiny-yolo-voc-batch8.pb
+$REDIS_CLI -x TF.GRAPH $GRAPH_KEY < tiny-yolo-voc.pb
 
 echo "SET TENSORS"
 # TODO: cast tensor, change shape of tensor (NHWC, NCHW)
