@@ -833,8 +833,6 @@ int RedisTF_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 }
 #else
 
-//static pthread_mutex_t Mutex = PTHREAD_MUTEX_INITIALIZER;
-
 struct RedisTF_RunInfo {
   RedisModuleBlockedClient *client;
   TF_Session *session;
