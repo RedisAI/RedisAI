@@ -22,7 +22,7 @@ make run
 Tests are in the works, there's just a check script.
 Make sure the server is running, then
 ```
-cd models
+cd examples/models
 # build a graph and write it out
 python tf-minimal.py
 ```
