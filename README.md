@@ -6,6 +6,9 @@
 
 A Redis module for serving Tensorflow tensors and executing graphs.
 
+## Cloning
+If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
+
 ## Building
 This will checkout and build Redis and download the libtensorflow binaries for your platform.
 ```
