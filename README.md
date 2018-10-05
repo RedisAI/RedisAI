@@ -9,7 +9,7 @@ A Redis module for serving Tensorflow tensors and executing graphs.
 ## Building
 This will checkout and build Redis and download the libtensorflow binaries for your platform.
 ```
-sh get_deps.sh
+bash get_deps.sh
 make install
 ```
 
