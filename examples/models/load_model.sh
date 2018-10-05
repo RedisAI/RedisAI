@@ -1,4 +1,4 @@
-REDIS_CLI=../deps/redis/src/redis-cli
+REDIS_CLI=../../deps/redis/src/redis-cli
 
 echo "SET GRAPH"
 $REDIS_CLI -x TF.GRAPH foo < graph.pb
