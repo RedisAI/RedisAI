@@ -395,7 +395,7 @@ int RedisTF_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     }
   }
 
-  if (hasdata && datafmt == REDISTF_DATA_VALUES && argc != len + 6) {
+  if (hasdata && datafmt == REDISTF_DATA_VALUES && argc != len + 5 + ndims) {
     RedisModule_CloseKey(key);
     return RedisModule_WrongArity(ctx);
   }
