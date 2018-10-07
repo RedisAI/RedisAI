@@ -4,3 +4,11 @@
 *.so
 install/
 deps/
+
+examples/js/node_modules/
+examples/js/package-lock.json
+
+# Eclipse ignore
+.project
+.cproject
+.settings/
