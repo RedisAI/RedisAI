@@ -9,7 +9,7 @@ DEPS_PATH=../deps
 INSTALL_PATH=../install/
 INSTALL=install
 
-TS_OBJ = redistf.o
+TS_OBJ = redisdl.o
 
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
@@ -24,13 +24,13 @@ else
 	FINAL_LDPATH += DYLD_LIBRARY_PATH=$(INSTALL_PATH)
 endif
 
-all: redistf.so
+all: redisdl.so
 
 %.o: %.c
 	$(TS_CC) $(INCLUDE_FLAGS) -c $(FINAL_CFLAGS) $<
 
-redistf.so: $(TS_OBJ)
-	$(TS_LD) $(LDPATH_FLAGS) $(FINAL_LDFLAGS) -o redistf.so $(TS_OBJ)
+redisdl.so: $(TS_OBJ)
+	$(TS_LD) $(LDPATH_FLAGS) $(FINAL_LDFLAGS) -o redisdl.so $(TS_OBJ)
 
 clean:
 	rm *.o *.so
@@ -43,10 +43,10 @@ cleandeps: clean
 
 install: all
 	@mkdir -p $(INSTALL_PATH)
-	$(INSTALL) redistf.so $(INSTALL_PATH)
+	$(INSTALL) redisdl.so $(INSTALL_PATH)
 	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
 	$(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
 
 run: install
-	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redistf.so
+	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisdl.so
 
