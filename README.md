@@ -6,6 +6,8 @@
 
 A Redis module for serving Tensorflow tensors and executing graphs.
 
+**Note**: This project has transitioned to [RedisDL](https://github.com/RedisDL/RedisDL). Feel free to follow new developments there.
+
 ## Cloning
 If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
 
