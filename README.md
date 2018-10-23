@@ -45,6 +45,24 @@ redis-cli
 2) (integer) 9
 ```
 
+### DL.TENSOR tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]
+Stores a tensor of defined type (FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16) with n dimensions (ndims)  
+
+### DL.RUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
+
+### DL.TYPE tensor_key
+
+### DL.NDIMS tensor_key
+
+### DL.SIZE tensor_key
+
+### DL.DATA tensor_key
+
+### DL.VALUES tensor_key
+
+### DL.graph graph_key graph_blob prefix
+
+
 ## License
 
 BSD license https://opensource.org/licenses/BSD-3-Clause
