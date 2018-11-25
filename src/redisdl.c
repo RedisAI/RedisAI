@@ -284,6 +284,11 @@ enum RedisDL_DataFmt {
   REDISDL_DATA_VALUES
 };
 
+enum RedisDL_Backend {
+  REDISDL_BACKEND_TF = 0,
+  REDISDL_BACKEND_PT
+};
+
 // ================================
 
 // key type ndims dim1..dimN [BLOB data | VALUES val1..valN]
@@ -645,7 +650,7 @@ int RedisDL_TGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
 int RedisDL_GSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
-  if ((argc != 3) && (argc != 4)) return RedisModule_WrongArity(ctx);
+  if ((argc != 4) && (argc != 5)) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
@@ -656,41 +661,54 @@ int RedisDL_GSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  size_t graphlen;
-  const char* graphdef = RedisModule_StringPtrLen(argv[2], &graphlen);
-
-  TF_Graph* graph = TF_NewGraph();
-
-  TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
-
-  if (argc == 4) {
-    size_t prefixlen;
-    const char* prefix = RedisModule_StringPtrLen(argv[3], &prefixlen);
-    TF_ImportGraphDefOptionsSetPrefix(options, prefix);
-  }
+  size_t bcklen;
+  const char* bckstr;
+  int backend;
+  bckstr = RedisModule_StringPtrLen(argv[2], &bcklen);
+  if (strcasecmp(bckstr, "TF") == 0) backend = REDISDL_BACKEND_TF;
+  // else if (strcasecmp(bckstr, "PT") == 0) backend = REDISDL_BACKEND_PT;
   else {
-    TF_ImportGraphDefOptionsSetPrefix(options, "");
-  }
-
-  TF_Buffer *buffer = TF_NewBuffer();
-  buffer->length = graphlen;
-  buffer->data = graphdef;
-
-  TF_Status *status = TF_NewStatus();
-
-  TF_GraphImportGraphDef(graph, buffer, options, status);
-
-  if (TF_GetCode(status) != TF_OK) {
     RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
   }
 
-  TF_DeleteImportGraphDefOptions(options);
-  TF_DeleteBuffer(buffer);
-  TF_DeleteStatus(status);
+  if (backend == REDISDL_BACKEND_TF) {
+    size_t graphlen;
+    const char* graphdef = RedisModule_StringPtrLen(argv[3], &graphlen);
 
-  struct RedisDL_GraphTypeObject *gto = createGraphTypeObject(graph);
-  RedisModule_ModuleTypeSetValue(key, RedisDL_GraphType, gto);
+    TF_Graph* graph = TF_NewGraph();
+
+    TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
+
+    if (argc == 5) {
+      size_t prefixlen;
+      const char* prefix = RedisModule_StringPtrLen(argv[4], &prefixlen);
+      TF_ImportGraphDefOptionsSetPrefix(options, prefix);
+    }
+    else {
+      TF_ImportGraphDefOptionsSetPrefix(options, "");
+    }
+
+    TF_Buffer *buffer = TF_NewBuffer();
+    buffer->length = graphlen;
+    buffer->data = graphdef;
+
+    TF_Status *status = TF_NewStatus();
+
+    TF_GraphImportGraphDef(graph, buffer, options, status);
+
+    if (TF_GetCode(status) != TF_OK) {
+      RedisModule_CloseKey(key);
+      return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    }
+
+    TF_DeleteImportGraphDefOptions(options);
+    TF_DeleteBuffer(buffer);
+    TF_DeleteStatus(status);
+
+    struct RedisDL_GraphTypeObject *gto = createGraphTypeObject(graph);
+    RedisModule_ModuleTypeSetValue(key, RedisDL_GraphType, gto);
+  }
 
   RedisModule_CloseKey(key);
 
