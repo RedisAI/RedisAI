@@ -49,7 +49,7 @@ async function run(filenames) {
   const buffer = fs.readFileSync(graph_filename, {'flag': 'r'});
 
   console.log("Setting graph");
-  redis.call('DL.GRAPH', 'mobilenet', buffer);
+  redis.call('DL.GSET', 'mobilenet', buffer);
 
   const image_height = 224;
   const image_width = 224;
@@ -65,13 +65,13 @@ async function run(filenames) {
     let buffer = Buffer.from(normalized.buffer);
 
     console.log("Setting input tensor");
-    redis.call('DL.TENSOR', 'input_' + i, 'FLOAT', 4, 1, image_width, image_height, 3, 'BLOB', buffer);
+    redis.call('DL.TSET', 'input_' + i, 'FLOAT', 4, 1, image_width, image_height, 3, 'BLOB', buffer);
 
     console.log("Running graph");
-    redis.call('DL.RUN', 'mobilenet', 1, 'input_' + i, input_var, 'output_' + i, output_var);
+    redis.call('DL.GRUN', 'mobilenet', 1, 'input_' + i, input_var, 'output_' + i, output_var);
 
     console.log("Getting output tensor");
-    let out_data = await redis.callBuffer('DL.DATA', 'output_' + i);
+    let out_data = await redis.callBuffer('DL.TGET', 'output_' + i, 'BLOB');
     let out_array = buffer_to_float32array(out_data);
 
     label = argmax(out_array);
