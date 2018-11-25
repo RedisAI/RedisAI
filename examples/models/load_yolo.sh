@@ -13,7 +13,7 @@ IMAGE_WIDTH=224
 IMAGE_HEIGHT=224
 
 echo "SET GRAPH"
-$REDIS_CLI -x DL.GSET $GRAPH_KEY < $GRAPH_FILE
+$REDIS_CLI -x DL.GSET $GRAPH_KEY TF < $GRAPH_FILE
 
 # TODO: cast tensor, change shape of tensor (NHWC, NCHW)
 #       instead of casting, we could specify the type of data provided in the blob

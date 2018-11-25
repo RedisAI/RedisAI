@@ -1,7 +1,7 @@
 REDIS_CLI=../../deps/redis/src/redis-cli
 
 echo "SET GRAPH"
-$REDIS_CLI -x DL.GSET foo < graph.pb
+$REDIS_CLI -x DL.GSET foo TF < graph.pb
 
 echo "SET TENSORS"
 $REDIS_CLI DL.TSET a FLOAT 1 2 VALUES 2 3

@@ -29,12 +29,12 @@ python tf-minimal.py
 
 On the client, load the graph
 ```
-./deps/redis/src/redis-cli -x DL.GRAPH foo < graph.pb
+./deps/redis/src/redis-cli -x DL.GSET foo TF < graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
-* `DL.TENSOR tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
-* `DL.RUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
+* `DL.TSET tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
+* `DL.GRUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
 ```
 redis-cli
 > DL.TSET bar FLOAT 1 2 VALUES 2 3
@@ -58,7 +58,7 @@ Stores a tensor of defined type (FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8
 
 ### DL.TBYTESIZE tensor_key
 
-### DL.GSET graph_key graph_blob prefix
+### DL.GSET graph_key TF graph_blob prefix
 Stores a graph provided as a protobuf blob
 
 ### DL.GRUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
