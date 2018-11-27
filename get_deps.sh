@@ -9,17 +9,25 @@ cd redis
 make MALLOC=libc
 cd ..
 
-echo "Downloading libtensorflow"
-TF_TYPE="cpu" # Change to "gpu" for GPU support
+TF_VERSION="1.12.0"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
   OS="linux"
+  if [[ "$1" == "cpu" ]]; then
+    TF_TYPE="cpu"
+  else
+    TF_TYPE="gpu"
+  fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   OS="darwin"
+  TF_TYPE="cpu"
 fi
+
+echo "Downloading libtensorflow ${TF_VERSION} ${TF_TYPE}"
+
 LIBTF_DIRECTORY=`pwd`/libtensorflow
 mkdir -p $LIBTF_DIRECTORY
 curl -L \
-  "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_TYPE}-${OS}-x86_64-1.10.1.tar.gz" |
+  "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_TYPE}-${OS}-x86_64-${TF_VERSION}.tar.gz" |
   tar -C $LIBTF_DIRECTORY -xz
 
 cd ..
