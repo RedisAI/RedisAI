@@ -1,5 +1,5 @@
 
-FINAL_CFLAGS=$(CFLAGS)
+FINAL_CFLAGS=$(CFLAGS) -g -DREDISMODULE_EXPERIMENTAL_API
 FINAL_LDFLAGS=$(LDFLAGS)
 FINAL_LDPATH=
 TS_CC=gcc
@@ -9,7 +9,7 @@ DEPS_PATH=../deps
 INSTALL_PATH=../install/
 INSTALL=install
 
-TS_OBJ = redisdl.o
+TS_OBJ = redisdl.o tensor.o graph.o
 
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
