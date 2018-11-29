@@ -19,7 +19,7 @@ ifeq ($(shell uname),Linux)
 	FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow
 	FINAL_LDPATH += LD_LIBRARY_PATH=$(INSTALL_PATH)
 else
-	FINAL_CFLAGS += -dynamic -fno-common -std=c99
+	FINAL_CFLAGS += -dynamic -std=c99
 	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc -ltensorflow
 	FINAL_LDPATH += DYLD_LIBRARY_PATH=$(INSTALL_PATH)
 endif
