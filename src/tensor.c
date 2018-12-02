@@ -85,10 +85,10 @@ static void Tensor_RdbSave(RedisModuleIO *rdb, void *value){
 }
 
 static void Tensor_DTFree(void *value){
-  Tensor_Free(value);
+  RDL_TensorFree(value);
 }
 
-int Tensor_Init(RedisModuleCtx* ctx){
+int RDL_TensorInit(RedisModuleCtx* ctx){
   RedisModuleTypeMethods tmTensor = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = Tensor_RdbLoad,
@@ -102,7 +102,7 @@ int Tensor_Init(RedisModuleCtx* ctx){
   return RedisDL_TensorType != NULL;
 }
 
-RDL_Tensor* Tensor_Create(const char* dataTypeStr, long long* dims,int ndims){
+RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims,int ndims){
   TF_DataType dtype = Tensor_GetDataType(dataTypeStr);
   if(!dtype){
     return NULL;
@@ -122,18 +122,18 @@ RDL_Tensor* Tensor_Create(const char* dataTypeStr, long long* dims,int ndims){
   return ret;
 }
 
-RDL_Tensor* Tensor_CreateFromTensor(TF_Tensor *tensor){
+RDL_Tensor* RDL_TensorCreateFromTensor(TF_Tensor *tensor){
   RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
   ret->tensor = tensor;
   ret->refCount = 1;
   return ret;
 }
 
-TF_DataType Tensor_DataType(RDL_Tensor* t){
+TF_DataType RDL_TensorDataType(RDL_Tensor* t){
   return TF_TensorType(t->tensor);
 }
 
-size_t Tensor_GetDataSize(const char* dataTypeStr){
+size_t RDL_TensorGetDataSize(const char* dataTypeStr){
   TF_DataType dtype = Tensor_GetDataType(dataTypeStr);
   if(!dtype){
     return 0;
@@ -141,19 +141,19 @@ size_t Tensor_GetDataSize(const char* dataTypeStr){
   return Tensor_DataSize(dtype);
 }
 
-void Tensor_Free(RDL_Tensor* t){
+void RDL_TensorFree(RDL_Tensor* t){
   if(--t->refCount <= 0){
     TF_DeleteTensor(t->tensor);
     RedisModule_Free(t);
   }
 }
 
-int Tensor_SetData(RDL_Tensor* t, const char* data, size_t len){
+int RDL_TensorSetData(RDL_Tensor* t, const char* data, size_t len){
   memcpy(TF_TensorData(t->tensor), data, len);
   return 1;
 }
 
-int Tensor_SetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
+int RDL_TensorSetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
   switch (TF_TensorType(t->tensor)) {
     case TF_BOOL:
       ((int8_t*)TF_TensorData(t->tensor))[i] = val; break;
@@ -175,7 +175,7 @@ int Tensor_SetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
   return 1;
 }
 
-int Tensor_SetValueFromDouble(RDL_Tensor* t, long long i, double val){
+int RDL_TensorSetValueFromDouble(RDL_Tensor* t, long long i, double val){
   switch (TF_TensorType(t->tensor)) {
     case TF_FLOAT:
       ((float*)TF_TensorData(t->tensor))[i] = val; break;
@@ -187,7 +187,7 @@ int Tensor_SetValueFromDouble(RDL_Tensor* t, long long i, double val){
   return 1;
 }
 
-int Tensor_GetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
+int RDL_TensorGetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
   switch (TF_TensorType(t->tensor)) {
     case TF_FLOAT:
       *val = ((float*)TF_TensorData(t->tensor))[i]; break;
@@ -199,7 +199,7 @@ int Tensor_GetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
   return 1;
 }
 
-int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
+int RDL_TensorGetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
   switch (TF_TensorType(t->tensor)) {
     case TF_BOOL:
       *val = ((int8_t*)TF_TensorData(t->tensor))[i]; break;
@@ -221,27 +221,27 @@ int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
   return 1;
 }
 
-RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t){
+RDL_Tensor* RDL_TensorGetShallowCopy(RDL_Tensor* t){
   ++t->refCount;
   return t;
 }
 
-int Tensor_NumDims(RDL_Tensor* t){
+int RDL_TensorNumDims(RDL_Tensor* t){
   return TF_NumDims(t->tensor);
 }
 
-long long Tensor_Dim(RDL_Tensor* t, int dim){
+long long RDL_TensorDim(RDL_Tensor* t, int dim){
   return TF_Dim(t->tensor, dim);
 }
 
-size_t Tensor_ByteSize(RDL_Tensor* t){
+size_t RDL_TensorByteSize(RDL_Tensor* t){
   return TF_TensorByteSize(t->tensor);
 }
 
-char* Tensor_Data(RDL_Tensor* t){
+char* RDL_TensorData(RDL_Tensor* t){
   return TF_TensorData(t->tensor);
 }
 
-TF_Tensor* Tensor_GetTensor(RDL_Tensor* t){
+TF_Tensor* RDL_TensorGetTensor(RDL_Tensor* t){
   return t->tensor;
 }
