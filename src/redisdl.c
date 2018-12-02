@@ -291,7 +291,7 @@ int RedisDL_TDim_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
 
   RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
-  long long ndims = TF_NumDims(t->tensor);
+  long long ndims = Tensor_NumDims(t);
 
   RedisModule_CloseKey(key);
 
@@ -313,11 +313,11 @@ int RedisDL_TShape_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
   RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
-  long long ndims = TF_NumDims(t->tensor);
+  long long ndims = Tensor_NumDims(t);
 
   RedisModule_ReplyWithArray(ctx, ndims);
   for (long long i=0; i<ndims; i++) {
-    long long dim = TF_Dim(t->tensor, i);
+    long long dim = Tensor_Dim(t, i);
     RedisModule_ReplyWithLongLong(ctx, dim);
   }
 
@@ -341,7 +341,7 @@ int RedisDL_TByteSize_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
-  long long size = TF_TensorByteSize(t->tensor);
+  long long size = Tensor_ByteSize(t);
 
   RedisModule_CloseKey(key);
 
@@ -375,8 +375,8 @@ int RedisDL_TGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
   if (datafmt == REDISDL_DATA_BLOB) {
-    long long size = TF_TensorByteSize(t->tensor);
-    char *data = TF_TensorData(t->tensor);
+    long long size = Tensor_ByteSize(t);
+    char *data = Tensor_Data(t);
 
     int ret = RedisModule_ReplyWithStringBuffer(ctx, data, size);
 
@@ -386,14 +386,14 @@ int RedisDL_TGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     }
   }
   else { // datafmt == REDISDL_DATA_VALUES
-    long long ndims = TF_NumDims(t->tensor);
+    long long ndims = Tensor_NumDims(t);
     long long len = 1;
     long long i;
     for (i=0; i<ndims; i++) {
-      len *= TF_Dim(t->tensor, i);
+      len *= Tensor_Dim(t, i);
     }
 
-    TF_DataType datatype = TF_TensorType(t->tensor);
+    TF_DataType datatype = Tensor_DataType(t);
 
     RedisModule_ReplyWithArray(ctx, len);
 

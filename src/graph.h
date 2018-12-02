@@ -12,14 +12,7 @@
 #include "redismodule.h"
 #include "tensor.h"
 
-typedef struct RDL_Graph{
-  TF_Graph* graph;
-  // TODO: use session pool? The ideal would be to use one session per client.
-  //       If a client disconnects, we dispose the session or reuse it for
-  //       another client.
-  void *session;
-  size_t refCount;
-}RDL_Graph;
+typedef struct RDL_Graph RDL_Graph;
 
 typedef struct RDL_GraphCtxParam RDL_GraphCtxParam;
 
