@@ -9,29 +9,27 @@
 #define SRC_TENSOR_H_
 
 #include "tensorflow/c/c_api.h"
-#include "redismodule.h"
-
-typedef struct RDL_Tensor RDL_Tensor;
+#include "redisdl.h"
 
 extern RedisModuleType *RedisDL_TensorType;
 
-int Tensor_Init(RedisModuleCtx* ctx);
-RDL_Tensor* Tensor_Create(const char* dataTypeStr, long long* dims,int ndims);
-RDL_Tensor* Tensor_CreateFromTensor(TF_Tensor *tensor);
-size_t Tensor_GetDataSize(const char* dataTypeStr);
-TF_DataType Tensor_DataType(RDL_Tensor* t);
-void Tensor_Free(RDL_Tensor* t);
-int Tensor_SetData(RDL_Tensor* tensor, const char* data, size_t len);
-int Tensor_SetValueFromLongLong(RDL_Tensor* tensor, long long i, long long val);
-int Tensor_SetValueFromDouble(RDL_Tensor* tensor, long long i, double val);
-int Tensor_GetValueAsDouble(RDL_Tensor* t, long long i, double* val);
-int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val);
-RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t);
-int Tensor_NumDims(RDL_Tensor* t);
-long long Tensor_Dim(RDL_Tensor* t, int dim);
-size_t Tensor_ByteSize(RDL_Tensor* t);
-char* Tensor_Data(RDL_Tensor* t);
-TF_Tensor* Tensor_GetTensor(RDL_Tensor* t);
+int RDL_TensorInit(RedisModuleCtx* ctx);
+RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims,int ndims);
+RDL_Tensor* RDL_TensorCreateFromTensor(TF_Tensor *tensor);
+size_t RDL_TensorGetDataSize(const char* dataTypeStr);
+TF_DataType RDL_TensorDataType(RDL_Tensor* t);
+void RDL_TensorFree(RDL_Tensor* t);
+int RDL_TensorSetData(RDL_Tensor* tensor, const char* data, size_t len);
+int RDL_TensorSetValueFromLongLong(RDL_Tensor* tensor, long long i, long long val);
+int RDL_TensorSetValueFromDouble(RDL_Tensor* tensor, long long i, double val);
+int RDL_TensorGetValueAsDouble(RDL_Tensor* t, long long i, double* val);
+int RDL_TensorGetValueAsLongLong(RDL_Tensor* t, long long i, long long* val);
+RDL_Tensor* RDL_TensorGetShallowCopy(RDL_Tensor* t);
+int RDL_TensorNumDims(RDL_Tensor* t);
+long long RDL_TensorDim(RDL_Tensor* t, int dim);
+size_t RDL_TensorByteSize(RDL_Tensor* t);
+char* RDL_TensorData(RDL_Tensor* t);
+TF_Tensor* RDL_TensorGetTensor(RDL_Tensor* t);
 
 
 
