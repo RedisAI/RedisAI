@@ -29,6 +29,7 @@ int Tensor_SetValueFromLongLong(RDL_Tensor* tensor, long long i, long long val);
 int Tensor_SetValueFromDouble(RDL_Tensor* tensor, long long i, double val);
 int Tensor_GetValueAsDouble(RDL_Tensor* t, long long i, double* val);
 int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val);
+RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t);
 
 
 

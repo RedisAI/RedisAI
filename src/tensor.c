@@ -215,3 +215,8 @@ int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
   }
   return 1;
 }
+
+RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t){
+  ++t->refCount;
+  return t;
+}
