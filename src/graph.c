@@ -3,6 +3,15 @@
 
 RedisModuleType *RedisDL_GraphType = NULL;
 
+typedef struct RDL_Graph{
+  TF_Graph* graph;
+  // TODO: use session pool? The ideal would be to use one session per client.
+  //       If a client disconnects, we dispose the session or reuse it for
+  //       another client.
+  void *session;
+  size_t refCount;
+}RDL_Graph;
+
 typedef struct RDL_GraphCtxParam{
   TF_Output name;
   RDL_Tensor* tensor;
@@ -182,7 +191,7 @@ int Graph_Run(RDL_GraphRunCtx* gctx){
   TF_Output outputs[array_len(gctx->outputs)];
 
   for(size_t i = 0 ; i < array_len(gctx->inputs) ; ++i){
-    inputTensorsValues[i] = gctx->inputs[i].tensor->tensor;
+    inputTensorsValues[i] = Tensor_GetTensor(gctx->inputs[i].tensor);
     inputs[i] = gctx->inputs[i].name;
   }
 

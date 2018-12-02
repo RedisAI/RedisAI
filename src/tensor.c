@@ -5,6 +5,11 @@
 
 RedisModuleType *RedisDL_TensorType = NULL;
 
+typedef struct RDL_Tensor {
+  TF_Tensor* tensor;
+  size_t refCount;
+}RDL_Tensor;
+
 static TF_DataType Tensor_GetDataType(const char* typestr){
   if (strcasecmp(typestr, "FLOAT") == 0){
     return TF_FLOAT;
@@ -219,4 +224,24 @@ int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
 RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t){
   ++t->refCount;
   return t;
+}
+
+int Tensor_NumDims(RDL_Tensor* t){
+  return TF_NumDims(t->tensor);
+}
+
+long long Tensor_Dim(RDL_Tensor* t, int dim){
+  return TF_Dim(t->tensor, dim);
+}
+
+size_t Tensor_ByteSize(RDL_Tensor* t){
+  return TF_TensorByteSize(t->tensor);
+}
+
+char* Tensor_Data(RDL_Tensor* t){
+  return TF_TensorData(t->tensor);
+}
+
+TF_Tensor* Tensor_GetTensor(RDL_Tensor* t){
+  return t->tensor;
 }

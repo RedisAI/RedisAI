@@ -11,10 +11,7 @@
 #include "tensorflow/c/c_api.h"
 #include "redismodule.h"
 
-typedef struct RDL_Tensor {
-  TF_Tensor* tensor;
-  size_t refCount;
-}RDL_Tensor;
+typedef struct RDL_Tensor RDL_Tensor;
 
 extern RedisModuleType *RedisDL_TensorType;
 
@@ -30,6 +27,11 @@ int Tensor_SetValueFromDouble(RDL_Tensor* tensor, long long i, double val);
 int Tensor_GetValueAsDouble(RDL_Tensor* t, long long i, double* val);
 int Tensor_GetValueAsLongLong(RDL_Tensor* t, long long i, long long* val);
 RDL_Tensor* Tensor_GetShallowCopy(RDL_Tensor* t);
+int Tensor_NumDims(RDL_Tensor* t);
+long long Tensor_Dim(RDL_Tensor* t, int dim);
+size_t Tensor_ByteSize(RDL_Tensor* t);
+char* Tensor_Data(RDL_Tensor* t);
+TF_Tensor* Tensor_GetTensor(RDL_Tensor* t);
 
 
 
