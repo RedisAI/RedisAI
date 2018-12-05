@@ -10,21 +10,21 @@
 
 #include "tensorflow/c/c_api.h"
 #include "redismodule.h"
-
-typedef struct RDL_Graph{
-  TF_Graph* graph;
-  // TODO: use session pool? The ideal would be to use one session per client.
-  //       If a client disconnects, we dispose the session or reuse it for
-  //       another client.
-  void *session;
-  size_t refCount;
-}RDL_Graph;
+#include "tensor.h"
 
 extern RedisModuleType *RedisDL_GraphType;
 
-int Graph_Init(RedisModuleCtx* ctx);
-RDL_Graph* Graph_Create(const char* prefix, const char* graphdef, size_t graphlen);
-void Graph_Free(RDL_Graph* graph);
+int RDL_GraphInit(RedisModuleCtx* ctx);
+RDL_Graph* RDL_GraphCreate(const char* prefix, const char* graphdef, size_t graphlen);
+void RDL_GraphFree(RDL_Graph* graph);
+RDL_GraphRunCtx* RDL_RunCtxCreate(RDL_Graph* graph);
+int RDL_RunCtxAddInput(RDL_GraphRunCtx* gctx, const char* inputName, RDL_Tensor* inputTensor);
+int RDL_RunCtxAddOutput(RDL_GraphRunCtx* gctx, const char* outputName);
+size_t RDL_RunCtxNumOutputs(RDL_GraphRunCtx* gctx);
+RDL_Tensor* RDL_RunCtxOutputTensor(RDL_GraphRunCtx* gctx, size_t index);
+void RDL_RunCtxFree(RDL_GraphRunCtx* gctx);
+int RDL_GraphRun(RDL_GraphRunCtx* gctx);
+RDL_Graph* RDL_GraphGetShallowCopy(RDL_Graph* graph);
 
 
 
