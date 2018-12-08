@@ -13,6 +13,9 @@ examples/js/package-lock.json
 .cproject
 .settings/
 
+# VSCode
+*.vscode
+
 # Prerequisites
 *.d
 
