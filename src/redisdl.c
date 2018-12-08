@@ -1,11 +1,11 @@
 #include "redismodule.h"
-#include "tensorflow/c/c_api.h"
 #include "tensor.h"
 #include "graph.h"
 #include <string.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 typedef struct queueItem {
   struct queueItem *next;
@@ -96,11 +96,6 @@ mstime_t mstime(void) {
 enum RedisDL_DataFmt {
   REDISDL_DATA_BLOB = 0,
   REDISDL_DATA_VALUES
-};
-
-enum RedisDL_Backend {
-  REDISDL_BACKEND_TF = 0,
-  REDISDL_BACKEND_PT
 };
 
 // ================================
@@ -451,24 +446,23 @@ int RedisDL_GSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   const char* bckstr;
   int backend;
   bckstr = RedisModule_StringPtrLen(argv[2], NULL);
-  if (strcasecmp(bckstr, "TF") == 0) backend = REDISDL_BACKEND_TF;
-  // else if (strcasecmp(bckstr, "PT") == 0) backend = REDISDL_BACKEND_PT;
+  if (strcasecmp(bckstr, "TF") == 0) backend = RDL_BACKEND_TENSORFLOW;
+  // else if (strcasecmp(bckstr, "PT") == 0) backend = REDISDL_BACKEND_PYTORCH;
+  // else if (strcasecmp(bckstr, "OR") == 0) backend = REDISDL_BACKEND_ONNXRUNTIME;
   else {
     return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
   }
 
   RDL_Graph *graph = NULL;
 
-  if (backend == REDISDL_BACKEND_TF) {
-    size_t graphlen;
-    const char* graphdef = RedisModule_StringPtrLen(argv[3], &graphlen);
-    const char* prefix = "";
-    if (argc == 5) {
-      const char* prefix = RedisModule_StringPtrLen(argv[4], NULL);
-    }
-
-    graph = RDL_GraphCreate(prefix, graphdef, graphlen);
+  size_t graphlen;
+  const char *graphdef = RedisModule_StringPtrLen(argv[3], &graphlen);
+  const char *prefix = "";
+  if (argc == 5) {
+    const char *prefix = RedisModule_StringPtrLen(argv[4], NULL);
   }
+
+  graph = RDL_GraphCreate(prefix, backend, graphdef, graphlen);
 
   if(graph == NULL){
     return RedisModule_ReplyWithError(ctx, "ERR failed creating the graph");
@@ -520,7 +514,7 @@ void *RedisDL_RunSession(void *arg) {
   mstime_t end = mstime();
 
   RedisModule_ThreadSafeContextLock(ctx);
-  RedisModule_Log(ctx, "notice", "TF_SessionRun took %fs", (end - start) / 1000.0);
+  RedisModule_Log(ctx, "notice", "RDL_GraphRun took %fs", (end - start) / 1000.0);
   RedisModule_ThreadSafeContextUnlock(ctx);
 
   RedisModule_UnblockClient(rinfo->client, rinfo);

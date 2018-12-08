@@ -13,18 +13,23 @@ TS_OBJ = redisdl.o tensor.o graph.o
 
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src             \
               -I $(DEPS_PATH)/dlpack/include        \
-			  -I $(DEPS_PATH)/libtensorflow/include
-LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
 
 ifeq ($(shell uname),Linux)
 	FINAL_CFLAGS += -fPIC -std=gnu99
-	FINAL_LDFLAGS += -shared -Bsymbolic -lc -ltensorflow
+	FINAL_LDFLAGS += -shared -Bsymbolic -lc
 	FINAL_LDPATH += LD_LIBRARY_PATH=$(INSTALL_PATH)
 else
 	FINAL_CFLAGS += -dynamic -std=c99
-	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc -ltensorflow
+	FINAL_LDFLAGS += -bundle -undefined dynamic_lookup -lc
 	FINAL_LDPATH += DYLD_LIBRARY_PATH=$(INSTALL_PATH)
 endif
+
+# Tensorflow backend
+TS_OBJ += backends_tensorflow.o
+FINAL_LDFLAGS += -ltensorflow
+INCLUDE_FLAGS += -I $(DEPS_PATH)/libtensorflow/include
+LDPATH_FLAGS += -L $(DEPS_PATH)/libtensorflow/lib
+BACKEND_INSTALL += $(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
 
 all: redisdl.so
 
@@ -47,8 +52,7 @@ install: all
 	@mkdir -p $(INSTALL_PATH)
 	$(INSTALL) redisdl.so $(INSTALL_PATH)
 	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
-	$(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
+	$(BACKEND_INSTALL)
 
 run: install
 	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisdl.so
-

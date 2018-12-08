@@ -1,15 +1,10 @@
-/*
- * tensor.h
- *
- *  Created on: 28 Nov 2018
- *      Author: root
- */
-
 #ifndef SRC_TENSOR_H_
 #define SRC_TENSOR_H_
 
+#include "config.h"
+#include "tensor_struct.h"
 #include "dlpack/dlpack.h"
-#include "redisdl.h"
+#include "redismodule.h"
 
 extern RedisModuleType *RedisDL_TensorType;
 
@@ -29,14 +24,5 @@ int RDL_TensorNumDims(RDL_Tensor* t);
 long long RDL_TensorDim(RDL_Tensor* t, int dim);
 size_t RDL_TensorByteSize(RDL_Tensor* t);
 char* RDL_TensorData(RDL_Tensor* t);
-
-#define RDL_TF_BACKEND
-#ifdef RDL_TF_BACKEND
-#include "tensorflow/c/c_api.h"
-
-RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor);
-TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t);
-#endif
-
 
 #endif /* SRC_TENSOR_H_ */
