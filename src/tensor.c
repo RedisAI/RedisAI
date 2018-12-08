@@ -80,7 +80,7 @@ RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
 
   RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
 
-  long long* shape = RedisModule_Alloc(sizeof(*shape));
+  long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
   size_t len = 1;
   for (long long i = 0 ; i < ndims ; ++i){
     shape[i] = dims[i];

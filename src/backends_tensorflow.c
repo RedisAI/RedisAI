@@ -115,7 +115,15 @@ void RDL_TFDeallocator(void* data, size_t len, void* arg) {
 }
 
 TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t){
-  // TODO: increase the refcount?
+#ifdef RDL_COPY_RUN_INPUT
+  TF_Tensor* out = TF_AllocateTensor(
+      RDL_GetTFDataTypeFromDL(t->tensor.dtype),
+      t->tensor.shape,
+      t->tensor.ndim,
+      RDL_TensorByteSize(t));
+  memcpy(TF_TensorData(out), t->tensor.data, TF_TensorByteSize(out));
+  return out;
+#else
   return TF_NewTensor(
       RDL_GetTFDataTypeFromDL(t->tensor.dtype),
       t->tensor.shape,
@@ -124,6 +132,7 @@ TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t){
       RDL_TensorByteSize(t),
       &RDL_TFDeallocator,
       NULL);
+#endif /* RDL_COPY_RUN_INPUT */
 }
 
 

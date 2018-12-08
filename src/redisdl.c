@@ -147,8 +147,12 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   int datafmt;
   if (hasdata) {
     fmtstr = RedisModule_StringPtrLen(argv[datafmt_arg], NULL);
-    if (strcasecmp(fmtstr, "BLOB") == 0) datafmt = REDISDL_DATA_BLOB;
-    else if (strcasecmp(fmtstr, "VALUES") == 0) datafmt = REDISDL_DATA_VALUES;
+    if (strcasecmp(fmtstr, "BLOB") == 0) {
+      datafmt = REDISDL_DATA_BLOB;
+    }
+    else if (strcasecmp(fmtstr, "VALUES") == 0) {
+      datafmt = REDISDL_DATA_VALUES;
+    }
     else {
       return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
     }
@@ -170,7 +174,7 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   }
 
   RDL_Tensor* t = RDL_TensorCreate(typestr, dims, ndims);
-  if(!t){
+  if (!t) {
     return RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
   }
 
