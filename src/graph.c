@@ -3,40 +3,40 @@
 
 RedisModuleType *RedisDL_GraphType = NULL;
 
-typedef struct RDL_Graph{
+typedef struct RDL_Graph {
   TF_Graph* graph;
   // TODO: use session pool? The ideal would be to use one session per client.
   //       If a client disconnects, we dispose the session or reuse it for
   //       another client.
   void *session;
   size_t refCount;
-}RDL_Graph;
+} RDL_Graph;
 
-typedef struct RDL_GraphCtxParam{
+typedef struct RDL_GraphCtxParam {
   TF_Output name;
   RDL_Tensor* tensor;
-}RDL_GraphCtxParam;
+} RDL_GraphCtxParam;
 
-typedef struct RDL_GraphRunCtx{
+typedef struct RDL_GraphRunCtx {
   RDL_Graph* graph;
   RDL_GraphCtxParam* inputs;
   RDL_GraphCtxParam* outputs;
-}RDL_GraphRunCtx;
+} RDL_GraphRunCtx;
 
-static void* Graph_RdbLoad(struct RedisModuleIO *io, int encver){
+static void* Graph_RdbLoad(struct RedisModuleIO *io, int encver) {
   //todo
   return NULL;
 }
 
-static void Graph_RdbSave(RedisModuleIO *rdb, void *value){
+static void Graph_RdbSave(RedisModuleIO *rdb, void *value) {
   //todo
 }
 
-static void Graph_DTFree(void *value){
+static void Graph_DTFree(void *value) {
   RDL_GraphFree(value);
 }
 
-int RDL_GraphInit(RedisModuleCtx* ctx){
+int RDL_GraphInit(RedisModuleCtx* ctx) {
   RedisModuleTypeMethods tmGraph = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = Graph_RdbLoad,
@@ -51,7 +51,7 @@ int RDL_GraphInit(RedisModuleCtx* ctx){
   return RedisDL_GraphType != NULL;
 }
 
-RDL_Graph* RDL_GraphCreate(const char* prefix, const char* graphdef, size_t graphlen){
+RDL_Graph* RDL_GraphCreate(const char* prefix, const char* graphdef, size_t graphlen) {
   TF_Graph* graph = TF_NewGraph();
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
@@ -95,8 +95,8 @@ RDL_Graph* RDL_GraphCreate(const char* prefix, const char* graphdef, size_t grap
   return ret;
 }
 
-void RDL_GraphFree(RDL_Graph* graph){
-  if(--graph->refCount > 0){
+void RDL_GraphFree(RDL_Graph* graph) {
+  if (--graph->refCount > 0){
     return;
   }
   TF_Status *status = TF_NewStatus();
@@ -125,7 +125,7 @@ void RDL_GraphFree(RDL_Graph* graph){
   RedisModule_Free(graph);
 }
 
-RDL_GraphRunCtx* RDL_RunCtxCreate(RDL_Graph* graph){
+RDL_GraphRunCtx* RDL_RunCtxCreate(RDL_Graph* graph) {
 #define PARAM_INITIAL_SIZE 10
   RDL_GraphRunCtx* gctx = RedisModule_Alloc(sizeof(*gctx));
   gctx->graph = RDL_GraphGetShallowCopy(graph);
@@ -134,7 +134,7 @@ RDL_GraphRunCtx* RDL_RunCtxCreate(RDL_Graph* graph){
   return gctx;
 }
 
-static int Graph_RunCtxAddParam(RDL_GraphRunCtx* gctx, RDL_GraphCtxParam* paramArr, const char* name, RDL_Tensor* tensor){
+static int Graph_RunCtxAddParam(RDL_GraphRunCtx* gctx, RDL_GraphCtxParam* paramArr, const char* name, RDL_Tensor* tensor) {
   TF_Output port;
   port.oper = TF_GraphOperationByName(gctx->graph->graph, name);
   port.index = 0;
@@ -149,31 +149,31 @@ static int Graph_RunCtxAddParam(RDL_GraphRunCtx* gctx, RDL_GraphCtxParam* paramA
   return 1;
 }
 
-int RDL_RunCtxAddInput(RDL_GraphRunCtx* gctx, const char* inputName, RDL_Tensor* inputTensor){
+int RDL_RunCtxAddInput(RDL_GraphRunCtx* gctx, const char* inputName, RDL_Tensor* inputTensor) {
   return Graph_RunCtxAddParam(gctx, gctx->inputs, inputName, inputTensor);
 }
 
-int RDL_RunCtxAddOutput(RDL_GraphRunCtx* gctx, const char* outputName){
+int RDL_RunCtxAddOutput(RDL_GraphRunCtx* gctx, const char* outputName) {
   return Graph_RunCtxAddParam(gctx, gctx->outputs, outputName, NULL);
 }
 
-size_t RDL_RunCtxNumOutputs(RDL_GraphRunCtx* gctx){
+size_t RDL_RunCtxNumOutputs(RDL_GraphRunCtx* gctx) {
   return array_len(gctx->outputs);
 }
 
-RDL_Tensor* RDL_RunCtxOutputTensor(RDL_GraphRunCtx* gctx, size_t index){
+RDL_Tensor* RDL_RunCtxOutputTensor(RDL_GraphRunCtx* gctx, size_t index) {
   assert(RDL_RunCtxNumOutputs(gctx) > index && index >= 0);
   return gctx->outputs[index].tensor;
 }
 
-void RDL_RunCtxFree(RDL_GraphRunCtx* gctx){
-  for(size_t i = 0 ; i < array_len(gctx->inputs) ; ++i){
+void RDL_RunCtxFree(RDL_GraphRunCtx* gctx) {
+  for (size_t i = 0 ; i < array_len(gctx->inputs) ; ++i) {
     RDL_TensorFree(gctx->inputs[i].tensor);
   }
   array_free(gctx->inputs);
 
-  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i){
-    if(gctx->outputs[i].tensor){
+  for (size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+    if (gctx->outputs[i].tensor) {
       RDL_TensorFree(gctx->outputs[i].tensor);
     }
   }
@@ -182,7 +182,7 @@ void RDL_RunCtxFree(RDL_GraphRunCtx* gctx){
   RDL_GraphFree(gctx->graph);
 }
 
-int RDL_GraphRun(RDL_GraphRunCtx* gctx){
+int RDL_GraphRun(RDL_GraphRunCtx* gctx) {
   TF_Status *status = TF_NewStatus();
 
   TF_Tensor* inputTensorsValues[array_len(gctx->inputs)];
@@ -190,12 +190,12 @@ int RDL_GraphRun(RDL_GraphRunCtx* gctx){
   TF_Tensor* outputTensorsValues[array_len(gctx->outputs)];
   TF_Output outputs[array_len(gctx->outputs)];
 
-  for(size_t i = 0 ; i < array_len(gctx->inputs) ; ++i){
-    inputTensorsValues[i] = RDL_TensorGetTensor(gctx->inputs[i].tensor);
+  for (size_t i = 0 ; i < array_len(gctx->inputs); ++i) {
+    inputTensorsValues[i] = RDL_TFTensorFromTensor(gctx->inputs[i].tensor);
     inputs[i] = gctx->inputs[i].name;
   }
 
-  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i){
+  for (size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
     outputs[i] = gctx->outputs[i].name;
   }
 
@@ -211,15 +211,15 @@ int RDL_GraphRun(RDL_GraphRunCtx* gctx){
     return 0;
   }
 
-  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i){
-    gctx->outputs[i].tensor = RDL_TensorCreateFromTensor(outputTensorsValues[i]);
+  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+    gctx->outputs[i].tensor = RDL_TensorGetShallowCopy(RDL_TensorCreateFromTFTensor(outputTensorsValues[i]));
   }
 
   TF_DeleteStatus(status);
   return 1;
 }
 
-RDL_Graph* RDL_GraphGetShallowCopy(RDL_Graph* graph){
+RDL_Graph* RDL_GraphGetShallowCopy(RDL_Graph* graph) {
   ++graph->refCount;
   return graph;
 }
