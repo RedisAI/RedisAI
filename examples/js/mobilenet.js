@@ -65,7 +65,9 @@ async function run(filenames) {
     let buffer = Buffer.from(normalized.buffer);
 
     console.log("Setting input tensor");
-    redis.call('DL.SET', 'TENSOR', 'input_' + i, 'FLOAT', 4, 1, image_width, image_height, 3, 'BLOB', buffer);
+    redis.call('DL.SET', 'TENSOR', 'input_' + i,
+                     'FLOAT', 4, 1, image_width, image_height, 3,
+                     'BLOB', buffer);
 
     console.log("Running graph");
     redis.call('DL.RUN', 'GRAPH', 'mobilenet', 1, 'input_' + i, input_var, 'output_' + i, output_var);
