@@ -19,10 +19,10 @@ typedef struct RDL_Graph RDL_Graph;
 
 typedef struct RDL_GraphRunCtx RDL_GraphRunCtx;
 
-RDL_Tensor* MODULE_API_FUNC(RedisDL_TensorCreate)(const char* dataTypeStr, long long* dims,int ndims);
-RDL_Tensor* MODULE_API_FUNC(RedisDL_TensorCreateFromTensor)(TF_Tensor *tensor);
+RDL_Tensor* MODULE_API_FUNC(RedisDL_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
+size_t MODULE_API_FUNC(RedisDL_TensorLength)(RDL_Tensor* t);
 size_t MODULE_API_FUNC(RedisDL_TensorGetDataSize)(const char* dataTypeStr);
-TF_DataType MODULE_API_FUNC(RedisDL_TensorDataType)(RDL_Tensor* t);
+size_t MODULE_API_FUNC(RedisDL_TensorDataType)(RDL_Tensor* t);
 void MODULE_API_FUNC(RedisDL_TensorFree)(RDL_Tensor* t);
 int MODULE_API_FUNC(RedisDL_TensorSetData)(RDL_Tensor* tensor, const char* data, size_t len);
 int MODULE_API_FUNC(RedisDL_TensorSetValueFromLongLong)(RDL_Tensor* tensor, long long i, long long val);
@@ -54,7 +54,7 @@ RDL_Graph* MODULE_API_FUNC(RedisDL_GraphGetShallowCopy)(RDL_Graph* graph);
 
 static bool RediDL_Initialize(){
   REDIDL_MODULE_INIT_FUNCTION(TensorCreate);
-  REDIDL_MODULE_INIT_FUNCTION(TensorCreateFromTensor);
+  REDIDL_MODULE_INIT_FUNCTION(TensorLength);
   REDIDL_MODULE_INIT_FUNCTION(TensorGetDataSize);
   REDIDL_MODULE_INIT_FUNCTION(TensorDataType);
   REDIDL_MODULE_INIT_FUNCTION(TensorFree);

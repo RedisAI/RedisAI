@@ -178,14 +178,14 @@ int RedisDL_TSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     return RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
   }
 
-  TF_DataType datatype = RDL_TensorDataType(t);
+  DLDataType datatype = RDL_TensorDataType(t);
 
   if (hasdata && datafmt == REDISDL_DATA_BLOB) {
     RDL_TensorSetData(t, data, datalen);
   }
   else if (hasdata && datafmt == REDISDL_DATA_VALUES) {
     long i;
-    if (datatype == TF_FLOAT || datatype == TF_DOUBLE) {
+    if (datatype.code == kDLFloat) {
       double val;
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToDouble(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
@@ -250,30 +250,45 @@ int RedisDL_TDataType_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
-  TF_DataType data_type = RDL_TensorDataType(t);
+  DLDataType dtype = RDL_TensorDataType(t);
 
   RedisModule_CloseKey(key);
 
-  switch (data_type) {
-  case TF_FLOAT:
-    return RedisModule_ReplyWithSimpleString(ctx, "FLOAT");
-  case TF_DOUBLE:
-    return RedisModule_ReplyWithSimpleString(ctx, "DOUBLE");
-  case TF_INT8:
-    return RedisModule_ReplyWithSimpleString(ctx, "INT8");
-  case TF_INT16:
-    return RedisModule_ReplyWithSimpleString(ctx, "INT16");
-  case TF_INT32:
-    return RedisModule_ReplyWithSimpleString(ctx, "INT32");
-  case TF_INT64:
-    return RedisModule_ReplyWithSimpleString(ctx, "INT64");
-  case TF_UINT8:
-    return RedisModule_ReplyWithSimpleString(ctx, "UINT8");
-  case TF_UINT16:
-    return RedisModule_ReplyWithSimpleString(ctx, "UINT16");
-  default:
-    return RedisModule_ReplyWithError(ctx, "ERR unsupported type");
+  if (dtype.code == kDLFloat) {
+    switch (dtype.bits) {
+      case 32:
+        return RedisModule_ReplyWithSimpleString(ctx, "FLOAT");
+      case 64:
+        return RedisModule_ReplyWithSimpleString(ctx, "DOUBLE");
+      default:
+        return 0;
+    }
   }
+  else if (dtype.code == kDLInt) {
+    switch (dtype.bits) {
+      case 8:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT8");
+      case 16:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT16");
+      case 32:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT32");
+      case 64:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT64");
+      default:
+        return 0;
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    switch (dtype.bits) {
+      case 8:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT8");
+      case 16:
+        return RedisModule_ReplyWithSimpleString(ctx, "INT16");
+      default:
+        return 0;
+    }
+  }
+  return 0;
 }
 
 int RedisDL_TDim_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -393,11 +408,11 @@ int RedisDL_TGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
       len *= RDL_TensorDim(t, i);
     }
 
-    TF_DataType datatype = RDL_TensorDataType(t);
+    DLDataType dtype = RDL_TensorDataType(t);
 
     RedisModule_ReplyWithArray(ctx, len);
 
-    if (datatype == TF_FLOAT || datatype == TF_DOUBLE) {
+    if (dtype.code == kDLFloat) {
       double val;
       for (i=0; i<len; i++) {
         int ret = RDL_TensorGetValueAsDouble(t, i, &val);
@@ -501,10 +516,7 @@ void *RedisDL_RunSession(void *arg) {
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
   mstime_t start = mstime();
-
-
   rinfo->status = RDL_GraphRun(rinfo->gctx);
-
   mstime_t end = mstime();
 
   RedisModule_ThreadSafeContextLock(ctx);
@@ -535,7 +547,7 @@ int RedisDL_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return ret;
   }
 
-  for (size_t i=0; i<RDL_RunCtxNumOutputs(rinfo->gctx); ++i){
+  for (size_t i=0; i<RDL_RunCtxNumOutputs(rinfo->gctx); ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
@@ -546,7 +558,7 @@ int RedisDL_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     RDL_Tensor *t = RDL_RunCtxOutputTensor(rinfo->gctx, i);
-    if(t){
+    if (t) {
       RedisModule_ModuleTypeSetValue(outkey, RedisDL_TensorType, RDL_TensorGetShallowCopy(t));
     }
     RedisModule_CloseKey(outkey);
@@ -625,13 +637,13 @@ int RedisDL_GRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
       RDL_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
       RedisModule_CloseKey(argkey);
       const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if(!RDL_RunCtxAddInput(rinfo->gctx, opname, t)){
+      if (!RDL_RunCtxAddInput(rinfo->gctx, opname, t)) {
         // todo free rinfo
         return RedisModule_ReplyWithError(ctx, "Input key not found.");
       }
     } else {
       const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if(!RDL_RunCtxAddOutput(rinfo->gctx, opname)){
+      if (!RDL_RunCtxAddOutput(rinfo->gctx, opname)) {
         // todo free rinfo
         return RedisModule_ReplyWithError(ctx, "Output key not found.");
       }
@@ -692,9 +704,9 @@ int RedisDL_StartRunThread() {
 
 static bool RediDL_RegisterApi(int (*registerApiCallback)(const char *funcname, void *funcptr)){
   REGISTER_API(TensorCreate, registerApiCallback);
-  REGISTER_API(TensorCreateFromTensor, registerApiCallback);
+//  REGISTER_API(TensorCreateFromTensor, registerApiCallback);
   REGISTER_API(TensorGetDataSize, registerApiCallback);
-  REGISTER_API(TensorDataType, registerApiCallback);
+//  REGISTER_API(TensorDataType, registerApiCallback);
   REGISTER_API(TensorFree, registerApiCallback);
   REGISTER_API(TensorSetData, registerApiCallback);
   REGISTER_API(TensorSetValueFromLongLong, registerApiCallback);

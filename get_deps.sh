@@ -3,6 +3,9 @@
 mkdir -p deps
 cd deps
 
+echo "Cloning dlpack"
+git clone https://github.com/dmlc/dlpack.git
+
 echo "Building Redis"
 git clone --branch 5.0 https://github.com/antirez/redis.git
 cd redis

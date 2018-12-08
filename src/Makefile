@@ -11,7 +11,9 @@ INSTALL=install
 
 TS_OBJ = redisdl.o tensor.o graph.o
 
-INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src -I $(DEPS_PATH)/libtensorflow/include
+INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src             \
+              -I $(DEPS_PATH)/dlpack/include        \
+			  -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS=-L $(DEPS_PATH)/libtensorflow/lib
 
 ifeq ($(shell uname),Linux)

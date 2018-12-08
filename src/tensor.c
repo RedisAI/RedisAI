@@ -6,73 +6,46 @@
 RedisModuleType *RedisDL_TensorType = NULL;
 
 typedef struct RDL_Tensor {
-  TF_Tensor* tensor;
+  DLTensor tensor;
   size_t refCount;
-}RDL_Tensor;
+} RDL_Tensor;
 
-static TF_DataType Tensor_GetDataType(const char* typestr){
+static DLDataType Tensor_GetDataType(const char* typestr){
   if (strcasecmp(typestr, "FLOAT") == 0){
-    return TF_FLOAT;
+    return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1};
   }
   if (strcasecmp(typestr, "DOUBLE") == 0) {
-    return TF_DOUBLE;
+    return (DLDataType){ .code = kDLFloat, .bits = 64, .lanes = 1};
   }
   if (strncasecmp(typestr, "INT", 3) == 0) {
     const char *bitstr = typestr + 3;
     if (strcmp(bitstr, "8") == 0){
-      return TF_INT8;
+      return (DLDataType){.code = kDLInt, .bits = 8, .lanes = 1};
     }
     if (strcmp(bitstr, "16") == 0){
-      return TF_INT16;
+      return (DLDataType){.code = kDLInt, .bits = 16, .lanes = 1};
     }
     if (strcmp(bitstr, "32") == 0){
-      return TF_INT32;
+      return (DLDataType){.code = kDLInt, .bits = 32, .lanes = 1};
     }
     if (strcmp(bitstr, "64") == 0){
-      return TF_INT64;
+      return (DLDataType){.code = kDLInt, .bits = 64, .lanes = 1};
     }
-    return 0;
   }
   if (strncasecmp(typestr, "UINT", 4) == 0) {
     const char *bitstr = typestr + 4;
     if (strcmp(bitstr, "8") == 0){
-      return TF_UINT8;
+      return (DLDataType){.code = kDLUInt, .bits = 8, .lanes = 1};
     }
     if (strcmp(bitstr, "16") == 0){
-      return TF_UINT16;
+      return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     }
-    return 0;
   }
-  return 0;
+  return (DLDataType){.bits = 0};
 }
 
-static size_t Tensor_DataSize(TF_DataType type) {
-  switch (type) {
-    case TF_BOOL:
-      return sizeof(int8_t);
-    case TF_INT8:
-      return sizeof(int8_t);
-    case TF_UINT8:
-      return sizeof(uint8_t);
-    case TF_INT16:
-      return sizeof(int16_t);
-    case TF_UINT16:
-      return sizeof(uint16_t);
-    case TF_INT32:
-      return sizeof(int32_t);
-    case TF_INT64:
-      return sizeof(int64_t);
-    case TF_FLOAT:
-      return sizeof(float);
-    case TF_DOUBLE:
-      return sizeof(double);
-    case TF_COMPLEX64:
-      return 2*sizeof(float);
-    case TF_COMPLEX128:
-      return 2 * sizeof(double);
-    default:
-      return 0;
-  }
+static size_t Tensor_DataTypeSize(DLDataType dtype) {
+  return dtype.bits / 8;
 }
 
 static void* Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
@@ -102,121 +75,202 @@ int RDL_TensorInit(RedisModuleCtx* ctx){
   return RedisDL_TensorType != NULL;
 }
 
-RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims,int ndims){
-  TF_DataType dtype = Tensor_GetDataType(dataTypeStr);
-  if(!dtype){
+RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims, int ndims) {
+  DLDataType dtype = Tensor_GetDataType(dataTypeStr);
+
+  if (Tensor_DataTypeSize(dtype) == 0){
     return NULL;
   }
 
   RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+
+  long long* shape = RedisModule_Alloc(sizeof(*shape));
   size_t len = 1;
-  for(long long i = 0 ; i < ndims ; ++i){
+  for (long long i = 0 ; i < ndims ; ++i){
+    shape[i] = dims[i];
     len *= dims[i];
   }
-  ret->tensor = TF_AllocateTensor(dtype, (const int64_t*)dims, ndims, len * Tensor_DataSize(dtype));
-  if(!ret->tensor){
+
+  DLContext ctx = (DLContext){
+      .device_type = kDLCPU,
+      .device_id = 0
+  };
+
+  void* data = RedisModule_Alloc(len * Tensor_DataTypeSize(dtype));
+
+  if (data == NULL) {
     RedisModule_Free(ret);
     return NULL;
   }
+
+  ret->tensor = (DLTensor){
+      .ctx = ctx,
+      .data = data,
+      .ndim = ndims,
+      .dtype = dtype,
+      .shape = shape,
+      .strides = NULL,
+      .byte_offset = 0
+  };
+
   ret->refCount = 1;
   return ret;
 }
 
-RDL_Tensor* RDL_TensorCreateFromTensor(TF_Tensor *tensor){
-  RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
-  ret->tensor = tensor;
-  ret->refCount = 1;
-  return ret;
+DLDataType RDL_TensorDataType(RDL_Tensor* t){
+  return t->tensor.dtype;
 }
 
-TF_DataType RDL_TensorDataType(RDL_Tensor* t){
-  return TF_TensorType(t->tensor);
+size_t RDL_TensorLength(RDL_Tensor* t) {
+  long long* shape = t->tensor.shape;
+  size_t len = 1;
+  for (size_t i = 0 ; i < t->tensor.ndim; ++i){
+    len *= shape[i];
+  }
+  return len;
 }
 
 size_t RDL_TensorGetDataSize(const char* dataTypeStr){
-  TF_DataType dtype = Tensor_GetDataType(dataTypeStr);
-  if(!dtype){
-    return 0;
-  }
-  return Tensor_DataSize(dtype);
+  DLDataType dtype = Tensor_GetDataType(dataTypeStr);
+  return Tensor_DataTypeSize(dtype);
 }
 
 void RDL_TensorFree(RDL_Tensor* t){
-  if(--t->refCount <= 0){
-    TF_DeleteTensor(t->tensor);
+  if (--t->refCount <= 0){
+    RedisModule_Free(t->tensor.shape);
+    RedisModule_Free(t->tensor.data);
     RedisModule_Free(t);
   }
 }
 
 int RDL_TensorSetData(RDL_Tensor* t, const char* data, size_t len){
-  memcpy(TF_TensorData(t->tensor), data, len);
+  memcpy(t->tensor.data, data, len);
   return 1;
 }
 
 int RDL_TensorSetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
-  switch (TF_TensorType(t->tensor)) {
-    case TF_BOOL:
-      ((int8_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_INT8:
-      ((int8_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_UINT8:
-      ((uint8_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_INT16:
-      ((int16_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_UINT16:
-      ((uint16_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_INT32:
-      ((int32_t*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_INT64:
-      ((int64_t*)TF_TensorData(t->tensor))[i] = val; break;
-    default:
-      return 0;
+  DLDataType dtype = t->tensor.dtype;
+  void* data = t->tensor.data;
+
+  if (dtype.code == kDLInt) {
+    switch (dtype.bits) {
+      case 8:
+        ((int8_t *)data)[i] = val; break;
+        break;
+      case 16:
+        ((int16_t *)data)[i] = val; break;
+        break;
+      case 32:
+        ((int32_t *)data)[i] = val; break;
+        break;
+      case 64:
+        ((int64_t *)data)[i] = val; break;
+        break;
+      default:
+        return 0;
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    switch (dtype.bits) {
+      case 8:
+        ((uint8_t *)data)[i] = val; break;
+        break;
+      case 16:
+        ((uint16_t *)data)[i] = val; break;
+        break;
+      case 32:
+        ((uint32_t *)data)[i] = val; break;
+        break;
+      case 64:
+        ((uint64_t *)data)[i] = val; break;
+        break;
+      default:
+        return 0;
+    }
+  }
+  else {
+    return 0;
   }
   return 1;
 }
 
 int RDL_TensorSetValueFromDouble(RDL_Tensor* t, long long i, double val){
-  switch (TF_TensorType(t->tensor)) {
-    case TF_FLOAT:
-      ((float*)TF_TensorData(t->tensor))[i] = val; break;
-    case TF_DOUBLE:
-      ((double*)TF_TensorData(t->tensor))[i] = val; break;
-    default:
-      return 0;
+  DLDataType dtype = t->tensor.dtype;
+  void* data = t->tensor.data;
+
+  if (dtype.code == kDLFloat) {
+    switch (dtype.bits) {
+      case 32:
+        ((float *)data)[i] = val; break;
+      case 64:
+        ((double *)data)[i] = val; break;
+      default:
+        return 0;
+    }
+  }
+  else {
+    return 0;
   }
   return 1;
 }
 
 int RDL_TensorGetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
-  switch (TF_TensorType(t->tensor)) {
-    case TF_FLOAT:
-      *val = ((float*)TF_TensorData(t->tensor))[i]; break;
-    case TF_DOUBLE:
-      *val = ((double*)TF_TensorData(t->tensor))[i]; break;
-    default:
-      return 0;
+  DLDataType dtype = t->tensor.dtype;
+  void* data = t->tensor.data;
+
+  // TODO: check i is in bound
+  if (dtype.code == kDLFloat) {
+    switch (dtype.bits) {
+      case 32:
+        *val = ((float *)data)[i]; break;
+      case 64:
+        *val = ((double *)data)[i]; break;
+      default:
+        return 0;
+    }
+  }
+  else {
+    return 0;
   }
   return 1;
 }
 
 int RDL_TensorGetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
-  switch (TF_TensorType(t->tensor)) {
-    case TF_BOOL:
-      *val = ((int8_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_INT8:
-      *val = ((int8_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_UINT8:
-      *val = ((uint8_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_INT16:
-      *val = ((int16_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_UINT16:
-      *val = ((uint16_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_INT32:
-      *val = ((int32_t*)TF_TensorData(t->tensor))[i]; break;
-    case TF_INT64:
-      *val = ((int64_t*)TF_TensorData(t->tensor))[i]; break;
-    default:
-      return 0;
+  DLDataType dtype = t->tensor.dtype;
+  void* data = t->tensor.data;
+
+  // TODO: check i is in bound
+
+  if (dtype.code == kDLInt) {
+    switch (dtype.bits) {
+      case 8:
+        *val = ((int8_t *)data)[i]; break;
+      case 16:
+        *val = ((int16_t *)data)[i]; break;
+      case 32:
+        *val = ((int32_t *)data)[i]; break;
+      case 64:
+        *val = ((int64_t *)data)[i]; break;
+      default:
+        return 0;
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    switch (dtype.bits) {
+      case 8:
+        *val = ((uint8_t *)data)[i]; break;
+      case 16:
+        *val = ((uint16_t *)data)[i]; break;
+      case 32:
+        *val = ((uint32_t *)data)[i]; break;
+      case 64:
+        *val = ((uint64_t *)data)[i]; break;
+      default:
+        return 0;
+    }
+  }
+  else {
+    return 0;
   }
   return 1;
 }
@@ -227,21 +281,127 @@ RDL_Tensor* RDL_TensorGetShallowCopy(RDL_Tensor* t){
 }
 
 int RDL_TensorNumDims(RDL_Tensor* t){
-  return TF_NumDims(t->tensor);
+  return t->tensor.ndim;
 }
 
-long long RDL_TensorDim(RDL_Tensor* t, int dim){
-  return TF_Dim(t->tensor, dim);
+long long RDL_TensorDim(RDL_Tensor* t, int i){
+  return t->tensor.shape[i];
 }
 
 size_t RDL_TensorByteSize(RDL_Tensor* t){
-  return TF_TensorByteSize(t->tensor);
+  return Tensor_DataTypeSize(RDL_TensorDataType(t)) * RDL_TensorLength(t);
 }
 
 char* RDL_TensorData(RDL_Tensor* t){
-  return TF_TensorData(t->tensor);
+  return t->tensor.data;
 }
 
-TF_Tensor* RDL_TensorGetTensor(RDL_Tensor* t){
-  return t->tensor;
+#ifdef RDL_TF_BACKEND
+TF_DataType RDL_GetTFDataTypeFromDL(DLDataType dtype) {
+
+  if (dtype.code == kDLFloat) {
+    switch (dtype.bits) {
+      case 32:
+        return TF_FLOAT; break;
+      case 64:
+        return TF_DOUBLE; break;
+      default:
+        return 0;
+    }
+  }
+  else if (dtype.code == kDLInt) {
+    switch (dtype.bits) {
+      case 8:
+        return TF_INT8; break;
+      case 16:
+        return TF_INT16; break;
+      case 32:
+        return TF_INT32; break;
+      case 64:
+        return TF_INT64; break;
+      default:
+        return 0;
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    switch (dtype.bits) {
+      case 8:
+        return TF_UINT8; break;
+      case 16:
+        return TF_UINT16; break;
+      default:
+        return 0;
+    }
+  }
+  return 0;
 }
+
+DLDataType RDL_GetDLDataTypeFromTF(TF_DataType dtype) {
+  switch (dtype) {
+    case TF_FLOAT:
+      return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1 };
+    case TF_DOUBLE:
+      return (DLDataType){ .code = kDLFloat, .bits = 64, .lanes = 1 };
+    case TF_INT8:
+      return (DLDataType){ .code = kDLInt, .bits = 8, .lanes = 1 };
+    case TF_INT16:
+      return (DLDataType){ .code = kDLInt, .bits = 16, .lanes = 1 };
+    case TF_INT32:
+      return (DLDataType){ .code = kDLInt, .bits = 32, .lanes = 1 };
+    case TF_INT64:
+      return (DLDataType){ .code = kDLInt, .bits = 64, .lanes = 1 };
+    case TF_UINT8:
+      return (DLDataType){ .code = kDLUInt, .bits = 8, .lanes = 1 };
+    case TF_UINT16:
+      return (DLDataType){ .code = kDLUInt, .bits = 16, .lanes = 1 };
+    default:
+      return (DLDataType){ .bits = 0 };
+  }
+  return (DLDataType){ .bits = 0 };
+}
+
+RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
+  RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+
+  DLContext ctx = (DLContext){
+      .device_type = kDLCPU,
+      .device_id = 0
+  };
+
+  size_t ndims = TF_NumDims(tensor);
+
+  long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  for (long long i = 0 ; i < ndims ; ++i){
+    shape[i] = TF_Dim(tensor, i);
+  }
+
+  ret->tensor = (DLTensor){
+      .ctx = ctx,
+      .data = TF_TensorData(tensor),
+      .ndim = ndims,
+      .dtype = RDL_GetDLDataTypeFromTF(TF_TensorType(tensor)),
+      .shape = shape,
+      .strides = NULL,
+      .byte_offset = 0
+  };
+
+  ret->refCount = 1;
+  return ret;
+}
+
+void RDL_TFDeallocator(void* data, size_t len, void* arg) {
+  printf("DEALLOCATOR CALLED\n");
+  // do nothing, memory is managed by Redis
+}
+
+TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t){
+  return TF_NewTensor(
+      RDL_GetTFDataTypeFromDL(t->tensor.dtype),
+      t->tensor.shape,
+      t->tensor.ndim,
+      t->tensor.data,
+      RDL_TensorByteSize(t),
+      &RDL_TFDeallocator,
+      NULL);
+}
+#endif
