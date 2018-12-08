@@ -1,10 +1,3 @@
-/*
- * redisdl.h
- *
- *  Created on: 2 Dec 2018
- *      Author: root
- */
-
 #ifndef SRC_REDISDL_H_
 #define SRC_REDISDL_H_
 
@@ -18,6 +11,8 @@ typedef struct RDL_Tensor RDL_Tensor;
 typedef struct RDL_Graph RDL_Graph;
 
 typedef struct RDL_GraphRunCtx RDL_GraphRunCtx;
+
+typedef enum RDL_Backend RDL_Backend;
 
 RDL_Tensor* MODULE_API_FUNC(RedisDL_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
 size_t MODULE_API_FUNC(RedisDL_TensorLength)(RDL_Tensor* t);
@@ -35,7 +30,7 @@ long long MODULE_API_FUNC(RedisDL_TensorDim)(RDL_Tensor* t, int dim);
 size_t MODULE_API_FUNC(RedisDL_TensorByteSize)(RDL_Tensor* t);
 char* MODULE_API_FUNC(RedisDL_TensorData)(RDL_Tensor* t);
 
-RDL_Graph* MODULE_API_FUNC(RedisDL_GraphCreate)(const char* prefix, const char* graphdef, size_t graphlen);
+RDL_Graph* MODULE_API_FUNC(RedisDL_GraphCreate)(const char* prefix, RDL_Backend backend, const char* graphdef, size_t graphlen);
 void MODULE_API_FUNC(RedisDL_GraphFree)(RDL_Graph* graph);
 RDL_GraphRunCtx* MODULE_API_FUNC(RedisDL_RunCtxCreate)(RDL_Graph* graph);
 int MODULE_API_FUNC(RedisDL_RunCtxAddInput)(RDL_GraphRunCtx* gctx, const char* inputName, RDL_Tensor* inputTensor);
@@ -81,6 +76,5 @@ static bool RediDL_Initialize(){
   REDIDL_MODULE_INIT_FUNCTION(GraphGetShallowCopy);
   return true;
 }
-
 
 #endif /* SRC_REDISDL_H_ */
