@@ -757,15 +757,15 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "dl.set", RedisDL_Set_RedisCommand, "write", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "dl.set", RedisDL_Set_RedisCommand, "write", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "dl.get", RedisDL_Get_RedisCommand, "readonly", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "dl.get", RedisDL_Get_RedisCommand, "readonly", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "dl.run", RedisDL_Run_RedisCommand, "write", 1, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "dl.run", RedisDL_Run_RedisCommand, "write", 2, -1, 2)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
