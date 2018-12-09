@@ -29,39 +29,35 @@ python tf-minimal.py
 
 On the client, load the graph
 ```
-./deps/redis/src/redis-cli -x DL.GSET foo TF < graph.pb
+./deps/redis/src/redis-cli -x DL.SET GRAPH foo TF < graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
-* `DL.TSET tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
-* `DL.GRUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
+* `DL.SET TENSOR tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
+* `DL.RUN GRAPH graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
 ```
 redis-cli
-> DL.TSET bar FLOAT 1 2 VALUES 2 3
-> DL.TSET baz FLOAT 1 2 VALUES 2 3
-> DL.GRUN foo 2 bar a baz b jez c
-> DL.TGET jez VALUES
-1) (integer) 4
-2) (integer) 9
+> DL.SET TENSOR bar FLOAT 1 2 VALUES 2 3
+> DL.SET TENSOR baz FLOAT 1 2 VALUES 2 3
+> DL.RUN GRAPH foo 2 bar a baz b jez c
+> DL.GET TENSOR jez VALUES
+1) FLOAT
+2) (integer) 1
+3) 1) (integer) 2
+4) (integer) 8
+5) 1) "2"
+   2) "3"
 ```
 
-### DL.TSET tensor_key data_type dim shape1..shapeN [BLOB data | VALUES val1..valN]
+### DL.SET TENSOR tensor_key data_type dim shape1..shapeN [BLOB data | VALUES val1..valN]
 Stores a tensor of defined type (FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16) with N dimensions (dim) and shape given by shape1..shapeN
 
-### DL.TGET tensor_key [BLOB | VALUES]
+### DL.SET GRAPH graph_key backend graph_blob prefix
+Stores a graph provided as a protobuf blob. Backend is TF for now.
 
-### DL.TDATATYPE tensor_key
+### DL.GET TENSOR tensor_key [BLOB | VALUES | META]
 
-### DL.TDIM tensor_key
-
-### DL.TSHAPE tensor_key
-
-### DL.TBYTESIZE tensor_key
-
-### DL.GSET graph_key TF graph_blob prefix
-Stores a graph provided as a protobuf blob
-
-### DL.GRUN graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
+### DL.RUN GRAPH graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
 
 
 ## License
