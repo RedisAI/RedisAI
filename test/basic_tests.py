@@ -64,10 +64,12 @@ def test_set_tensor_multiproc():
     )
 
 
-def load_yolo_test_data():
-    labels_filename = '../examples/js/imagenet_class_index.json'
-    image_filename = '../examples/img/panda.jpg'
-    graph_filename = '../examples/models/mobilenet_v2_1.4_224_frozen.pb'
+def load_mobilenet_test_data():
+
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    labels_filename = os.path.join(examples_path, 'js/imagenet_class_index.json')
+    image_filename = os.path.join(examples_path, 'img/panda.jpg')
+    graph_filename = os.path.join(examples_path, 'models/mobilenet_v2_1.4_224_frozen.pb')
 
     with open(graph_filename, 'rb') as f:
         graph_pb = f.read()
@@ -84,14 +86,14 @@ def load_yolo_test_data():
     return graph_pb, labels, img
 
 
-def test_run_yolo():
+def test_run_mobilenet():
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
-    env = Env(testDescription="Test YOLO")
+    env = Env(testDescription="Test mobilenet")
     con = env.getConnection(decode_responses=False)
 
-    graph_pb, labels, img = load_yolo_test_data()
+    graph_pb, labels, img = load_mobilenet_test_data()
 
     con.execute_command('DL.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
 
@@ -116,7 +118,7 @@ def test_run_yolo():
     )
 
 
-def run_yolo(connArgs, img, input_var, output_var):
+def run_mobilenet(connArgs, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
 
     con = redis.Redis(**connArgs)
@@ -132,18 +134,18 @@ def run_yolo(connArgs, img, input_var, output_var):
     con.execute_command('DEL','input')
 
 
-def test_run_yolo_multiproc():
+def test_run_mobilenet_multiproc():
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
-    graph_pb, labels, img = load_yolo_test_data()
+    graph_pb, labels, img = load_mobilenet_test_data()
 
-    env = Env(testDescription="Test YOLO multiprocessing")
+    env = Env(testDescription="Test mobilenet multiprocessing")
     con = env.getConnection(decode_responses=False)
 
     con.execute_command('DL.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
 
-    run_test_multiproc(env, 30, run_yolo, (img, input_var, output_var))
+    run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
 
     dtype, _, shape, _, data = con.execute_command('DL.GET', 'TENSOR', 'output', 'BLOB')
 
