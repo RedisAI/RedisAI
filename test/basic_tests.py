@@ -17,6 +17,10 @@ python -m RLTest --test concurrency_tests.py --module ../src/redisdl.so
 '''
 
 
+def check_cuda():
+    return os.system('which nvcc')
+
+
 def run_test_multiproc(env, n_procs, fn, args=()):
     pool = Pool(processes=n_procs)
     for _ in range(n_procs):
