@@ -19,7 +19,7 @@ make run
 ```
 
 ## Running tests
-Tests are in the works, there's just a check script.
+Tests are in the works, there's just a check script (requires Python 3.6.x)
 Make sure the server is running, then
 ```
 cd examples/models
