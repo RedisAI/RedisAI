@@ -13,7 +13,7 @@ import os
 
 
 '''
-python -m RLTest --test concurrency_tests.py --module ../src/redisdl.so
+python -m RLTest --test basic_tests.py --module ../src/redisdl.so
 '''
 
 
