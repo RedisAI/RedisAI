@@ -3,8 +3,11 @@
 mkdir -p deps
 cd deps
 
+## DLPACK
+
 echo "Cloning dlpack"
 git clone https://github.com/dmlc/dlpack.git
+
 
 echo "Building Redis"
 git clone --branch 5.0 https://github.com/antirez/redis.git
@@ -12,28 +15,69 @@ cd redis
 make MALLOC=libc
 cd ..
 
+## TENSORFLOW
+
 TF_VERSION="1.12.0"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  OS="linux"
+  TF_OS="linux"
   if [[ "$1" == "cpu" ]]; then
-    TF_TYPE="cpu"
+    TF_BUILD="cpu"
   else
-    TF_TYPE="gpu"
+    TF_BUILD="gpu"
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-  OS="darwin"
-  TF_TYPE="cpu"
+  TF_OS="darwin"
+  TF_BUILD="cpu"
 fi
 
-echo "Downloading libtensorflow ${TF_VERSION} ${TF_TYPE}"
-
 LIBTF_DIRECTORY=`pwd`/libtensorflow
-mkdir -p $LIBTF_DIRECTORY
-curl -L \
-  "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_TYPE}-${OS}-x86_64-${TF_VERSION}.tar.gz" |
-  tar -C $LIBTF_DIRECTORY -xz
+
+if [ ! -d "$LIBTF_DIRECTORY" ]; then
+  echo "Downloading libtensorflow ${TF_VERSION} ${TF_BUILD}"
+  mkdir -p $LIBTF_DIRECTORY
+  curl -L \
+    "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz" |
+    tar -C $LIBTF_DIRECTORY -xz
+fi
+
+## PYTORCH
+
+#PT_VERSION="1.0.0"
+PT_VERSION="latest"
+
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  PT_OS="shared-with-deps"
+  if [[ "$1" == "cpu" ]]; then
+    PT_BUILD="cpu"
+  else
+    PT_BUILD="cu90"
+  fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  PT_OS="macos"
+  PT_BUILD="cpu"
+fi
+
+if [[ "$PT_VERSION" == "latest" ]]; then
+  PT_BUILD=nightly/${PT_BUILD}
+fi
+
+LIBPT_DIRECTORY=`pwd`/libtorch
+
+if [ ! -d "$LIBPT_DIRECTORY" ]; then
+  echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
+  curl -L \
+    "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" |
+    tar -C . -xz
+fi
 
 cd ..
+
+#https://download.pytorch.org/libtorch/cpu/libtorch-macos-1.0.0.zip
+#https://download.pytorch.org/libtorch/cu90/libtorch-shared-with-deps-1.0.0.zip
+#https://download.pytorch.org/libtorch/nightly/cpu/libtorch-macos-latest.zip
+#https://download.pytorch.org/libtorch/nightly/cu90/libtorch-shared-with-deps-latest.zip
+
+## TEST
 
 cd test
 
