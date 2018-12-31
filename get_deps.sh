@@ -150,4 +150,20 @@ gcc -I${LIBTORCH_C_DIRECTORY}/include \
 
 cd ${BASE_DIRECTORY}
 
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBTORCH_DIRECTORY}/lib:${LIBTORCH_C_DIRECTORY}/lib
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:${LIBTORCH_DIRECTORY}/lib:${LIBTORCH_C_DIRECTORY}/lib
+fi
+gcc -I${LIBTORCH_C_DIRECTORY}/include \
+    -I${DLPACK_DIRECTORY}/include \
+    -L${LIBTORCH_C_DIRECTORY}/lib \
+    pt_api_test.c -ltorch_c && \
+    ./a.out && \
+    rm a.out
+
+## DONE
+
+cd ${BASE_DIRECTORY}
+
 echo "Done"
