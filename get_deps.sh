@@ -63,19 +63,14 @@ fi
 
 LIBPT_DIRECTORY=`pwd`/libtorch
 
-if [ ! -d "$LIBPT_DIRECTORY" ]; then
-  echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-  curl -L \
-    "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" |
-    tar -C . -xz
-fi
+#if [ ! -d "$LIBPT_DIRECTORY" ]; then
+#  echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
+#  curl -L \
+#    "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" |
+#    tar -C . -xz
+#fi
 
 cd ..
-
-#https://download.pytorch.org/libtorch/cpu/libtorch-macos-1.0.0.zip
-#https://download.pytorch.org/libtorch/cu90/libtorch-shared-with-deps-1.0.0.zip
-#https://download.pytorch.org/libtorch/nightly/cpu/libtorch-macos-latest.zip
-#https://download.pytorch.org/libtorch/nightly/cu90/libtorch-shared-with-deps-latest.zip
 
 ## TEST
 
