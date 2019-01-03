@@ -110,7 +110,7 @@ RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 }
 
 void RDL_TFDeallocator(void* data, size_t len, void* arg) {
-  printf("DEALLOCATOR CALLED\n");
+  // printf("DEALLOCATOR CALLED\n");
   // do nothing, memory is managed by Redis
 }
 

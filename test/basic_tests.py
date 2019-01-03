@@ -24,7 +24,8 @@ def check_cuda():
 def run_test_multiproc(env, n_procs, fn, args=()):
     pool = Pool(processes=n_procs)
     for _ in range(n_procs):
-        pool.apply_async(fn, args = (env.getConnectionArgs(), *args))
+        args_ = [env.getConnectionArgs()] + list(args)
+        pool.apply_async(fn, args = args_)
     pool.close()
     pool.join()
 
