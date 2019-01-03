@@ -7,15 +7,15 @@
 
 #include "tensorflow/c/c_api.h"
 
-RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor);
+RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor);
 
-TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t);
+TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t);
 
-RDL_Graph *RDL_GraphCreateTF(const char *prefix, RDL_Backend backend,
+RAI_Graph *RAI_GraphCreateTF(const char *prefix, RAI_Backend backend,
                              const char *graphdef, size_t graphlen);
 
-void RDL_GraphFreeTF(RDL_Graph* graph);
+void RAI_GraphFreeTF(RAI_Graph* graph);
 
-int RDL_GraphRunTF(RDL_GraphRunCtx* gctx);
+int RAI_GraphRunTF(RAI_GraphRunCtx* gctx);
 
 #endif /* SRC_BACKENDS_TENSORFLOW_H_ */

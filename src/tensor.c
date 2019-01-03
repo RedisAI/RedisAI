@@ -4,7 +4,7 @@
 #include <strings.h>
 #include <string.h>
 
-RedisModuleType *RedisDL_TensorType = NULL;
+RedisModuleType *RedisAI_TensorType = NULL;
 
 static DLDataType Tensor_GetDataType(const char* typestr){
   if (strcasecmp(typestr, "FLOAT") == 0){
@@ -54,10 +54,10 @@ static void Tensor_RdbSave(RedisModuleIO *rdb, void *value){
 }
 
 static void Tensor_DTFree(void *value){
-  RDL_TensorFree(value);
+  RAI_TensorFree(value);
 }
 
-int RDL_TensorInit(RedisModuleCtx* ctx){
+int RAI_TensorInit(RedisModuleCtx* ctx){
   RedisModuleTypeMethods tmTensor = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = Tensor_RdbLoad,
@@ -67,18 +67,18 @@ int RDL_TensorInit(RedisModuleCtx* ctx){
       .free = Tensor_DTFree,
       .digest = NULL,
   };
-  RedisDL_TensorType = RedisModule_CreateDataType(ctx, "DL_TENSOR", 0, &tmTensor);
-  return RedisDL_TensorType != NULL;
+  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "DL_TENSOR", 0, &tmTensor);
+  return RedisAI_TensorType != NULL;
 }
 
-RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims, int ndims) {
+RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims) {
   DLDataType dtype = Tensor_GetDataType(dataTypeStr);
 
   if (Tensor_DataTypeSize(dtype) == 0){
     return NULL;
   }
 
-  RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
 
   long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
   size_t len = 1;
@@ -113,11 +113,11 @@ RDL_Tensor* RDL_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
   return ret;
 }
 
-DLDataType RDL_TensorDataType(RDL_Tensor* t){
+DLDataType RAI_TensorDataType(RAI_Tensor* t){
   return t->tensor.dtype;
 }
 
-size_t RDL_TensorLength(RDL_Tensor* t) {
+size_t RAI_TensorLength(RAI_Tensor* t) {
   long long* shape = t->tensor.shape;
   size_t len = 1;
   for (size_t i = 0 ; i < t->tensor.ndim; ++i){
@@ -126,12 +126,12 @@ size_t RDL_TensorLength(RDL_Tensor* t) {
   return len;
 }
 
-size_t RDL_TensorGetDataSize(const char* dataTypeStr){
+size_t RAI_TensorGetDataSize(const char* dataTypeStr){
   DLDataType dtype = Tensor_GetDataType(dataTypeStr);
   return Tensor_DataTypeSize(dtype);
 }
 
-void RDL_TensorFree(RDL_Tensor* t){
+void RAI_TensorFree(RAI_Tensor* t){
   if (--t->refCount <= 0){
     RedisModule_Free(t->tensor.shape);
     RedisModule_Free(t->tensor.data);
@@ -139,12 +139,12 @@ void RDL_TensorFree(RDL_Tensor* t){
   }
 }
 
-int RDL_TensorSetData(RDL_Tensor* t, const char* data, size_t len){
+int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len){
   memcpy(t->tensor.data, data, len);
   return 1;
 }
 
-int RDL_TensorSetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
+int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val){
   DLDataType dtype = t->tensor.dtype;
   void* data = t->tensor.data;
 
@@ -190,7 +190,7 @@ int RDL_TensorSetValueFromLongLong(RDL_Tensor* t, long long i, long long val){
   return 1;
 }
 
-int RDL_TensorSetValueFromDouble(RDL_Tensor* t, long long i, double val){
+int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val){
   DLDataType dtype = t->tensor.dtype;
   void* data = t->tensor.data;
 
@@ -210,7 +210,7 @@ int RDL_TensorSetValueFromDouble(RDL_Tensor* t, long long i, double val){
   return 1;
 }
 
-int RDL_TensorGetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
+int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val) {
   DLDataType dtype = t->tensor.dtype;
   void* data = t->tensor.data;
 
@@ -231,7 +231,7 @@ int RDL_TensorGetValueAsDouble(RDL_Tensor* t, long long i, double* val) {
   return 1;
 }
 
-int RDL_TensorGetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
+int RAI_TensorGetValueAsLongLong(RAI_Tensor* t, long long i, long long* val) {
   DLDataType dtype = t->tensor.dtype;
   void* data = t->tensor.data;
 
@@ -271,23 +271,23 @@ int RDL_TensorGetValueAsLongLong(RDL_Tensor* t, long long i, long long* val) {
   return 1;
 }
 
-RDL_Tensor* RDL_TensorGetShallowCopy(RDL_Tensor* t){
+RAI_Tensor* RAI_TensorGetShallowCopy(RAI_Tensor* t){
   ++t->refCount;
   return t;
 }
 
-int RDL_TensorNumDims(RDL_Tensor* t){
+int RAI_TensorNumDims(RAI_Tensor* t){
   return t->tensor.ndim;
 }
 
-long long RDL_TensorDim(RDL_Tensor* t, int i){
+long long RAI_TensorDim(RAI_Tensor* t, int i){
   return t->tensor.shape[i];
 }
 
-size_t RDL_TensorByteSize(RDL_Tensor* t){
-  return Tensor_DataTypeSize(RDL_TensorDataType(t)) * RDL_TensorLength(t);
+size_t RAI_TensorByteSize(RAI_Tensor* t){
+  return Tensor_DataTypeSize(RAI_TensorDataType(t)) * RAI_TensorLength(t);
 }
 
-char* RDL_TensorData(RDL_Tensor* t){
+char* RAI_TensorData(RAI_Tensor* t){
   return t->tensor.data;
 }

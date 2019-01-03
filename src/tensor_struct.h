@@ -4,9 +4,9 @@
 #include "config.h"
 #include "dlpack/dlpack.h"
 
-typedef struct RDL_Tensor {
+typedef struct RAI_Tensor {
   DLTensor tensor;
   long long refCount;
-} RDL_Tensor;
+} RAI_Tensor;
 
 #endif /* SRC_TENSOR_STRUCT_H_ */
