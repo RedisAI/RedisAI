@@ -62,6 +62,6 @@ Stores a graph provided as a protobuf blob. Backend is TF for now.
 
 ## License
 
-BSD license https://opensource.org/licenses/BSD-3-Clause
+AGPL-3.0 https://opensource.org/licenses/AGPL-3.0
 
 Copyright 2018, Luca Antiga, Orobix Srl (www.orobix.com).
