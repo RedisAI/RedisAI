@@ -13,18 +13,18 @@
 #include "tensor.h"
 #include "redismodule.h"
 
-extern RedisModuleType *RedisDL_GraphType;
+extern RedisModuleType *RedisAI_GraphType;
 
-int RDL_GraphInit(RedisModuleCtx* ctx);
-RDL_Graph* RDL_GraphCreate(const char* prefix, RDL_Backend backend, const char* graphdef, size_t graphlen);
-void RDL_GraphFree(RDL_Graph* graph);
-RDL_GraphRunCtx* RDL_RunCtxCreate(RDL_Graph* graph);
-int RDL_RunCtxAddInput(RDL_GraphRunCtx* gctx, const char* inputName, RDL_Tensor* inputTensor);
-int RDL_RunCtxAddOutput(RDL_GraphRunCtx* gctx, const char* outputName);
-size_t RDL_RunCtxNumOutputs(RDL_GraphRunCtx* gctx);
-RDL_Tensor* RDL_RunCtxOutputTensor(RDL_GraphRunCtx* gctx, size_t index);
-void RDL_RunCtxFree(RDL_GraphRunCtx* gctx);
-int RDL_GraphRun(RDL_GraphRunCtx* gctx);
-RDL_Graph* RDL_GraphGetShallowCopy(RDL_Graph* graph);
+int RAI_GraphInit(RedisModuleCtx* ctx);
+RAI_Graph* RAI_GraphCreate(const char* prefix, RAI_Backend backend, const char* graphdef, size_t graphlen);
+void RAI_GraphFree(RAI_Graph* graph);
+RAI_GraphRunCtx* RAI_RunCtxCreate(RAI_Graph* graph);
+int RAI_RunCtxAddInput(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor);
+int RAI_RunCtxAddOutput(RAI_GraphRunCtx* gctx, const char* outputName);
+size_t RAI_RunCtxNumOutputs(RAI_GraphRunCtx* gctx);
+RAI_Tensor* RAI_RunCtxOutputTensor(RAI_GraphRunCtx* gctx, size_t index);
+void RAI_RunCtxFree(RAI_GraphRunCtx* gctx);
+int RAI_GraphRun(RAI_GraphRunCtx* gctx);
+RAI_Graph* RAI_GraphGetShallowCopy(RAI_Graph* graph);
 
 #endif /* SRC_GRAPH_H_ */

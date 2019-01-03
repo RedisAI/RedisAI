@@ -9,7 +9,7 @@ DEPS_PATH=../deps
 INSTALL_PATH=../install/
 INSTALL=install
 
-TS_OBJ = redisdl.o tensor.o graph.o
+TS_OBJ = redisai.o tensor.o graph.o
 
 INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src             \
               -I $(DEPS_PATH)/dlpack/include        \
@@ -31,13 +31,13 @@ INCLUDE_FLAGS += -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS += -L $(DEPS_PATH)/libtensorflow/lib
 BACKEND_INSTALL += $(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
 
-all: redisdl.so
+all: redisai.so
 
 %.o: %.c
 	$(TS_CC) $(INCLUDE_FLAGS) -c $(FINAL_CFLAGS) $<
 
-redisdl.so: $(TS_OBJ)
-	$(TS_LD) $(LDPATH_FLAGS) $(FINAL_LDFLAGS) -o redisdl.so $(TS_OBJ)
+redisai.so: $(TS_OBJ)
+	$(TS_LD) $(LDPATH_FLAGS) $(FINAL_LDFLAGS) -o redisai.so $(TS_OBJ)
 
 clean:
 	rm *.o *.so
@@ -50,9 +50,9 @@ cleandeps: clean
 
 install: all
 	@mkdir -p $(INSTALL_PATH)
-	$(INSTALL) redisdl.so $(INSTALL_PATH)
+	$(INSTALL) redisai.so $(INSTALL_PATH)
 	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
 	$(BACKEND_INSTALL)
 
 run: install
-	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisdl.so
+	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisai.so

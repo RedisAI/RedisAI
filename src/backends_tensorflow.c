@@ -2,7 +2,7 @@
 #include "tensor.h"
 #include "utils/arr_rm_alloc.h"
 
-TF_DataType RDL_GetTFDataTypeFromDL(DLDataType dtype) {
+TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
 
   if (dtype.code == kDLFloat) {
     switch (dtype.bits) {
@@ -41,7 +41,7 @@ TF_DataType RDL_GetTFDataTypeFromDL(DLDataType dtype) {
   return 0;
 }
 
-DLDataType RDL_GetDLDataTypeFromTF(TF_DataType dtype) {
+DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
   switch (dtype) {
     case TF_FLOAT:
       return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1 };
@@ -65,8 +65,8 @@ DLDataType RDL_GetDLDataTypeFromTF(TF_DataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
-RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
-  RDL_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
+  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
 
   DLContext ctx = (DLContext){
       .device_type = kDLCPU,
@@ -85,7 +85,7 @@ RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   // Redis be responsible for the memory, or we reuse the TF
   // allocated memory, which might not be optimal down the road
   // Note: on YOLO this has no impact on perf
-#ifdef RDL_COPY_RUN_OUTPUT
+#ifdef RAI_COPY_RUN_OUTPUT
   size_t len = TF_TensorByteSize(tensor);
   char* data = RedisModule_Alloc(len * sizeof(*data));
   memcpy(data, TF_TensorData(tensor), len);
@@ -93,13 +93,13 @@ RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   ret->tensor = (DLTensor){
       .ctx = ctx,
-#ifdef RDL_COPY_RUN_OUTPUT
+#ifdef RAI_COPY_RUN_OUTPUT
       .data = data,
 #else
       .data = TF_TensorData(tensor),
 #endif
       .ndim = ndims,
-      .dtype = RDL_GetDLDataTypeFromTF(TF_TensorType(tensor)),
+      .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
       .shape = shape,
       .strides = NULL,
       .byte_offset = 0
@@ -109,34 +109,34 @@ RDL_Tensor* RDL_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   return ret;
 }
 
-void RDL_TFDeallocator(void* data, size_t len, void* arg) {
+void RAI_TFDeallocator(void* data, size_t len, void* arg) {
   // printf("DEALLOCATOR CALLED\n");
   // do nothing, memory is managed by Redis
 }
 
-TF_Tensor* RDL_TFTensorFromTensor(RDL_Tensor* t){
-#ifdef RDL_COPY_RUN_INPUT
+TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
+#ifdef RAI_COPY_RUN_INPUT
   TF_Tensor* out = TF_AllocateTensor(
-      RDL_GetTFDataTypeFromDL(t->tensor.dtype),
+      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
       t->tensor.shape,
       t->tensor.ndim,
-      RDL_TensorByteSize(t));
+      RAI_TensorByteSize(t));
   memcpy(TF_TensorData(out), t->tensor.data, TF_TensorByteSize(out));
   return out;
 #else
   return TF_NewTensor(
-      RDL_GetTFDataTypeFromDL(t->tensor.dtype),
+      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
       t->tensor.shape,
       t->tensor.ndim,
       t->tensor.data,
-      RDL_TensorByteSize(t),
-      &RDL_TFDeallocator,
+      RAI_TensorByteSize(t),
+      &RAI_TFDeallocator,
       NULL);
-#endif /* RDL_COPY_RUN_INPUT */
+#endif /* RAI_COPY_RUN_INPUT */
 }
 
 
-RDL_Graph *RDL_GraphCreateTF(const char *prefix, RDL_Backend backend,
+RAI_Graph *RAI_GraphCreateTF(const char *prefix, RAI_Backend backend,
                              const char *graphdef, size_t graphlen) {
   TF_Graph* graph = TF_NewGraph();
 
@@ -173,7 +173,7 @@ RDL_Graph *RDL_GraphCreateTF(const char *prefix, RDL_Backend backend,
   TF_DeleteSessionOptions(sessionOptions);
   TF_DeleteStatus(sessionStatus);
 
-  RDL_Graph* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
   ret->graph = graph;
   ret->session = session;
   ret->backend = backend;
@@ -182,7 +182,7 @@ RDL_Graph *RDL_GraphCreateTF(const char *prefix, RDL_Backend backend,
   return ret;
 }
 
-void RDL_GraphFreeTF(RDL_Graph* graph) {
+void RAI_GraphFreeTF(RAI_Graph* graph) {
   TF_Status *status = TF_NewStatus();
   TF_CloseSession(graph->session, status);
 
@@ -207,7 +207,7 @@ void RDL_GraphFreeTF(RDL_Graph* graph) {
   TF_DeleteStatus(status);
 }
 
-int RDL_GraphRunTF(RDL_GraphRunCtx* gctx) {
+int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
   TF_Status *status = TF_NewStatus();
 
   TF_Tensor* inputTensorsValues[array_len(gctx->inputs)];
@@ -216,7 +216,7 @@ int RDL_GraphRunTF(RDL_GraphRunCtx* gctx) {
   TF_Output outputs[array_len(gctx->outputs)];
 
   for (size_t i = 0 ; i < array_len(gctx->inputs); ++i) {
-    inputTensorsValues[i] = RDL_TFTensorFromTensor(gctx->inputs[i].tensor);
+    inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
     TF_Output port;
     port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->inputs[i].name);
     port.index = 0;
@@ -249,8 +249,8 @@ int RDL_GraphRunTF(RDL_GraphRunCtx* gctx) {
   }
 
   for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
-    RDL_Tensor* output_tensor = RDL_TensorCreateFromTFTensor(outputTensorsValues[i]);
-    gctx->outputs[i].tensor = RDL_TensorGetShallowCopy(output_tensor);
+    RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i]);
+    gctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
 
   TF_DeleteStatus(status);

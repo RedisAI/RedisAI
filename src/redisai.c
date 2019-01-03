@@ -93,23 +93,23 @@ mstime_t mstime(void) {
     return ustime()/1000;
 }
 
-enum RedisDL_DataFmt {
-  REDISDL_DATA_BLOB = 0,
-  REDISDL_DATA_VALUES,
-  REDISDL_DATA_NONE
+enum RedisAI_DataFmt {
+  REDISAI_DATA_BLOB = 0,
+  REDISAI_DATA_VALUES,
+  REDISAI_DATA_NONE
 };
 
 // ================================
 
 // key type ndims dim1..dimN [BLOB data | VALUES val1..valN]
-int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if (argc < 5) return RedisModule_WrongArity(ctx);
 
   // getting the datatype
   const char* typestr = RedisModule_StringPtrLen(argv[2], NULL);
-  size_t datasize = RDL_TensorGetDataSize(typestr);
+  size_t datasize = RAI_TensorGetDataSize(typestr);
   if (!datasize){
     return RedisModule_ReplyWithError(ctx, "ERR invalid data type");
   }
@@ -148,10 +148,10 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   if (hasdata) {
     fmtstr = RedisModule_StringPtrLen(argv[datafmt_arg], NULL);
     if (strcasecmp(fmtstr, "BLOB") == 0) {
-      datafmt = REDISDL_DATA_BLOB;
+      datafmt = REDISAI_DATA_BLOB;
     }
     else if (strcasecmp(fmtstr, "VALUES") == 0) {
-      datafmt = REDISDL_DATA_VALUES;
+      datafmt = REDISAI_DATA_VALUES;
     }
     else {
       return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
@@ -164,37 +164,37 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   const char* data;
   if (hasdata) {
     data = RedisModule_StringPtrLen(argv[datafmt_arg + 1], &datalen);
-    if (datafmt == REDISDL_DATA_BLOB && datalen != nbytes) {
+    if (datafmt == REDISAI_DATA_BLOB && datalen != nbytes) {
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
   }
 
-  if (hasdata && datafmt == REDISDL_DATA_VALUES && argc != len + 5 + ndims) {
+  if (hasdata && datafmt == REDISAI_DATA_VALUES && argc != len + 5 + ndims) {
     return RedisModule_WrongArity(ctx);
   }
 
-  RDL_Tensor* t = RDL_TensorCreate(typestr, dims, ndims);
+  RAI_Tensor* t = RAI_TensorCreate(typestr, dims, ndims);
   if (!t) {
     return RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
   }
 
-  DLDataType datatype = RDL_TensorDataType(t);
+  DLDataType datatype = RAI_TensorDataType(t);
 
-  if (hasdata && datafmt == REDISDL_DATA_BLOB) {
-    RDL_TensorSetData(t, data, datalen);
+  if (hasdata && datafmt == REDISAI_DATA_BLOB) {
+    RAI_TensorSetData(t, data, datalen);
   }
-  else if (hasdata && datafmt == REDISDL_DATA_VALUES) {
+  else if (hasdata && datafmt == REDISAI_DATA_VALUES) {
     long i;
     if (datatype.code == kDLFloat) {
       double val;
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToDouble(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
-          RDL_TensorFree(t);
+          RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
-        int ret = RDL_TensorSetValueFromDouble(t, i, val);
+        int ret = RAI_TensorSetValueFromDouble(t, i, val);
         if (ret == -1) {
-          RDL_TensorFree(t);
+          RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
@@ -203,12 +203,12 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
       long long val;
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToLongLong(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
-          RDL_TensorFree(t);
+          RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid val");
         }
-        int ret = RDL_TensorSetValueFromDouble(t, i, val);
+        int ret = RAI_TensorSetValueFromDouble(t, i, val);
         if (ret == -1) {
-          RDL_TensorFree(t);
+          RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
@@ -219,13 +219,13 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisDL_TensorType) {
-    RDL_TensorFree(t);
+      RedisModule_ModuleTypeGetType(key) != RedisAI_TensorType) {
+    RAI_TensorFree(t);
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  RedisModule_ModuleTypeSetValue(key, RedisDL_TensorType, t);
+  RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t);
 
   RedisModule_CloseKey(key);
 
@@ -236,7 +236,7 @@ int RedisDL_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 }
 
 // key [BLOB | VALUES]
-int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if (argc < 3) return RedisModule_WrongArity(ctx);
@@ -244,7 +244,7 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
-  if (RedisModule_ModuleTypeGetType(key) != RedisDL_TensorType) {
+  if (RedisModule_ModuleTypeGetType(key) != RedisAI_TensorType) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
@@ -253,31 +253,31 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   int datafmt;
   fmtstr = RedisModule_StringPtrLen(argv[2], NULL);
   if (strcasecmp(fmtstr, "BLOB") == 0) {
-    datafmt = REDISDL_DATA_BLOB;
+    datafmt = REDISAI_DATA_BLOB;
   }
   else if (strcasecmp(fmtstr, "VALUES") == 0) {
-    datafmt = REDISDL_DATA_VALUES;
+    datafmt = REDISAI_DATA_VALUES;
   }
   else if (strcasecmp(fmtstr, "META") == 0) {
-    datafmt = REDISDL_DATA_NONE;
+    datafmt = REDISAI_DATA_NONE;
   }
   else {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
   }
 
-  RDL_Tensor *t = RedisModule_ModuleTypeGetValue(key);
+  RAI_Tensor *t = RedisModule_ModuleTypeGetValue(key);
 
-  long long ndims = RDL_TensorNumDims(t);
+  long long ndims = RAI_TensorNumDims(t);
   // (datatype, ndim, shape, bytesize)
   long long resplen = 4;
-  if (datafmt == REDISDL_DATA_BLOB || datafmt == REDISDL_DATA_VALUES) {
+  if (datafmt == REDISAI_DATA_BLOB || datafmt == REDISAI_DATA_VALUES) {
     resplen += 1;
   }
 
   RedisModule_ReplyWithArray(ctx, resplen);
 
-  DLDataType dtype = RDL_TensorDataType(t);
+  DLDataType dtype = RAI_TensorDataType(t);
   if (dtype.code == kDLFloat) {
     switch (dtype.bits) {
       case 32:
@@ -328,16 +328,16 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
   RedisModule_ReplyWithArray(ctx, ndims);
   for (long long i=0; i<ndims; i++) {
-    long long dim = RDL_TensorDim(t, i);
+    long long dim = RAI_TensorDim(t, i);
     RedisModule_ReplyWithLongLong(ctx, dim);
   }
 
-  long long bytesize = RDL_TensorByteSize(t);
+  long long bytesize = RAI_TensorByteSize(t);
   RedisModule_ReplyWithLongLong(ctx, bytesize);
 
-  if (datafmt == REDISDL_DATA_BLOB) {
-    long long size = RDL_TensorByteSize(t);
-    char *data = RDL_TensorData(t);
+  if (datafmt == REDISAI_DATA_BLOB) {
+    long long size = RAI_TensorByteSize(t);
+    char *data = RAI_TensorData(t);
 
     int ret = RedisModule_ReplyWithStringBuffer(ctx, data, size);
 
@@ -346,22 +346,22 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
       return ret;
     }
   }
-  else if (datafmt == REDISDL_DATA_VALUES) {
-    long long ndims = RDL_TensorNumDims(t);
+  else if (datafmt == REDISAI_DATA_VALUES) {
+    long long ndims = RAI_TensorNumDims(t);
     long long len = 1;
     long long i;
     for (i=0; i<ndims; i++) {
-      len *= RDL_TensorDim(t, i);
+      len *= RAI_TensorDim(t, i);
     }
 
-    DLDataType dtype = RDL_TensorDataType(t);
+    DLDataType dtype = RAI_TensorDataType(t);
 
     RedisModule_ReplyWithArray(ctx, len);
 
     if (dtype.code == kDLFloat) {
       double val;
       for (i=0; i<len; i++) {
-        int ret = RDL_TensorGetValueAsDouble(t, i, &val);
+        int ret = RAI_TensorGetValueAsDouble(t, i, &val);
         if (!ret) {
           RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
@@ -372,7 +372,7 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     else {
       long long val;
       for (i=0; i<len; i++) {
-        int ret = RDL_TensorGetValueAsLongLong(t, i, &val);
+        int ret = RAI_TensorGetValueAsLongLong(t, i, &val);
         if (!ret) {
           RedisModule_CloseKey(key);
           return RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
@@ -389,7 +389,7 @@ int RedisDL_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 // ================================
 
 // key graphbuf [prefix]
-int RedisDL_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if ((argc != 4) && (argc != 5)) return RedisModule_WrongArity(ctx);
@@ -398,19 +398,19 @@ int RedisDL_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   int backend;
   bckstr = RedisModule_StringPtrLen(argv[2], NULL);
   if (strcasecmp(bckstr, "TF") == 0) {
-    backend = RDL_BACKEND_TENSORFLOW;
+    backend = RAI_BACKEND_TENSORFLOW;
   }
   else if (strcasecmp(bckstr, "PT") == 0) {
-    backend = RDL_BACKEND_PYTORCH;
+    backend = RAI_BACKEND_PYTORCH;
   }
   else if (strcasecmp(bckstr, "OR") == 0) {
-    backend = RDL_BACKEND_ONNXRUNTIME;
+    backend = RAI_BACKEND_ONNXRUNTIME;
   }
   else {
     return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
   }
 
-  RDL_Graph *graph = NULL;
+  RAI_Graph *graph = NULL;
 
   size_t graphlen;
   const char *graphdef = RedisModule_StringPtrLen(argv[3], &graphlen);
@@ -419,7 +419,7 @@ int RedisDL_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     const char *prefix = RedisModule_StringPtrLen(argv[4], NULL);
   }
 
-  graph = RDL_GraphCreate(prefix, backend, graphdef, graphlen);
+  graph = RAI_GraphCreate(prefix, backend, graphdef, graphlen);
 
   if(graph == NULL){
     return RedisModule_ReplyWithError(ctx, "ERR failed creating the graph");
@@ -429,12 +429,12 @@ int RedisDL_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisDL_GraphType) {
+      RedisModule_ModuleTypeGetType(key) != RedisAI_GraphType) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  RedisModule_ModuleTypeSetValue(key, RedisDL_GraphType, graph);
+  RedisModule_ModuleTypeSetValue(key, RedisAI_GraphType, graph);
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
@@ -443,35 +443,35 @@ int RedisDL_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   return REDISMODULE_OK;
 }
 
-struct RedisDL_RunInfo {
+struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString **outkeys;
-  RDL_GraphRunCtx* gctx;
+  RAI_GraphRunCtx* gctx;
   int status;
 };
 
-void RedisDL_FreeRunInfo(RedisModuleCtx *ctx, struct RedisDL_RunInfo *rinfo) {
-  for(int i = 0 ; i < RDL_RunCtxNumOutputs(rinfo->gctx) ; ++i){
+void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
+  for(int i = 0 ; i < RAI_RunCtxNumOutputs(rinfo->gctx) ; ++i){
     RedisModule_FreeString(ctx, rinfo->outkeys[i]);
   }
   RedisModule_Free(rinfo->outkeys);
 
-  RDL_RunCtxFree(rinfo->gctx);
+  RAI_RunCtxFree(rinfo->gctx);
 
   RedisModule_Free(rinfo);
 }
 
-void *RedisDL_RunSession(void *arg) {
-  struct RedisDL_RunInfo *rinfo = (struct RedisDL_RunInfo*)arg;
+void *RedisAI_RunSession(void *arg) {
+  struct RedisAI_RunInfo *rinfo = (struct RedisAI_RunInfo*)arg;
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
   mstime_t start = mstime();
-  rinfo->status = RDL_GraphRun(rinfo->gctx);
+  rinfo->status = RAI_GraphRun(rinfo->gctx);
   mstime_t end = mstime();
 
   RedisModule_ThreadSafeContextLock(ctx);
-  RedisModule_Log(ctx, "notice", "RDL_GraphRun took %fs", (end - start) / 1000.0);
+  RedisModule_Log(ctx, "notice", "RAI_GraphRun took %fs", (end - start) / 1000.0);
   RedisModule_ThreadSafeContextUnlock(ctx);
 
   RedisModule_UnblockClient(rinfo->client, rinfo);
@@ -481,36 +481,36 @@ void *RedisDL_RunSession(void *arg) {
   return NULL;
 }
 
-//void RedisDL_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
+//void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
 //  RedisModule_Log(ctx,"warning","Blocked client %p disconnected!", (void*)bc);
 //
 //  // TODO: clean up
 //}
 
-int RedisDL_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argv);
   REDISMODULE_NOT_USED(argc);
-  struct RedisDL_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
+  struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
   if (!rinfo->status) {
     int ret = RedisModule_ReplyWithError(ctx, "graph run failed");
-    RedisDL_FreeRunInfo(ctx, rinfo);
+    RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
   }
 
-  for (size_t i=0; i<RDL_RunCtxNumOutputs(rinfo->gctx); ++i) {
+  for (size_t i=0; i<RAI_RunCtxNumOutputs(rinfo->gctx); ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        RedisModule_ModuleTypeGetType(outkey) != RedisDL_TensorType) {
+        RedisModule_ModuleTypeGetType(outkey) != RedisAI_TensorType) {
       RedisModule_CloseKey(outkey);
-      RedisDL_FreeRunInfo(ctx, rinfo);
+      RedisAI_FreeRunInfo(ctx, rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
-    RDL_Tensor *t = RDL_RunCtxOutputTensor(rinfo->gctx, i);
+    RAI_Tensor *t = RAI_RunCtxOutputTensor(rinfo->gctx, i);
     if (t) {
-      RedisModule_ModuleTypeSetValue(outkey, RedisDL_TensorType, RDL_TensorGetShallowCopy(t));
+      RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
     }
     RedisModule_CloseKey(outkey);
   }
@@ -518,13 +518,13 @@ int RedisDL_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // FIXME This crashes Redis, we need to investigate.
   //RedisModule_CloseKey(rinfo->graphkey);
 
-  RedisDL_FreeRunInfo(ctx, rinfo);
+  RedisAI_FreeRunInfo(ctx, rinfo);
 
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
 // graph key, ninputs, (input key, input name)..., (output key, output name)...
-int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // 1. clone inputs as needed in the main thread (only the alternative is to lock)
   // 2. spawn the new thread for running the graph
   // 3. have reply callback put the data back into the key
@@ -540,12 +540,12 @@ int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
-  if (RedisModule_ModuleTypeGetType(key) != RedisDL_GraphType) {
+  if (RedisModule_ModuleTypeGetType(key) != RedisAI_GraphType) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  RDL_Graph *gto = RedisModule_ModuleTypeGetValue(key);
+  RAI_Graph *gto = RedisModule_ModuleTypeGetValue(key);
 
   long long ninputs;
   if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
@@ -568,8 +568,8 @@ int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_ReplyWithError(ctx, "ERR odd key/name pairs");
   }
 
-  struct RedisDL_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisDL_RunInfo));
-  rinfo->gctx = RDL_RunCtxCreate(gto);
+  struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
+  rinfo->gctx = RAI_RunCtxCreate(gto);
 
   rinfo->outkeys = RedisModule_Alloc(noutputs*sizeof(RedisModuleString*));
 
@@ -580,21 +580,21 @@ int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     if (isinput) {
       RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
-      if (RedisModule_ModuleTypeGetType(argkey) != RedisDL_TensorType) {
+      if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
         // todo free rinfo
         RedisModule_CloseKey(argkey);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
       }
-      RDL_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
+      RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
       RedisModule_CloseKey(argkey);
       const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RDL_RunCtxAddInput(rinfo->gctx, opname, t)) {
+      if (!RAI_RunCtxAddInput(rinfo->gctx, opname, t)) {
         // todo free rinfo
         return RedisModule_ReplyWithError(ctx, "Input key not found.");
       }
     } else {
       const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RDL_RunCtxAddOutput(rinfo->gctx, opname)) {
+      if (!RAI_RunCtxAddOutput(rinfo->gctx, opname)) {
         // todo free rinfo
         return RedisModule_ReplyWithError(ctx, "Output key not found.");
       }
@@ -603,7 +603,7 @@ int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
   }
 
-  rinfo->client = RedisModule_BlockClient(ctx, RedisDL_Run_Reply, NULL, NULL, 0);
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
 
   //  RedisModule_AbortBlock(bc);
   //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
@@ -615,7 +615,7 @@ int RedisDL_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   return REDISMODULE_OK;
 }
 
-void *RedisDL_Run_ThreadMain(void *arg) {
+void *RedisAI_Run_ThreadMain(void *arg) {
 
   while(1) {
     pthread_mutex_lock(&runQueueMutex);
@@ -623,7 +623,7 @@ void *RedisDL_Run_ThreadMain(void *arg) {
     pthread_mutex_unlock(&runQueueMutex);
 
     if (item) {
-      RedisDL_RunSession(item->value);
+      RedisAI_RunSession(item->value);
     }
 
     // release item (note: the callback does it; verify)
@@ -633,29 +633,29 @@ void *RedisDL_Run_ThreadMain(void *arg) {
   }
 }
 
-int RedisDL_StartRunThread() {
+int RedisAI_StartRunThread() {
   pthread_t tid;
 
   runQueue = queueCreate();
 
-  if (pthread_create(&tid, NULL, RedisDL_Run_ThreadMain, NULL) != 0) {
+  if (pthread_create(&tid, NULL, RedisAI_Run_ThreadMain, NULL) != 0) {
     return REDISMODULE_ERR;
   }
 
   return REDISMODULE_OK;
 }
 
-int RedisDL_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
 
   const char* subcommand;
   subcommand = RedisModule_StringPtrLen(argv[1], NULL);
   if (strcasecmp(subcommand, "TENSOR") == 0) {
-    return RedisDL_Set_Tensor_RedisCommand(ctx, argv+1, argc-1);
+    return RedisAI_Set_Tensor_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "GRAPH") == 0) {
-    return RedisDL_Set_Graph_RedisCommand(ctx, argv+1, argc-1);
+    return RedisAI_Set_Graph_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
     return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
@@ -664,17 +664,17 @@ int RedisDL_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
 }
 
-int RedisDL_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
 
   const char* subcommand;
   subcommand = RedisModule_StringPtrLen(argv[1], NULL);
   if (strcasecmp(subcommand, "TENSOR") == 0) {
-    return RedisDL_Get_Tensor_RedisCommand(ctx, argv+1, argc-1);
+    return RedisAI_Get_Tensor_RedisCommand(ctx, argv+1, argc-1);
   }
   //else if (strcasecmp(subcommand, "GRAPH") == 0) {
-  //  return RedisDL_GGet_RedisCommand(ctx, argv+1, argc-1);
+  //  return RedisAI_GGet_RedisCommand(ctx, argv+1, argc-1);
   //}
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
     return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
@@ -683,14 +683,14 @@ int RedisDL_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
 }
 
-int RedisDL_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
 
   const char* subcommand;
   subcommand = RedisModule_StringPtrLen(argv[1], NULL);
   if (strcasecmp(subcommand, "GRAPH") == 0) {
-    return RedisDL_Run_Graph_RedisCommand(ctx, argv+1, argc-1);
+    return RedisAI_Run_Graph_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
     return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
@@ -702,8 +702,8 @@ int RedisDL_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 #define EXECUTION_PLAN_FREE_MSG 100
 
 #define REGISTER_API(name, registerApiCallback) \
-  if(registerApiCallback("RedisDL_" #name, RDL_ ## name)){\
-      printf("could not register RedisDL_" #name "\r\n");\
+  if(registerApiCallback("RedisAI_" #name, RAI_ ## name)){\
+      printf("could not register RedisAI_" #name "\r\n");\
       return false;\
   }
 
@@ -743,33 +743,33 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
   if(!RediDL_RegisterApi(moduleRegisterApi)){
-    RedisModule_Log(ctx, "warning", "could not register RedisDL api\r\n");
+    RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
   }
 
-  if(!RDL_TensorInit(ctx)){
+  if(!RAI_TensorInit(ctx)){
     RedisModule_Log(ctx, "warning", "can not initialize tensor dt");
     return REDISMODULE_ERR;
   }
 
-  if(!RDL_GraphInit(ctx)){
+  if(!RAI_GraphInit(ctx)){
     RedisModule_Log(ctx, "warning", "can not initialize tensor dt");
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "dl.set", RedisDL_Set_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.set", RedisAI_Set_RedisCommand, "write", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "dl.get", RedisDL_Get_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.get", RedisAI_Get_RedisCommand, "readonly", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "dl.run", RedisDL_Run_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.run", RedisAI_Run_RedisCommand, "write", 2, -1, 2)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisDL_StartRunThread() == REDISMODULE_ERR)
+  if (RedisAI_StartRunThread() == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
   return REDISMODULE_OK;

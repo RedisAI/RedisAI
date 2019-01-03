@@ -13,7 +13,7 @@ import os
 
 
 '''
-python -m RLTest --test basic_tests.py --module ../src/redisdl.so
+python -m RLTest --test basic_tests.py --module ../src/redisai.so
 '''
 
 
@@ -45,8 +45,8 @@ def test_example_multiproc():
 def test_set_tensor():
     env = Env(testDescription="Set tensor")
     con = env.getConnection()
-    con.execute_command('DL.SET', 'TENSOR', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
-    tensor = con.execute_command('DL.GET', 'TENSOR', 'x', 'VALUES')
+    con.execute_command('AI.SET', 'TENSOR', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
+    tensor = con.execute_command('AI.GET', 'TENSOR', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(
         values, ['2', '3']
@@ -55,14 +55,14 @@ def test_set_tensor():
 
 def set_tensor(connArgs):
     con = redis.Redis(**connArgs)
-    con.execute_command('DL.SET', 'TENSOR', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
+    con.execute_command('AI.SET', 'TENSOR', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
 
 
 def test_set_tensor_multiproc():
     env = Env(testDescription="Set tensor multiprocessing")
     run_test_multiproc(env, 10, set_tensor)
     con = env.getConnection()
-    tensor = con.execute_command('DL.GET', 'TENSOR', 'x', 'VALUES')
+    tensor = con.execute_command('AI.GET', 'TENSOR', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(
         values, ['2', '3']
@@ -100,17 +100,17 @@ def test_run_mobilenet():
 
     graph_pb, labels, img = load_mobilenet_test_data()
 
-    con.execute_command('DL.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
+    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
 
-    con.execute_command('DL.SET', 'TENSOR', 'input',
+    con.execute_command('AI.SET', 'TENSOR', 'input',
                         'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('DL.RUN', 'GRAPH', 'mobilenet', 1,
+    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet', 1,
                         'input', input_var,
                         'output', output_var)
 
-    dtype, _, shape, _, data = con.execute_command('DL.GET', 'TENSOR', 'output', 'BLOB')
+    dtype, _, shape, _, data = con.execute_command('AI.GET', 'TENSOR', 'output', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
@@ -128,11 +128,11 @@ def run_mobilenet(connArgs, img, input_var, output_var):
 
     con = redis.Redis(**connArgs)
 
-    con.execute_command('DL.SET', 'TENSOR', 'input',
+    con.execute_command('AI.SET', 'TENSOR', 'input',
                         'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('DL.RUN', 'GRAPH', 'mobilenet', 1,
+    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet', 1,
                         'input', input_var,
                         'output', output_var)
 
@@ -148,11 +148,11 @@ def test_run_mobilenet_multiproc():
     env = Env(testDescription="Test mobilenet multiprocessing")
     con = env.getConnection(decode_responses=False)
 
-    con.execute_command('DL.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
+    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
 
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
 
-    dtype, _, shape, _, data = con.execute_command('DL.GET', 'TENSOR', 'output', 'BLOB')
+    dtype, _, shape, _, data = con.execute_command('AI.GET', 'TENSOR', 'output', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
