@@ -1,5 +1,5 @@
-#ifndef SRC_BACKENDS_TENSORFLOW_H_
-#define SRC_BACKENDS_TENSORFLOW_H_
+#ifndef SRC_TENSORFLOW_BACKEND_H_
+#define SRC_TENSORFLOW_BACKEND_H_
 
 #include "config.h"
 #include "tensor_struct.h"
@@ -18,4 +18,4 @@ void RAI_GraphFreeTF(RAI_Graph* graph);
 
 int RAI_GraphRunTF(RAI_GraphRunCtx* gctx);
 
-#endif /* SRC_BACKENDS_TENSORFLOW_H_ */
+#endif /* SRC_TENSORFLOW_BACKEND_H_ */
