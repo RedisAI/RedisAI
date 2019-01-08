@@ -2,7 +2,7 @@
 #include "graph_struct.h"
 
 #ifdef RAI_TENSORFLOW_BACKEND
-#include "backends_tensorflow.h"
+#include "backends/tensorflow_backend.h"
 #endif /* RAI_TENSORFLOW_BACKEND */
 
 #include "utils/arr_rm_alloc.h"
