@@ -49,7 +49,7 @@ async function run(filenames) {
   const buffer = fs.readFileSync(graph_filename, {'flag': 'r'});
 
   console.log("Setting graph");
-  redis.call('AI.SET', 'GRAPH', 'mobilenet', 'TF', buffer);
+  redis.call('AI.SET', 'GRAPH', 'mobilenet', 'TF', 'GPU', buffer);
 
   const image_height = 224;
   const image_width = 224;

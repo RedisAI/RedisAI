@@ -11,6 +11,12 @@ typedef enum {
   RAI_BACKEND_ONNXRUNTIME,
 } RAI_Backend;
 
+typedef enum {
+  RAI_DEVICE_CPU = 0,
+  // TODO: multi GPU
+  RAI_DEVICE_GPU,
+} RAI_Device;
+
 //#define RAI_COPY_RUN_INPUT
 #define RAI_COPY_RUN_OUTPUT
 

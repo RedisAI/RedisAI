@@ -136,7 +136,8 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Graph *RAI_GraphCreateTF(const char *prefix, RAI_Backend backend,
+RAI_Graph *RAI_GraphCreateTF(const char *prefix,
+                             RAI_Backend backend, RAI_Device device,
                              const char *graphdef, size_t graphlen) {
   TF_Graph* graph = TF_NewGraph();
 
@@ -160,9 +161,31 @@ RAI_Graph *RAI_GraphCreateTF(const char *prefix, RAI_Backend backend,
   TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
-  TF_Status *sessionStatus = TF_NewStatus();
+  TF_Status *optionsStatus = TF_NewStatus();
 
   TF_SessionOptions *sessionOptions = TF_NewSessionOptions();
+
+  // For setting config options in session from the C API see:
+  // https://github.com/tensorflow/tensorflow/issues/13853
+  // import tensorflow as tf
+  // config = tf.ConfigProto()
+  // config.intra_op_parallelism_threads = 1
+  // serialized = config.SerializeToString()
+  // result = list(map(hex, serialized))
+
+  // TODO: complain if device is GPU and GPU not available?
+  if (device == RAI_DEVICE_CPU) {
+    uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
+    TF_SetConfig(sessionOptions, (void *)config, 9, status);
+  }
+
+  if (TF_GetCode(optionsStatus) != TF_OK) {
+    // TODO: free memory
+    return NULL;
+  }
+  TF_DeleteStatus(optionsStatus);
+
+  TF_Status *sessionStatus = TF_NewStatus();
   TF_Session *session = TF_NewSession(graph, sessionOptions, sessionStatus);
 
   if (TF_GetCode(sessionStatus) != TF_OK) {

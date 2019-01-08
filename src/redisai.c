@@ -392,7 +392,7 @@ int RedisAI_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
-  if ((argc != 4) && (argc != 5)) return RedisModule_WrongArity(ctx);
+  if ((argc != 5) && (argc != 6)) return RedisModule_WrongArity(ctx);
 
   const char* bckstr;
   int backend;
@@ -410,16 +410,29 @@ int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
   }
 
+  const char* devicestr;
+  int device;
+  devicestr = RedisModule_StringPtrLen(argv[3], NULL);
+  if (strcasecmp(devicestr, "CPU") == 0) {
+    device = RAI_DEVICE_CPU;
+  }
+  else if (strcasecmp(devicestr, "GPU") == 0) {
+    device = RAI_DEVICE_GPU;
+  }
+  else {
+    return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
+  }
+
   RAI_Graph *graph = NULL;
 
   size_t graphlen;
-  const char *graphdef = RedisModule_StringPtrLen(argv[3], &graphlen);
+  const char *graphdef = RedisModule_StringPtrLen(argv[4], &graphlen);
   const char *prefix = "";
-  if (argc == 5) {
-    const char *prefix = RedisModule_StringPtrLen(argv[4], NULL);
+  if (argc == 6) {
+    const char *prefix = RedisModule_StringPtrLen(argv[5], NULL);
   }
 
-  graph = RAI_GraphCreate(prefix, backend, graphdef, graphlen);
+  graph = RAI_GraphCreate(prefix, backend, device, graphdef, graphlen);
 
   if(graph == NULL){
     return RedisModule_ReplyWithError(ctx, "ERR failed creating the graph");
