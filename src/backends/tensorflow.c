@@ -168,10 +168,10 @@ RAI_Graph *RAI_GraphCreateTF(const char *prefix,
   // For setting config options in session from the C API see:
   // https://github.com/tensorflow/tensorflow/issues/13853
   // import tensorflow as tf
-  // config = tf.ConfigProto()
-  // config.intra_op_parallelism_threads = 1
+  // config = tf.ConfigProto(device_count = {'GPU': 0})
   // serialized = config.SerializeToString()
   // result = list(map(hex, serialized))
+  // print(result)
 
   // TODO: complain if device is GPU and GPU not available?
   if (device == RAI_DEVICE_CPU) {
