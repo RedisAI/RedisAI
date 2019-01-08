@@ -100,7 +100,7 @@ def test_run_mobilenet():
 
     graph_pb, labels, img = load_mobilenet_test_data()
 
-    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
+    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', 'GPU', graph_pb)
 
     con.execute_command('AI.SET', 'TENSOR', 'input',
                         'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
@@ -148,7 +148,7 @@ def test_run_mobilenet_multiproc():
     env = Env(testDescription="Test mobilenet multiprocessing")
     con = env.getConnection(decode_responses=False)
 
-    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', graph_pb)
+    con.execute_command('AI.SET', 'GRAPH', 'mobilenet', 'TF', 'GPU', graph_pb)
 
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
 

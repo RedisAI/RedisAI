@@ -11,7 +11,8 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor);
 
 TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t);
 
-RAI_Graph *RAI_GraphCreateTF(const char *prefix, RAI_Backend backend,
+RAI_Graph *RAI_GraphCreateTF(const char *prefix,
+                             RAI_Backend backend, RAI_Device device,
                              const char *graphdef, size_t graphlen);
 
 void RAI_GraphFreeTF(RAI_Graph* graph);

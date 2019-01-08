@@ -16,7 +16,7 @@
 extern RedisModuleType *RedisAI_GraphType;
 
 int RAI_GraphInit(RedisModuleCtx* ctx);
-RAI_Graph* RAI_GraphCreate(const char* prefix, RAI_Backend backend, const char* graphdef, size_t graphlen);
+RAI_Graph* RAI_GraphCreate(const char* prefix, RAI_Backend backend, RAI_Device device, const char* graphdef, size_t graphlen);
 void RAI_GraphFree(RAI_Graph* graph);
 RAI_GraphRunCtx* RAI_RunCtxCreate(RAI_Graph* graph);
 int RAI_RunCtxAddInput(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor);
