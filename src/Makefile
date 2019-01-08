@@ -11,9 +11,8 @@ INSTALL=install
 
 TS_OBJ = redisai.o tensor.o graph.o
 
-INCLUDE_FLAGS=-I $(DEPS_PATH)/redis/src             \
-              -I .                                  \
-              -I backends                           \
+INCLUDE_FLAGS=-I .                                  \
+              -I $(DEPS_PATH)/redis/src             \
               -I $(DEPS_PATH)/dlpack/include        \
 
 ifeq ($(shell uname),Linux)
@@ -27,7 +26,7 @@ else
 endif
 
 # Tensorflow backend
-TS_OBJ += backends/tensorflow_backend.o
+TS_OBJ += backends/tensorflow.o
 FINAL_LDFLAGS += -ltensorflow
 INCLUDE_FLAGS += -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS += -L $(DEPS_PATH)/libtensorflow/lib
