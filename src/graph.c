@@ -37,11 +37,10 @@ int RAI_GraphInit(RedisModuleCtx* ctx) {
   return RedisAI_GraphType != NULL;
 }
 
-RAI_Graph *RAI_GraphCreate(const char *prefix,
-                           RAI_Backend backend, RAI_Device device,
+RAI_Graph *RAI_GraphCreate(RAI_Backend backend, RAI_Device device,
                            const char *graphdef, size_t graphlen) {
   if (backend == RAI_BACKEND_TENSORFLOW) {
-    return RAI_GraphCreateTF(prefix, backend, device, graphdef, graphlen);
+    return RAI_GraphCreateTF(backend, device, graphdef, graphlen);
   }
 
   return NULL;
