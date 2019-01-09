@@ -388,7 +388,7 @@ int RedisAI_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
 // ================================
 
-// key graphbuf [prefix]
+// key graphbuf
 int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
@@ -427,12 +427,8 @@ int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   size_t graphlen;
   const char *graphdef = RedisModule_StringPtrLen(argv[4], &graphlen);
-  const char *prefix = "";
-  if (argc == 6) {
-    const char *prefix = RedisModule_StringPtrLen(argv[5], NULL);
-  }
 
-  graph = RAI_GraphCreate(prefix, backend, device, graphdef, graphlen);
+  graph = RAI_GraphCreate(backend, device, graphdef, graphlen);
 
   if(graph == NULL){
     return RedisModule_ReplyWithError(ctx, "ERR failed creating the graph");

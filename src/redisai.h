@@ -31,7 +31,7 @@ long long MODULE_API_FUNC(RedisAI_TensorDim)(RAI_Tensor* t, int dim);
 size_t MODULE_API_FUNC(RedisAI_TensorByteSize)(RAI_Tensor* t);
 char* MODULE_API_FUNC(RedisAI_TensorData)(RAI_Tensor* t);
 
-RAI_Graph* MODULE_API_FUNC(RedisAI_GraphCreate)(const char* prefix, RAI_Backend backend, RAI_Device device, const char* graphdef, size_t graphlen);
+RAI_Graph* MODULE_API_FUNC(RedisAI_GraphCreate)(RAI_Backend backend, RAI_Device device, const char* graphdef, size_t graphlen);
 void MODULE_API_FUNC(RedisAI_GraphFree)(RAI_Graph* graph);
 RAI_GraphRunCtx* MODULE_API_FUNC(RedisAI_RunCtxCreate)(RAI_Graph* graph);
 int MODULE_API_FUNC(RedisAI_RunCtxAddInput)(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor);

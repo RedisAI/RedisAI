@@ -136,13 +136,11 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Graph *RAI_GraphCreateTF(const char *prefix,
-                             RAI_Backend backend, RAI_Device device,
+RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
                              const char *graphdef, size_t graphlen) {
   TF_Graph* graph = TF_NewGraph();
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
-  TF_ImportGraphDefOptionsSetPrefix(options, prefix);
 
   TF_Buffer *buffer = TF_NewBuffer();
   buffer->length = graphlen;
