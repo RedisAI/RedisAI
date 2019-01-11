@@ -59,7 +59,7 @@ Stores a graph provided as a protobuf blob. Backend is TF for now.
 
 ### AI.RUN GRAPH graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
 
-## Mailiing List
+## Mailing List
 [RedisAI Google group](https://groups.google.com/forum/#!forum/redisai)
 
 ## License
