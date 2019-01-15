@@ -81,9 +81,11 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
   RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
 
   long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  long long* strides = RedisModule_Alloc(ndims * sizeof(*strides));
   size_t len = 1;
   for (long long i = 0 ; i < ndims ; ++i){
     shape[i] = dims[i];
+    strides[i] = 1;
     len *= dims[i];
   }
 
@@ -99,14 +101,58 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
     return NULL;
   }
 
-  ret->tensor = (DLTensor){
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
       .ctx = ctx,
       .data = data,
       .ndim = ndims,
       .dtype = dtype,
       .shape = shape,
-      .strides = NULL,
+      .strides = strides,
       .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
+  };
+
+  ret->refCount = 1;
+  return ret;
+}
+
+#if 0
+void RAI_TensorMoveFrom(RAI_Tensor* dst, RAI_Tensor* src) {
+  if (--dst->refCount <= 0){
+    RedisModule_Free(t->tensor.shape);
+    if (t->tensor.strides) {
+      RedisModule_Free(t->tensor.strides);
+    }
+    RedisModule_Free(t->tensor.data);
+    RedisModule_Free(t);
+  }
+  dst->tensor.ctx = src->tensor.ctx;
+  dst->tensor.data = src->tensor.data;
+
+  dst->refCount = 1;
+}
+#endif
+
+// Beware: this will take ownership of dltensor
+RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
+
+  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
+      .ctx = dl_tensor->dl_tensor.ctx,
+      .data = dl_tensor->dl_tensor.data,
+      .ndim = dl_tensor->dl_tensor.ndim,
+      .dtype = dl_tensor->dl_tensor.dtype,
+      .shape = dl_tensor->dl_tensor.shape,
+      .strides = dl_tensor->dl_tensor.strides,
+      .byte_offset = dl_tensor->dl_tensor.byte_offset
+    },
+    .manager_ctx = dl_tensor->manager_ctx,
+    .deleter  = dl_tensor->deleter
   };
 
   ret->refCount = 1;
@@ -114,13 +160,13 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
 }
 
 DLDataType RAI_TensorDataType(RAI_Tensor* t){
-  return t->tensor.dtype;
+  return t->tensor.dl_tensor.dtype;
 }
 
 size_t RAI_TensorLength(RAI_Tensor* t) {
-  long long* shape = t->tensor.shape;
+  long long* shape = t->tensor.dl_tensor.shape;
   size_t len = 1;
-  for (size_t i = 0 ; i < t->tensor.ndim; ++i){
+  for (size_t i = 0 ; i < t->tensor.dl_tensor.ndim; ++i){
     len *= shape[i];
   }
   return len;
@@ -133,20 +179,26 @@ size_t RAI_TensorGetDataSize(const char* dataTypeStr){
 
 void RAI_TensorFree(RAI_Tensor* t){
   if (--t->refCount <= 0){
-    RedisModule_Free(t->tensor.shape);
-    RedisModule_Free(t->tensor.data);
+    RedisModule_Free(t->tensor.dl_tensor.shape);
+    if (t->tensor.dl_tensor.strides) {
+      RedisModule_Free(t->tensor.dl_tensor.strides);
+    }
+    RedisModule_Free(t->tensor.dl_tensor.data);
+    if (t->tensor.manager_ctx && t->tensor.deleter) {
+      t->tensor.deleter(t->tensor.manager_ctx);
+    }
     RedisModule_Free(t);
   }
 }
 
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len){
-  memcpy(t->tensor.data, data, len);
+  memcpy(t->tensor.dl_tensor.data, data, len);
   return 1;
 }
 
 int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val){
-  DLDataType dtype = t->tensor.dtype;
-  void* data = t->tensor.data;
+  DLDataType dtype = t->tensor.dl_tensor.dtype;
+  void* data = t->tensor.dl_tensor.data;
 
   if (dtype.code == kDLInt) {
     switch (dtype.bits) {
@@ -191,8 +243,8 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val){
 }
 
 int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val){
-  DLDataType dtype = t->tensor.dtype;
-  void* data = t->tensor.data;
+  DLDataType dtype = t->tensor.dl_tensor.dtype;
+  void* data = t->tensor.dl_tensor.data;
 
   if (dtype.code == kDLFloat) {
     switch (dtype.bits) {
@@ -211,8 +263,8 @@ int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val){
 }
 
 int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val) {
-  DLDataType dtype = t->tensor.dtype;
-  void* data = t->tensor.data;
+  DLDataType dtype = t->tensor.dl_tensor.dtype;
+  void* data = t->tensor.dl_tensor.data;
 
   // TODO: check i is in bound
   if (dtype.code == kDLFloat) {
@@ -232,8 +284,8 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val) {
 }
 
 int RAI_TensorGetValueAsLongLong(RAI_Tensor* t, long long i, long long* val) {
-  DLDataType dtype = t->tensor.dtype;
-  void* data = t->tensor.data;
+  DLDataType dtype = t->tensor.dl_tensor.dtype;
+  void* data = t->tensor.dl_tensor.data;
 
   // TODO: check i is in bound
 
@@ -277,11 +329,11 @@ RAI_Tensor* RAI_TensorGetShallowCopy(RAI_Tensor* t){
 }
 
 int RAI_TensorNumDims(RAI_Tensor* t){
-  return t->tensor.ndim;
+  return t->tensor.dl_tensor.ndim;
 }
 
 long long RAI_TensorDim(RAI_Tensor* t, int i){
-  return t->tensor.shape[i];
+  return t->tensor.dl_tensor.shape[i];
 }
 
 size_t RAI_TensorByteSize(RAI_Tensor* t){
@@ -289,5 +341,5 @@ size_t RAI_TensorByteSize(RAI_Tensor* t){
 }
 
 char* RAI_TensorData(RAI_Tensor* t){
-  return t->tensor.data;
+  return t->tensor.dl_tensor.data;
 }

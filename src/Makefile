@@ -9,7 +9,7 @@ DEPS_PATH=../deps
 INSTALL_PATH=../install/
 INSTALL=install
 
-TS_OBJ = redisai.o tensor.o graph.o
+TS_OBJ = redisai.o tensor.o graph.o script.o
 
 INCLUDE_FLAGS=-I .                                  \
               -I $(DEPS_PATH)/redis/src             \
@@ -31,6 +31,13 @@ FINAL_LDFLAGS += -ltensorflow
 INCLUDE_FLAGS += -I $(DEPS_PATH)/libtensorflow/include
 LDPATH_FLAGS += -L $(DEPS_PATH)/libtensorflow/lib
 BACKEND_INSTALL += $(INSTALL) $(DEPS_PATH)/libtensorflow/lib/libtensorflow*.so $(INSTALL_PATH)
+
+# PyTorch backend
+TS_OBJ += backends/torch.o
+FINAL_LDFLAGS += -ltorch_c
+INCLUDE_FLAGS += -I $(DEPS_PATH)/libtorch_c/include
+LDPATH_FLAGS += -L $(DEPS_PATH)/libtorch_c/lib
+BACKEND_INSTALL += $(INSTALL) $(DEPS_PATH)/libtorch_c/lib/libtorch_c*.so $(INSTALL_PATH)
 
 all: redisai.so
 

@@ -9,7 +9,11 @@ extern "C" {
 
 void torchBasicTest();
 
-void* torchCompileScript(const char* script);
+void* torchCompileScript(const char* script, DLDeviceType device);
+
+long torchRunScript(void* scriptCtx, const char* fnName,
+                    long nInputs, DLManagedTensor** inputs,
+                    long nOutputs, DLManagedTensor** outputs);
 
 void torchDeallocScript(void* scriptCtx);
 

@@ -91,7 +91,11 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   memcpy(data, TF_TensorData(tensor), len);
 #endif
 
-  ret->tensor = (DLTensor){
+  // TODO: use manager_ctx to ensure TF tensor doesn't get deallocated
+  // This applies to outputs
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
       .ctx = ctx,
 #ifdef RAI_COPY_RUN_OUTPUT
       .data = data,
@@ -103,6 +107,9 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
       .shape = shape,
       .strides = NULL,
       .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
   };
 
   ret->refCount = 1;
@@ -117,18 +124,18 @@ void RAI_TFDeallocator(void* data, size_t len, void* arg) {
 TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 #ifdef RAI_COPY_RUN_INPUT
   TF_Tensor* out = TF_AllocateTensor(
-      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
-      t->tensor.shape,
-      t->tensor.ndim,
+      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
+      t->tensor.dl_tensor.shape,
+      t->tensor.dl_tensor.ndim,
       RAI_TensorByteSize(t));
-  memcpy(TF_TensorData(out), t->tensor.data, TF_TensorByteSize(out));
+  memcpy(TF_TensorData(out), t->tensor.dl_tensor.data, TF_TensorByteSize(out));
   return out;
 #else
   return TF_NewTensor(
-      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
-      t->tensor.shape,
-      t->tensor.ndim,
-      t->tensor.data,
+      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
+      t->tensor.dl_tensor.shape,
+      t->tensor.dl_tensor.ndim,
+      t->tensor.dl_tensor.data,
       RAI_TensorByteSize(t),
       &RAI_TFDeallocator,
       NULL);

@@ -10,6 +10,7 @@ extern RedisModuleType *RedisAI_TensorType;
 
 int RAI_TensorInit(RedisModuleCtx* ctx);
 RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims);
+RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor);
 size_t RAI_TensorLength(RAI_Tensor* t);
 size_t RAI_TensorGetDataSize(const char* dataTypeStr);
 DLDataType RAI_TensorDataType(RAI_Tensor* t);

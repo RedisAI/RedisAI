@@ -4,19 +4,6 @@
 
 #include <ATen/Functions.h>
 
-//auto tensor = torch::from_blob(
-//      v.data(), v.size(), torch::dtype(torch::kFloat64).requires_grad(true));
-//
-//  bool called = false;
-//  {
-//    std::vector<int32_t> v = {1, 2, 3};
-//    auto tensor = torch::from_blob(
-//        v.data(),
-//        v.size(),
-//        /*deleter=*/[&called](void* data) { called = true; },
-//        torch::kInt32);
-//  }
-
 namespace {
 
 static DLDataType getDLDataType(const at::Type& type) {
@@ -141,25 +128,68 @@ at::ScalarType toScalarType(const DLDataType& dtype) {
   return stype;
 }
 
-//auto tensor = torch::from_blob(
-//      v.data(), v.size(), torch::dtype(torch::kFloat64).requires_grad(true));
-
 torch::Tensor fromDLPack(const DLTensor* src) {
   at::DeviceType device_type = getATenDeviceType(src->ctx);
   at::ScalarType stype = toScalarType(src->dtype);
-  //auto deleter = [src](void * self) {
-  //  src->deleter(const_cast<DLManagedTensor*>(src));
-  //};
   return torch::from_blob(src->data,
       at::IntList(src->shape, src->ndim),
       at::IntList(src->strides, src->ndim),
       torch::device(device_type).dtype(stype));
 }
 
+struct ATenDLMTensor {
+  torch::Tensor handle;
+  DLManagedTensor tensor;
+};
+
+void deleter(DLManagedTensor * arg) {
+  delete static_cast<ATenDLMTensor*>(arg->manager_ctx);
+}
+
+// TODO: we need to retain the input tensor in a backend_context
+// a struct with a shared_ptr for the tensor? and
+// make it go out of scope upon deallocation
+DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
+  ATenDLMTensor * atDLMTensor(new ATenDLMTensor);
+  atDLMTensor->handle = src;
+  atDLMTensor->tensor.manager_ctx = atDLMTensor;
+  atDLMTensor->tensor.deleter = &deleter;
+  atDLMTensor->tensor.dl_tensor.data = src.data_ptr();
+  int64_t device_id = 0;
+  if (src.is_cuda()) {
+    device_id = src.get_device();
+  }
+  atDLMTensor->tensor.dl_tensor.ctx = getDLContext(src.type(), device_id);
+  atDLMTensor->tensor.dl_tensor.ndim = src.dim();
+  atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src.type());
+  atDLMTensor->tensor.dl_tensor.shape = const_cast<int64_t*>(src.sizes().data());
+  atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t*>(src.strides().data());
+  atDLMTensor->tensor.dl_tensor.byte_offset = 0;
+  return &(atDLMTensor->tensor);
+}
+//  DLManagedTensor* dl_tensor = new DLManagedTensor;
+//  dl_tensor->dl_tensor.data = src.data_ptr();
+//  int64_t device_id = 0;
+//  if (src.is_cuda()) {
+//    device_id = src.get_device();
+//  }
+//  dl_tensor->dl_tensor.ctx = getDLContext(src.type(), device_id);
+//  dl_tensor->dl_tensor.ndim = src.dim();
+//  dl_tensor->dl_tensor.dtype = getDLDataType(src.type());
+//  dl_tensor->dl_tensor.shape = const_cast<int64_t*>(src.sizes().data());
+//  dl_tensor->dl_tensor.strides = const_cast<int64_t*>(src.strides().data());
+//  dl_tensor->dl_tensor.byte_offset = 0;
+//  torch::Tensor* manager_ctx = new torch::Tensor(src);
+//  dl_tensor->manager_ctx = manager_ctx;
+//  dl_tensor->deleter = deleter;
+//  return dl_tensor;
+
+
 }
 
 struct ScriptContext {
   std::shared_ptr<torch::jit::script::Module> module;
+  DLDeviceType device;
 };
 
 extern "C" void torchBasicTest()
@@ -168,9 +198,10 @@ extern "C" void torchBasicTest()
   std::cout << mat << std::endl;
 }
 
-extern "C" void* torchCompileScript(const char* script)
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
 {
   ScriptContext* ctx = new ScriptContext();
+  ctx->device = device;
   try {
     auto module = torch::jit::compile(script);
     ctx->module = module;
@@ -183,10 +214,26 @@ extern "C" void* torchCompileScript(const char* script)
 }
 
 extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
-                               long nInputs, DLTensor** inputs,
-                               long nOutputs, DLTensor** outputs)
+                               long nInputs, DLManagedTensor** inputs,
+                               long nOutputs, DLManagedTensor** outputs)
 {
   ScriptContext* ctx = (ScriptContext*)scriptCtx;
+
+  // TODO: check device, if GPU move input before running
+  // This will need to change at some point, as individual tensors will have their placement
+  // and script will only make sure that placement is correct
+
+  torch::DeviceType device;
+  switch (ctx->device) {
+    case kDLCPU:
+      device = torch::kCPU;
+      break;
+    case kDLGPU:
+      device = torch::kCUDA;
+      break;
+    default:
+      throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
+  }
 
   try {
     torch::jit::script::Method& method = ctx->module->get_method(fnName);
@@ -194,24 +241,26 @@ extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
     torch::jit::Stack stack;
 
     for (int i=0; i<nInputs; i++) {
-      DLTensor* input = inputs[i];
+      DLTensor* input = &(inputs[i]->dl_tensor);
       torch::Tensor tensor = fromDLPack(input);
-      stack.push_back(tensor);
+      stack.push_back(tensor.to(device));
     }
 
     method.run(stack);
 
     if (stack.size() != nOutputs) {
-      // throw std::runtime_error(std::string("Function ") + fnName + " returned " + stack.size() + " elements, expected " + nOutputs);
       throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
     }
 
     for (int i=0; i<nOutputs; i++) {
       // TODO: convert backwards from IValue to DLTensor (avoid converting non-tensor)
-      // Here we should copy values
       // stack[i];
-      // outputs[i] = ;
-      std::cout<<stack[i]<<std::endl;
+      // TODO: what about isTensorList?
+      // TODO: move to target device
+      if (stack[i].isTensor()) {
+        torch::Tensor tensor = stack[i].toTensor();
+        outputs[i] = toManagedDLPack(tensor);
+      }
     }
   }
   catch(std::exception& e) {
