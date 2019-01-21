@@ -15,9 +15,9 @@ jobs:
       - run:
           name: Build
           command: make install 
-   #   - run:
-   #       name: Test
-   #       command: make test
+      - run:
+          name: Test
+          command: make test
    #   - run:
    #       name: Persist Artifacts
    #       command: >-
