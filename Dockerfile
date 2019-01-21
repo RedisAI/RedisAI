@@ -14,12 +14,7 @@ ADD ./ /redisai
 # Build RedisAI
 WORKDIR /redisai
 RUN set -ex;\
-	cd RedisModulesSDK/rmutil;\
-	make clean;\
-	make;\
-	cd -;
-RUN set -ex;\
-	cd src;\
+    cd src;\
     make clean; \
     make;
 
