@@ -6,11 +6,11 @@ cd deps
 ## DLPACK
 
 echo "Cloning dlpack"
-git clone https://github.com/dmlc/dlpack.git
+git clone --depth 1 https://github.com/dmlc/dlpack.git
 
 
 echo "Building Redis"
-git clone --branch 5.0 https://github.com/antirez/redis.git
+git clone --depth 1 --branch 5.0 https://github.com/antirez/redis.git
 cd redis
 make MALLOC=libc
 cd ..
