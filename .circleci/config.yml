@@ -1,0 +1,158 @@
+version: 2
+jobs:
+  build:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - checkout
+      - run:
+          name: Install prerequisite
+          command: >-
+            apt-get update; apt-get install -y cmake
+      - run:
+          name: Deps
+          command: bash get_deps.sh
+      - run:
+          name: Build
+          command: make install 
+      - run:
+          name: Test
+          command: make test
+      - run:
+          name: Persist Artifacts
+          command: >-
+            mkdir -p /workspace/build && cp src/$MODULE_ARTIFACT /workspace/ &&
+            cp ramp.yml /workspace/
+      - persist_to_workspace:
+          root: /workspace
+          paths:
+            - '*.so'
+            - ramp.yml
+            - build  
+  package_branch:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - attach_workspace:
+          at: /workspace
+      - run:
+          name: Package
+          command: >-
+            ramp pack -m /workspace/ramp.yml -o
+            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.$CIRCLE_BRANCH.zip
+            /workspace/$MODULE_ARTIFACT
+      - persist_to_workspace:
+          root: /workspace
+          paths:
+            - build
+      - store_artifacts:
+          path: /workspace/build
+  package_release:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - attach_workspace:
+          at: /workspace
+      - run:
+          name: Package
+          command: >-
+            ramp pack -m /workspace/ramp.yml -o
+            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.{semantic_version}.zip
+            /workspace/$MODULE_ARTIFACT
+      - run:
+          name: Package
+          command: >-
+            ramp pack -m /workspace/ramp.yml -o
+            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.latest.zip
+            /workspace/$MODULE_ARTIFACT
+      - persist_to_workspace:
+          root: /workspace
+          paths:
+            - build
+      - store_artifacts:
+          path: /workspace/build
+  deploy_branch:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - attach_workspace:
+          at: /workspace
+      - run:
+          name: Deploy to S3
+          command: >-
+            aws s3 cp /workspace/build/ s3://redismodules/$PACKAGE_NAME/ --acl
+            public-read --recursive --exclude "*" --include "*.zip"
+  deploy_release:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - attach_workspace:
+          at: /workspace
+      - run:
+          name: Deploy to S3
+          command: >-
+            aws s3 cp /workspace/build/ s3://redismodules/$PACKAGE_NAME/ --acl
+            public-read --recursive --exclude "*" --include "*.zip"
+  deploy_docs:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - checkout
+      - run:
+          name: Build Docs
+          command: mkdocs build
+      - run:
+          name: Deploy Docs to S3
+          command: >-
+            aws s3 cp site s3://oss.redislabs.com/$WEBSITE_FOLDER/ --acl
+            public-read --recursive
+  run_automation:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - run:
+          name: Run QA Automation
+          command: >-
+            apt-get install curl &&
+            curl -k -u $QA_AUTOMATION_USERNAME:$QA_AUTOMATION_PASS -X POST
+            -H "Content-Type: application/json"
+            -d '{"service_id":"single_module_test_cycle_sanity_and_extended", "name":"redisai automation-testing", "properties":{"sut_version":"master", "email_recipients":"redisai@redislabs.com", "sut_environments":[], "tools_environment":{}, "module_name": "redisai", "module_version":"master", "cycle_environments_setup":[{"teardown":true, "name":"xenial-amd64-aws", "concurrency":1}, {"teardown":true, "name":"bionic-amd64-aws", "concurrency":1}]}}'
+            https://qa-automation-center.redislabs.com/processes
+workflows:
+  version: 2
+  build_and_package:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/      
+      - package_branch:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master      
+      - package_release:
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: '/^v[0-9].*/'
+      - deploy_branch:
+          requires:
+            - package_branch
+      - run_automation:
+          requires:
+            - deploy_branch
+      - deploy_release:
+          filters:
+            tags:
+              only: '/^v[0-9].*/'
+          requires:
+            - package_release
+      - deploy_docs:
+          filters:
+            branches:
+              only: master
