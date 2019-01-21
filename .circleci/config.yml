@@ -122,7 +122,7 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-      - build:
+      - build
   #        filters:
   #          tags:
   #            only: /.*/      
