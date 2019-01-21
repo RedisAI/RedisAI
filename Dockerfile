@@ -1,6 +1,6 @@
-FROM ubuntu
+FROM redis AS builder
 
-ENV DEPS "build-essential git ca-certificates"
+ENV DEPS "build-essential git ca-certificates curl"
 
 # Set up a build environment
 RUN set -ex;\
@@ -8,27 +8,29 @@ RUN set -ex;\
     apt-get update;\
     apt-get install -y --no-install-recommends $deps;
 
-# Build the source
-ADD ./ /redisai
-
+# Get the dependencies
 WORKDIR /redisai
-RUN set -ex;\
-    bash ./get_deps.sh;\
-    make install;
+ADD get_deps.sh .
+ADD ./test /redisai/test
+RUN bash ./get_deps.sh cpu
+
+# Build the source
+ADD ./src /redisai/src
+ADD Makefile .
+RUN make && make install
 
 # Package the runner
 FROM redis
 ENV LD_LIBRARY_PATH /usr/lib/redis/modules
 
-WORKDIR /data
 RUN set -ex;\
     mkdir -p "$LD_LIBRARY_PATH";
+RUN echo "export LD_LIBRARY_PATH=/usr/lib/redis/modules" >> /etc/profile
 
 COPY --from=builder /redisai/install/redisai.so "$LD_LIBRARY_PATH"
-COPY --from=builder /redisai/deps/libtensorflow/lib/libtensorflow.so "$LD_LIBRARY_PATH"
-COPY --from=builder /redisai/deps/libtensorflow/lib/libtensorflow_framework.so "$LD_LIBRARY_PATH"
+COPY --from=builder /redisai/install/libtensorflow.so "$LD_LIBRARY_PATH"
+COPY --from=builder /redisai/install/libtensorflow_framework.so "$LD_LIBRARY_PATH"
 
-RUN echo $LD_LIBRARY_PATH
-
+WORKDIR /data
 EXPOSE 6379
-CMD ["redis-server", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]
