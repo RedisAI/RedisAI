@@ -735,7 +735,6 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   }
 
   RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
-  sctx->script = sto;
   // TODO: copy
   sctx->fnname = fnname;
 
@@ -749,7 +748,7 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     if (isinput) {
       RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
       if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
-        // todo free rinfo
+        // todo free
         RedisModule_CloseKey(argkey);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
       }
@@ -788,6 +787,8 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     }
     RedisModule_CloseKey(outkey);
   }
+
+  RAI_ScriptRunCtxFree(sctx);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
 

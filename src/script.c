@@ -48,8 +48,6 @@ void RAI_ScriptFree(RAI_Script* script) {
   }
 
   RAI_ScriptFreeTorch(script);
-
-  RedisModule_Free(script);
 }
 
 RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script) {

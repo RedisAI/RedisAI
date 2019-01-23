@@ -179,13 +179,15 @@ size_t RAI_TensorGetDataSize(const char* dataTypeStr){
 
 void RAI_TensorFree(RAI_Tensor* t){
   if (--t->refCount <= 0){
-    RedisModule_Free(t->tensor.dl_tensor.shape);
-    if (t->tensor.dl_tensor.strides) {
-      RedisModule_Free(t->tensor.dl_tensor.strides);
-    }
-    RedisModule_Free(t->tensor.dl_tensor.data);
     if (t->tensor.manager_ctx && t->tensor.deleter) {
-      t->tensor.deleter(t->tensor.manager_ctx);
+      t->tensor.deleter(&t->tensor);
+    }
+    else {
+      RedisModule_Free(t->tensor.dl_tensor.shape);
+      if (t->tensor.dl_tensor.strides) {
+        RedisModule_Free(t->tensor.dl_tensor.strides);
+      }
+      RedisModule_Free(t->tensor.dl_tensor.data);
     }
     RedisModule_Free(t);
   }
