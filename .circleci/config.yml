@@ -26,18 +26,13 @@ jobs:
       - run:
           name: Build
           command: make install 
-          
-      - run: 
-          name: Install RLTest
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
 
       - run:
           name: Test
           command: |
             python3 -m venv venv
             . venv/bin/activate
+            pip uninstall RLTest
+            pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so
 
