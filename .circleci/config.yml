@@ -32,7 +32,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip install git+https://github.com/RedisLabsModules/RLTest.git
+            pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
 
       - run:
           name: Test
