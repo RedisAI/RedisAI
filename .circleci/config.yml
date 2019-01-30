@@ -37,6 +37,7 @@ jobs:
       - run:
           name: Test
           command: |
+            python3 -m venv venv
             . venv/bin/activate
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so
 
