@@ -2,7 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
+      - image: circleci/python:3.6.1
       
     steps:
       - checkout
