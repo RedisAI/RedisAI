@@ -6,10 +6,27 @@ jobs:
       
     steps:
       - checkout
-      #- run:
-      #    name: Install prerequisite
-      #    command: >-
-      #      apt-get update; apt-get install -y cmake curl
+
+      # Download and cache dependencies
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+
+      - run:
+          name: install dependencies
+          command: |
+            bash get_deps.sh
+            python3 -m venv venv
+            . venv/bin/activate
+            pip install git+https://github.com/RedisLabsModules/RLTest.git
+            
+      - save_cache:
+          paths:
+            - ./venv
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+
       - run:
           name: Deps
           command: bash get_deps.sh
@@ -18,7 +35,5 @@ jobs:
           command: make install 
       - run:
           name: Test
-          command: >-
-            pip install git+https://github.com/RedisLabsModules/RLTest.git
-            python -m RLTest --test test/basic_tests.py --module src/redisai.so
+          command: python -m RLTest --test test/basic_tests.py --module src/redisai.so
 
