@@ -34,5 +34,7 @@ jobs:
             . venv/bin/activate
             pip uninstall -y RLTest
             pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
+            pip install numpy
+            pip install skimage
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so
 
