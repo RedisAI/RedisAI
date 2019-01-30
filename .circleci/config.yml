@@ -32,7 +32,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip uninstall RLTest
+            pip uninstall -y RLTest
             pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so
 
