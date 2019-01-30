@@ -16,23 +16,21 @@ jobs:
 
       - run:
           name: install dependencies
-          command: |
-            bash get_deps.sh
-            python3 -m venv venv
-            . venv/bin/activate
-            pip install git+https://github.com/RedisLabsModules/RLTest.git
+          command: bash get_deps.sh
             
       - save_cache:
           paths:
-            - ./venv
-          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+            - deps
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}      
 
-      - run:
-          name: Deps
-          command: bash get_deps.sh
       - run:
           name: Build
           command: make install 
+          
+      - run: 
+          name: Install RLTest
+          command: pip install git+https://github.com/RedisLabsModules/RLTest.git
+
       - run:
           name: Test
           command: python -m RLTest --test test/basic_tests.py --module src/redisai.so
