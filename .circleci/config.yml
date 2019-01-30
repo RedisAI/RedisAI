@@ -18,5 +18,7 @@ jobs:
           command: make install 
       - run:
           name: Test
-          command: python -m RLTest --test test/basic_tests.py --module src/redisai.so
+          command: >-
+            pip install git+https://github.com/RedisLabsModules/RLTest.git
+            python -m RLTest --test test/basic_tests.py --module src/redisai.so
 
