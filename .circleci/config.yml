@@ -38,5 +38,5 @@ jobs:
           name: Test
           command: |
             . venv/bin/activate
-            python -m RLTest --test test/basic_tests.py --module src/redisai.so
+            python3 -m RLTest --test test/basic_tests.py --module src/redisai.so
 
