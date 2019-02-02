@@ -3,7 +3,7 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.6.1
-      
+
     steps:
       - checkout
 
@@ -17,15 +17,15 @@ jobs:
       - run:
           name: install dependencies
           command: bash get_deps.sh
-            
+
       - save_cache:
           paths:
             - deps
-          key: v1-dependencies-{{ checksum "get_deps.sh" }}      
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
 
       - run:
           name: Build
-          command: make install 
+          command: make install
 
       - run:
           name: Test
@@ -37,4 +37,28 @@ jobs:
             pip install numpy
             pip install scikit-image
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --oss-redis-path deps/redis/src/redis-server -s
-
+  deploy_docs:
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - checkout
+      - run:
+          name: Build Docs
+          command: mkdocs build
+      - run:
+          name: Deploy Docs to S3
+          command: >-
+            aws s3 cp site s3://oss.redislabs.com/$WEBSITE_FOLDER/ --acl
+            public-read --recursive
+workflows:
+  version: 2
+  build_and_package:
+    jobs:
+      - build:
+          filters:
+            tags:
+              only: /.*/
+      - deploy_docs:
+          filters:
+            branches:
+              only: master
