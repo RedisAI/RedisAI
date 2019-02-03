@@ -16,7 +16,9 @@ jobs:
 
       - run:
           name: install dependencies
-          command: bash get_deps.sh cpu
+          command: |
+            bash get_deps.sh cpu
+            cp -R deps/libtensorflow/lib/* /usr/local/lib
 
       - save_cache:
           paths:
