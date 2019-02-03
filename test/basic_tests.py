@@ -37,8 +37,6 @@ def example_multiproc_fn(connArgs):
 
 def test_example_multiproc():
     env = Env(testDescription="Basic multiprocessing test")
-    env.environ['LD_LIBRARY_PATH'] = os.environ.get('LD_LIBRARY_PATH')
-    print("LD_LIBRARY_PATH FROM RLTEST", env.environ['LD_LIBRARY_PATH'])
     run_test_multiproc(env, 10, example_multiproc_fn)
     con = env.getConnection()
     env.assertEqual(con.get('x'), '1')
