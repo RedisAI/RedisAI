@@ -122,8 +122,16 @@ void RAI_GraphRunCtxFree(RAI_GraphRunCtx* gctx) {
 int RAI_GraphRun(RAI_GraphRunCtx* gctx) {
   int ret;
 
-  if (gctx->graph->backend == RAI_BACKEND_TENSORFLOW) {
-    ret = RAI_GraphRunTF(gctx);
+  switch (gctx->graph->backend) {
+    case RAI_BACKEND_TENSORFLOW:
+      ret = RAI_GraphRunTF(gctx);
+      break;
+    case RAI_BACKEND_TORCH:
+      ret = RAI_GraphRunTorch(gctx);
+      break;
+    default:
+      // TODO ERR
+      break;
   }
 
   return ret;

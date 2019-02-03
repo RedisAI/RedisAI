@@ -701,7 +701,9 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
-  // TODO run synchronously for now
+  // TODO we run synchronously for now, but we could have
+  // - A: a separate thread and queue for scripts
+  // - B: the same thread and queue for graphs and scripts
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
   if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
     RedisModule_CloseKey(key);
@@ -736,7 +738,9 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
   RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
   // TODO: copy
-  sctx->fnname = fnname;
+  size_t fnname_len = strlen(fnname);
+  sctx->fnname = RedisModule_Alloc(fnname_len * sizeof(char));
+  memcpy(sctx->fnname, fnname, fnname_len);
 
   RedisModuleString **outkeys = RedisModule_Alloc(noutputs*sizeof(RedisModuleString*));
 

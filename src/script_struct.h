@@ -16,13 +16,13 @@ typedef struct RAI_Script {
 } RAI_Script;
 
 typedef struct RAI_ScriptCtxParam {
-  const char* name;
+  char* name;
   RAI_Tensor* tensor;
 } RAI_ScriptCtxParam;
 
 typedef struct RAI_ScriptRunCtx {
   RAI_Script* script;
-  const char* fnname;
+  char* fnname;
   RAI_ScriptCtxParam* inputs;
   RAI_ScriptCtxParam* outputs;
 } RAI_ScriptRunCtx;

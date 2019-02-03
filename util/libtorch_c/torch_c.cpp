@@ -1,6 +1,8 @@
 #include "torch_c.h"
 #include <torch/torch.h>
+#include <torch/csrc/jit/import.h>
 #include <iostream>
+#include <sstream>
 
 #include <ATen/Functions.h>
 
@@ -60,8 +62,8 @@ static DLContext getDLContext(const at::Type& type, const int64_t& device_id) {
   return ctx;
 }
 
-static at::DeviceType getATenDeviceType(const DLContext& ctx) {
-  switch (ctx.device_type) {
+static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
+  switch (device_type) {
     case DLDeviceType::kDLCPU:
       return at::DeviceType::CPU;
     case DLDeviceType::kDLGPU:
@@ -71,7 +73,7 @@ static at::DeviceType getATenDeviceType(const DLContext& ctx) {
     case DLDeviceType::kDLROCM:
       return at::DeviceType::HIP;
     default:
-      throw std::logic_error("Unsupported device_type: " + std::to_string(ctx.device_type));
+      throw std::logic_error("Unsupported device_type: " + std::to_string(device_type));
   }
   return at::DeviceType::CPU; // impossible
 }
@@ -129,7 +131,7 @@ at::ScalarType toScalarType(const DLDataType& dtype) {
 }
 
 torch::Tensor fromDLPack(const DLTensor* src) {
-  at::DeviceType device_type = getATenDeviceType(src->ctx);
+  at::DeviceType device_type = getATenDeviceType(src->ctx.device_type);
   at::ScalarType stype = toScalarType(src->dtype);
   return torch::from_blob(src->data,
       at::IntList(src->shape, src->ndim),
@@ -146,9 +148,6 @@ void deleter(DLManagedTensor * arg) {
   delete static_cast<ATenDLMTensor*>(arg->manager_ctx);
 }
 
-// TODO: we need to retain the input tensor in a backend_context
-// a struct with a shared_ptr for the tensor? and
-// make it go out of scope upon deallocation
 DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
   ATenDLMTensor * atDLMTensor(new ATenDLMTensor);
   atDLMTensor->handle = src;
@@ -167,60 +166,17 @@ DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
   atDLMTensor->tensor.dl_tensor.byte_offset = 0;
   return &(atDLMTensor->tensor);
 }
-//  DLManagedTensor* dl_tensor = new DLManagedTensor;
-//  dl_tensor->dl_tensor.data = src.data_ptr();
-//  int64_t device_id = 0;
-//  if (src.is_cuda()) {
-//    device_id = src.get_device();
-//  }
-//  dl_tensor->dl_tensor.ctx = getDLContext(src.type(), device_id);
-//  dl_tensor->dl_tensor.ndim = src.dim();
-//  dl_tensor->dl_tensor.dtype = getDLDataType(src.type());
-//  dl_tensor->dl_tensor.shape = const_cast<int64_t*>(src.sizes().data());
-//  dl_tensor->dl_tensor.strides = const_cast<int64_t*>(src.strides().data());
-//  dl_tensor->dl_tensor.byte_offset = 0;
-//  torch::Tensor* manager_ctx = new torch::Tensor(src);
-//  dl_tensor->manager_ctx = manager_ctx;
-//  dl_tensor->deleter = deleter;
-//  return dl_tensor;
 
-
-}
-
-struct ScriptContext {
+struct ModuleContext {
   std::shared_ptr<torch::jit::script::Module> module;
   DLDeviceType device;
 };
 
-extern "C" void torchBasicTest()
-{
-  torch::Tensor mat = torch::rand({3,3});
-  std::cout << mat << std::endl;
-}
-
-extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
-{
-  ScriptContext* ctx = new ScriptContext();
-  ctx->device = device;
-  try {
-    auto module = torch::jit::compile(script);
-    ctx->module = module;
-  }
-  catch(std::exception& e) {
-    std::cout << e.what() << std::endl;
-    return NULL;
-  }
-  return ctx;
-}
-
-extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
-                               long nInputs, DLManagedTensor** inputs,
-                               long nOutputs, DLManagedTensor** outputs)
-{
-  ScriptContext* ctx = (ScriptContext*)scriptCtx;
-
-  // TODO: check device, if GPU move input before running
-  // This will need to change at some point, as individual tensors will have their placement
+long torchRunModule(ModuleContext* ctx, const char* fnName,
+                    long nInputs, DLManagedTensor** inputs,
+                    long nOutputs, DLManagedTensor** outputs) {
+  // Checks device, if GPU then move input to GPU before running
+  // TODO: This will need to change at some point, as individual tensors will have their placement
   // and script will only make sure that placement is correct
 
   torch::DeviceType device;
@@ -271,12 +227,79 @@ extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
   return 0;
 }
 
-extern "C" void torchDeallocScript(void* scriptCtx)
-{
-  ScriptContext* ctx = (ScriptContext*)scriptCtx;
-  if (ctx) {
-    delete ctx;
-  }
 }
 
+extern "C" void torchBasicTest()
+{
+  torch::Tensor mat = torch::rand({3,3});
+  std::cout << mat << std::endl;
+}
 
+extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, long long* shape, long long* strides, char* data)
+{
+  at::DeviceType device_type = getATenDeviceType(kDLCPU);
+  at::ScalarType stype = toScalarType(dtype);
+  torch::Tensor tensor = torch::from_blob(data,
+      at::IntList(shape, ndims),
+      at::IntList(strides, ndims),
+      torch::device(at::DeviceType::CPU).dtype(stype));
+
+  DLManagedTensor *dl_tensor = toManagedDLPack(tensor);
+
+  return dl_tensor;
+}
+
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
+{
+  ModuleContext* ctx = new ModuleContext();
+  ctx->device = device;
+  try {
+    auto module = torch::jit::compile(script);
+    ctx->module = module;
+  }
+  catch(std::exception& e) {
+    std::cout << e.what() << std::endl;
+    return NULL;
+  }
+  return ctx;
+}
+
+extern "C" void* torchLoadGraph(const char* graph, DLDeviceType device)
+{
+  std::istringstream graph_stream(graph);
+  ModuleContext* ctx = new ModuleContext();
+  ctx->device = device;
+  try {
+    auto module = torch::jit::load(graph_stream);
+    ctx->module = module;
+  }
+  catch(std::exception& e) {
+    std::cout << e.what() << std::endl;
+    return NULL;
+  }
+  return ctx;
+}
+
+extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
+                               long nInputs, DLManagedTensor** inputs,
+                               long nOutputs, DLManagedTensor** outputs)
+{
+  ModuleContext* ctx = (ModuleContext*)scriptCtx;
+  return torchRunModule(ctx, fnName, nInputs, inputs, nOutputs, outputs);
+}
+
+extern "C" long torchRunGraph(void* graphCtx,
+                              long nInputs, DLManagedTensor** inputs,
+                              long nOutputs, DLManagedTensor** outputs)
+{
+  ModuleContext* ctx = (ModuleContext*)graphCtx;
+  return torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
+}
+
+extern "C" void torchDeallocContext(void* ctx)
+{
+  ModuleContext* ctx_ = (ModuleContext*)ctx;
+  if (ctx_) {
+    delete ctx_;
+  }
+}

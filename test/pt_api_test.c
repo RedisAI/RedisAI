@@ -8,13 +8,6 @@ int main() {
 
   void* ctx;
 
-  const char script0[] = "\n\
-    def foo(a):          \n\
-        return _a * 2     \n\
-    ";
-  ctx = torchCompileScript(script0, kDLCPU);
-  printf("Should be NULL: %p\n", ctx);
-
   const char script[] = "\n\
     def foo(a):          \n\
         return a * 2     \n\
@@ -22,11 +15,15 @@ int main() {
   ctx = torchCompileScript(script, kDLCPU);
   printf("Compiled: %p\n", ctx);
 
-  DLManagedTensor* input;
+  DLDataType dtype = (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1};
+  long long shape[1] = {1};
+  long long strides[1] = {1};
+  char data[4] = "0000";
+  DLManagedTensor* input = torchNewTensor(dtype, 1, shape, strides, data);
   DLManagedTensor* output;
   torchRunScript(ctx, "foo", 1, &input, 1, &output);
 
-  torchDeallocScript(ctx);
+  torchDeallocContext(ctx);
   printf("Deallocated\n");
 
   return 0;

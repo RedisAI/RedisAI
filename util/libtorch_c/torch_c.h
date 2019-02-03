@@ -9,13 +9,23 @@ extern "C" {
 
 void torchBasicTest();
 
+DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
+                                long long* shape, long long* strides,
+                                char* data);
+
 void* torchCompileScript(const char* script, DLDeviceType device);
+
+void* torchLoadGraph(const char* graph, DLDeviceType device);
 
 long torchRunScript(void* scriptCtx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
                     long nOutputs, DLManagedTensor** outputs);
 
-void torchDeallocScript(void* scriptCtx);
+long torchRunGraph(void* graphCtx,
+                   long nInputs, DLManagedTensor** inputs,
+                   long nOutputs, DLManagedTensor** outputs);
+
+void torchDeallocContext(void* ctx);
 
 #ifdef __cplusplus
 }

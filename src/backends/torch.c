@@ -70,6 +70,24 @@ void* RAI_TorchTensorFromTensor(RAI_Tensor* t){
 
 #endif
 
+RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
+                                const char *graphdef, size_t graphlen)
+{
+
+  return NULL;
+}
+
+void RAI_GraphFreeTorch(RAI_Graph* graph)
+{
+
+}
+
+int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx)
+{
+
+  return 0;
+}
+
 RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
 
   size_t scriptlen = strlen(scriptdef);
@@ -102,7 +120,7 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
 
 void RAI_ScriptFreeTorch(RAI_Script* script) {
 
-  torchDeallocScript(script->script);
+  torchDeallocContext(script->script);
   RedisModule_Free(script->scriptdef);
   RedisModule_Free(script);
 }
