@@ -16,7 +16,7 @@ jobs:
 
       - run:
           name: install dependencies
-          command: bash get_deps.sh
+          command: bash get_deps.sh cpu
 
       - save_cache:
           paths:
@@ -38,9 +38,10 @@ jobs:
             pip install scikit-image
             echo "CURRENT LD_LIBRARY_PATH"
             echo $LD_LIBRARY_PATH
+            ls $LD_LIBRARY_PATH
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --oss-redis-path deps/redis/src/redis-server -s
           environment:
-            LD_LIBRARY_PATH: $LD_LIBRARY_PATH:deps/libtensorflow/lib
+            LD_LIBRARY_PATH: deps/libtensorflow/lib
   deploy_docs:
     docker:
       - image: 'redislabsmodules/rmbuilder:latest'
