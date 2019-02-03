@@ -37,6 +37,8 @@ jobs:
             pip install numpy
             pip install scikit-image
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --oss-redis-path deps/redis/src/redis-server -s
+          environment:
+            LD_LIBRARY_PATH=$LD_LIBRARY_PATH:deps/libtensorflow/lib
   deploy_docs:
     docker:
       - image: 'redislabsmodules/rmbuilder:latest'
