@@ -116,6 +116,16 @@ make -j2 && make install
 cd ${LIBTORCH_C_DIRECTORY}
 rm -rf ${LIBTORCH_C_DIRECTORY}/build
 
+## INSTALL
+
+DEPS_INSTALL_LIB_DIRECTORY=${DEPS_DIRECTORY}/install/lib
+
+mkdir -p ${DEPS_INSTALL_LIB_DIRECTORY}
+
+cp -R ${DEPS_DIRECTORY}/libtensorflow/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
+cp -R ${DEPS_DIRECTORY}/libtorch/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
+cp -R ${DEPS_DIRECTORY}/libtorch_c/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
+
 ## TEST
 
 cd ${BASE_DIRECTORY}/test
