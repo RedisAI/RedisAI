@@ -39,7 +39,7 @@ jobs:
             echo "CURRENT LD_LIBRARY_PATH"
             echo $LD_LIBRARY_PATH
             ls $LD_LIBRARY_PATH
-            python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --oss-redis-path deps/redis/src/redis-server -s
+            LD_LIBRARY_PATH=/home/circleci/project/deps/libtensorflow/lib python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --oss-redis-path deps/redis/src/redis-server -s
           environment:
             LD_LIBRARY_PATH: /home/circleci/project/deps/libtensorflow/lib
   deploy_docs:
