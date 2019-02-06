@@ -25,7 +25,6 @@ ENV LD_LIBRARY_PATH /usr/lib/redis/modules
 
 RUN set -ex;\
     mkdir -p "$LD_LIBRARY_PATH";
-RUN echo "export LD_LIBRARY_PATH=/usr/lib/redis/modules" >> /etc/profile
 
 COPY --from=builder /redisai/install/redisai.so "$LD_LIBRARY_PATH"
 COPY --from=builder /redisai/install/libtensorflow.so "$LD_LIBRARY_PATH"
