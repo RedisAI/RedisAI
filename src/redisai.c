@@ -558,6 +558,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
   rinfo->gctx = RAI_RunCtxCreate(gto);
+  rinfo->outkeys = NULL;
 
   long long argidx = 2;
 
@@ -602,7 +603,6 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
  
     const char* option;
-    // we could already be at the end of argv: check
 
     option = RedisModule_StringPtrLen(argv[argidx + argoffset], NULL);
     if (strcasecmp(option, "NAMES") == 0) {
