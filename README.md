@@ -37,12 +37,12 @@ On the client, load the graph
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
 * `AI.SET TENSOR tensor_key data_type ndims dim1..dimN [BLOB data | VALUES val1..valN]`
-* `AI.RUN GRAPH graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...`
+* `AI.RUN GRAPH graph_key INPUTS ninputs input_key1 ... NAMES input_name_in_graph1 ... OUTPUTS noutputs output_key1 ... NAMES output_name_in_graph1 ...`
 ```
 redis-cli
 > AI.SET TENSOR bar FLOAT 1 2 VALUES 2 3
 > AI.SET TENSOR baz FLOAT 1 2 VALUES 2 3
-> AI.RUN GRAPH foo 2 bar a baz b jez c
+> AI.RUN GRAPH foo INPUTS 2 bar baz NAMES a b OUTPUTS 1 jez NAMES c
 > AI.GET TENSOR jez VALUES
 1) FLOAT
 2) (integer) 1
@@ -60,7 +60,7 @@ Stores a graph provided as a protobuf blob. Backend is TF for now.
 
 ### AI.GET TENSOR tensor_key [BLOB | VALUES | META]
 
-### AI.RUN GRAPH graph_key ninputs input_key input_name_in_graph ... output_key output_name_in_graph ...
+### AI.RUN GRAPH graph_key INPUTS ninputs input_key1 ... NAMES input_name_in_graph1 ... OUTPUTS noutputs output_key1 ... NAMES output_name_in_graph1 ...
 
 ## Mailing List
 [RedisAI Google group](https://groups.google.com/forum/#!forum/redisai)
