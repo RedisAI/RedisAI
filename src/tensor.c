@@ -164,7 +164,7 @@ DLDataType RAI_TensorDataType(RAI_Tensor* t){
 }
 
 size_t RAI_TensorLength(RAI_Tensor* t) {
-  long long* shape = t->tensor.dl_tensor.shape;
+  int64_t* shape = t->tensor.dl_tensor.shape;
   size_t len = 1;
   for (size_t i = 0 ; i < t->tensor.dl_tensor.ndim; ++i){
     len *= shape[i];
