@@ -3,87 +3,53 @@
 #include "utils/arr_rm_alloc.h"
 #include "torch_c.h"
 
-#if 0
-TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
-
-  return 0;
-}
-
-DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
-  switch (dtype) {
-    case TF_FLOAT:
-      return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1 };
-    case TF_DOUBLE:
-      return (DLDataType){ .code = kDLFloat, .bits = 64, .lanes = 1 };
-    case TF_INT8:
-      return (DLDataType){ .code = kDLInt, .bits = 8, .lanes = 1 };
-    case TF_INT16:
-      return (DLDataType){ .code = kDLInt, .bits = 16, .lanes = 1 };
-    case TF_INT32:
-      return (DLDataType){ .code = kDLInt, .bits = 32, .lanes = 1 };
-    case TF_INT64:
-      return (DLDataType){ .code = kDLInt, .bits = 64, .lanes = 1 };
-    case TF_UINT8:
-      return (DLDataType){ .code = kDLUInt, .bits = 8, .lanes = 1 };
-    case TF_UINT16:
-      return (DLDataType){ .code = kDLUInt, .bits = 16, .lanes = 1 };
-    default:
-      return (DLDataType){ .bits = 0 };
-  }
-  return (DLDataType){ .bits = 0 };
-}
-
-//RAI_Tensor* RAI_TensorCreateFromTorchTensor(TF_Tensor *tensor) {
-RAI_Tensor* RAI_TensorCreateFromTorchTensor(void *tensor) {
-  // ret->tensor = (DLTensor){
-  //     .ctx = ctx,
-  //     .data = data,
-  //     .ndim = ndims,
-  //     .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
-  //     .shape = shape,
-  //     .strides = NULL,
-  //     .byte_offset = 0
-  // };
-
-  // ret->refCount = 1;
-  // return ret;
-  return NULL;
-}
-
-void RAI_TFDeallocator(void* data, size_t len, void* arg) {
-  // printf("DEALLOCATOR CALLED\n");
-  // do nothing, memory is managed by Redis
-}
-
-// TF_Tensor* RAI_TorchTensorFromTensor(RAI_Tensor* t){
-void* RAI_TorchTensorFromTensor(RAI_Tensor* t){
-  // return TF_NewTensor(
-  //     RAI_GetTFDataTypeFromDL(t->tensor.dtype),
-  //     t->tensor.shape,
-  //     t->tensor.ndim,
-  //     t->tensor.data,
-  //     RAI_TensorByteSize(t),
-  //     &RAI_TFDeallocator,
-  //     NULL);
-  return NULL;
-}
-
-#endif
 
 RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
-                                const char *graphdef, size_t graphlen)
-{
+                                const char *graphdef, size_t graphlen) {
+  DLDeviceType dl_device;
+  switch (device) {
+    case RAI_DEVICE_CPU:
+      dl_device = kDLCPU;
+      break;
+    case RAI_DEVICE_GPU:
+      dl_device = kDLGPU;
+      break;
+    default:
+      // TODO error unsupported device
+      break;
+  }
 
-  return NULL;
+  void* graph = torchLoadGraph(graphdef, dl_device);
+
+  RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
+  ret->graph = graph;
+  ret->session = NULL;
+  ret->backend = backend;
+  ret->refCount = 1;
+
+  return ret;
 }
 
-void RAI_GraphFreeTorch(RAI_Graph* graph)
-{
-
+void RAI_GraphFreeTorch(RAI_Graph* graph) {
+  torchDeallocContext(graph->graph);
 }
 
-int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx)
-{
+int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx) {
+
+  DLManagedTensor** inputs = RedisModule_Alloc(sizeof(*inputs));
+  DLManagedTensor** outputs = RedisModule_Alloc(sizeof(*outputs));
+
+  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
+    inputs[i] = &gctx->inputs[i].tensor->tensor;
+  }
+
+  for (size_t i=0 ; i<array_len(gctx->outputs); ++i) {
+    outputs[i] = &gctx->outputs[i].tensor->tensor;
+  }
+
+  long ret = torchRunGraph(gctx->graph,
+                           array_len(gctx->inputs), inputs,
+                           array_len(gctx->outputs), outputs);
 
   return 0;
 }

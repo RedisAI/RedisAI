@@ -243,7 +243,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
   TF_Tensor* outputTensorsValues[array_len(gctx->outputs)];
   TF_Output outputs[array_len(gctx->outputs)];
 
-  for (size_t i = 0 ; i < array_len(gctx->inputs); ++i) {
+  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
     inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
     TF_Output port;
     port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->inputs[i].name);
@@ -254,7 +254,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
     inputs[i] = port;
   }
 
-  for (size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+  for (size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
     TF_Output port;
     port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->outputs[i].name);
     port.index = 0;
