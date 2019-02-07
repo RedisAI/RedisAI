@@ -558,7 +558,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Graph *gto = RedisModule_ModuleTypeGetValue(key);
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
-  rinfo->gctx = RAI_RunCtxCreate(gto);
+  rinfo->gctx = RAI_GraphRunCtxCreate(gto);
   rinfo->outkeys = NULL;
 
   long long argidx = 2;
@@ -630,7 +630,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
         RedisModule_CloseKey(argkey);
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_RunCtxAddInput(rinfo->gctx, opname, t)) {
+        if (!RAI_GraphRunCtxAddInput(rinfo->gctx, opname, t)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Input key not found.");
         }
@@ -640,7 +640,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       rinfo->outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
       for (int i = 0; i < nitems; i++) {
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_RunCtxAddOutput(rinfo->gctx, opname)) {
+        if (!RAI_GraphRunCtxAddOutput(rinfo->gctx, opname)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Output key not found.");
         }
