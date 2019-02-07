@@ -80,8 +80,8 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
 
   RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
 
-  long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
-  long long* strides = RedisModule_Alloc(ndims * sizeof(*strides));
+  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  int64_t* strides = RedisModule_Alloc(ndims * sizeof(*strides));
   size_t len = 1;
   for (long long i = 0 ; i < ndims ; ++i){
     shape[i] = dims[i];
