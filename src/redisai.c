@@ -695,6 +695,7 @@ int RedisAI_StartRunThread() {
 }
 
 // script key, fnname, ninputs, (input key, input name)..., (output key, output name)...
+// script key, INPUTS, ninputs, key1, key2 ... OUTPUTS noutputs key1 key2 ...
 int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   RedisModule_AutoMemory(ctx);
@@ -715,63 +716,77 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
  
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
-  long long ninputs;
-  if ((RedisModule_StringToLongLong(argv[3], &ninputs) != REDISMODULE_OK)
-      || ninputs < 0) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR invalid ninputs");
-  }
-
-  int pairoffset = 4;
-  int npairs = (argc - pairoffset) / 2;
-  int noutputs = npairs - ninputs;
-
-  if (npairs < ninputs) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR key/name pairs less than ninputs");
-  }
-
-  if ((argc - pairoffset) % 2 != 0) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR odd key/name pairs");
-  }
-
   RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
-  // TODO: copy
+
   size_t fnname_len = strlen(fnname);
   sctx->fnname = RedisModule_Alloc(fnname_len * sizeof(char));
   memcpy(sctx->fnname, fnname, fnname_len);
 
-  RedisModuleString **outkeys = RedisModule_Alloc(noutputs*sizeof(RedisModuleString*));
+  RedisModuleString **outkeys;
 
-  for (int i=pairoffset; i<argc; i+=2) {
-    int isinput = i < pairoffset + 2 * ninputs;
+  long long argidx = 3;
 
-    RedisModuleString *argname = argv[i+1];
-
-    if (isinput) {
-      RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
-      if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
-        // todo free
-        RedisModule_CloseKey(argkey);
-        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
-      }
-      RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
-      RedisModule_CloseKey(argkey);
-      const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RAI_ScriptRunCtxAddInput(sctx, opname, t)) {
-        // todo free
-        return RedisModule_ReplyWithError(ctx, "Input key not found.");
-      }
-    } else {
-      const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RAI_ScriptRunCtxAddOutput(sctx, opname)) {
-        // todo free
-        return RedisModule_ReplyWithError(ctx, "Output key not found.");
-      }
-      RedisModule_RetainString(ctx, argv[i]);
-      outkeys[(i-pairoffset)/2-ninputs] = argv[i];
+  while (argidx < argc-1) {
+    bool in_inputs;
+    const char* section;
+    section = RedisModule_StringPtrLen(argv[argidx], NULL);
+    if (strcasecmp(section, "INPUTS") == 0) {
+      in_inputs = true;
     }
+    else if (strcasecmp(section, "OUTPUTS") == 0) {
+      in_inputs = false;
+    }
+
+    long long nitems;
+    if ((RedisModule_StringToLongLong(argv[argidx + 1], &nitems) != REDISMODULE_OK)
+        || nitems < 0) {
+      RedisModule_CloseKey(key);
+      if (in_inputs) {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of inputs");
+      }
+      else {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of outputs");
+      }
+    }
+
+    RedisModuleString** keys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+
+    if (argidx + 2 + nitems > argc) {
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command 1.");
+    }
+ 
+    for (int idx=0; idx<nitems; idx++) {
+      keys[idx] = argv[argidx + 2 + idx];
+    }
+
+    int argoffset = 2 + nitems;
+
+    if (in_inputs) {
+      for (int i = 0; i < nitems; i++) {
+        RedisModuleKey *argkey = RedisModule_OpenKey(ctx, keys[i], REDISMODULE_READ);
+        if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
+          RedisModule_CloseKey(argkey);
+          return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+        }
+        RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
+        RedisModule_CloseKey(argkey);
+        if (!RAI_ScriptRunCtxAddInput(sctx, t)) {
+          return RedisModule_ReplyWithError(ctx, "Input key not found.");
+        }
+      }
+    }
+    else {
+      outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+      for (int i = 0; i < nitems; i++) {
+        if (!RAI_ScriptRunCtxAddOutput(sctx)) {
+          return RedisModule_ReplyWithError(ctx, "Output key not found.");
+        }
+        RedisModule_RetainString(ctx, keys[i]);
+        outkeys[i] = keys[i];
+      }
+    }
+
+    argidx += argoffset;
   }
 
   int ret = RAI_ScriptRun(sctx);

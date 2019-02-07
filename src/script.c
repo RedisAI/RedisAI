@@ -60,25 +60,21 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script) {
 }
 
 static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx, RAI_ScriptCtxParam* paramArr,
-                                 const char* name, RAI_Tensor* tensor) {
+                                 RAI_Tensor* tensor) {
 
-  size_t name_len = strlen(name);
-  char* name_ = RedisModule_Alloc(name_len * sizeof(char));
-  memcpy(name_, name, name_len * sizeof(char));
   RAI_ScriptCtxParam param = {
-      .name = name_,
       .tensor = tensor ? RAI_TensorGetShallowCopy(tensor): NULL,
   };
   paramArr = array_append(paramArr, param);
   return 1;
 }
 
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, const char* inputName, RAI_Tensor* inputTensor) {
-  return Script_RunCtxAddParam(sctx, sctx->inputs, inputName, inputTensor);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor) {
+  return Script_RunCtxAddParam(sctx, sctx->inputs, inputTensor);
 }
 
-int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx, const char* outputName) {
-  return Script_RunCtxAddParam(sctx, sctx->outputs, outputName, NULL);
+int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx) {
+  return Script_RunCtxAddParam(sctx, sctx->outputs, NULL);
 }
 
 size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx) {
@@ -93,7 +89,6 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index) {
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
   for (size_t i = 0 ; i < array_len(sctx->inputs) ; ++i) {
     RAI_TensorFree(sctx->inputs[i].tensor);
-    RedisModule_Free(sctx->inputs[i].name);
   }
   array_free(sctx->inputs);
 

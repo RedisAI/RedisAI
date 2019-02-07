@@ -16,7 +16,6 @@ typedef struct RAI_Script {
 } RAI_Script;
 
 typedef struct RAI_ScriptCtxParam {
-  char* name;
   RAI_Tensor* tensor;
 } RAI_ScriptCtxParam;
 
