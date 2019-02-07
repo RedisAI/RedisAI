@@ -589,7 +589,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModuleString** names = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
 
     if (argidx + 2 + nitems > argc) {
-      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command 1.");
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
     }
  
     for (int idx=0; idx<nitems; idx++) {
@@ -599,7 +599,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int argoffset = 2 + nitems;
 
     if (argidx + argoffset >= argc) {
-      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command 2.");
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
     }
  
     const char* option;
@@ -607,7 +607,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     option = RedisModule_StringPtrLen(argv[argidx + argoffset], NULL);
     if (strcasecmp(option, "NAMES") == 0) {
       if (argidx + argoffset + 1 + nitems > argc) {
-        return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command 2.");
+        return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
       }
       for (int idx = 0; idx < nitems; idx++) {
         names[idx] = argv[argidx + argoffset + 1 + idx];
