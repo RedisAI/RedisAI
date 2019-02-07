@@ -106,9 +106,9 @@ def test_run_mobilenet():
                         'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet', 1,
-                        'input', input_var,
-                        'output', output_var)
+    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet',
+                        'INPUTS', 1, 'input', 'NAMES', input_var,
+                        'OUTPUTS', 1, 'output', 'NAMES', output_var)
 
     dtype, _, shape, _, data = con.execute_command('AI.GET', 'TENSOR', 'output', 'BLOB')
 
@@ -132,9 +132,9 @@ def run_mobilenet(connArgs, img, input_var, output_var):
                         'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet', 1,
-                        'input', input_var,
-                        'output', output_var)
+    con.execute_command('AI.RUN', 'GRAPH', 'mobilenet',
+                        'INPUTS', 1, 'input', 'NAMES', input_var,
+                        'OUTPUTS', 1, 'output', 'NAMES', output_var)
 
     con.execute_command('DEL','input')
 

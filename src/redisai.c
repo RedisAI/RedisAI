@@ -532,7 +532,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-// graph key, ninputs, (input key, input name)..., (output key, output name)...
+// graph key, INPUTS, ninputs, key1, key2 ... [NAMES name1 name2 ...] OUTPUTS noutputs key1 key2 ... [NAMES name1 name2 ...]
 int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // 1. clone inputs as needed in the main thread (only the alternative is to lock)
   // 2. spawn the new thread for running the graph
@@ -556,60 +556,99 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Graph *gto = RedisModule_ModuleTypeGetValue(key);
 
-  long long ninputs;
-  if ((RedisModule_StringToLongLong(argv[2], &ninputs) != REDISMODULE_OK)
-      || ninputs < 0) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR invalid ninputs");
-  }
-
-  int pairoffset = 3;
-  int npairs = (argc - pairoffset) / 2;
-  int noutputs = npairs - ninputs;
-
-  if (npairs < ninputs) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR key/name pairs less than ninputs");
-  }
-
-  if ((argc - pairoffset) % 2 != 0) {
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, "ERR odd key/name pairs");
-  }
-
   struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
   rinfo->gctx = RAI_RunCtxCreate(gto);
+  rinfo->outkeys = NULL;
 
-  rinfo->outkeys = RedisModule_Alloc(noutputs*sizeof(RedisModuleString*));
+  long long argidx = 2;
 
-  for (int i=pairoffset; i<argc; i+=2) {
-    int isinput = i < pairoffset + 2 * ninputs;
-
-    RedisModuleString* argname = argv[i+1];
-
-    if (isinput) {
-      RedisModuleKey *argkey = RedisModule_OpenKey(ctx, argv[i], REDISMODULE_READ);
-      if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
-        // todo free rinfo
-        RedisModule_CloseKey(argkey);
-        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
-      }
-      RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
-      RedisModule_CloseKey(argkey);
-      const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RAI_RunCtxAddInput(rinfo->gctx, opname, t)) {
-        // todo free rinfo
-        return RedisModule_ReplyWithError(ctx, "Input key not found.");
-      }
-    } else {
-      const char* opname = RedisModule_StringPtrLen(argname, NULL);
-      if (!RAI_RunCtxAddOutput(rinfo->gctx, opname)) {
-        // todo free rinfo
-        return RedisModule_ReplyWithError(ctx, "Output key not found.");
-      }
-      RedisModule_RetainString(ctx, argv[i]);
-      rinfo->outkeys[(i-pairoffset)/2-ninputs] = argv[i];
+  while (argidx < argc-1) {
+    bool in_inputs;
+    const char* section;
+    section = RedisModule_StringPtrLen(argv[argidx], NULL);
+    if (strcasecmp(section, "INPUTS") == 0) {
+      in_inputs = true;
     }
+    else if (strcasecmp(section, "OUTPUTS") == 0) {
+      in_inputs = false;
+    }
+
+    long long nitems;
+    if ((RedisModule_StringToLongLong(argv[argidx + 1], &nitems) != REDISMODULE_OK)
+        || nitems < 0) {
+      RedisModule_CloseKey(key);
+      if (in_inputs) {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of inputs");
+      }
+      else {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of outputs");
+      }
+    }
+
+    RedisModuleString** keys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+    RedisModuleString** names = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+
+    if (argidx + 2 + nitems > argc) {
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
+    }
+ 
+    for (int idx=0; idx<nitems; idx++) {
+      keys[idx] = argv[argidx + 2 + idx];
+    }
+
+    int argoffset = 2 + nitems;
+
+    if (argidx + argoffset >= argc) {
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
+    }
+ 
+    const char* option;
+
+    option = RedisModule_StringPtrLen(argv[argidx + argoffset], NULL);
+    if (strcasecmp(option, "NAMES") == 0) {
+      if (argidx + argoffset + 1 + nitems > argc) {
+        return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command.");
+      }
+      for (int idx = 0; idx < nitems; idx++) {
+        names[idx] = argv[argidx + argoffset + 1 + idx];
+      }
+      argoffset += 1 + nitems;
+    }
+    else {
+      return RedisModule_ReplyWithError(ctx, "NAMES clause not found or not in the expected location.");
+    }
+
+    if (in_inputs) {
+      for (int i = 0; i < nitems; i++) {
+        RedisModuleKey *argkey = RedisModule_OpenKey(ctx, keys[i], REDISMODULE_READ);
+        if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
+          // todo free rinfo
+          RedisModule_CloseKey(argkey);
+          return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+        }
+        RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
+        RedisModule_CloseKey(argkey);
+        const char* opname = RedisModule_StringPtrLen(names[i], NULL);
+        if (!RAI_RunCtxAddInput(rinfo->gctx, opname, t)) {
+          // todo free rinfo
+          return RedisModule_ReplyWithError(ctx, "Input key not found.");
+        }
+      }
+    }
+    else {
+      rinfo->outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+      for (int i = 0; i < nitems; i++) {
+        const char* opname = RedisModule_StringPtrLen(names[i], NULL);
+        if (!RAI_RunCtxAddOutput(rinfo->gctx, opname)) {
+          // todo free rinfo
+          return RedisModule_ReplyWithError(ctx, "Output key not found.");
+        }
+        RedisModule_RetainString(ctx, keys[i]);
+        rinfo->outkeys[i] = keys[i];
+      }
+    }
+
+    argidx += argoffset;
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
