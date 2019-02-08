@@ -57,7 +57,7 @@ fi
 
 cd ${DEPS_DIRECTORY}
 
-PT_VERSION="1.0.0"
+PT_VERSION="1.0.1"
 #PT_VERSION="latest"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then

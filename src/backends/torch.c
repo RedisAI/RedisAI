@@ -19,7 +19,11 @@ RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
       break;
   }
 
-  void* graph = torchLoadGraph(graphdef, dl_device);
+  void* graph = torchLoadGraph(graphdef, graphlen, dl_device);
+
+  if (graph == NULL) {
+    return NULL;
+  }
 
   RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
   ret->graph = graph;
@@ -47,15 +51,19 @@ int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx) {
     outputs[i] = &gctx->outputs[i].tensor->tensor;
   }
 
-  long ret = torchRunGraph(gctx->graph,
+  long ret = torchRunGraph(gctx->graph->graph,
                            array_len(gctx->inputs), inputs,
                            array_len(gctx->outputs), outputs);
 
-  return 0;
+  for(size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
+    RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+    gctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+  }
+
+  return ret;
 }
 
 RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
-
   size_t scriptlen = strlen(scriptdef);
   char* scriptdef_ = RedisModule_Alloc(scriptlen * sizeof(char));
   memcpy(scriptdef_, scriptdef, scriptlen);

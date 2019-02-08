@@ -46,6 +46,9 @@ RAI_Graph *RAI_GraphCreate(RAI_Backend backend, RAI_Device device,
   if (backend == RAI_BACKEND_TENSORFLOW) {
     return RAI_GraphCreateTF(backend, device, graphdef, graphlen);
   }
+  else if (backend == RAI_BACKEND_TORCH) {
+    return RAI_GraphCreateTorch(backend, device, graphdef, graphlen);
+  }
 
   return NULL;
 }
@@ -57,6 +60,9 @@ void RAI_GraphFree(RAI_Graph* graph) {
 
   if (graph->backend == RAI_BACKEND_TENSORFLOW) {
     RAI_GraphFreeTF(graph);
+  }
+  else if (graph->backend == RAI_BACKEND_TORCH) {
+    RAI_GraphFreeTorch(graph);
   }
   else {
     // TODO: err properly

@@ -209,8 +209,6 @@ long torchRunModule(ModuleContext* ctx, const char* fnName,
     }
 
     for (int i=0; i<nOutputs; i++) {
-      // TODO: convert backwards from IValue to DLTensor (avoid converting non-tensor)
-      // stack[i];
       // TODO: what about isTensorList?
       // TODO: move to target device
       if (stack[i].isTensor()) {
@@ -221,10 +219,10 @@ long torchRunModule(ModuleContext* ctx, const char* fnName,
   }
   catch(std::exception& e) {
     std::cout << e.what() << std::endl;
-    return 1;
+    return 0;
   }
 
-  return 0;
+  return 1;
 }
 
 }
@@ -264,13 +262,20 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
   return ctx;
 }
 
-extern "C" void* torchLoadGraph(const char* graph, DLDeviceType device)
+extern "C" void* torchLoadGraph(const char* graph, size_t graphlen, DLDeviceType device)
 {
-  std::istringstream graph_stream(graph);
+  std::string graphstr(graph, graphlen);
+  std::istringstream graph_stream(graphstr, std::ios_base::binary);
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
   try {
+    // TODO: move to device now
     auto module = torch::jit::load(graph_stream);
+    auto aten_device = getATenDeviceType(device);
+    if (aten_device == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+      throw std::logic_error("GPU requested but CUDA not available");
+    }
+    module->to(aten_device);
     ctx->module = module;
   }
   catch(std::exception& e) {

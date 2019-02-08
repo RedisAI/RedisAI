@@ -15,7 +15,7 @@ DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
 
 void* torchCompileScript(const char* script, DLDeviceType device);
 
-void* torchLoadGraph(const char* graph, DLDeviceType device);
+void* torchLoadGraph(const char* graph, size_t graphlen, DLDeviceType device);
 
 long torchRunScript(void* scriptCtx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
