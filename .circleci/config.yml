@@ -46,8 +46,10 @@ jobs:
             LD_LIBRARY_PATH: /home/circleci/project/deps/libtensorflow/lib
       - run:
           name: Persist Artifacts
-          command: >-
-            mkdir -p ~/workspace/build && cp src/$MODULE_ARTIFACT ~/workspace/ &&
+          command: |
+            mkdir -p ~/workspace/build
+            cp src/$MODULE_ARTIFACT ~/workspace/
+            cp deps/libtensorflow/lib/*.so  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
@@ -67,6 +69,8 @@ jobs:
             ramp pack -m /workspace/ramp.yml -o
             /workspace/build/$PACKAGE_NAME.{os}-{architecture}.$CIRCLE_BRANCH.zip
             /workspace/$MODULE_ARTIFACT
+          environment:
+            LD_LIBRARY_PATH: /workspace
       - persist_to_workspace:
           root: /workspace
           paths:
@@ -85,12 +89,17 @@ jobs:
             ramp pack -m /workspace/ramp.yml -o
             /workspace/build/$PACKAGE_NAME.{os}-{architecture}.{semantic_version}.zip
             /workspace/$MODULE_ARTIFACT
+          environment:
+            LD_LIBRARY_PATH: /workspace
       - run:
           name: Package
           command: >-
             ramp pack -m /workspace/ramp.yml -o
             /workspace/build/$PACKAGE_NAME.{os}-{architecture}.latest.zip
             /workspace/$MODULE_ARTIFACT
+          environment:
+            LD_LIBRARY_PATH: /workspace
+
       - persist_to_workspace:
           root: /workspace
           paths:
