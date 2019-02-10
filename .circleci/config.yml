@@ -44,6 +44,11 @@ jobs:
             python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --enterprise-lib-path /home/circleci/project/deps/libtensorflow/lib --oss-redis-path deps/redis/src/redis-server -s
           environment:
             LD_LIBRARY_PATH: /home/circleci/project/deps/libtensorflow/lib
+      - run:
+          name: Persist Artifacts
+          command: >-
+            mkdir -p /workspace/build && cp src/$MODULE_ARTIFACT /workspace/ &&
+            cp ramp.yml /workspace/
       - persist_to_workspace:
           root: /workspace
           paths:
