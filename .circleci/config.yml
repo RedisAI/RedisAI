@@ -41,7 +41,7 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip uninstall -y RLTest
+            pip uninstall -y RLTest || 0
             pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
             pip install numpy
             pip install scikit-image
