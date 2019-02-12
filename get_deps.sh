@@ -45,15 +45,14 @@ fi
 
 LIBTF_DIRECTORY=`pwd`/libtensorflow
 
-#if [ ! -d "${LIBTF_DIRECTORY}" ]; then
-  rm -rf ${LIBTF_DIRECTORY}
+if [ ! -d "${LIBTF_DIRECTORY}" ]; then
+  # rm -rf ${LIBTF_DIRECTORY}
   echo "Downloading libtensorflow ${TF_VERSION} ${TF_BUILD}"
-  echo "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz"
   mkdir -p ${LIBTF_DIRECTORY}
   curl -L \
     "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz" |
     tar -C ${LIBTF_DIRECTORY} -xz
-#fi
+fi
 
 ## PYTORCH
 
@@ -80,9 +79,9 @@ fi
 
 LIBTORCH_DIRECTORY=`pwd`/libtorch
 
-#if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
+if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
   echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-  rm -rf ${LIBTORCH_DIRECTORY}
+  # rm -rf ${LIBTORCH_DIRECTORY}
   curl -o tmp.zip \
     "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" && \
     unzip tmp.zip && rm tmp.zip
@@ -98,7 +97,7 @@ LIBTORCH_DIRECTORY=`pwd`/libtorch
     mv mkl_tmp/${MKL_BUNDLE}/include/* ${LIBTORCH_DIRECTORY}/include/mkl
     rm -rf mkl_tmp
   fi
-#fi
+fi
 
 ## UTIL
 
