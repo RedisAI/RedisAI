@@ -47,6 +47,7 @@ LIBTF_DIRECTORY=`pwd`/libtensorflow
 
 if [ ! -d "${LIBTF_DIRECTORY}" ]; then
   echo "Downloading libtensorflow ${TF_VERSION} ${TF_BUILD}"
+  echo "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz"
   mkdir -p ${LIBTF_DIRECTORY}
   curl -L \
     "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz" |
