@@ -79,7 +79,7 @@ fi
 
 LIBTORCH_DIRECTORY=`pwd`/libtorch
 
-if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
+#if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
   echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
   curl -o tmp.zip \
     "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" && \
@@ -96,7 +96,7 @@ if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
     mv mkl_tmp/${MKL_BUNDLE}/include/* ${LIBTORCH_DIRECTORY}/include/mkl
     rm -rf mkl_tmp
   fi
-fi
+#fi
 
 ## UTIL
 
