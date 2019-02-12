@@ -80,9 +80,9 @@ LIBTORCH_DIRECTORY=`pwd`/libtorch
 
 if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
   echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-  curl -L \
-    "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" |
-    tar -C . -xz
+  curl -o tmp.zip \
+    "https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip" && \
+    unzip tmp.zip && rm tmp.zip
   if [[ "$PT_OS" == "macos" ]]; then
     mkdir -p ./mkl_tmp
     MKL_BUNDLE=mklml_mac_2019.0.1.20180928

@@ -18,8 +18,14 @@ make install
 ```
 
 ## Running the server
+On Linux
 ```
-make run
+LD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
+```
+
+On macos
+```
+DYLD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
 ```
 
 ## Documentation

@@ -75,8 +75,8 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   size_t ndims = TF_NumDims(tensor);
 
-  long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
-  for (long long i = 0 ; i < ndims ; ++i){
+  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
   }
 

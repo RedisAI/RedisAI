@@ -233,7 +233,7 @@ extern "C" void torchBasicTest()
   std::cout << mat << std::endl;
 }
 
-extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, long long* shape, long long* strides, char* data)
+extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t* shape, int64_t* strides, char* data)
 {
   at::DeviceType device_type = getATenDeviceType(kDLCPU);
   at::ScalarType stype = toScalarType(dtype);

@@ -16,8 +16,8 @@ int main() {
   printf("Compiled: %p\n", ctx);
 
   DLDataType dtype = (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1};
-  long long shape[1] = {1};
-  long long strides[1] = {1};
+  int64_t shape[1] = {1};
+  int64_t strides[1] = {1};
   char data[4] = "0000";
   DLManagedTensor* input = torchNewTensor(dtype, 1, shape, strides, data);
   DLManagedTensor* output;

@@ -59,11 +59,11 @@ cleaninst:
 cleandeps: clean
 	rm -rf $(DEPS_PATH)
 
-install: all
-	@mkdir -p $(INSTALL_PATH)
-	$(INSTALL) redisai.so $(INSTALL_PATH)
-	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
-	$(BACKEND_INSTALL)
-
-run: install
-	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisai.so
+#install: all
+#	@mkdir -p $(INSTALL_PATH)
+#	$(INSTALL) redisai.so $(INSTALL_PATH)
+#	$(INSTALL) $(DEPS_PATH)/redis/src/redis-server $(INSTALL_PATH)
+#	$(BACKEND_INSTALL)
+#
+#run: install
+#	$(FINAL_LDPATH) $(INSTALL_PATH)/redis-server --loadmodule $(INSTALL_PATH)/redisai.so

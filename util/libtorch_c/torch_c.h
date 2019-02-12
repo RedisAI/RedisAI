@@ -10,7 +10,7 @@ extern "C" {
 void torchBasicTest();
 
 DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
-                                long long* shape, long long* strides,
+                                int64_t* shape, int64_t* strides,
                                 char* data);
 
 void* torchCompileScript(const char* script, DLDeviceType device);
