@@ -25,6 +25,7 @@ jobs:
             sh cmake-3.12.4-Linux-x86_64.sh --prefix=/home/circleci/project/cmake-bin --skip-license
             sudo ln -s /home/circleci/project/cmake-bin/bin/cmake /usr/local/bin/cmake
             echo `cmake --version`
+            rm -rf /home/circleci/project/deps
             bash get_deps.sh cpu
 
       - save_cache:
@@ -54,7 +55,7 @@ jobs:
           command: |
             mkdir -p ~/workspace/build
             cp src/$MODULE_ARTIFACT ~/workspace/
-            cp deps/libtensorflow/lib/*.so  ~/workspace/
+            cp deps/install/lib/*.so  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
