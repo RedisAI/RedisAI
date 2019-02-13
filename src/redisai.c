@@ -1,11 +1,14 @@
 #include "redismodule.h"
 #include "tensor.h"
 #include "graph.h"
+#include "script.h"
 #include <string.h>
 #include <pthread.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdbool.h>
+
+#include "utils/alloc.h"
 
 typedef struct queueItem {
   struct queueItem *next;
@@ -400,10 +403,10 @@ int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if (strcasecmp(bckstr, "TF") == 0) {
     backend = RAI_BACKEND_TENSORFLOW;
   }
-  else if (strcasecmp(bckstr, "PT") == 0) {
-    backend = RAI_BACKEND_PYTORCH;
+  else if (strcasecmp(bckstr, "TORCH") == 0) {
+    backend = RAI_BACKEND_TORCH;
   }
-  else if (strcasecmp(bckstr, "OR") == 0) {
+  else if (strcasecmp(bckstr, "ORT") == 0) {
     backend = RAI_BACKEND_ONNXRUNTIME;
   }
   else {
@@ -460,12 +463,12 @@ struct RedisAI_RunInfo {
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
-  for(int i = 0 ; i < RAI_RunCtxNumOutputs(rinfo->gctx) ; ++i){
+  for(int i = 0 ; i < RAI_GraphRunCtxNumOutputs(rinfo->gctx) ; ++i){
     RedisModule_FreeString(ctx, rinfo->outkeys[i]);
   }
   RedisModule_Free(rinfo->outkeys);
 
-  RAI_RunCtxFree(rinfo->gctx);
+  RAI_GraphRunCtxFree(rinfo->gctx);
 
   RedisModule_Free(rinfo);
 }
@@ -507,7 +510,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return ret;
   }
 
-  for (size_t i=0; i<RAI_RunCtxNumOutputs(rinfo->gctx); ++i) {
+  for (size_t i=0; i<RAI_GraphRunCtxNumOutputs(rinfo->gctx); ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
@@ -517,7 +520,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
       RedisAI_FreeRunInfo(ctx, rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
-    RAI_Tensor *t = RAI_RunCtxOutputTensor(rinfo->gctx, i);
+    RAI_Tensor *t = RAI_GraphRunCtxOutputTensor(rinfo->gctx, i);
     if (t) {
       RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
     }
@@ -557,7 +560,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Graph *gto = RedisModule_ModuleTypeGetValue(key);
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
-  rinfo->gctx = RAI_RunCtxCreate(gto);
+  rinfo->gctx = RAI_GraphRunCtxCreate(gto);
   rinfo->outkeys = NULL;
 
   long long argidx = 2;
@@ -629,7 +632,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
         RedisModule_CloseKey(argkey);
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_RunCtxAddInput(rinfo->gctx, opname, t)) {
+        if (!RAI_GraphRunCtxAddInput(rinfo->gctx, opname, t)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Input key not found.");
         }
@@ -639,7 +642,7 @@ int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       rinfo->outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
       for (int i = 0; i < nitems; i++) {
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_RunCtxAddOutput(rinfo->gctx, opname)) {
+        if (!RAI_GraphRunCtxAddOutput(rinfo->gctx, opname)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Output key not found.");
         }
@@ -693,6 +696,191 @@ int RedisAI_StartRunThread() {
   return REDISMODULE_OK;
 }
 
+// script key, fnname, ninputs, (input key, input name)..., (output key, output name)...
+// script key, INPUTS, ninputs, key1, key2 ... OUTPUTS noutputs key1 key2 ...
+int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+
+  RedisModule_AutoMemory(ctx);
+
+  if (argc < 4) return RedisModule_WrongArity(ctx);
+
+  // TODO we run synchronously for now, but we could have
+  // - A: a separate thread and queue for scripts
+  // - B: the same thread and queue for graphs and scripts
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  const char* fnname;
+  fnname = RedisModule_StringPtrLen(argv[2], NULL);
+ 
+  RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
+
+  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
+
+  size_t fnname_len = strlen(fnname);
+  sctx->fnname = RedisModule_Alloc(fnname_len * sizeof(char));
+  memcpy(sctx->fnname, fnname, fnname_len);
+
+  RedisModuleString **outkeys;
+
+  long long argidx = 3;
+
+  while (argidx < argc-1) {
+    bool in_inputs;
+    const char* section;
+    section = RedisModule_StringPtrLen(argv[argidx], NULL);
+    if (strcasecmp(section, "INPUTS") == 0) {
+      in_inputs = true;
+    }
+    else if (strcasecmp(section, "OUTPUTS") == 0) {
+      in_inputs = false;
+    }
+
+    long long nitems;
+    if ((RedisModule_StringToLongLong(argv[argidx + 1], &nitems) != REDISMODULE_OK)
+        || nitems < 0) {
+      RedisModule_CloseKey(key);
+      if (in_inputs) {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of inputs");
+      }
+      else {
+        return RedisModule_ReplyWithError(ctx, "ERR invalid number of outputs");
+      }
+    }
+
+    RedisModuleString** keys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+
+    if (argidx + 2 + nitems > argc) {
+      return RedisModule_ReplyWithError(ctx, "Insufficient inputs in command 1.");
+    }
+ 
+    for (int idx=0; idx<nitems; idx++) {
+      keys[idx] = argv[argidx + 2 + idx];
+    }
+
+    int argoffset = 2 + nitems;
+
+    if (in_inputs) {
+      for (int i = 0; i < nitems; i++) {
+        RedisModuleKey *argkey = RedisModule_OpenKey(ctx, keys[i], REDISMODULE_READ);
+        if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
+          RedisModule_CloseKey(argkey);
+          return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+        }
+        RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
+        RedisModule_CloseKey(argkey);
+        if (!RAI_ScriptRunCtxAddInput(sctx, t)) {
+          return RedisModule_ReplyWithError(ctx, "Input key not found.");
+        }
+      }
+    }
+    else {
+      outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+      for (int i = 0; i < nitems; i++) {
+        if (!RAI_ScriptRunCtxAddOutput(sctx)) {
+          return RedisModule_ReplyWithError(ctx, "Output key not found.");
+        }
+        RedisModule_RetainString(ctx, keys[i]);
+        outkeys[i] = keys[i];
+      }
+    }
+
+    argidx += argoffset;
+  }
+
+  int ret = RAI_ScriptRun(sctx);
+
+  for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
+    RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
+                                                 REDISMODULE_READ|REDISMODULE_WRITE);
+    int type = RedisModule_KeyType(outkey);
+    if (type != REDISMODULE_KEYTYPE_EMPTY &&
+        RedisModule_ModuleTypeGetType(outkey) != RedisAI_TensorType) {
+      RedisModule_CloseKey(outkey);
+      return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    }
+    RAI_Tensor *t = RAI_ScriptRunCtxOutputTensor(sctx, i);
+    if (t) {
+      RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
+    }
+    RedisModule_CloseKey(outkey);
+  }
+
+  RAI_ScriptRunCtxFree(sctx);
+
+  RedisModule_ReplyWithSimpleString(ctx, "OK");
+
+  return REDISMODULE_OK;
+}
+
+// key
+int RedisAI_Get_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc != 2) return RedisModule_WrongArity(ctx);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
+
+  RedisModule_ReplyWithSimpleString(ctx, sto->scriptdef);
+
+  return REDISMODULE_OK;
+}
+
+// key device scriptdef
+int RedisAI_Set_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  RedisModule_AutoMemory(ctx);
+
+  if (argc != 4) return RedisModule_WrongArity(ctx);
+
+  const char* devicestr;
+  int device;
+  devicestr = RedisModule_StringPtrLen(argv[2], NULL);
+  if (strcasecmp(devicestr, "CPU") == 0) {
+    device = RAI_DEVICE_CPU;
+  }
+  else if (strcasecmp(devicestr, "GPU") == 0) {
+    device = RAI_DEVICE_GPU;
+  }
+  else {
+    return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
+  }
+
+  RAI_Script *script = NULL;
+
+  size_t scriptlen;
+  const char *scriptdef = RedisModule_StringPtrLen(argv[3], &scriptlen);
+
+  script = RAI_ScriptCreate(device, scriptdef);
+
+  if(script == NULL){
+    return RedisModule_ReplyWithError(ctx, "ERR failed creating the script");
+  }
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
+      REDISMODULE_READ|REDISMODULE_WRITE);
+  int type = RedisModule_KeyType(key);
+  if (type != REDISMODULE_KEYTYPE_EMPTY &&
+      RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
+  RedisModule_CloseKey(key);
+
+  RedisModule_ReplyWithSimpleString(ctx, "OK");
+  //RedisModule_ReplicateVerbatim(ctx);
+
+  return REDISMODULE_OK;
+}
+
 int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -706,7 +894,7 @@ int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     return RedisAI_Set_Graph_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
-    return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
+    return RedisAI_Set_Script_RedisCommand(ctx, argv+1, argc-1);
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
@@ -725,7 +913,7 @@ int RedisAI_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   //  return RedisAI_GGet_RedisCommand(ctx, argv+1, argc-1);
   //}
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
-    return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
+    return RedisAI_Get_Script_RedisCommand(ctx, argv+1, argc-1);
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
@@ -741,7 +929,7 @@ int RedisAI_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     return RedisAI_Run_Graph_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
-    return RedisModule_ReplyWithError(ctx, "ERR SCRIPT subcommand not implemented yet");
+    return RedisAI_Run_Script_RedisCommand(ctx, argv+1, argc-1);
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
@@ -772,14 +960,26 @@ static bool RediDL_RegisterApi(int (*registerApiCallback)(const char *funcname, 
 
   REGISTER_API(GraphCreate, registerApiCallback);
   REGISTER_API(GraphFree, registerApiCallback);
-  REGISTER_API(RunCtxCreate, registerApiCallback);
-  REGISTER_API(RunCtxAddInput, registerApiCallback);
-  REGISTER_API(RunCtxAddOutput, registerApiCallback);
-  REGISTER_API(RunCtxNumOutputs, registerApiCallback);
-  REGISTER_API(RunCtxOutputTensor, registerApiCallback);
-  REGISTER_API(RunCtxFree, registerApiCallback);
+  REGISTER_API(GraphRunCtxCreate, registerApiCallback);
+  REGISTER_API(GraphRunCtxAddInput, registerApiCallback);
+  REGISTER_API(GraphRunCtxAddOutput, registerApiCallback);
+  REGISTER_API(GraphRunCtxNumOutputs, registerApiCallback);
+  REGISTER_API(GraphRunCtxOutputTensor, registerApiCallback);
+  REGISTER_API(GraphRunCtxFree, registerApiCallback);
   REGISTER_API(GraphRun, registerApiCallback);
   REGISTER_API(GraphGetShallowCopy, registerApiCallback);
+
+  REGISTER_API(ScriptCreate, registerApiCallback);
+  REGISTER_API(ScriptFree, registerApiCallback);
+  REGISTER_API(ScriptRunCtxCreate, registerApiCallback);
+  REGISTER_API(ScriptRunCtxAddInput, registerApiCallback);
+  REGISTER_API(ScriptRunCtxAddOutput, registerApiCallback);
+  REGISTER_API(ScriptRunCtxNumOutputs, registerApiCallback);
+  REGISTER_API(ScriptRunCtxOutputTensor, registerApiCallback);
+  REGISTER_API(ScriptRunCtxFree, registerApiCallback);
+  REGISTER_API(ScriptRun, registerApiCallback);
+  REGISTER_API(ScriptGetShallowCopy, registerApiCallback);
+
   return true;
 }
 
@@ -801,7 +1001,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   }
 
   if(!RAI_GraphInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize tensor dt");
+    RedisModule_Log(ctx, "warning", "can not initialize graph dt");
+    return REDISMODULE_ERR;
+  }
+
+  if(!RAI_ScriptInit(ctx)){
+    RedisModule_Log(ctx, "warning", "can not initialize script dt");
     return REDISMODULE_ERR;
   }
 
