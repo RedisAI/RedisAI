@@ -51,6 +51,9 @@ RAI_Graph *RAI_GraphCreate(RAI_Backend backend, RAI_Device device,
     return RAI_GraphCreateTorch(backend, device, graphdef, graphlen);
   }
 
+  printf("ERR: Unsupported backend.\n");
+  assert(0);
+
   return NULL;
 }
 
@@ -66,8 +69,8 @@ void RAI_GraphFree(RAI_Graph* graph) {
     RAI_GraphFreeTorch(graph);
   }
   else {
-    // TODO: err properly
     printf("ERR: Unsupported backend.\n");
+    assert(0);
   }
 
   RedisModule_Free(graph);
@@ -137,7 +140,8 @@ int RAI_GraphRun(RAI_GraphRunCtx* gctx) {
       ret = RAI_GraphRunTorch(gctx);
       break;
     default:
-      // TODO ERR
+      printf("ERR: Unsupported backend.\n");
+      assert(0);
       break;
   }
 
