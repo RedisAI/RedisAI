@@ -9,6 +9,7 @@
 #include "backends/torch.h"
 #endif /* RAI_TORCH_BACKEND */
 
+#include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 
 RedisModuleType *RedisAI_GraphType = NULL;

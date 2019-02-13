@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <stdbool.h>
 
+#include "utils/alloc.h"
+
 typedef struct queueItem {
   struct queueItem *next;
   void *value;
