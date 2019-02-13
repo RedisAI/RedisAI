@@ -53,17 +53,12 @@ redis-cli
    2) "3"
 ```
 
-### AI.SET TENSOR tensor_key data_type dim shape1..shapeN [BLOB data | VALUES val1..valN]
-Stores a tensor of defined type (FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16) with N dimensions (dim) and shape given by shape1..shapeN
+## Documentation
 
-### AI.SET GRAPH graph_key backend graph_blob prefix
-Stores a graph provided as a protobuf blob. Backend is TF for now.
-
-### AI.GET TENSOR tensor_key [BLOB | VALUES | META]
-
-### AI.RUN GRAPH graph_key INPUTS ninputs input_key1 ... NAMES input_name_in_graph1 ... OUTPUTS noutputs output_key1 ... NAMES output_name_in_graph1 ...
+Read the docs at [redisai.io](http://redisai.io).
 
 ## Mailing List
+
 [RedisAI Google group](https://groups.google.com/forum/#!forum/redisai)
 
 ## License
