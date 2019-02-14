@@ -5,6 +5,11 @@
 #include "backends/tensorflow.h"
 #endif /* RAI_TENSORFLOW_BACKEND */
 
+#ifdef RAI_TORCH_BACKEND
+#include "backends/torch.h"
+#endif /* RAI_TORCH_BACKEND */
+
+#include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 
 RedisModuleType *RedisAI_GraphType = NULL;
@@ -33,7 +38,7 @@ int RAI_GraphInit(RedisModuleCtx* ctx) {
       .digest = NULL
   };
 
-  RedisAI_GraphType = RedisModule_CreateDataType(ctx, "DL__GRAPH", 0, &tmGraph);
+  RedisAI_GraphType = RedisModule_CreateDataType(ctx, "AI__GRAPH", 0, &tmGraph);
   return RedisAI_GraphType != NULL;
 }
 
@@ -42,6 +47,12 @@ RAI_Graph *RAI_GraphCreate(RAI_Backend backend, RAI_Device device,
   if (backend == RAI_BACKEND_TENSORFLOW) {
     return RAI_GraphCreateTF(backend, device, graphdef, graphlen);
   }
+  else if (backend == RAI_BACKEND_TORCH) {
+    return RAI_GraphCreateTorch(backend, device, graphdef, graphlen);
+  }
+
+  printf("ERR: Unsupported backend.\n");
+  assert(0);
 
   return NULL;
 }
@@ -54,15 +65,18 @@ void RAI_GraphFree(RAI_Graph* graph) {
   if (graph->backend == RAI_BACKEND_TENSORFLOW) {
     RAI_GraphFreeTF(graph);
   }
+  else if (graph->backend == RAI_BACKEND_TORCH) {
+    RAI_GraphFreeTorch(graph);
+  }
   else {
-    // TODO: err properly
     printf("ERR: Unsupported backend.\n");
+    assert(0);
   }
 
   RedisModule_Free(graph);
 }
 
-RAI_GraphRunCtx* RAI_RunCtxCreate(RAI_Graph* graph) {
+RAI_GraphRunCtx* RAI_GraphRunCtxCreate(RAI_Graph* graph) {
 #define PARAM_INITIAL_SIZE 10
   RAI_GraphRunCtx* gctx = RedisModule_Alloc(sizeof(*gctx));
   gctx->graph = RAI_GraphGetShallowCopy(graph);
@@ -82,24 +96,24 @@ static int Graph_RunCtxAddParam(RAI_GraphRunCtx* gctx, RAI_GraphCtxParam* paramA
   return 1;
 }
 
-int RAI_RunCtxAddInput(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor) {
+int RAI_GraphRunCtxAddInput(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor) {
   return Graph_RunCtxAddParam(gctx, gctx->inputs, inputName, inputTensor);
 }
 
-int RAI_RunCtxAddOutput(RAI_GraphRunCtx* gctx, const char* outputName) {
+int RAI_GraphRunCtxAddOutput(RAI_GraphRunCtx* gctx, const char* outputName) {
   return Graph_RunCtxAddParam(gctx, gctx->outputs, outputName, NULL);
 }
 
-size_t RAI_RunCtxNumOutputs(RAI_GraphRunCtx* gctx) {
+size_t RAI_GraphRunCtxNumOutputs(RAI_GraphRunCtx* gctx) {
   return array_len(gctx->outputs);
 }
 
-RAI_Tensor* RAI_RunCtxOutputTensor(RAI_GraphRunCtx* gctx, size_t index) {
-  assert(RAI_RunCtxNumOutputs(gctx) > index && index >= 0);
+RAI_Tensor* RAI_GraphRunCtxOutputTensor(RAI_GraphRunCtx* gctx, size_t index) {
+  assert(RAI_GraphRunCtxNumOutputs(gctx) > index && index >= 0);
   return gctx->outputs[index].tensor;
 }
 
-void RAI_RunCtxFree(RAI_GraphRunCtx* gctx) {
+void RAI_GraphRunCtxFree(RAI_GraphRunCtx* gctx) {
   for (size_t i = 0 ; i < array_len(gctx->inputs) ; ++i) {
     RAI_TensorFree(gctx->inputs[i].tensor);
   }
@@ -118,8 +132,17 @@ void RAI_RunCtxFree(RAI_GraphRunCtx* gctx) {
 int RAI_GraphRun(RAI_GraphRunCtx* gctx) {
   int ret;
 
-  if (gctx->graph->backend == RAI_BACKEND_TENSORFLOW) {
-    ret = RAI_GraphRunTF(gctx);
+  switch (gctx->graph->backend) {
+    case RAI_BACKEND_TENSORFLOW:
+      ret = RAI_GraphRunTF(gctx);
+      break;
+    case RAI_BACKEND_TORCH:
+      ret = RAI_GraphRunTorch(gctx);
+      break;
+    default:
+      printf("ERR: Unsupported backend.\n");
+      assert(0);
+      break;
   }
 
   return ret;

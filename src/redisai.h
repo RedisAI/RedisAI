@@ -49,6 +49,9 @@ RAI_Graph* MODULE_API_FUNC(RedisAI_GraphGetShallowCopy)(RAI_Graph* graph);
   }
 
 static bool RediDL_Initialize(){
+
+  RMUTil_InitAlloc();
+
   REDIDL_MODULE_INIT_FUNCTION(TensorCreate);
   REDIDL_MODULE_INIT_FUNCTION(TensorLength);
   REDIDL_MODULE_INIT_FUNCTION(TensorGetDataSize);

@@ -1,5 +1,6 @@
 #include "backends/tensorflow.h"
 #include "tensor.h"
+#include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 
 TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
@@ -75,8 +76,8 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   size_t ndims = TF_NumDims(tensor);
 
-  long long* shape = RedisModule_Alloc(ndims * sizeof(*shape));
-  for (long long i = 0 ; i < ndims ; ++i){
+  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
   }
 
@@ -91,7 +92,11 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   memcpy(data, TF_TensorData(tensor), len);
 #endif
 
-  ret->tensor = (DLTensor){
+  // TODO: use manager_ctx to ensure TF tensor doesn't get deallocated
+  // This applies to outputs
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
       .ctx = ctx,
 #ifdef RAI_COPY_RUN_OUTPUT
       .data = data,
@@ -103,6 +108,9 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
       .shape = shape,
       .strides = NULL,
       .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
   };
 
   ret->refCount = 1;
@@ -117,18 +125,18 @@ void RAI_TFDeallocator(void* data, size_t len, void* arg) {
 TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 #ifdef RAI_COPY_RUN_INPUT
   TF_Tensor* out = TF_AllocateTensor(
-      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
-      t->tensor.shape,
-      t->tensor.ndim,
+      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
+      t->tensor.dl_tensor.shape,
+      t->tensor.dl_tensor.ndim,
       RAI_TensorByteSize(t));
-  memcpy(TF_TensorData(out), t->tensor.data, TF_TensorByteSize(out));
+  memcpy(TF_TensorData(out), t->tensor.dl_tensor.data, TF_TensorByteSize(out));
   return out;
 #else
   return TF_NewTensor(
-      RAI_GetTFDataTypeFromDL(t->tensor.dtype),
-      t->tensor.shape,
-      t->tensor.ndim,
-      t->tensor.data,
+      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
+      t->tensor.dl_tensor.shape,
+      t->tensor.dl_tensor.ndim,
+      t->tensor.dl_tensor.data,
       RAI_TensorByteSize(t),
       &RAI_TFDeallocator,
       NULL);
@@ -236,7 +244,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
   TF_Tensor* outputTensorsValues[array_len(gctx->outputs)];
   TF_Output outputs[array_len(gctx->outputs)];
 
-  for (size_t i = 0 ; i < array_len(gctx->inputs); ++i) {
+  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
     inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
     TF_Output port;
     port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->inputs[i].name);
@@ -247,7 +255,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
     inputs[i] = port;
   }
 
-  for (size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+  for (size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
     TF_Output port;
     port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->outputs[i].name);
     port.index = 0;
