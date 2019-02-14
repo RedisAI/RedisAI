@@ -1,6 +1,6 @@
 FROM redis AS builder
 
-ENV DEPS "build-essential git ca-certificates curl"
+ENV DEPS "build-essential git ca-certificates curl unzip cmake"
 
 # Set up a build environment
 RUN set -ex;\
