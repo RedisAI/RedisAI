@@ -5,7 +5,7 @@
 #include "dlpack/dlpack.h"
 
 typedef struct RAI_Tensor {
-  DLTensor tensor;
+  DLManagedTensor tensor;
   long long refCount;
 } RAI_Tensor;
 

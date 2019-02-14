@@ -11,24 +11,21 @@ Expect changes in the API and internals.
 If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
 
 ## Building
-This will checkout and build Redis and download the libtensorflow binaries for your platform.
+This will checkout and build Redis and download the libraries for the backends (TensorFlow and PyTorch) for your platform.
 ```
 bash get_deps.sh
 make install
 ```
 
 ## Running the server
+On Linux
 ```
-make run
+LD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
 ```
 
-## Running tests
-Tests are in the works, there's just a check script (requires Python 3.6.x)
-Make sure the server is running, then
+On macos
 ```
-cd examples/models
-# build a graph and write it out
-python tf-minimal.py
+DYLD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
 ```
 
 On the client, load the graph
@@ -65,4 +62,4 @@ Read the docs at [redisai.io](http://redisai.io).
 
 AGPL-3.0 https://opensource.org/licenses/AGPL-3.0
 
-Copyright 2018, Orobix Srl & Redis Labs
+Copyright 2019, Orobix Srl & Redis Labs

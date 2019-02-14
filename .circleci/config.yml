@@ -20,6 +20,12 @@ jobs:
             curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
             sudo apt-get install -y git-lfs
             git lfs install
+            curl -o cmake-3.12.4-Linux-x86_64.sh https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh
+            mkdir /home/circleci/project/cmake-bin
+            sh cmake-3.12.4-Linux-x86_64.sh --prefix=/home/circleci/project/cmake-bin --skip-license
+            sudo ln -s /home/circleci/project/cmake-bin/bin/cmake /usr/local/bin/cmake
+            echo `cmake --version`
+            rm -rf /home/circleci/project/deps
             bash get_deps.sh cpu
 
       - save_cache:
@@ -29,27 +35,27 @@ jobs:
 
       - run:
           name: Build
-          command: make install
+          command: make
 
       - run:
           name: Test
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip uninstall -y RLTest
+            pip uninstall -y RLTest || true
             pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
             pip install numpy
             pip install scikit-image
             git lfs pull
-            python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --enterprise-lib-path /home/circleci/project/deps/libtensorflow/lib --oss-redis-path deps/redis/src/redis-server -s
+            python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --enterprise-lib-path /home/circleci/project/deps/install/lib --oss-redis-path deps/redis/src/redis-server -s
           environment:
-            LD_LIBRARY_PATH: /home/circleci/project/deps/libtensorflow/lib
+            LD_LIBRARY_PATH: /home/circleci/project/deps/install/lib
       - run:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
             cp src/$MODULE_ARTIFACT ~/workspace/
-            cp deps/libtensorflow/lib/*.so  ~/workspace/
+            cp deps/install/lib/*.so  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
