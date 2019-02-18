@@ -144,19 +144,19 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
-                             const char *graphdef, size_t graphlen) {
-  TF_Graph* graph = TF_NewGraph();
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
+                             const char *modeldef, size_t modellen) {
+  TF_Graph* model = TF_NewGraph();
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 
   TF_Buffer *buffer = TF_NewBuffer();
-  buffer->length = graphlen;
-  buffer->data = graphdef;
+  buffer->length = modellen;
+  buffer->data = modeldef;
 
   TF_Status *status = TF_NewStatus();
 
-  TF_GraphImportGraphDef(graph, buffer, options, status);
+  TF_GraphImportGraphDef(model, buffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
     // todo: free memory
@@ -192,7 +192,7 @@ RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
   TF_DeleteStatus(optionsStatus);
 
   TF_Status *sessionStatus = TF_NewStatus();
-  TF_Session *session = TF_NewSession(graph, sessionOptions, sessionStatus);
+  TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
 
   if (TF_GetCode(sessionStatus) != TF_OK) {
     // TODO: free memory
@@ -202,8 +202,8 @@ RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
   TF_DeleteSessionOptions(sessionOptions);
   TF_DeleteStatus(sessionStatus);
 
-  RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
-  ret->graph = graph;
+  RAI_Model* ret = RedisModule_Alloc(sizeof(*ret));
+  ret->model = model;
   ret->session = session;
   ret->backend = backend;
   ret->refCount = 1;
@@ -211,9 +211,9 @@ RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
   return ret;
 }
 
-void RAI_GraphFreeTF(RAI_Graph* graph) {
+void RAI_ModelFreeTF(RAI_Model* model) {
   TF_Status *status = TF_NewStatus();
-  TF_CloseSession(graph->session, status);
+  TF_CloseSession(model->session, status);
 
   if (TF_GetCode(status) != TF_OK) {
     // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
@@ -221,8 +221,8 @@ void RAI_GraphFreeTF(RAI_Graph* graph) {
     return;
   }
 
-  TF_DeleteSession(graph->session, status);
-  graph->session = NULL;
+  TF_DeleteSession(model->session, status);
+  model->session = NULL;
 
   if (TF_GetCode(status) != TF_OK) {
     // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
@@ -230,13 +230,13 @@ void RAI_GraphFreeTF(RAI_Graph* graph) {
     return;
   }
 
-  TF_DeleteGraph(graph->graph);
-  graph->graph = NULL;
+  TF_DeleteGraph(model->model);
+  model->model = NULL;
 
   TF_DeleteStatus(status);
 }
 
-int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
+int RAI_ModelRunTF(RAI_ModelRunCtx* gctx) {
   TF_Status *status = TF_NewStatus();
 
   TF_Tensor* inputTensorsValues[array_len(gctx->inputs)];
@@ -247,7 +247,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
   for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
     inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->inputs[i].name);
+    port.oper = TF_GraphOperationByName(gctx->model->model, gctx->inputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -257,7 +257,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
 
   for (size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->outputs[i].name);
+    port.oper = TF_GraphOperationByName(gctx->model->model, gctx->outputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -265,7 +265,7 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
     outputs[i] = port;
   }
 
-  TF_SessionRun(gctx->graph->session, NULL /* run_options */,
+  TF_SessionRun(gctx->model->session, NULL /* run_options */,
                 inputs, inputTensorsValues, array_len(gctx->inputs),
                 outputs, outputTensorsValues, array_len(gctx->outputs),
                 NULL /* target_opers */, 0 /* ntargets */,

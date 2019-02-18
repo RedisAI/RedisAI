@@ -1,28 +1,28 @@
-#ifndef SRC_GRAPH_STRUCT_H_
-#define SRC_GRAPH_STRUCT_H_
+#ifndef SRC_MODEL_STRUCT_H_
+#define SRC_MODEL_STRUCT_H_
 
 #include "config.h"
 #include "tensor_struct.h"
 
-typedef struct RAI_Graph {
-  void* graph;
+typedef struct RAI_Model {
+  void* model;
   // TODO: use session pool? The ideal would be to use one session per client.
   //       If a client disconnects, we dispose the session or reuse it for
   //       another client.
   void *session;
   RAI_Backend backend;
   long long refCount;
-} RAI_Graph;
+} RAI_Model;
 
-typedef struct RAI_GraphCtxParam {
+typedef struct RAI_ModelCtxParam {
   const char* name;
   RAI_Tensor* tensor;
-} RAI_GraphCtxParam;
+} RAI_ModelCtxParam;
 
-typedef struct RAI_GraphRunCtx {
-  RAI_Graph* graph;
-  RAI_GraphCtxParam* inputs;
-  RAI_GraphCtxParam* outputs;
-} RAI_GraphRunCtx;
+typedef struct RAI_ModelRunCtx {
+  RAI_Model* model;
+  RAI_ModelCtxParam* inputs;
+  RAI_ModelCtxParam* outputs;
+} RAI_ModelRunCtx;
 
-#endif /* SRC_GRAPH_STRUCT_H_ */
+#endif /* SRC_MODEL_STRUCT_H_ */

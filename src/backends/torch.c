@@ -5,8 +5,8 @@
 #include "torch_c.h"
 
 
-RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
-                                const char *graphdef, size_t graphlen) {
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
+                                const char *modeldef, size_t modellen) {
   DLDeviceType dl_device;
   switch (device) {
     case RAI_DEVICE_CPU:
@@ -20,14 +20,14 @@ RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
       break;
   }
 
-  void* graph = torchLoadGraph(graphdef, graphlen, dl_device);
+  void* model = torchLoadGraph(modeldef, modellen, dl_device);
 
-  if (graph == NULL) {
+  if (model == NULL) {
     return NULL;
   }
 
-  RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
-  ret->graph = graph;
+  RAI_Model* ret = RedisModule_Alloc(sizeof(*ret));
+  ret->model = model;
   ret->session = NULL;
   ret->backend = backend;
   ret->refCount = 1;
@@ -35,11 +35,11 @@ RAI_Graph *RAI_GraphCreateTorch(RAI_Backend backend, RAI_Device device,
   return ret;
 }
 
-void RAI_GraphFreeTorch(RAI_Graph* graph) {
-  torchDeallocContext(graph->graph);
+void RAI_ModelFreeTorch(RAI_Model* model) {
+  torchDeallocContext(model->model);
 }
 
-int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx) {
+int RAI_ModelRunTorch(RAI_ModelRunCtx* gctx) {
 
   DLManagedTensor** inputs = RedisModule_Alloc(sizeof(*inputs));
   DLManagedTensor** outputs = RedisModule_Alloc(sizeof(*outputs));
@@ -52,7 +52,7 @@ int RAI_GraphRunTorch(RAI_GraphRunCtx* gctx) {
     outputs[i] = &gctx->outputs[i].tensor->tensor;
   }
 
-  long ret = torchRunGraph(gctx->graph->graph,
+  long ret = torchRunGraph(gctx->model->model,
                            array_len(gctx->inputs), inputs,
                            array_len(gctx->outputs), outputs);
 

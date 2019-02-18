@@ -1,6 +1,6 @@
 #include "redismodule.h"
 #include "tensor.h"
-#include "graph.h"
+#include "model.h"
 #include "script.h"
 #include <string.h>
 #include <pthread.h>
@@ -391,8 +391,8 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
 // ================================
 
-// key graphbuf
-int RedisAI_GraphSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+// key modelbuf
+int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if ((argc != 5) && (argc != 6)) return RedisModule_WrongArity(ctx);
@@ -426,27 +426,27 @@ int RedisAI_GraphSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
   }
 
-  RAI_Graph *graph = NULL;
+  RAI_Model *model = NULL;
 
-  size_t graphlen;
-  const char *graphdef = RedisModule_StringPtrLen(argv[4], &graphlen);
+  size_t modellen;
+  const char *modeldef = RedisModule_StringPtrLen(argv[4], &modellen);
 
-  graph = RAI_GraphCreate(backend, device, graphdef, graphlen);
+  model = RAI_ModelCreate(backend, device, modeldef, modellen);
 
-  if(graph == NULL){
-    return RedisModule_ReplyWithError(ctx, "ERR failed creating the graph");
+  if(model == NULL){
+    return RedisModule_ReplyWithError(ctx, "ERR failed creating the model");
   }
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisAI_GraphType) {
+      RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  RedisModule_ModuleTypeSetValue(key, RedisAI_GraphType, graph);
+  RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
@@ -458,17 +458,17 @@ int RedisAI_GraphSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString **outkeys;
-  RAI_GraphRunCtx* gctx;
+  RAI_ModelRunCtx* gctx;
   int status;
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
-  for(int i = 0 ; i < RAI_GraphRunCtxNumOutputs(rinfo->gctx) ; ++i){
+  for(int i = 0 ; i < RAI_ModelRunCtxNumOutputs(rinfo->gctx) ; ++i){
     RedisModule_FreeString(ctx, rinfo->outkeys[i]);
   }
   RedisModule_Free(rinfo->outkeys);
 
-  RAI_GraphRunCtxFree(rinfo->gctx);
+  RAI_ModelRunCtxFree(rinfo->gctx);
 
   RedisModule_Free(rinfo);
 }
@@ -479,11 +479,11 @@ void *RedisAI_RunSession(void *arg) {
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
   mstime_t start = mstime();
-  rinfo->status = RAI_GraphRun(rinfo->gctx);
+  rinfo->status = RAI_ModelRun(rinfo->gctx);
   mstime_t end = mstime();
 
   RedisModule_ThreadSafeContextLock(ctx);
-  RedisModule_Log(ctx, "notice", "RAI_GraphRun took %fs", (end - start) / 1000.0);
+  RedisModule_Log(ctx, "notice", "RAI_ModelRun took %fs", (end - start) / 1000.0);
   RedisModule_ThreadSafeContextUnlock(ctx);
 
   RedisModule_UnblockClient(rinfo->client, rinfo);
@@ -505,12 +505,12 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
   if (!rinfo->status) {
-    int ret = RedisModule_ReplyWithError(ctx, "graph run failed");
+    int ret = RedisModule_ReplyWithError(ctx, "model run failed");
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
   }
 
-  for (size_t i=0; i<RAI_GraphRunCtxNumOutputs(rinfo->gctx); ++i) {
+  for (size_t i=0; i<RAI_ModelRunCtxNumOutputs(rinfo->gctx); ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
@@ -520,7 +520,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
       RedisAI_FreeRunInfo(ctx, rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
-    RAI_Tensor *t = RAI_GraphRunCtxOutputTensor(rinfo->gctx, i);
+    RAI_Tensor *t = RAI_ModelRunCtxOutputTensor(rinfo->gctx, i);
     if (t) {
       RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
     }
@@ -528,23 +528,23 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   }
 
   // FIXME This crashes Redis, we need to investigate.
-  //RedisModule_CloseKey(rinfo->graphkey);
+  //RedisModule_CloseKey(rinfo->modelkey);
 
   RedisAI_FreeRunInfo(ctx, rinfo);
 
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-// graph key, INPUTS, ninputs, key1, key2 ... [NAMES name1 name2 ...] OUTPUTS noutputs key1 key2 ... [NAMES name1 name2 ...]
-int RedisAI_GraphRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+// model key, INPUTS, ninputs, key1, key2 ... [NAMES name1 name2 ...] OUTPUTS noutputs key1 key2 ... [NAMES name1 name2 ...]
+int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // 1. clone inputs as needed in the main thread (only the alternative is to lock)
-  // 2. spawn the new thread for running the graph
+  // 2. spawn the new thread for running the model
   // 3. have reply callback put the data back into the key
   // This way we avoid any race condition. The only gotcha is making sure no one
-  // overwrites the graph until it's done computing.
-  // This means that setGraph will decode on a candidate pointer, and will then
+  // overwrites the model until it's done computing.
+  // This means that setModel will decode on a candidate pointer, and will then
   // be picked up on the next round. We also need to signal when it's time to dispose
-  // of the old graph.
+  // of the old model.
   // The key is having a single thread looping for execution
 
   RedisModule_AutoMemory(ctx);
@@ -552,15 +552,15 @@ int RedisAI_GraphRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
-  if (RedisModule_ModuleTypeGetType(key) != RedisAI_GraphType) {
+  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
-  RAI_Graph *gto = RedisModule_ModuleTypeGetValue(key);
+  RAI_Model *gto = RedisModule_ModuleTypeGetValue(key);
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
-  rinfo->gctx = RAI_GraphRunCtxCreate(gto);
+  rinfo->gctx = RAI_ModelRunCtxCreate(gto);
   rinfo->outkeys = NULL;
 
   long long argidx = 2;
@@ -632,7 +632,7 @@ int RedisAI_GraphRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
         RedisModule_CloseKey(argkey);
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_GraphRunCtxAddInput(rinfo->gctx, opname, t)) {
+        if (!RAI_ModelRunCtxAddInput(rinfo->gctx, opname, t)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Input key not found.");
         }
@@ -642,7 +642,7 @@ int RedisAI_GraphRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       rinfo->outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
       for (int i = 0; i < nitems; i++) {
         const char* opname = RedisModule_StringPtrLen(names[i], NULL);
-        if (!RAI_GraphRunCtxAddOutput(rinfo->gctx, opname)) {
+        if (!RAI_ModelRunCtxAddOutput(rinfo->gctx, opname)) {
           // todo free rinfo
           return RedisModule_ReplyWithError(ctx, "Output key not found.");
         }
@@ -706,7 +706,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   // TODO we run synchronously for now, but we could have
   // - A: a separate thread and queue for scripts
-  // - B: the same thread and queue for graphs and scripts
+  // - B: the same thread and queue for models and scripts
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
   if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
     RedisModule_CloseKey(key);
@@ -891,8 +891,8 @@ int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   if (strcasecmp(subcommand, "TENSOR") == 0) {
     return RedisAI_Set_Tensor_RedisCommand(ctx, argv+1, argc-1);
   }
-  else if (strcasecmp(subcommand, "GRAPH") == 0) {
-    return RedisAI_Set_Graph_RedisCommand(ctx, argv+1, argc-1);
+  else if (strcasecmp(subcommand, "MODEL") == 0) {
+    return RedisAI_Set_Model_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
     return RedisAI_Set_Script_RedisCommand(ctx, argv+1, argc-1);
@@ -912,7 +912,7 @@ int RedisAI_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
   if (strcasecmp(subcommand, "TENSOR") == 0) {
     return RedisAI_Get_Tensor_RedisCommand(ctx, argv+1, argc-1);
   }
-  //else if (strcasecmp(subcommand, "GRAPH") == 0) {
+  //else if (strcasecmp(subcommand, "MODEL") == 0) {
   //  return RedisAI_GGet_RedisCommand(ctx, argv+1, argc-1);
   //}
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
@@ -930,8 +930,8 @@ int RedisAI_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   const char* subcommand;
   subcommand = RedisModule_StringPtrLen(argv[1], NULL);
-  if (strcasecmp(subcommand, "GRAPH") == 0) {
-    return RedisAI_Run_Graph_RedisCommand(ctx, argv+1, argc-1);
+  if (strcasecmp(subcommand, "MODEL") == 0) {
+    return RedisAI_Run_Model_RedisCommand(ctx, argv+1, argc-1);
   }
   else if (strcasecmp(subcommand, "SCRIPT") == 0) {
     return RedisAI_Run_Script_RedisCommand(ctx, argv+1, argc-1);
@@ -964,16 +964,16 @@ static bool RediDL_RegisterApi(int (*registerApiCallback)(const char *funcname, 
   REGISTER_API(TensorByteSize, registerApiCallback);
   REGISTER_API(TensorData, registerApiCallback);
 
-  REGISTER_API(GraphCreate, registerApiCallback);
-  REGISTER_API(GraphFree, registerApiCallback);
-  REGISTER_API(GraphRunCtxCreate, registerApiCallback);
-  REGISTER_API(GraphRunCtxAddInput, registerApiCallback);
-  REGISTER_API(GraphRunCtxAddOutput, registerApiCallback);
-  REGISTER_API(GraphRunCtxNumOutputs, registerApiCallback);
-  REGISTER_API(GraphRunCtxOutputTensor, registerApiCallback);
-  REGISTER_API(GraphRunCtxFree, registerApiCallback);
-  REGISTER_API(GraphRun, registerApiCallback);
-  REGISTER_API(GraphGetShallowCopy, registerApiCallback);
+  REGISTER_API(ModelCreate, registerApiCallback);
+  REGISTER_API(ModelFree, registerApiCallback);
+  REGISTER_API(ModelRunCtxCreate, registerApiCallback);
+  REGISTER_API(ModelRunCtxAddInput, registerApiCallback);
+  REGISTER_API(ModelRunCtxAddOutput, registerApiCallback);
+  REGISTER_API(ModelRunCtxNumOutputs, registerApiCallback);
+  REGISTER_API(ModelRunCtxOutputTensor, registerApiCallback);
+  REGISTER_API(ModelRunCtxFree, registerApiCallback);
+  REGISTER_API(ModelRun, registerApiCallback);
+  REGISTER_API(ModelGetShallowCopy, registerApiCallback);
 
   REGISTER_API(ScriptCreate, registerApiCallback);
   REGISTER_API(ScriptFree, registerApiCallback);
@@ -1006,8 +1006,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  if(!RAI_GraphInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize graph dt");
+  if(!RAI_ModelInit(ctx)){
+    RedisModule_Log(ctx, "warning", "can not initialize model dt");
     return REDISMODULE_ERR;
   }
 
@@ -1025,17 +1025,17 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
 
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_GraphSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
 #if 0
-  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_GraphGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 #endif
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_GraphRun_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write", 2, -1, 2)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 

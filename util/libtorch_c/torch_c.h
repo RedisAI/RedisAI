@@ -15,13 +15,13 @@ DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
 
 void* torchCompileScript(const char* script, DLDeviceType device);
 
-void* torchLoadGraph(const char* graph, size_t graphlen, DLDeviceType device);
+void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device);
 
 long torchRunScript(void* scriptCtx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
                     long nOutputs, DLManagedTensor** outputs);
 
-long torchRunGraph(void* graphCtx,
+long torchRunModel(void* modelCtx,
                    long nInputs, DLManagedTensor** inputs,
                    long nOutputs, DLManagedTensor** outputs);
 
