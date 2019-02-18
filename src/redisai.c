@@ -105,7 +105,7 @@ enum RedisAI_DataFmt {
 // ================================
 
 // key type ndims dim1..dimN [BLOB data | VALUES val1..valN]
-int RedisAI_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if (argc < 5) return RedisModule_WrongArity(ctx);
@@ -239,7 +239,7 @@ int RedisAI_Set_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 }
 
 // key [BLOB | VALUES]
-int RedisAI_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if (argc < 3) return RedisModule_WrongArity(ctx);
@@ -392,7 +392,7 @@ int RedisAI_Get_Tensor_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 // ================================
 
 // key graphbuf
-int RedisAI_Set_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_GraphSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if ((argc != 5) && (argc != 6)) return RedisModule_WrongArity(ctx);
@@ -536,7 +536,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 }
 
 // graph key, INPUTS, ninputs, key1, key2 ... [NAMES name1 name2 ...] OUTPUTS noutputs key1 key2 ... [NAMES name1 name2 ...]
-int RedisAI_Run_Graph_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_GraphRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // 1. clone inputs as needed in the main thread (only the alternative is to lock)
   // 2. spawn the new thread for running the graph
   // 3. have reply callback put the data back into the key
@@ -698,7 +698,7 @@ int RedisAI_StartRunThread() {
 
 // script key, fnname, ninputs, (input key, input name)..., (output key, output name)...
 // script key, INPUTS, ninputs, key1, key2 ... OUTPUTS noutputs key1 key2 ...
-int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   RedisModule_AutoMemory(ctx);
 
@@ -817,7 +817,7 @@ int RedisAI_Run_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 }
 
 // key
-int RedisAI_Get_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc != 2) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
@@ -834,7 +834,7 @@ int RedisAI_Get_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 }
 
 // key device scriptdef
-int RedisAI_Set_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
   if (argc != 4) return RedisModule_WrongArity(ctx);
@@ -881,6 +881,7 @@ int RedisAI_Set_Script_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   return REDISMODULE_OK;
 }
 
+#if 0
 int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -899,7 +900,9 @@ int RedisAI_Set_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
 }
+#endif
 
+#if 0
 int RedisAI_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -918,7 +921,9 @@ int RedisAI_Get_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
 }
+#endif
 
+#if 0
 int RedisAI_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -934,6 +939,7 @@ int RedisAI_Run_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
   return RedisModule_ReplyWithError(ctx, "ERR unrecognized subcommand");
 }
+#endif
 
 #define EXECUTION_PLAN_FREE_MSG 100
 
@@ -1010,15 +1016,38 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "ai.set", RedisAI_Set_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.get", RedisAI_Get_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.run", RedisAI_Run_RedisCommand, "write", 2, -1, 2)
+
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_GraphSet_RedisCommand, "write", 2, 2, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+#if 0
+  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_GraphGet_RedisCommand, "readonly", 2, 2, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+#endif
+
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_GraphRun_RedisCommand, "write", 2, -1, 2)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 2, 2, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 2, 2, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write", 2, -1, 2)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
