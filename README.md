@@ -17,6 +17,14 @@ bash get_deps.sh
 make install
 ```
 
+## Docker
+
+To quickly tryout RedisAI, launch an instance using docker:
+
+```sh
+docker run -p 6379:6379 -it --rm redisai/redisai
+```
+
 ## Running the server
 On Linux
 ```
