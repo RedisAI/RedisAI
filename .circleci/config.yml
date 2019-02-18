@@ -55,12 +55,12 @@ jobs:
           command: |
             mkdir -p ~/workspace/build
             cp src/$MODULE_ARTIFACT ~/workspace/
-            cp deps/install/lib/*.so  ~/workspace/
+            cp deps/install/lib/*.so*  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
           paths:
-            - '*.so'
+            - '*.so*'
             - '*.yml'
             - build
   package_branch:
