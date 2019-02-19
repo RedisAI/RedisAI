@@ -10,14 +10,8 @@ min_redis_pack_version: "5.4"
 capabilities:
     - types
     - no_multi_key
-    - replica_of
-    - backup_restore
     - hash_policy
     - eviction_expiry
     - failover_migrate
-    - persistence_aof
     - persistence_rdb
-    - hash_policy
-    - flash
     - clustering
-    - crdb
