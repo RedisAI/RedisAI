@@ -30,6 +30,8 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
   ret->model = model;
   ret->session = NULL;
   ret->backend = backend;
+  ret->inputs = NULL;
+  ret->outputs = NULL;
   ret->refCount = 1;
 
   return ret;
@@ -39,26 +41,26 @@ void RAI_ModelFreeTorch(RAI_Model* model) {
   torchDeallocContext(model->model);
 }
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx* gctx) {
+int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx) {
 
   DLManagedTensor** inputs = RedisModule_Alloc(sizeof(*inputs));
   DLManagedTensor** outputs = RedisModule_Alloc(sizeof(*outputs));
 
-  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
-    inputs[i] = &gctx->inputs[i].tensor->tensor;
+  for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
+    inputs[i] = &mctx->inputs[i].tensor->tensor;
   }
 
-  for (size_t i=0 ; i<array_len(gctx->outputs); ++i) {
-    outputs[i] = &gctx->outputs[i].tensor->tensor;
+  for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
+    outputs[i] = &mctx->outputs[i].tensor->tensor;
   }
 
-  long ret = torchRunGraph(gctx->model->model,
-                           array_len(gctx->inputs), inputs,
-                           array_len(gctx->outputs), outputs);
+  long ret = torchRunGraph(mctx->model->model,
+                           array_len(mctx->inputs), inputs,
+                           array_len(mctx->outputs), outputs);
 
-  for(size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
+  for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
-    gctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+    mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
 
   return ret;

@@ -13,7 +13,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
 
 void RAI_ModelFreeTorch(RAI_Model* model);
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx* gctx);
+int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx);
 
 RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef);
 

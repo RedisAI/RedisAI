@@ -49,7 +49,7 @@ async function run(filenames) {
   const buffer = fs.readFileSync(model_filename, {'flag': 'r'});
 
   console.log("Setting model");
-  redis.call('AI.MODELSET', 'mobilenet', 'TF', 'CPU', buffer);
+  redis.call('AI.MODELSET', 'mobilenet', 'TF', 'CPU', 'INPUTS', input_var, 'OUTPUTS', output_var, buffer);
 
   const image_height = 224;
   const image_width = 224;
@@ -66,11 +66,11 @@ async function run(filenames) {
 
     console.log("Setting input tensor");
     redis.call('AI.TENSORSET', 'input_' + i,
-                     'FLOAT', 4, 1, image_width, image_height, 3,
+                     'FLOAT', 1, image_width, image_height, 3,
                      'BLOB', buffer);
 
     console.log("Running model");
-    redis.call('AI.MODELRUN', 'mobilenet', 'INPUTS', 1, 'input_' + i, 'NAMES', input_var, 'OUTPUTS', 1, 'output_' + i, 'NAMES', output_var);
+    redis.call('AI.MODELRUN', 'mobilenet', 'INPUTS', 'input_' + i, 'OUTPUTS', 'output_' + i);
 
     console.log("Getting output tensor");
     let out_data = await redis.callBuffer('AI.TENSORGET', 'output_' + i, 'BLOB');

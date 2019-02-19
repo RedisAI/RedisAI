@@ -45,7 +45,7 @@ def test_example_multiproc():
 def test_set_tensor():
     env = Env(testDescription="Set tensor")
     con = env.getConnection()
-    con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(
@@ -55,7 +55,7 @@ def test_set_tensor():
 
 def set_tensor(connArgs):
     con = redis.Redis(**connArgs)
-    con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 1, 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
 
 
 def test_set_tensor_multiproc():
@@ -100,17 +100,17 @@ def test_run_mobilenet():
 
     model_pb, labels, img = load_mobilenet_test_data()
 
-    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'GPU', model_pb)
+    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'GPU',
+                        'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
     con.execute_command('AI.TENSORSET', 'input',
-                        'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
     con.execute_command('AI.MODELRUN', 'mobilenet',
-                        'INPUTS', 1, 'input', 'NAMES', input_var,
-                        'OUTPUTS', 1, 'output', 'NAMES', output_var)
+                        'INPUTS', 'input', 'OUTPUTS', 'output')
 
-    dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
+    dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
@@ -129,12 +129,11 @@ def run_mobilenet(connArgs, img, input_var, output_var):
     con = redis.Redis(**connArgs)
 
     con.execute_command('AI.TENSORSET', 'input',
-                        'FLOAT', 4, 1, img.shape[1], img.shape[0], img.shape[2],
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
     con.execute_command('AI.MODELRUN', 'mobilenet',
-                        'INPUTS', 1, 'input', 'NAMES', input_var,
-                        'OUTPUTS', 1, 'output', 'NAMES', output_var)
+                        'INPUTS', 'input', 'OUTPUTS', 'output')
 
     con.execute_command('DEL','input')
 
@@ -148,11 +147,12 @@ def test_run_mobilenet_multiproc():
     env = Env(testDescription="Test mobilenet multiprocessing")
     con = env.getConnection(decode_responses=False)
 
-    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'GPU', model_pb)
+    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'GPU',
+                        'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
 
-    dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
+    dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)

@@ -145,6 +145,7 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 
 
 RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
+                             char **inputs, char **outputs,
                              const char *modeldef, size_t modellen) {
   TF_Graph* model = TF_NewGraph();
 
@@ -159,6 +160,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_GraphImportGraphDef(model, buffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
+    printf("ERR: Failed importing TF graph\n");
     // todo: free memory
     return NULL;
   }
@@ -186,6 +188,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
+    printf("ERR: Failed setting TF config\n");
     // TODO: free memory
     return NULL;
   }
@@ -195,6 +198,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
 
   if (TF_GetCode(sessionStatus) != TF_OK) {
+    printf("ERR: Failed creating TF session\n");
     // TODO: free memory
     return NULL;
   }
@@ -202,10 +206,28 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_DeleteSessionOptions(sessionOptions);
   TF_DeleteStatus(sessionStatus);
 
+  size_t ninputs = array_len(inputs);
+  char **inputs_ = array_new(char*, ninputs);
+  for (long long i=0; i<ninputs; i++) {
+    char* input = RedisModule_Alloc(strlen(inputs[i]) * sizeof(char));
+    strcpy(input, inputs[i]);
+    array_append(inputs_, input);
+  }
+
+  size_t noutputs = array_len(outputs);
+  char **outputs_ = array_new(char*, noutputs);
+  for (long long i=0; i<noutputs; i++) {
+    char* output = RedisModule_Alloc(strlen(outputs[i]) * sizeof(char));
+    strcpy(output, outputs[i]);
+    array_append(outputs_, output);
+  }
+
   RAI_Model* ret = RedisModule_Alloc(sizeof(*ret));
   ret->model = model;
   ret->session = session;
   ret->backend = backend;
+  ret->inputs = inputs_;
+  ret->outputs = outputs_;
   ret->refCount = 1;
 
   return ret;
@@ -233,21 +255,37 @@ void RAI_ModelFreeTF(RAI_Model* model) {
   TF_DeleteGraph(model->model);
   model->model = NULL;
 
+  if (model->inputs) {
+    size_t ninputs = array_len(model->inputs);
+    for (long long i=0; i<ninputs; i++) {
+      RedisModule_Free(model->inputs[i]);
+    }
+    array_free(model->inputs);
+  }
+
+  if (model->outputs) {
+    size_t noutputs = array_len(model->outputs);
+    for (long long i=0; i<noutputs; i++) {
+      RedisModule_Free(model->outputs[i]);
+    }
+    array_free(model->outputs);
+  }
+
   TF_DeleteStatus(status);
 }
 
-int RAI_ModelRunTF(RAI_ModelRunCtx* gctx) {
+int RAI_ModelRunTF(RAI_ModelRunCtx* mctx) {
   TF_Status *status = TF_NewStatus();
 
-  TF_Tensor* inputTensorsValues[array_len(gctx->inputs)];
-  TF_Output inputs[array_len(gctx->inputs)];
-  TF_Tensor* outputTensorsValues[array_len(gctx->outputs)];
-  TF_Output outputs[array_len(gctx->outputs)];
+  TF_Tensor* inputTensorsValues[array_len(mctx->inputs)];
+  TF_Output inputs[array_len(mctx->inputs)];
+  TF_Tensor* outputTensorsValues[array_len(mctx->outputs)];
+  TF_Output outputs[array_len(mctx->outputs)];
 
-  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
-    inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
+  for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
+    inputTensorsValues[i] = RAI_TFTensorFromTensor(mctx->inputs[i].tensor);
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->model->model, gctx->inputs[i].name);
+    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->inputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -255,9 +293,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* gctx) {
     inputs[i] = port;
   }
 
-  for (size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
+  for (size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->model->model, gctx->outputs[i].name);
+    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->outputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -265,9 +303,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* gctx) {
     outputs[i] = port;
   }
 
-  TF_SessionRun(gctx->model->session, NULL /* run_options */,
-                inputs, inputTensorsValues, array_len(gctx->inputs),
-                outputs, outputTensorsValues, array_len(gctx->outputs),
+  TF_SessionRun(mctx->model->session, NULL /* run_options */,
+                inputs, inputTensorsValues, array_len(mctx->inputs),
+                outputs, outputTensorsValues, array_len(mctx->outputs),
                 NULL /* target_opers */, 0 /* ntargets */,
                 NULL /* run_Metadata */,
                 status);
@@ -277,9 +315,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* gctx) {
     return 0;
   }
 
-  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+  for(size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i]);
-    gctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+    mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
 
   TF_DeleteStatus(status);

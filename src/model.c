@@ -43,9 +43,10 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
 }
 
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device,
+                           char **inputs, char **outputs,
                            const char *modeldef, size_t modellen) {
   if (backend == RAI_BACKEND_TENSORFLOW) {
-    return RAI_ModelCreateTF(backend, device, modeldef, modellen);
+    return RAI_ModelCreateTF(backend, device, inputs, outputs, modeldef, modellen);
   }
   else if (backend == RAI_BACKEND_TORCH) {
     return RAI_ModelCreateTorch(backend, device, modeldef, modellen);
@@ -78,14 +79,14 @@ void RAI_ModelFree(RAI_Model* model) {
 
 RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
 #define PARAM_INITIAL_SIZE 10
-  RAI_ModelRunCtx* gctx = RedisModule_Alloc(sizeof(*gctx));
-  gctx->model = RAI_ModelGetShallowCopy(model);
-  gctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
-  gctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
-  return gctx;
+  RAI_ModelRunCtx* mctx = RedisModule_Alloc(sizeof(*mctx));
+  mctx->model = RAI_ModelGetShallowCopy(model);
+  mctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
+  mctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
+  return mctx;
 }
 
-static int Model_RunCtxAddParam(RAI_ModelRunCtx* gctx, RAI_ModelCtxParam* paramArr,
+static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam* paramArr,
                                 const char* name, RAI_Tensor* tensor) {
 
   RAI_ModelCtxParam param = {
@@ -96,48 +97,48 @@ static int Model_RunCtxAddParam(RAI_ModelRunCtx* gctx, RAI_ModelCtxParam* paramA
   return 1;
 }
 
-int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor) {
-  return Model_RunCtxAddParam(gctx, gctx->inputs, inputName, inputTensor);
+int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor) {
+  return Model_RunCtxAddParam(mctx, mctx->inputs, inputName, inputTensor);
 }
 
-int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* gctx, const char* outputName) {
-  return Model_RunCtxAddParam(gctx, gctx->outputs, outputName, NULL);
+int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName) {
+  return Model_RunCtxAddParam(mctx, mctx->outputs, outputName, NULL);
 }
 
-size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* gctx) {
-  return array_len(gctx->outputs);
+size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx) {
+  return array_len(mctx->outputs);
 }
 
-RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* gctx, size_t index) {
-  assert(RAI_ModelRunCtxNumOutputs(gctx) > index && index >= 0);
-  return gctx->outputs[index].tensor;
+RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index) {
+  assert(RAI_ModelRunCtxNumOutputs(mctx) > index && index >= 0);
+  return mctx->outputs[index].tensor;
 }
 
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* gctx) {
-  for (size_t i = 0 ; i < array_len(gctx->inputs) ; ++i) {
-    RAI_TensorFree(gctx->inputs[i].tensor);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
+  for (size_t i = 0 ; i < array_len(mctx->inputs) ; ++i) {
+    RAI_TensorFree(mctx->inputs[i].tensor);
   }
-  array_free(gctx->inputs);
+  array_free(mctx->inputs);
 
-  for (size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
-    if (gctx->outputs[i].tensor) {
-      RAI_TensorFree(gctx->outputs[i].tensor);
+  for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
+    if (mctx->outputs[i].tensor) {
+      RAI_TensorFree(mctx->outputs[i].tensor);
     }
   }
-  array_free(gctx->outputs);
+  array_free(mctx->outputs);
 
-  RAI_ModelFree(gctx->model);
+  RAI_ModelFree(mctx->model);
 }
 
-int RAI_ModelRun(RAI_ModelRunCtx* gctx) {
+int RAI_ModelRun(RAI_ModelRunCtx* mctx) {
   int ret;
 
-  switch (gctx->model->backend) {
+  switch (mctx->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
-      ret = RAI_ModelRunTF(gctx);
+      ret = RAI_ModelRunTF(mctx);
       break;
     case RAI_BACKEND_TORCH:
-      ret = RAI_ModelRunTorch(gctx);
+      ret = RAI_ModelRunTorch(mctx);
       break;
     default:
       printf("ERR: Unsupported backend.\n");
