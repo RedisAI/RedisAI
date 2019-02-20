@@ -22,7 +22,6 @@ RUN bash ./get_deps.sh cpu
 
 # Build the source
 RUN set -ex;\
-    make clean; \
     make;
 
 # Package the runner
