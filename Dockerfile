@@ -17,13 +17,14 @@ RUN set -ex;\
 
 # Get the dependencies
 WORKDIR /redisai
-ADD get_deps.sh .
-ADD ./test /redisai/test
+ADD ./ /redisai
+#ADD get_deps.sh .
+#ADD ./test /redisai/test
 RUN bash ./get_deps.sh cpu
 
 # Build the source
-ADD ./src /redisai/src
-ADD Makefile .
+#ADD ./src /redisai/src
+#ADD Makefile .
 RUN make && make install
 
 # Package the runner
