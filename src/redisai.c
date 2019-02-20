@@ -462,6 +462,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   model = RAI_ModelCreate(backend, device, inputs, outputs, modeldef, modellen);
 
+  array_free(inputs);
+  array_free(outputs);
+
   if (model == NULL){
     return RedisModule_ReplyWithError(ctx, "ERR failed creating the model");
   }
@@ -564,7 +567,6 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-// model key, INPUTS, ninputs, key1, key2 ... [NAMES name1 name2 ...] OUTPUTS noutputs key1 key2 ... [NAMES name1 name2 ...]
 // model key, INPUTS, key1, key2 ... OUTPUTS key1 key2 ...
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   // 1. clone inputs as needed in the main thread (only the alternative is to lock)
@@ -673,6 +675,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->outkeys[i] = keys[i];
       }
     }
+
+    array_free(keys);
 
     argidx += argoffset;
   }
@@ -800,6 +804,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         outkeys[i] = keys[i];
       }
     }
+
+    array_free(keys);
 
     argidx += argoffset;
   }
