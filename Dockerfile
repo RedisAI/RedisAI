@@ -1,6 +1,13 @@
 FROM redis AS builder
 
-ENV DEPS "build-essential git ca-certificates curl"
+ENV DEPS "build-essential git ca-certificates curl unzip"
+
+#install latest cmake
+ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
+RUN mkdir /opt/cmake
+RUN sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+RUN cmake --version
 
 # Set up a build environment
 RUN set -ex;\
