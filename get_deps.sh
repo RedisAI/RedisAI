@@ -1,8 +1,15 @@
 #!/usr/bin/env bash
+set -e
 
 BASE_DIRECTORY=`pwd`
 
-DEPS_DIRECTORY=${BASE_DIRECTORY}/deps
+# Allow different deps for different platforms:
+PLATNAME=${OSTYPE}
+if [ -e /etc/debian-version ]; then
+    PLATNAME=${PLATNAME}-deb
+fi
+
+DEPS_DIRECTORY=${BASE_DIRECTORY}/deps-${PLATNAME}
 
 mkdir -p ${DEPS_DIRECTORY}
 
@@ -12,19 +19,21 @@ cd ${DEPS_DIRECTORY}
 
 DLPACK_DIRECTORY=${DEPS_DIRECTORY}/dlpack
 
-echo "Cloning dlpack"
-git clone --depth 1 https://github.com/dmlc/dlpack.git
+if [ ! -d dlpack ]; then
+    echo "Cloning dlpack"
+    git clone --depth 1 https://github.com/dmlc/dlpack.git
+fi
 
 ## REDIS
 
 cd ${DEPS_DIRECTORY}
 
-echo "Building Redis"
-git clone --depth 1 --branch 5.0 https://github.com/antirez/redis.git
-
-cd ${DEPS_DIRECTORY}/redis
-
-make MALLOC=libc
+if [ ! -d redis ]; then
+    echo "Building Redis"
+    git clone --depth 1 --branch 5.0 https://github.com/antirez/redis.git
+    cd ${DEPS_DIRECTORY}/redis
+    make MALLOC=libc
+fi
 
 ## TENSORFLOW
 
@@ -43,7 +52,7 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
   TF_BUILD="cpu"
 fi
 
-LIBTF_DIRECTORY=`pwd`/libtensorflow
+LIBTF_DIRECTORY=${DEPS_DIRECTORY}/libtensorflow
 
 if [ ! -d "${LIBTF_DIRECTORY}" ]; then
   # rm -rf ${LIBTF_DIRECTORY}
