@@ -6,7 +6,8 @@
 
 
 RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
-                                const char *modeldef, size_t modellen) {
+                                const char *modeldef, size_t modellen,
+                                RAI_Error *err) {
   DLDeviceType dl_device;
   switch (device) {
     case RAI_DEVICE_CPU:
@@ -16,17 +17,20 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
       dl_device = kDLGPU;
       break;
     default:
-      // TODO error unsupported device
-      break;
+      RAI_SetError(err, RAI_EMODELCONFIGURE, "Error configuring model: unsupported device\n");
+      return NULL;
   }
 
-  void* model = torchLoadGraph(modeldef, modellen, dl_device);
+  char* err_descr = NULL;
+  void* model = torchLoadModel(modeldef, modellen, dl_device, &err_descr);
 
   if (model == NULL) {
+    RAI_SetError(err, RAI_EMODELCREATE, err_descr);
+    free(err_descr);
     return NULL;
   }
 
-  RAI_Model* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = model;
   ret->session = NULL;
   ret->backend = backend;
@@ -37,14 +41,14 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
   return ret;
 }
 
-void RAI_ModelFreeTorch(RAI_Model* model) {
+void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *err) {
   torchDeallocContext(model->model);
 }
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx) {
+int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *err) {
 
-  DLManagedTensor** inputs = RedisModule_Alloc(sizeof(*inputs));
-  DLManagedTensor** outputs = RedisModule_Alloc(sizeof(*outputs));
+  DLManagedTensor** inputs = RedisModule_Calloc(1, sizeof(*inputs));
+  DLManagedTensor** outputs = RedisModule_Calloc(1, sizeof(*outputs));
 
   for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
     inputs[i] = &mctx->inputs[i].tensor->tensor;
@@ -54,21 +58,28 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx) {
     outputs[i] = &mctx->outputs[i].tensor->tensor;
   }
 
-  long ret = torchRunGraph(mctx->model->model,
-                           array_len(mctx->inputs), inputs,
-                           array_len(mctx->outputs), outputs);
+  char* err_descr = NULL;
+  torchRunModel(mctx->model->model,
+                array_len(mctx->inputs), inputs,
+                array_len(mctx->outputs), outputs, &err_descr);
+
+  if (err_descr != NULL) {
+    RAI_SetError(err, RAI_EMODELRUN, err_descr);
+    free(err_descr);
+    return 1;
+  }
 
   for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
     mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
 
-  return ret;
+  return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
+RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_Error *err) {
   size_t scriptlen = strlen(scriptdef);
-  char* scriptdef_ = RedisModule_Alloc(scriptlen * sizeof(char));
+  char* scriptdef_ = RedisModule_Calloc(scriptlen, sizeof(char));
   memcpy(scriptdef_, scriptdef, scriptlen);
 
   DLDeviceType dl_device;
@@ -80,13 +91,20 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
       dl_device = kDLGPU;
       break;
     default:
-      // TODO error unsupported device
+      RAI_SetError(err, RAI_ESCRIPTCONFIGURE, "Error configuring script: unsupported device\n");
       break;
   }
 
-  void* script = torchCompileScript(scriptdef, dl_device);
+  char* err_descr = NULL;
+  void* script = torchCompileScript(scriptdef, dl_device, &err_descr);
 
-  RAI_Script* ret = RedisModule_Alloc(sizeof(*ret));
+  if (script == NULL) {
+    RAI_SetError(err, RAI_ESCRIPTCREATE, err_descr);
+    free(err_descr);
+    return NULL;
+  }
+
+  RAI_Script* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->script = script;
   ret->scriptdef = scriptdef_;
   ret->device = device;
@@ -95,14 +113,14 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef) {
   return ret;
 }
 
-void RAI_ScriptFreeTorch(RAI_Script* script) {
+void RAI_ScriptFreeTorch(RAI_Script* script, RAI_Error* err) {
 
   torchDeallocContext(script->script);
   RedisModule_Free(script->scriptdef);
   RedisModule_Free(script);
 }
 
-int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx) {
+int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
 
   long nInputs = array_len(sctx->inputs);
   long nOutputs = array_len(sctx->outputs);
@@ -118,11 +136,19 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx) {
     outputs[i] = &sctx->outputs[i].tensor->tensor;
   }
 
-  long ret = torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs);
+  char* err_descr = NULL;
+  torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs, &err_descr);
+
+  if (err_descr) {
+    printf("F\n");
+    RAI_SetError(err, RAI_ESCRIPTRUN, err_descr);
+    free(err_descr);
+    return 1;
+  }
 
   for (size_t i=0; i<nOutputs; i++) {
     sctx->outputs[0].tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
   }
 
-  return ret;
+  return 0;
 }

@@ -172,7 +172,7 @@ struct ModuleContext {
   DLDeviceType device;
 };
 
-long torchRunModule(ModuleContext* ctx, const char* fnName,
+void torchRunModule(ModuleContext* ctx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
                     long nOutputs, DLManagedTensor** outputs) {
   // Checks device, if GPU then move input to GPU before running
@@ -191,38 +191,30 @@ long torchRunModule(ModuleContext* ctx, const char* fnName,
       throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
   }
 
-  try {
-    torch::jit::script::Method& method = ctx->module->get_method(fnName);
+  torch::jit::script::Method& method = ctx->module->get_method(fnName);
 
-    torch::jit::Stack stack;
+  torch::jit::Stack stack;
 
-    for (int i=0; i<nInputs; i++) {
-      DLTensor* input = &(inputs[i]->dl_tensor);
-      torch::Tensor tensor = fromDLPack(input);
-      stack.push_back(tensor.to(device));
-    }
-
-    method.run(stack);
-
-    if (stack.size() != nOutputs) {
-      throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
-    }
-
-    for (int i=0; i<nOutputs; i++) {
-      // TODO: what about isTensorList?
-      // TODO: move to target device
-      if (stack[i].isTensor()) {
-        torch::Tensor tensor = stack[i].toTensor();
-        outputs[i] = toManagedDLPack(tensor);
-      }
-    }
-  }
-  catch(std::exception& e) {
-    std::cout << e.what() << std::endl;
-    return 0;
+  for (int i=0; i<nInputs; i++) {
+    DLTensor* input = &(inputs[i]->dl_tensor);
+    torch::Tensor tensor = fromDLPack(input);
+    stack.push_back(tensor.to(device));
   }
 
-  return 1;
+  method.run(stack);
+
+  if (stack.size() != nOutputs) {
+    throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
+  }
+
+  for (int i=0; i<nOutputs; i++) {
+    // TODO: what about isTensorList?
+    // TODO: move to target device
+    if (stack[i].isTensor()) {
+      torch::Tensor tensor = stack[i].toTensor();
+      outputs[i] = toManagedDLPack(tensor);
+    }
+  }
 }
 
 }
@@ -247,7 +239,7 @@ extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t
   return dl_tensor;
 }
 
-extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device, char **error)
 {
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
@@ -256,13 +248,13 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device)
     ctx->module = module;
   }
   catch(std::exception& e) {
-    std::cout << e.what() << std::endl;
+    *error = strdup(e.what());
     return NULL;
   }
   return ctx;
 }
 
-extern "C" void* torchLoadGraph(const char* graph, size_t graphlen, DLDeviceType device)
+extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType device, char **error)
 {
   std::string graphstr(graph, graphlen);
   std::istringstream graph_stream(graphstr, std::ios_base::binary);
@@ -279,26 +271,39 @@ extern "C" void* torchLoadGraph(const char* graph, size_t graphlen, DLDeviceType
     ctx->module = module;
   }
   catch(std::exception& e) {
-    std::cout << e.what() << std::endl;
+    *error = strdup(e.what());
     return NULL;
   }
   return ctx;
 }
 
-extern "C" long torchRunScript(void* scriptCtx, const char* fnName,
+extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
                                long nInputs, DLManagedTensor** inputs,
-                               long nOutputs, DLManagedTensor** outputs)
+                               long nOutputs, DLManagedTensor** outputs,
+                               char **error)
 {
   ModuleContext* ctx = (ModuleContext*)scriptCtx;
-  return torchRunModule(ctx, fnName, nInputs, inputs, nOutputs, outputs);
+  try {
+    torchRunModule(ctx, fnName, nInputs, inputs, nOutputs, outputs);
+  }
+  catch(std::exception& e) {
+    std::cout<<"EXCEPTION!"<<std::endl;
+    *error = strdup(e.what());
+  }
 }
 
-extern "C" long torchRunGraph(void* graphCtx,
+extern "C" void torchRunModel(void* graphCtx,
                               long nInputs, DLManagedTensor** inputs,
-                              long nOutputs, DLManagedTensor** outputs)
+                              long nOutputs, DLManagedTensor** outputs,
+                              char **error)
 {
   ModuleContext* ctx = (ModuleContext*)graphCtx;
-  return torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
+  try {
+    torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
+  }
+  catch(std::exception& e) {
+    *error = strdup(e.what());
+  }
 }
 
 extern "C" void torchDeallocContext(void* ctx)

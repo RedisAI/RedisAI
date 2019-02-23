@@ -30,7 +30,7 @@ Stores a TorchScript script provided as text.
 AI.SCRIPTSET script_key device script_text
 ```
 
-## AI.SCRIPTSGET - Get a script
+## AI.SCRIPTGET - Get a script
 ```sh
 AI.SCRIPTGET script_key
 ```

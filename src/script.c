@@ -20,7 +20,12 @@ static void Script_RdbSave(RedisModuleIO *rdb, void *value) {
 }
 
 static void Script_DTFree(void *value) {
-  RAI_ScriptFree(value);
+  RAI_Error err = RAI_InitError();
+  RAI_ScriptFree(value, &err);
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
 }
 
 int RAI_ScriptInit(RedisModuleCtx* ctx) {
@@ -38,22 +43,22 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
   return RedisAI_ScriptType != NULL;
 }
 
-RAI_Script *RAI_ScriptCreate(RAI_Device device, const char *scriptdef) {
+RAI_Script *RAI_ScriptCreate(RAI_Device device, const char *scriptdef, RAI_Error* err) {
 
-  return RAI_ScriptCreateTorch(device, scriptdef);
+  return RAI_ScriptCreateTorch(device, scriptdef, err);
 }
 
-void RAI_ScriptFree(RAI_Script* script) {
+void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
   if (--script->refCount > 0){
     return;
   }
 
-  RAI_ScriptFreeTorch(script);
+  RAI_ScriptFreeTorch(script, err);
 }
 
 RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script) {
 #define PARAM_INITIAL_SIZE 10
-  RAI_ScriptRunCtx* sctx = RedisModule_Alloc(sizeof(*sctx));
+  RAI_ScriptRunCtx* sctx = RedisModule_Calloc(1, sizeof(*sctx));
   sctx->script = RAI_ScriptGetShallowCopy(script);
   sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
   sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
@@ -100,15 +105,18 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
   }
   array_free(sctx->outputs);
 
-  RAI_ScriptFree(sctx->script);
+  RAI_Error err = RAI_InitError();
+  RAI_ScriptFree(sctx->script, &err);
+
+  if (err.code != RAI_OK) {
+    // TODO: take it to client somehow
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
 }
 
-int RAI_ScriptRun(RAI_ScriptRunCtx* sctx) {
-  int ret;
-
-  ret = RAI_ScriptRunTorch(sctx);
-
-  return ret;
+int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
+  return RAI_ScriptRunTorch(sctx, err);
 }
 
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {

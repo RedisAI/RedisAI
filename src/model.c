@@ -23,8 +23,14 @@ static void Model_RdbSave(RedisModuleIO *rdb, void *value) {
   //todo
 }
 
+// TODO: pass err in?
 static void Model_DTFree(void *value) {
-  RAI_ModelFree(value);
+  RAI_Error err = RAI_InitError();
+  RAI_ModelFree(value, &err);
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
 }
 
 int RAI_ModelInit(RedisModuleCtx* ctx) {
@@ -43,34 +49,36 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
 }
 
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device,
-                           char **inputs, char **outputs,
-                           const char *modeldef, size_t modellen) {
+                           size_t ninputs, const char **inputs,
+                           size_t noutputs, const char **outputs,
+                           const char *modeldef, size_t modellen, RAI_Error* err) {
+  RAI_Model *model;
   if (backend == RAI_BACKEND_TENSORFLOW) {
-    return RAI_ModelCreateTF(backend, device, inputs, outputs, modeldef, modellen);
+    model = RAI_ModelCreateTF(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TORCH) {
-    return RAI_ModelCreateTorch(backend, device, modeldef, modellen);
+    model = RAI_ModelCreateTorch(backend, device, modeldef, modellen, err);
+  }
+  else {
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
   }
 
-  printf("ERR: Unsupported backend.\n");
-  assert(0);
-
-  return NULL;
+  return model;
 }
 
-void RAI_ModelFree(RAI_Model* model) {
+void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
   if (--model->refCount > 0){
     return;
   }
 
   if (model->backend == RAI_BACKEND_TENSORFLOW) {
-    RAI_ModelFreeTF(model);
+    RAI_ModelFreeTF(model, err);
   }
   else if (model->backend == RAI_BACKEND_TORCH) {
-    RAI_ModelFreeTorch(model);
+    RAI_ModelFreeTorch(model, err);
   }
   else {
-    printf("ERR: Unsupported backend.\n");
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
     assert(0);
   }
 
@@ -79,7 +87,7 @@ void RAI_ModelFree(RAI_Model* model) {
 
 RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
 #define PARAM_INITIAL_SIZE 10
-  RAI_ModelRunCtx* mctx = RedisModule_Alloc(sizeof(*mctx));
+  RAI_ModelRunCtx* mctx = RedisModule_Calloc(1, sizeof(*mctx));
   mctx->model = RAI_ModelGetShallowCopy(model);
   mctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
   mctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
@@ -127,22 +135,29 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
   }
   array_free(mctx->outputs);
 
-  RAI_ModelFree(mctx->model);
+  RAI_Error err = RAI_InitError();
+  RAI_ModelFree(mctx->model, &err);
+
+  if (err.code != RAI_OK) {
+    // TODO: take it to client somehow
+    printf("ERROR!!\n");
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
 }
 
-int RAI_ModelRun(RAI_ModelRunCtx* mctx) {
+int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
   int ret;
 
   switch (mctx->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
-      ret = RAI_ModelRunTF(mctx);
+      ret = RAI_ModelRunTF(mctx, err);
       break;
     case RAI_BACKEND_TORCH:
-      ret = RAI_ModelRunTorch(mctx);
+      ret = RAI_ModelRunTorch(mctx, err);
       break;
     default:
-      printf("ERR: Unsupported backend.\n");
-      assert(0);
+      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
       break;
   }
 

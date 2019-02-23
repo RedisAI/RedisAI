@@ -67,7 +67,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 }
 
 RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
-  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
       .device_type = kDLCPU,
@@ -76,7 +76,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   size_t ndims = TF_NumDims(tensor);
 
-  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
   }
@@ -88,7 +88,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   // Note: on YOLO this has no impact on perf
 #ifdef RAI_COPY_RUN_OUTPUT
   size_t len = TF_TensorByteSize(tensor);
-  char* data = RedisModule_Alloc(len * sizeof(*data));
+  char* data = RedisModule_Calloc(len, sizeof(*data));
   memcpy(data, TF_TensorData(tensor), len);
 #endif
 
@@ -145,8 +145,10 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 
 
 RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
-                             char **inputs, char **outputs,
-                             const char *modeldef, size_t modellen) {
+                             size_t ninputs, const char **inputs,
+                             size_t noutputs, const char **outputs,
+                             const char *modeldef, size_t modellen,
+                             RAI_Error *error) {
   TF_Graph* model = TF_NewGraph();
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
@@ -160,7 +162,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_GraphImportGraphDef(model, buffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
-    printf("ERR: Failed importing TF graph\n");
+    RAI_SetError(error, RAI_EMODELIMPORT, RedisModule_Strdup(TF_Message(status)));
     // todo: free memory
     return NULL;
   }
@@ -188,7 +190,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
-    printf("ERR: Failed setting TF config\n");
+    RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
     // TODO: free memory
     return NULL;
   }
@@ -198,7 +200,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
 
   if (TF_GetCode(sessionStatus) != TF_OK) {
-    printf("ERR: Failed creating TF session\n");
+    RAI_SetError(error, RAI_EMODELCREATE, RedisModule_Strdup(TF_Message(status)));
     // TODO: free memory
     return NULL;
   }
@@ -206,23 +208,17 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   TF_DeleteSessionOptions(sessionOptions);
   TF_DeleteStatus(sessionStatus);
 
-  size_t ninputs = array_len(inputs);
   char **inputs_ = array_new(char*, ninputs);
   for (long long i=0; i<ninputs; i++) {
-    char* input = RedisModule_Alloc(strlen(inputs[i]) * sizeof(char));
-    strcpy(input, inputs[i]);
-    array_append(inputs_, input);
+    array_append(inputs_, RedisModule_Strdup(inputs[i]));
   }
 
-  size_t noutputs = array_len(outputs);
   char **outputs_ = array_new(char*, noutputs);
   for (long long i=0; i<noutputs; i++) {
-    char* output = RedisModule_Alloc(strlen(outputs[i]) * sizeof(char));
-    strcpy(output, outputs[i]);
-    array_append(outputs_, output);
+    array_append(outputs_, RedisModule_Strdup(outputs[i]));
   }
 
-  RAI_Model* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = model;
   ret->session = session;
   ret->backend = backend;
@@ -233,13 +229,12 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   return ret;
 }
 
-void RAI_ModelFreeTF(RAI_Model* model) {
+void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
   TF_Status *status = TF_NewStatus();
   TF_CloseSession(model->session, status);
 
   if (TF_GetCode(status) != TF_OK) {
-    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
-    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
     return;
   }
 
@@ -247,8 +242,7 @@ void RAI_ModelFreeTF(RAI_Model* model) {
   model->session = NULL;
 
   if (TF_GetCode(status) != TF_OK) {
-    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
-    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
     return;
   }
 
@@ -257,7 +251,7 @@ void RAI_ModelFreeTF(RAI_Model* model) {
 
   if (model->inputs) {
     size_t ninputs = array_len(model->inputs);
-    for (long long i=0; i<ninputs; i++) {
+    for (size_t i=0; i<ninputs; i++) {
       RedisModule_Free(model->inputs[i]);
     }
     array_free(model->inputs);
@@ -265,7 +259,7 @@ void RAI_ModelFreeTF(RAI_Model* model) {
 
   if (model->outputs) {
     size_t noutputs = array_len(model->outputs);
-    for (long long i=0; i<noutputs; i++) {
+    for (size_t i=0; i<noutputs; i++) {
       RedisModule_Free(model->outputs[i]);
     }
     array_free(model->outputs);
@@ -274,7 +268,7 @@ void RAI_ModelFreeTF(RAI_Model* model) {
   TF_DeleteStatus(status);
 }
 
-int RAI_ModelRunTF(RAI_ModelRunCtx* mctx) {
+int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   TF_Status *status = TF_NewStatus();
 
   TF_Tensor* inputTensorsValues[array_len(mctx->inputs)];
@@ -311,6 +305,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx) {
                 status);
 
   if (TF_GetCode(status) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELRUN, RedisModule_Strdup(TF_Message(status)));
     TF_DeleteStatus(status);
     return 0;
   }

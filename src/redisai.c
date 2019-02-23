@@ -26,7 +26,7 @@ typedef struct queue {
 queue *queueCreate(void) {
   struct queue *queue;
 
-  if ((queue = RedisModule_Alloc(sizeof(*queue))) == NULL)
+  if ((queue = RedisModule_Calloc(1, sizeof(*queue))) == NULL)
     return NULL;
 
   queue->front = queue->back = NULL;
@@ -38,7 +38,7 @@ queue *queueCreate(void) {
 void queuePush(queue *queue, void *value) {
   queueItem *item;
 
-  if ((item = RedisModule_Alloc(sizeof(*item))) == NULL)
+  if ((item = RedisModule_Calloc(1, sizeof(*item))) == NULL)
     return;
   item->value = value;
   item->next = NULL;
@@ -190,7 +190,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToDouble(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           RAI_TensorFree(t);
-          return RedisModule_ReplyWithError(ctx, "ERR invalid val");
+          return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromDouble(t, i, val);
         if (ret == -1) {
@@ -204,7 +204,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       for (i=0; i<len; i++) {
         if ((RedisModule_StringToLongLong(argv[datafmt_arg + 1 + i], &val) != REDISMODULE_OK)) {
           RAI_TensorFree(t);
-          return RedisModule_ReplyWithError(ctx, "ERR invalid val");
+          return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromDouble(t, i, val);
         if (ret == -1) {
@@ -219,7 +219,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisAI_TensorType) {
+      !(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
     RAI_TensorFree(t);
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
@@ -244,7 +245,8 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
-  if (RedisModule_ModuleTypeGetType(key) != RedisAI_TensorType) {
+  if (!(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
@@ -418,12 +420,19 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
   }
 
-  long long argidx = 4;
+  size_t argidx = 4;
 
-  char **inputs = array_new(char*, argc - argidx);
-  char **outputs = array_new(char*, argc - argidx);
+  size_t remaining_args = argc - argidx;
 
-  size_t namelen;
+  if (remaining_args > 1000) {
+    return RedisModule_ReplyWithError(ctx, "ERR too many input or output arguments");
+  }
+
+  const char *inputs[remaining_args];
+  const char *outputs[remaining_args];
+  size_t ninputs = 0;
+  size_t noutputs = 0;
+
   const char *name, *option;
 
   option = RedisModule_StringPtrLen(argv[argidx], NULL);
@@ -431,15 +440,14 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (strcasecmp(option, "INPUTS") == 0) {
     argidx++;
     for (size_t i=0; i<argc-argidx-1; i++) {
-      name = RedisModule_StringPtrLen(argv[argidx + i], &namelen);
+      name = RedisModule_StringPtrLen(argv[argidx + i], NULL);
       if (strcasecmp(name, "OUTPUTS") == 0) {
         break;
       }
-      char* name_ = RedisModule_Alloc(namelen * sizeof(char));
-      strcpy(name_, name);
-      array_append(inputs, name_);
+      inputs[i] = name;
+      ninputs++;
     }
-    argidx += array_len(inputs);
+    argidx += ninputs;
   }
 
   option = RedisModule_StringPtrLen(argv[argidx], NULL);
@@ -447,12 +455,10 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (strcasecmp(option, "OUTPUTS") == 0) {
     argidx++;
     for (size_t i=0; i<argc-argidx-1; i++) {
-      name = RedisModule_StringPtrLen(argv[argidx + i], &namelen);
-      char* name_ = RedisModule_Alloc(namelen * sizeof(char));
-      strcpy(name_, name);
-      array_append(outputs, name_);
+      outputs[i] = RedisModule_StringPtrLen(argv[argidx + i], NULL);
+      noutputs++;
     }
-    argidx += array_len(outputs);
+    argidx += noutputs;
   }
 
   RAI_Model *model = NULL;
@@ -460,20 +466,25 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t modellen;
   const char *modeldef = RedisModule_StringPtrLen(argv[argidx], &modellen);
 
-  model = RAI_ModelCreate(backend, device, inputs, outputs, modeldef, modellen);
+  RAI_Error err = RAI_InitError();
 
-  array_free(inputs);
-  array_free(outputs);
+  model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
-  if (model == NULL){
-    return RedisModule_ReplyWithError(ctx, "ERR failed creating the model");
+  if (err.code != RAI_OK) {
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    return ret;
   }
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
+      !(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
@@ -510,9 +521,20 @@ void *RedisAI_RunSession(void *arg) {
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
+  RAI_Error err = RAI_InitError();
+
   mstime_t start = mstime();
-  rinfo->status = RAI_ModelRun(rinfo->mctx);
+  rinfo->status = RAI_ModelRun(rinfo->mctx, &err);
   mstime_t end = mstime();
+
+  if (err.code != RAI_OK) {
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    return NULL;
+  }
 
   RedisModule_ThreadSafeContextLock(ctx);
   RedisModule_Log(ctx, "notice", "RAI_ModelRun took %fs", (end - start) / 1000.0);
@@ -547,7 +569,8 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        RedisModule_ModuleTypeGetType(outkey) != RedisAI_TensorType) {
+        !(type == REDISMODULE_KEYTYPE_MODULE &&
+          RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
       RedisModule_CloseKey(outkey);
       RedisAI_FreeRunInfo(ctx, rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
@@ -584,14 +607,15 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
-  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
+  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
   RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
 
-  struct RedisAI_RunInfo *rinfo = RedisModule_Alloc(sizeof(struct RedisAI_RunInfo));
+  struct RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
   rinfo->outkeys = NULL;
 
@@ -633,7 +657,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (in_inputs) {
       for (int i = 0; i < nitems; i++) {
         RedisModuleKey *argkey = RedisModule_OpenKey(ctx, keys[i], REDISMODULE_READ);
-        if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
+        if (!(RedisModule_KeyType(argkey) == REDISMODULE_KEYTYPE_MODULE &&
+              RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
           // todo free rinfo
           RedisModule_CloseKey(argkey);
           return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
@@ -656,7 +681,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
     }
     else {
-      rinfo->outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+      rinfo->outkeys = RedisModule_Calloc(nitems, sizeof(RedisModuleString*));
       for (int i = 0; i < nitems; i++) {
         // Opname here is passed without copying
         const char* opname = NULL;
@@ -735,7 +760,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   // - A: a separate thread and queue for scripts
   // - B: the same thread and queue for models and scripts
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
-  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
@@ -748,7 +774,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
 
   size_t fnname_len = strlen(fnname);
-  sctx->fnname = RedisModule_Alloc(fnname_len * sizeof(char));
+  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
   memcpy(sctx->fnname, fnname, fnname_len);
 
   RedisModuleString **outkeys;
@@ -783,7 +809,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (in_inputs) {
       for (int i = 0; i < nitems; i++) {
         RedisModuleKey *argkey = RedisModule_OpenKey(ctx, keys[i], REDISMODULE_READ);
-        if (RedisModule_ModuleTypeGetType(argkey) != RedisAI_TensorType) {
+        if (!(RedisModule_KeyType(argkey) == REDISMODULE_KEYTYPE_MODULE &&
+              RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
           RedisModule_CloseKey(argkey);
           return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
         }
@@ -795,7 +822,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       }
     }
     else {
-      outkeys = RedisModule_Alloc(nitems * sizeof(RedisModuleString*));
+      outkeys = RedisModule_Calloc(nitems, sizeof(RedisModuleString*));
       for (int i = 0; i < nitems; i++) {
         if (!RAI_ScriptRunCtxAddOutput(sctx)) {
           return RedisModule_ReplyWithError(ctx, "Output key not found.");
@@ -810,14 +837,25 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     argidx += argoffset;
   }
 
-  int ret = RAI_ScriptRun(sctx);
+  RAI_Error err = RAI_InitError();
+  int ret = RAI_ScriptRun(sctx, &err);
+
+  if (err.code != RAI_OK) {
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    return ret;
+  }
 
   for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        RedisModule_ModuleTypeGetType(outkey) != RedisAI_TensorType) {
+        !(type == REDISMODULE_KEYTYPE_MODULE &&
+          RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
       RedisModule_CloseKey(outkey);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
@@ -840,7 +878,8 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if (argc != 2) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
-  if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
@@ -876,17 +915,25 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   size_t scriptlen;
   const char *scriptdef = RedisModule_StringPtrLen(argv[3], &scriptlen);
 
-  script = RAI_ScriptCreate(device, scriptdef);
+  RAI_Error err = RAI_InitError();
+  script = RAI_ScriptCreate(device, scriptdef, &err);
 
-  if(script == NULL){
-    return RedisModule_ReplyWithError(ctx, "ERR failed creating the script");
+  // if (script == NULL){
+  if (err.code != RAI_OK){
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    return ret;
   }
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
-  if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+  if (type != REDISMODULE_KEYTYPE_EMPTY ||
+      !(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }

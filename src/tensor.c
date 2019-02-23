@@ -79,10 +79,10 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
     return NULL;
   }
 
-  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
-  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
-  int64_t* strides = RedisModule_Alloc(ndims * sizeof(*strides));
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
   size_t len = 1;
   for (long long i = 0 ; i < ndims ; ++i){
     shape[i] = dims[i];
@@ -95,7 +95,7 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
       .device_id = 0
   };
 
-  void* data = RedisModule_Alloc(len * Tensor_DataTypeSize(dtype));
+  void* data = RedisModule_Calloc(len, Tensor_DataTypeSize(dtype));
 
   if (data == NULL) {
     RedisModule_Free(ret);
@@ -140,7 +140,7 @@ void RAI_TensorMoveFrom(RAI_Tensor* dst, RAI_Tensor* src) {
 // Beware: this will take ownership of dltensor
 RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
 
-  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
   ret->tensor = (DLManagedTensor){
     .dl_tensor = (DLTensor){

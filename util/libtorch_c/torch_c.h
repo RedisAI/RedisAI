@@ -13,17 +13,20 @@ DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
                                 int64_t* shape, int64_t* strides,
                                 char* data);
 
-void* torchCompileScript(const char* script, DLDeviceType device);
+void* torchCompileScript(const char* script, DLDeviceType device, char **error);
 
-void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device);
+void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device,
+                     char **error);
 
-long torchRunScript(void* scriptCtx, const char* fnName,
+void torchRunScript(void* scriptCtx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
-                    long nOutputs, DLManagedTensor** outputs);
+                    long nOutputs, DLManagedTensor** outputs,
+                    char **error);
 
-long torchRunModel(void* modelCtx,
+void torchRunModel(void* modelCtx,
                    long nInputs, DLManagedTensor** inputs,
-                   long nOutputs, DLManagedTensor** outputs);
+                   long nOutputs, DLManagedTensor** outputs,
+                   char **error);
 
 void torchDeallocContext(void* ctx);
 
