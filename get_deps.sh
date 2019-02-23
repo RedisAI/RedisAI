@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -e
+set -x
 
 BASE_DIRECTORY=`pwd`
 
@@ -108,64 +109,14 @@ if [ ! -d "${LIBTORCH_DIRECTORY}" ]; then
   fi
 fi
 
-## UTIL
-
-cd ${DEPS_DIRECTORY}
-
-LIBTORCH_C_SRC_DIRECTORY=${BASE_DIRECTORY}/util/libtorch_c
-LIBTORCH_C_DIRECTORY=${DEPS_DIRECTORY}/libtorch_c
-
-mkdir -p ${LIBTORCH_C_DIRECTORY}/build
-cd ${LIBTORCH_C_DIRECTORY}/build
-
-cmake -DCMAKE_PREFIX_PATH=${LIBTORCH_DIRECTORY} \
-      -DDLPACK_DIRECTORY=${DLPACK_DIRECTORY} \
-      -DCMAKE_INSTALL_PREFIX=${LIBTORCH_C_DIRECTORY} \
-      ${LIBTORCH_C_SRC_DIRECTORY}
-make -j2 && make install
-
-cd ${LIBTORCH_C_DIRECTORY}
-rm -rf ${LIBTORCH_C_DIRECTORY}/build
-
 ## INSTALL
 
 DEPS_INSTALL_LIB_DIRECTORY=${DEPS_DIRECTORY}/install/lib
-
 mkdir -p ${DEPS_INSTALL_LIB_DIRECTORY}
 
 cp -R ${DEPS_DIRECTORY}/libtensorflow/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
 cp -R ${DEPS_DIRECTORY}/libtorch/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
 cp -R ${DEPS_DIRECTORY}/libtorch_c/lib/* ${DEPS_INSTALL_LIB_DIRECTORY}
-
-## TEST
-
-cd ${BASE_DIRECTORY}/test
-
-echo "Testing TensorFlow"
-
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBTF_DIRECTORY}/lib
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:${LIBTF_DIRECTORY}/lib
-fi
-gcc -I${LIBTF_DIRECTORY}/include \
-    -L${LIBTF_DIRECTORY}/lib \
-    tf_api_test.c -ltensorflow && \
-    ./a.out && rm a.out
-
-echo "Testing PyTorch"
-
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:${LIBTORCH_DIRECTORY}/lib:${LIBTORCH_C_DIRECTORY}/lib
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-  export DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:${LIBTORCH_DIRECTORY}/lib:${LIBTORCH_C_DIRECTORY}/lib
-fi
-gcc -I${LIBTORCH_C_DIRECTORY}/include \
-    -I${DLPACK_DIRECTORY}/include \
-    -L${LIBTORCH_C_DIRECTORY}/lib \
-    pt_api_test.c -ltorch_c && \
-    ./a.out && \
-    rm a.out
 
 ## DONE
 
