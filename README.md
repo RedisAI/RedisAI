@@ -43,7 +43,7 @@ On the client, load the model
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
 * `AI.TENSORSET tensor_key data_type dim1..dimN [BLOB data | VALUES val1..valN]`
-* `AI.MODELRUN graph_key INPUTS input_key1 ... OUTPUTS output_key1 ...
+* `AI.MODELRUN graph_key INPUTS input_key1 ... OUTPUTS output_key1 ...`
 ```
 redis-cli
 > AI.TENSORSET bar FLOAT 2 VALUES 2 3
