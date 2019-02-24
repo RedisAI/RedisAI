@@ -1,24 +1,41 @@
 # RedisAI Commands
 
-## AI.SET TENSOR- Set a tensor
+## AI.TENSORSET - Set a tensor
 Stores a tensor of defined type (FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16) with N dimensions (dim) and shape given by shape1..shapeN
 
 ```sh
-AI.SET TENSOR tensor_key data_type dim shape1..shapeN [BLOB data | VALUES val1..valN]
+AI.TENSORSET tensor_key data_type shape1..shapeN [BLOB data | VALUES val1..valN]
 ```
 
-## AI.SET GRAPH - Set a model
-Stores a graph provided as a protobuf blob. Backend is TF for now.
+## AI.TENSORGET - Get a tensor
+
 ```sh
-AI.SET GRAPH graph_key backend graph_blob prefix
+AI.TENSORGET tensor_key [BLOB | VALUES | META]
 ```
 
-## AI.GET TENSOR - Get a tensor
+## AI.MODELSET - Set a model
+Stores a model provided as a protobuf blob. Backend is TF or TORCH. The TF backend requires the name of input and output nodes to be specified in INPUTS and OUTPUTS.
 ```sh
-AI.GET TENSOR tensor_key [BLOB | VALUES | META]
+AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 ```
 
-## AI.RUN GRAPH - Run a model
+## AI.MODELRUN - Run a model
 ```sh
-AI.RUN GRAPH graph_key INPUTS ninputs input_key1 ... NAMES input_name_in_graph1 ... OUTPUTS noutputs output_key1 ... NAMES output_name_in_graph1 ...
+AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...
+```
+
+## AI.SCRIPTSET - Set a script
+Stores a TorchScript script provided as text.
+```sh
+AI.SCRIPTSET script_key device script_text
+```
+
+## AI.SCRIPTGET - Get a script
+```sh
+AI.SCRIPTGET script_key
+```
+
+## AI.SCRIPTRUN - Run a script
+```sh
+AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
 ```

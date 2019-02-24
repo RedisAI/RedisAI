@@ -67,7 +67,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 }
 
 RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
-  RAI_Tensor* ret = RedisModule_Alloc(sizeof(*ret));
+  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
       .device_type = kDLCPU,
@@ -76,7 +76,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   size_t ndims = TF_NumDims(tensor);
 
-  int64_t* shape = RedisModule_Alloc(ndims * sizeof(*shape));
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
   }
@@ -88,7 +88,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   // Note: on YOLO this has no impact on perf
 #ifdef RAI_COPY_RUN_OUTPUT
   size_t len = TF_TensorByteSize(tensor);
-  char* data = RedisModule_Alloc(len * sizeof(*data));
+  char* data = RedisModule_Calloc(len, sizeof(*data));
   memcpy(data, TF_TensorData(tensor), len);
 #endif
 
@@ -144,21 +144,25 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
-                             const char *graphdef, size_t graphlen) {
-  TF_Graph* graph = TF_NewGraph();
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
+                             size_t ninputs, const char **inputs,
+                             size_t noutputs, const char **outputs,
+                             const char *modeldef, size_t modellen,
+                             RAI_Error *error) {
+  TF_Graph* model = TF_NewGraph();
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 
   TF_Buffer *buffer = TF_NewBuffer();
-  buffer->length = graphlen;
-  buffer->data = graphdef;
+  buffer->length = modellen;
+  buffer->data = modeldef;
 
   TF_Status *status = TF_NewStatus();
 
-  TF_GraphImportGraphDef(graph, buffer, options, status);
+  TF_GraphImportGraphDef(model, buffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELIMPORT, RedisModule_Strdup(TF_Message(status)));
     // todo: free memory
     return NULL;
   }
@@ -186,15 +190,17 @@ RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
     // TODO: free memory
     return NULL;
   }
   TF_DeleteStatus(optionsStatus);
 
   TF_Status *sessionStatus = TF_NewStatus();
-  TF_Session *session = TF_NewSession(graph, sessionOptions, sessionStatus);
+  TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
 
   if (TF_GetCode(sessionStatus) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELCREATE, RedisModule_Strdup(TF_Message(status)));
     // TODO: free memory
     return NULL;
   }
@@ -202,52 +208,78 @@ RAI_Graph *RAI_GraphCreateTF(RAI_Backend backend, RAI_Device device,
   TF_DeleteSessionOptions(sessionOptions);
   TF_DeleteStatus(sessionStatus);
 
-  RAI_Graph* ret = RedisModule_Alloc(sizeof(*ret));
-  ret->graph = graph;
+  char **inputs_ = array_new(char*, ninputs);
+  for (long long i=0; i<ninputs; i++) {
+    array_append(inputs_, RedisModule_Strdup(inputs[i]));
+  }
+
+  char **outputs_ = array_new(char*, noutputs);
+  for (long long i=0; i<noutputs; i++) {
+    array_append(outputs_, RedisModule_Strdup(outputs[i]));
+  }
+
+  RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
+  ret->model = model;
   ret->session = session;
   ret->backend = backend;
+  ret->inputs = inputs_;
+  ret->outputs = outputs_;
   ret->refCount = 1;
 
   return ret;
 }
 
-void RAI_GraphFreeTF(RAI_Graph* graph) {
+void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
   TF_Status *status = TF_NewStatus();
-  TF_CloseSession(graph->session, status);
+  TF_CloseSession(model->session, status);
 
   if (TF_GetCode(status) != TF_OK) {
-    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
-    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
     return;
   }
 
-  TF_DeleteSession(graph->session, status);
-  graph->session = NULL;
+  TF_DeleteSession(model->session, status);
+  model->session = NULL;
 
   if (TF_GetCode(status) != TF_OK) {
-    // TODO: raise error but we don't have a hold on ctx (that's because the caller _Free_ doesn't)
-    // return RedisModule_ReplyWithError(ctx, TF_Message(status));
+    RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
     return;
   }
 
-  TF_DeleteGraph(graph->graph);
-  graph->graph = NULL;
+  TF_DeleteGraph(model->model);
+  model->model = NULL;
+
+  if (model->inputs) {
+    size_t ninputs = array_len(model->inputs);
+    for (size_t i=0; i<ninputs; i++) {
+      RedisModule_Free(model->inputs[i]);
+    }
+    array_free(model->inputs);
+  }
+
+  if (model->outputs) {
+    size_t noutputs = array_len(model->outputs);
+    for (size_t i=0; i<noutputs; i++) {
+      RedisModule_Free(model->outputs[i]);
+    }
+    array_free(model->outputs);
+  }
 
   TF_DeleteStatus(status);
 }
 
-int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
+int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   TF_Status *status = TF_NewStatus();
 
-  TF_Tensor* inputTensorsValues[array_len(gctx->inputs)];
-  TF_Output inputs[array_len(gctx->inputs)];
-  TF_Tensor* outputTensorsValues[array_len(gctx->outputs)];
-  TF_Output outputs[array_len(gctx->outputs)];
+  TF_Tensor* inputTensorsValues[array_len(mctx->inputs)];
+  TF_Output inputs[array_len(mctx->inputs)];
+  TF_Tensor* outputTensorsValues[array_len(mctx->outputs)];
+  TF_Output outputs[array_len(mctx->outputs)];
 
-  for (size_t i=0 ; i<array_len(gctx->inputs); ++i) {
-    inputTensorsValues[i] = RAI_TFTensorFromTensor(gctx->inputs[i].tensor);
+  for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
+    inputTensorsValues[i] = RAI_TFTensorFromTensor(mctx->inputs[i].tensor);
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->inputs[i].name);
+    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->inputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -255,9 +287,9 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
     inputs[i] = port;
   }
 
-  for (size_t i=0 ; i<array_len(gctx->outputs) ; ++i) {
+  for (size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     TF_Output port;
-    port.oper = TF_GraphOperationByName(gctx->graph->graph, gctx->outputs[i].name);
+    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->outputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 0;
@@ -265,21 +297,22 @@ int RAI_GraphRunTF(RAI_GraphRunCtx* gctx) {
     outputs[i] = port;
   }
 
-  TF_SessionRun(gctx->graph->session, NULL /* run_options */,
-                inputs, inputTensorsValues, array_len(gctx->inputs),
-                outputs, outputTensorsValues, array_len(gctx->outputs),
+  TF_SessionRun(mctx->model->session, NULL /* run_options */,
+                inputs, inputTensorsValues, array_len(mctx->inputs),
+                outputs, outputTensorsValues, array_len(mctx->outputs),
                 NULL /* target_opers */, 0 /* ntargets */,
                 NULL /* run_Metadata */,
                 status);
 
   if (TF_GetCode(status) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELRUN, RedisModule_Strdup(TF_Message(status)));
     TF_DeleteStatus(status);
     return 0;
   }
 
-  for(size_t i = 0 ; i < array_len(gctx->outputs) ; ++i) {
+  for(size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i]);
-    gctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+    mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
 
   TF_DeleteStatus(status);

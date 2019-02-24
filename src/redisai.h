@@ -7,10 +7,11 @@
 #define MODULE_API_FUNC(x) (*x)
 
 typedef struct RAI_Tensor RAI_Tensor;
+typedef struct RAI_Model RAI_Model;
+typedef struct RAI_Script RAI_Script;
 
-typedef struct RAI_Graph RAI_Graph;
-
-typedef struct RAI_GraphRunCtx RAI_GraphRunCtx;
+typedef struct RAI_ModelRunCtx RAI_ModelRunCtx;
+typedef struct RAI_ScriptRunCtx RAI_ScriptRunCtx;
 
 typedef enum RAI_Backend RAI_Backend;
 typedef enum RAI_Device RAI_Device;
@@ -31,18 +32,30 @@ long long MODULE_API_FUNC(RedisAI_TensorDim)(RAI_Tensor* t, int dim);
 size_t MODULE_API_FUNC(RedisAI_TensorByteSize)(RAI_Tensor* t);
 char* MODULE_API_FUNC(RedisAI_TensorData)(RAI_Tensor* t);
 
-RAI_Graph* MODULE_API_FUNC(RedisAI_GraphCreate)(RAI_Backend backend, RAI_Device device, const char* graphdef, size_t graphlen);
-void MODULE_API_FUNC(RedisAI_GraphFree)(RAI_Graph* graph);
-RAI_GraphRunCtx* MODULE_API_FUNC(RedisAI_RunCtxCreate)(RAI_Graph* graph);
-int MODULE_API_FUNC(RedisAI_RunCtxAddInput)(RAI_GraphRunCtx* gctx, const char* inputName, RAI_Tensor* inputTensor);
-int MODULE_API_FUNC(RedisAI_RunCtxAddOutput)(RAI_GraphRunCtx* gctx, const char* outputName);
-size_t MODULE_API_FUNC(RedisAI_RunCtxNumOutputs)(RAI_GraphRunCtx* gctx);
-RAI_Tensor* MODULE_API_FUNC(RedisAI_RunCtxOutputTensor)(RAI_GraphRunCtx* gctx, size_t index);
-void MODULE_API_FUNC(RedisAI_RunCtxFree)(RAI_GraphRunCtx* gctx);
-int MODULE_API_FUNC(RedisAI_GraphRun)(RAI_GraphRunCtx* gctx);
-RAI_Graph* MODULE_API_FUNC(RedisAI_GraphGetShallowCopy)(RAI_Graph* graph);
+RAI_Model* MODULE_API_FUNC(RedisAI_ModelCreate)(RAI_Backend backend, RAI_Device device, const char* modeldef, size_t modellen);
+void MODULE_API_FUNC(RedisAI_ModelFree)(RAI_Model* model);
+RAI_ModelRunCtx* MODULE_API_FUNC(RedisAI_ModelRunCtxCreate)(RAI_Model* model);
+int MODULE_API_FUNC(RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor);
+int MODULE_API_FUNC(RedisAI_ModelRunCtxAddOutput)(RAI_ModelRunCtx* mctx, const char* outputName);
+size_t MODULE_API_FUNC(RedisAI_ModelRunCtxNumOutputs)(RAI_ModelRunCtx* mctx);
+RAI_Tensor* MODULE_API_FUNC(RedisAI_ModelRunCtxOutputTensor)(RAI_ModelRunCtx* mctx, size_t index);
+void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx* mctx);
+int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx* mctx);
+RAI_Model* MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model* model);
 
-#define REDIDL_MODULE_INIT_FUNCTION(name) \
+RAI_Script* MODULE_API_FUNC(RedisAI_ScriptCreate)(RAI_Backend backend, RAI_Device device, const char* modeldef, size_t modellen);
+void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script* model);
+RAI_ScriptRunCtx* MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script* model);
+int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInput)(RAI_ScriptRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor);
+int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddOutput)(RAI_ScriptRunCtx* mctx, const char* outputName);
+size_t MODULE_API_FUNC(RedisAI_ScriptRunCtxNumOutputs)(RAI_ScriptRunCtx* mctx);
+RAI_Tensor* MODULE_API_FUNC(RedisAI_ScriptRunCtxOutputTensor)(RAI_ScriptRunCtx* mctx, size_t index);
+void MODULE_API_FUNC(RedisAI_ScriptRunCtxFree)(RAI_ScriptRunCtx* mctx);
+int MODULE_API_FUNC(RedisAI_ScriptRun)(RAI_ScriptRunCtx* mctx);
+RAI_Script* MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script* model);
+
+
+#define REDISAI_MODULE_INIT_FUNCTION(name) \
   if (RedisModule_GetApi("RedisAI_" #name, ((void **)&RedisAI_ ## name))) { \
     printf("could not initialize RedisAI_" #name "\r\n");\
     return false; \
@@ -52,32 +65,42 @@ static bool RediDL_Initialize(){
 
   RMUTil_InitAlloc();
 
-  REDIDL_MODULE_INIT_FUNCTION(TensorCreate);
-  REDIDL_MODULE_INIT_FUNCTION(TensorLength);
-  REDIDL_MODULE_INIT_FUNCTION(TensorGetDataSize);
-  REDIDL_MODULE_INIT_FUNCTION(TensorDataType);
-  REDIDL_MODULE_INIT_FUNCTION(TensorFree);
-  REDIDL_MODULE_INIT_FUNCTION(TensorSetData);
-  REDIDL_MODULE_INIT_FUNCTION(TensorSetValueFromLongLong);
-  REDIDL_MODULE_INIT_FUNCTION(TensorSetValueFromDouble);
-  REDIDL_MODULE_INIT_FUNCTION(TensorGetValueAsDouble);
-  REDIDL_MODULE_INIT_FUNCTION(TensorGetValueAsLongLong);
-  REDIDL_MODULE_INIT_FUNCTION(TensorGetShallowCopy);
-  REDIDL_MODULE_INIT_FUNCTION(TensorNumDims);
-  REDIDL_MODULE_INIT_FUNCTION(TensorDim);
-  REDIDL_MODULE_INIT_FUNCTION(TensorByteSize);
-  REDIDL_MODULE_INIT_FUNCTION(TensorData);
+  REDISAI_MODULE_INIT_FUNCTION(TensorCreate);
+  REDISAI_MODULE_INIT_FUNCTION(TensorGetDataSize);
+  REDISAI_MODULE_INIT_FUNCTION(TensorFree);
+  REDISAI_MODULE_INIT_FUNCTION(TensorSetData);
+  REDISAI_MODULE_INIT_FUNCTION(TensorSetValueFromLongLong);
+  REDISAI_MODULE_INIT_FUNCTION(TensorSetValueFromDouble);
+  REDISAI_MODULE_INIT_FUNCTION(TensorGetValueAsDouble);
+  REDISAI_MODULE_INIT_FUNCTION(TensorGetValueAsLongLong);
+  REDISAI_MODULE_INIT_FUNCTION(TensorGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(TensorNumDims);
+  REDISAI_MODULE_INIT_FUNCTION(TensorDim);
+  REDISAI_MODULE_INIT_FUNCTION(TensorByteSize);
+  REDISAI_MODULE_INIT_FUNCTION(TensorData);
 
-  REDIDL_MODULE_INIT_FUNCTION(GraphCreate);
-  REDIDL_MODULE_INIT_FUNCTION(GraphFree);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxCreate);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxAddInput);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxAddOutput);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxNumOutputs);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxOutputTensor);
-  REDIDL_MODULE_INIT_FUNCTION(RunCtxFree);
-  REDIDL_MODULE_INIT_FUNCTION(GraphRun);
-  REDIDL_MODULE_INIT_FUNCTION(GraphGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(ModelCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ModelFree);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxAddInput);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxAddOutput);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxNumOutputs);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxOutputTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxFree);
+  REDISAI_MODULE_INIT_FUNCTION(ModelRun);
+  REDISAI_MODULE_INIT_FUNCTION(ModelGetShallowCopy);
+
+  REDISAI_MODULE_INIT_FUNCTION(ScriptCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptFree);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxAddInput);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxAddOutput);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxNumOutputs);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxOutputTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxFree);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptRun);
+  REDISAI_MODULE_INIT_FUNCTION(ScriptGetShallowCopy);
+
   return true;
 }
 
