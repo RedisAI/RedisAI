@@ -13,16 +13,13 @@ GET_FILENAME_COMPONENT(depsAbs
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 
-SET(depsInstallPath ${depsAbs}/install/)
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
 
-LIST(APPEND CMAKE_PREFIX_PATH "${depsAbs}/install")
 LIST(APPEND CMAKE_PREFIX_PATH "${depsAbs}/libtorch")
+LIST(APPEND CMAKE_PREFIX_PATH "${depsAbs}/libtensorflow")
+LIST(APPEND CMAKE_PREFIX_PATH "${depsAbs}/mkl")
 
-FIND_LIBRARY(TF_LIBRARIES
-    NAMES tensorflow libtensorflow.so
-    PATHS ${depsInstallPath}/lib
-    NO_DEFAULT_PATH)
+FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow libtensorflow.so)
 
 IF (NOT TF_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find tensorflow")
@@ -30,10 +27,13 @@ ENDIF()
 
 INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
 
-FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/rminclude)
-FILE(COPY ${depsAbs}/redis/src/redismodule.h
-    DESTINATION ${PROJECT_BINARY_DIR}/rminclude)
-INCLUDE_DIRECTORIES(${PROJECT_BINARY_DIR}/rminclude)
+IF (APPLE)
+    FIND_LIBRARY(MKL_LIBRARIES NAMES mklml)
+    IF (NOT MKL_LIBRARIES)
+        MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
+    ENDIF()
+    SET(platDeps "${MKL_LIBRARIES}")
+ENDIF()
 
 # Find Torch stuff and build our wrapper
 FIND_PACKAGE(Torch REQUIRED)
@@ -43,10 +43,12 @@ ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 ADD_SUBDIRECTORY(util/libtorch_c)
 ADD_SUBDIRECTORY(src)
 ADD_LIBRARY(redisai SHARED $<TARGET_OBJECTS:redisai_obj>)
-TARGET_LINK_LIBRARIES(redisai torch_c ${TF_LIBRARIES})
+TARGET_LINK_LIBRARIES(redisai torch_c ${TF_LIBRARIES} ${platDeps})
+
+SET_TARGET_PROPERTIES(redisai PROPERTIES PREFIX "")
+SET_TARGET_PROPERTIES(redisai PROPERTIES SUFFIX ".so")
 
 IF (APPLE)
-    SET_TARGET_PROPERTIES(redisai
-        PROPERTIES
+    SET_TARGET_PROPERTIES(redisai PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
