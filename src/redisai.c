@@ -955,7 +955,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return false;\
   }
 
-static bool RediDL_RegisterApi(int (*registerApiCallback)(const char *funcname, void *funcptr)){
+static bool RediAI_RegisterApi(int (*registerApiCallback)(const char *funcname, void *funcptr)){
   REGISTER_API(TensorCreate, registerApiCallback);
   REGISTER_API(TensorGetDataSize, registerApiCallback);
   REGISTER_API(TensorFree, registerApiCallback);
@@ -1002,7 +1002,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   if (RedisModule_Init(ctx, "ai", 1, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
-  if(!RediDL_RegisterApi(moduleRegisterApi)){
+  if(!RediAI_RegisterApi(moduleRegisterApi)){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
   }
