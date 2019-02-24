@@ -9,7 +9,7 @@ DEPS_PATH=../deps
 INSTALL_PATH=../install/
 INSTALL=install
 
-TS_OBJ = redisai.o tensor.o graph.o script.o
+TS_OBJ = redisai.o tensor.o model.o script.o err.o
 
 INCLUDE_FLAGS=-I .                                  \
               -I $(DEPS_PATH)/redis/src             \
