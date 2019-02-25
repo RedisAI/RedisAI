@@ -13,8 +13,20 @@ If you want to run examples, make sure you have [git-lfs](https://git-lfs.github
 ## Building
 This will checkout and build Redis and download the libraries for the backends (TensorFlow and PyTorch) for your platform.
 ```
-bash get_deps.sh
-make install
+mkdir deps
+DEPS_DIRECTORY=deps bash get_deps.sh
+
+cd deps
+git clone git://github.com/antirez/redis.git --branch 5.0
+cd redis
+make malloc=libc -j4
+cd ../..
+
+mkdir build
+cd build
+cmake -DDEPS_PATH=../deps/install ..
+make
+cd ..
 ```
 
 ## Docker
@@ -28,12 +40,12 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 ## Running the server
 On Linux
 ```
-LD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
+LD_LIBRARY_PATH=deps/install/lib deps/redis/src/redis-server --loadmodule build/redisai.so
 ```
 
 On macos
 ```
-DYLD_LIBRARY_PATH=deps/install/lib ./deps/redis/src/redis-server -loadmodule src/redisai.so
+deps/redis/src/redis-server --loadmodule build/redisai.so
 ```
 
 On the client, load the model

@@ -9,6 +9,7 @@ __pycache__
 # Dirs
 install/
 deps/
+build/
 examples/js/node_modules/
 examples/js/package-lock.json
 
