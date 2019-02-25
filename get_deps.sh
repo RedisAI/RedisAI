@@ -14,25 +14,25 @@ if [ -z "$DEPS_DIRECTORY" ]; then
   DEPS_DIRECTORY=${BASE_DIRECTORY}/deps-${PLATNAME}
 fi
 
-PREFIX=${DEPS_DIRECTORY}/install
+mkdir -p ${DEPS_DIRECTORY}
+cd ${DEPS_DIRECTORY}
+DEPS_DIRECTORY=$PWD # -- to avoid relative/absolute confusion
 
+PREFIX=${DEPS_DIRECTORY}/install
 mkdir -p ${PREFIX}
 rm -rf ${PREFIX}/share
 rm -rf ${PREFIX}/lib
 rm -rf ${PREFIX}/include
-
-cd ${DEPS_DIRECTORY}
-DLPACK_DIRECTORY=${DEPS_DIRECTORY}/dlpack
 
 if [ ! -d dlpack ]; then
     echo "Cloning dlpack"
     git clone --depth 1 https://github.com/dmlc/dlpack.git
 fi
 
-cp -a dlpack/include/ ${PREFIX}/include
+mkdir -p ${PREFIX}
+cp -a dlpack/include ${PREFIX}
 
 ## TENSORFLOW
-cd ${DEPS_DIRECTORY}
 TF_VERSION="1.12.0"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
   TF_OS="linux"

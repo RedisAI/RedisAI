@@ -28,7 +28,7 @@ jobs:
             rm -rf /home/circleci/project/deps
             DEPS_DIRECTORY=deps bash get_deps.sh cpu
             git clone git://github.com/antirez/redis.git --branch 5.0
-            (cd redis && make)
+            (cd redis && make malloc=libc -j4 && sudo make install)
 
       - save_cache:
           paths:
@@ -38,9 +38,10 @@ jobs:
       - run:
           name: Build
           command: |
+            rm -rf build
             mkdir build
             cd build
-            cmake -DDEPS_PATH=../deps/install
+            cmake -DDEPS_PATH=../deps/install ..
             make
 
       - run:
@@ -48,18 +49,17 @@ jobs:
           command: |
             python3 -m venv venv
             . venv/bin/activate
-            pip uninstall -y RLTest || true
-            pip install git+https://github.com/lantiga/RLTest@python3_fixes
-            pip install -r test/test_requirements.txt
+            pip -q uninstall -y RLTest || true
+            pip -q install git+https://github.com/RedisLabsModules/RLTest@py3
+            pip -q install -r test/test_requirements.txt
             git lfs pull
-            python3 -m RLTest --test test/basic_tests.py --module src/redisai.so --enterprise-lib-path /home/circleci/project/deps/install/lib --oss-redis-path deps/redis/src/redis-server -s
-          environment:
-            LD_LIBRARY_PATH: /home/circleci/project/deps/install/lib
+            python3 -m RLTest --test test/basic_tests.py --module build/redisai.so
+
       - run:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp src/$MODULE_ARTIFACT ~/workspace/
+            cp build/$MODULE_ARTIFACT ~/workspace/
             cp deps/install/lib/*.so*  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
