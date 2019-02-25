@@ -931,7 +931,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1],
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
-  if (type != REDISMODULE_KEYTYPE_EMPTY ||
+  if (type != REDISMODULE_KEYTYPE_EMPTY &&
       !(type == REDISMODULE_KEYTYPE_MODULE &&
         RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
     RedisModule_CloseKey(key);
