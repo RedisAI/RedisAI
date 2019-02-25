@@ -1,8 +1,8 @@
 REDIS_CLI=../../deps/redis/src/redis-cli
 
 echo "SET SCRIPT"
-$REDIS_CLI -x AI.SCRIPTSET foo CPU < script_err.txt
-$REDIS_CLI -x AI.SCRIPTSET foo CPU < script.txt
+# $REDIS_CLI -x AI.SCRIPTSET foo CPU < script_err.txt
+$REDIS_CLI -x AI.SCRIPTSET fooz CPU < script.txt
 
 echo "SET TENSORS"
 $REDIS_CLI AI.TENSORSET a FLOAT 2 VALUES 2 3
