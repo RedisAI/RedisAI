@@ -26,7 +26,9 @@ jobs:
             sudo ln -s /home/circleci/project/cmake-bin/bin/cmake /usr/local/bin/cmake
             echo `cmake --version`
             rm -rf /home/circleci/project/deps
-            bash get_deps.sh cpu
+            DEPS_DIRECTORY=deps bash get_deps.sh cpu
+            git clone git://github.com/antirez/redis.git --branch 5.0
+            (cd redis && make)
 
       - save_cache:
           paths:
@@ -35,7 +37,11 @@ jobs:
 
       - run:
           name: Build
-          command: make
+          command: |
+            mkdir build
+            cd build
+            cmake -DDEPS_PATH=../deps/install
+            make
 
       - run:
           name: Test
@@ -43,7 +49,7 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip uninstall -y RLTest || true
-            pip install https://github.com/lantiga/RLTest/archive/python3_fixes.zip
+            pip install git+https://github.com/lantiga/RLTest@python3_fixes
             pip install numpy
             pip install scikit-image
             git lfs pull

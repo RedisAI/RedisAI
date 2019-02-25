@@ -1,4 +1,3 @@
 add_library(torch_c STATIC torch_c.cpp)
-target_include_directories(torch_c PRIVATE "${DLPACK_DIRECTORY}/include")
 target_link_libraries(torch_c "${TORCH_LIBRARIES}")
 set_property(TARGET torch_c PROPERTY CXX_STANDARD 11)

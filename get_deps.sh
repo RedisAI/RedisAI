@@ -10,9 +10,16 @@ if [ -e /etc/debian-version ]; then
     PLATNAME=${PLATNAME}-deb
 fi
 
-DEPS_DIRECTORY=${BASE_DIRECTORY}/deps-${PLATNAME}
+if [ -z "$DEPS_DIRECTORY" ]; then
+  DEPS_DIRECTORY=${BASE_DIRECTORY}/deps-${PLATNAME}
+fi
 
-mkdir -p ${DEPS_DIRECTORY}
+PREFIX=${DEPS_DIRECTORY}/install
+
+mkdir -p ${PREFIX}
+rm -rf ${PREFIX}/share
+rm -rf ${PREFIX}/lib
+rm -rf ${PREFIX}/include
 
 cd ${DEPS_DIRECTORY}
 DLPACK_DIRECTORY=${DEPS_DIRECTORY}/dlpack
@@ -21,6 +28,8 @@ if [ ! -d dlpack ]; then
     echo "Cloning dlpack"
     git clone --depth 1 https://github.com/dmlc/dlpack.git
 fi
+
+cp -a dlpack/include/ ${PREFIX}/include
 
 ## TENSORFLOW
 cd ${DEPS_DIRECTORY}
@@ -44,11 +53,7 @@ if [ ! -e ${LIBTF_ARCHIVE} ]; then
   wget https://storage.googleapis.com/tensorflow/libtensorflow/${LIBTF_ARCHIVE}
 fi
 
-LIBTF_DIRECTORY=${DEPS_DIRECTORY}/libtensorflow
-if [ ! -d ${LIBTF_DIRECTORY} ]; then
-  mkdir ${LIBTF_DIRECTORY}
-  tar xf ${LIBTF_ARCHIVE} -C ${LIBTF_DIRECTORY}
-fi
+tar xf ${LIBTF_ARCHIVE} --strip-components=1 -C ${PREFIX}
 
 ## PYTORCH
 
@@ -75,6 +80,7 @@ fi
 LIBTORCH_URL=https://download.pytorch.org/libtorch/${PT_BUILD}/libtorch-${PT_OS}-${PT_VERSION}.zip
 # Directory where torch is extracted to
 LIBTORCH_DIRECTORY=libtorch-${PT_OS}-${PT_VERSION}
+
 # Archive - specifically named
 LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_BUILD}-${PT_VERSION}.zip
 
@@ -83,8 +89,9 @@ if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
   curl -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
 fi
 
-rm -rf ${LIBTORCH_DIRECTORY}
 unzip -o ${LIBTORCH_ARCHIVE}
+tar cf - libtorch | tar xf - --strip-components=1 -C ${PREFIX}
+rm -rf libtorch
 
 if [[ "${PT_OS}" == "macos" ]]; then
   # also download mkl
@@ -92,10 +99,7 @@ if [[ "${PT_OS}" == "macos" ]]; then
   if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
     wget "https://github.com/intel/mkl-dnn/releases/download/v0.17.1/${MKL_BUNDLE}.tgz"
   fi
-  rm -rf ${MKL_BUNDLE}
-  tar xf ${MKL_BUNDLE}.tgz
-  rm -f mkl
-  ln -s ${MKL_BUNDLE} mkl
+  tar xf ${MKL_BUNDLE}.tgz --strip-components=1 -C ${PREFIX}
 fi
 
 echo "Done"
