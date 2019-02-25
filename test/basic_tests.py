@@ -1,6 +1,6 @@
 from RLTest import Env
 
-from multiprocessing import Pool
+from multiprocessing import Pool, Process
 import redis
 
 import numpy as np
@@ -21,56 +21,48 @@ def check_cuda():
     return os.system('which nvcc')
 
 
-def run_test_multiproc(env, n_procs, fn, args=()):
-    pool = Pool(processes=n_procs)
+def run_test_multiproc(env, n_procs, fn, args=tuple()):
+    procs = []
+
+    def tmpfn():
+        e = env.getConnection()
+        fn(e, *args)
+        return 1
+
     for _ in range(n_procs):
-        args_ = [env.getConnectionArgs()] + list(args)
-        pool.apply_async(fn, args = args_)
-    pool.close()
-    pool.join()
+        p = Process(target=tmpfn)
+        p.start()
+        procs.append(p)
+
+    [p.join() for p in procs]
 
 
-def example_multiproc_fn(connArgs):
-    con = redis.Redis(**connArgs)
-    con.set('x', 1)
+def example_multiproc_fn(env):
+    env.execute_command('set', 'x', 1)
 
+def test_example_multiproc(env):
+    run_test_multiproc(env, 10, lambda x: x.execute_command('set', 'x', 1))
+    r = env.cmd('get', 'x')
+    print(r)
+    env.assertEqual(r, b'1')
 
-def test_example_multiproc():
-    env = Env(testDescription="Basic multiprocessing test")
-    run_test_multiproc(env, 10, example_multiproc_fn)
-    con = env.getConnection()
-    env.assertEqual(con.get('x'), '1')
-
-
-def test_set_tensor():
-    env = Env(testDescription="Set tensor")
-    con = env.getConnection()
+def test_set_tensor(env):
+    con = env
     con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(
-        values, ['2', '3']
-    )
+    env.assertEqual(values, [b'2', b'3'])
 
+def test_set_tensor_multiproc(env):
+    run_test_multiproc(env, 10,
+        lambda con: con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
 
-def set_tensor(connArgs):
-    con = redis.Redis(**connArgs)
-    con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
-
-
-def test_set_tensor_multiproc():
-    env = Env(testDescription="Set tensor multiprocessing")
-    run_test_multiproc(env, 10, set_tensor)
-    con = env.getConnection()
+    con = env
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(
-        values, ['2', '3']
-    )
-
+    env.assertEqual(values, [b'2', b'3'])
 
 def load_mobilenet_test_data():
-
     examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
     labels_filename = os.path.join(examples_path, 'js/imagenet_class_index.json')
     image_filename = os.path.join(examples_path, 'img/panda.jpg')
@@ -91,12 +83,10 @@ def load_mobilenet_test_data():
     return model_pb, labels, img
 
 
-def test_run_mobilenet():
+def test_run_mobilenet(env):
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
-
-    env = Env(testDescription="Test mobilenet")
-    con = env.getConnection(decode_responses=False)
+    con = env
 
     model_pb, labels, img = load_mobilenet_test_data()
 
@@ -118,16 +108,11 @@ def test_run_mobilenet():
 
     _, label = labels[str(label_id)]
 
-    env.assertEqual(
-        label, 'giant_panda'
-    )
+    env.assertEqual(label, 'giant_panda')
 
 
-def run_mobilenet(connArgs, img, input_var, output_var):
+def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
-
-    con = redis.Redis(**connArgs)
-
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
@@ -138,15 +123,12 @@ def run_mobilenet(connArgs, img, input_var, output_var):
     con.execute_command('DEL','input')
 
 
-def test_run_mobilenet_multiproc():
+def test_run_mobilenet_multiproc(env):
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
     model_pb, labels, img = load_mobilenet_test_data()
-
-    env = Env(testDescription="Test mobilenet multiprocessing")
-    con = env.getConnection(decode_responses=False)
-
+    con = env
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'GPU',
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
