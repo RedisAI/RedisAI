@@ -64,8 +64,8 @@ redis-cli
 > AI.TENSORGET jez VALUES
 1) FLOAT
 2) 1) (integer) 2
-3) 1) "2"
-   2) "3"
+3) 1) "4"
+   2) "9"
 ```
 
 ## Documentation
