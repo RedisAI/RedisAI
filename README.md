@@ -50,7 +50,7 @@ deps/redis/src/redis-server --loadmodule build/redisai.so
 
 On the client, load the model
 ```
-./deps/redis/src/redis-cli AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < graph.pb
+./deps/redis/src/redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures: 
