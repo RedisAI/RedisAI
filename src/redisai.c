@@ -206,7 +206,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
-        int ret = RAI_TensorSetValueFromDouble(t, i, val);
+        int ret = RAI_TensorSetValueFromLongLong(t, i, val);
         if (ret == -1) {
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
