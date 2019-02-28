@@ -52,6 +52,10 @@ def test_set_tensor(env):
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'2', b'3'])
+    con.execute_command('AI.TENSORSET', 'x', 'INT32', 2, 'VALUES', 2, 3)
+    tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'2', b'3'])
 
 def test_set_tensor_multiproc(env):
     run_test_multiproc(env, 10,
