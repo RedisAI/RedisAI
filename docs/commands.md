@@ -12,8 +12,8 @@ AI.TENSORSET tensor_key data_type shape1 shape2 ... [BLOB data | VALUES val1 val
 * shape - shape of the tensor, i.e. how many elements for each axis
 
 Optional args:
-    * BLOB data - provide tensor content as a binary buffer
-    * VALUES val1 val2 - provide tensor content as individual values
+* BLOB data - provide tensor content as a binary buffer
+* VALUES val1 val2 - provide tensor content as individual values
 
 > If no BLOB or VALUES are specified, the tensor is allocated but not initialized to any value.
 
