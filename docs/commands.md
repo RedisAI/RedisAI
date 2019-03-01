@@ -26,7 +26,7 @@ Optional args:
 AI.TENSORSET foo FLOAT 2 2 VALUES 1 2 3 4
 ```
 
-## AI.TENSORGET - set a tensor
+## AI.TENSORGET - get a tensor
 ```sql
 AI.TENSORGET tensor_key [BLOB | VALUES | META]
 ```
