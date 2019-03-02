@@ -10,16 +10,35 @@
 
 RedisModuleType *RedisAI_ScriptType = NULL;
 
-static void* Script_RdbLoad(struct RedisModuleIO *io, int encver) {
-  //todo
+static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
+  RAI_Error err = RAI_InitError();
+
+  RAI_Device device = RedisModule_LoadUnsigned(io);
+  size_t len;
+  char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
+ 
+  RAI_Script *script = RAI_ScriptCreate(device, scriptdef, &err);
+
+  RedisModule_Free(scriptdef);
+
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
+
   return NULL;
 }
 
-static void Script_RdbSave(RedisModuleIO *rdb, void *value) {
-  //todo
+static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
+  RAI_Script *script = (RAI_Script*)value;
+
+  size_t len = strlen(script->scriptdef);
+
+  RedisModule_SaveUnsigned(io, script->device);
+  RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
 
-static void Script_DTFree(void *value) {
+static void RAI_Script_DTFree(void *value) {
   RAI_Error err = RAI_InitError();
   RAI_ScriptFree(value, &err);
   if (err.code != RAI_OK) {
@@ -31,11 +50,11 @@ static void Script_DTFree(void *value) {
 int RAI_ScriptInit(RedisModuleCtx* ctx) {
   RedisModuleTypeMethods tmScript = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = Script_RdbLoad,
-      .rdb_save = Script_RdbSave,
+      .rdb_load = RAI_Script_RdbLoad,
+      .rdb_save = RAI_Script_RdbSave,
       .aof_rewrite = NULL,
       .mem_usage = NULL,
-      .free = Script_DTFree,
+      .free = RAI_Script_DTFree,
       .digest = NULL
   };
 

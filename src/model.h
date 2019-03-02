@@ -26,4 +26,6 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx);
 int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err);
 RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model);
 
+int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
+
 #endif /* SRC_MODEL_H_ */

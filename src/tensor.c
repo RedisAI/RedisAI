@@ -4,6 +4,7 @@
 #include <strings.h>
 #include <string.h>
 #include "utils/alloc.h"
+#include <assert.h>
 
 RedisModuleType *RedisAI_TensorType = NULL;
 
@@ -45,27 +46,95 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
   return dtype.bits / 8;
 }
 
-static void* Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
-  //todo
-  return NULL;
+static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
+
+  DLContext ctx = (DLContext){
+      .device_type = RedisModule_LoadUnsigned(io),
+      .device_id = RedisModule_LoadUnsigned(io)
+  };
+
+  // For now we only support CPU tensors (except during model and script run)
+  assert(ctx.device_type == kDLCPU);
+  assert(ctx.device_id == 0);
+
+  DLDataType dtype = (DLDataType){
+      .bits = RedisModule_LoadUnsigned(io),
+      .code = RedisModule_LoadUnsigned(io),
+      .lanes = RedisModule_LoadUnsigned(io)
+  };
+
+  size_t ndims = RedisModule_LoadUnsigned(io);
+
+  RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
+  for (size_t i = 0 ; i < ndims ; ++i){
+    shape[i] = RedisModule_LoadUnsigned(io);
+  }
+
+  for (size_t i = 0 ; i < ndims ; ++i){
+    strides[i] = RedisModule_LoadUnsigned(io);
+  }
+
+  size_t byte_offset = RedisModule_LoadUnsigned(io);
+  
+  size_t len;
+  char *data = RedisModule_LoadStringBuffer(io, &len);
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
+      .ctx = ctx,
+      .data = data,
+      .ndim = ndims,
+      .dtype = dtype,
+      .shape = shape,
+      .strides = strides,
+      .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
+  };
+
+  ret->refCount = 1;
+  return ret;
 }
 
-static void Tensor_RdbSave(RedisModuleIO *rdb, void *value){
-  //todo
+static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value){
+  RAI_Tensor *tensor = (RAI_Tensor*)value;
+
+  size_t ndim = tensor->tensor.dl_tensor.ndim;
+
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_type);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_id);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.bits);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.code);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.lanes);
+  RedisModule_SaveUnsigned(io, ndim);
+  for (size_t i=0; i<ndim; i++) {
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.shape[i]);
+  }
+  for (size_t i=0; i<ndim; i++) {
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.strides[i]);
+  }
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.byte_offset);
+  size_t size = RAI_TensorByteSize(tensor);
+
+  RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
 }
 
-static void Tensor_DTFree(void *value){
+static void RAI_Tensor_DTFree(void *value){
   RAI_TensorFree(value);
 }
 
 int RAI_TensorInit(RedisModuleCtx* ctx){
   RedisModuleTypeMethods tmTensor = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = Tensor_RdbLoad,
-      .rdb_save = Tensor_RdbSave,
+      .rdb_load = RAI_Tensor_RdbLoad,
+      .rdb_save = RAI_Tensor_RdbSave,
       .aof_rewrite = NULL,
       .mem_usage = NULL,
-      .free = Tensor_DTFree,
+      .free = RAI_Tensor_DTFree,
       .digest = NULL,
   };
   RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", 0, &tmTensor);

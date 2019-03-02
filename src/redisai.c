@@ -498,6 +498,50 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return REDISMODULE_OK;
 }
 
+// key
+int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc != 2) return RedisModule_WrongArity(ctx);
+
+  RedisModule_AutoMemory(ctx);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
+
+  RAI_Error err = RAI_InitError();
+
+  char *buffer = NULL;
+  size_t len = 0;
+
+  RAI_ModelSerialize(mto, &buffer, &len, &err);
+
+  if (err.code != RAI_OK) {
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    if (*buffer) {
+      RedisModule_Free(buffer);
+    }
+    return ret;
+  }
+
+  RedisModule_ReplyWithArray(ctx, 2);
+  //RedisModule_ReplyWithSimpleString(ctx, mto->backend);
+  //RedisModule_ReplyWithSimpleString(ctx, mto->device);
+  RedisModule_ReplyWithLongLong(ctx, mto->backend);
+  RedisModule_ReplyWithLongLong(ctx, mto->device);
+  RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
+
+  return REDISMODULE_OK;
+}
+
 struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString **outkeys;
@@ -558,7 +602,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argc);
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
-  if (!rinfo->status) {
+  if (rinfo->status) {
     int ret = RedisModule_ReplyWithError(ctx, "model run failed");
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
@@ -748,8 +792,7 @@ int RedisAI_StartRunThread() {
   return REDISMODULE_OK;
 }
 
-// script key, fnname, ninputs, (input key, input name)..., (output key, output name)...
-// script key, INPUTS, ninputs, key1, key2 ... OUTPUTS noutputs key1 key2 ...
+// script key, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   RedisModule_AutoMemory(ctx);
@@ -886,6 +929,9 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
+  RedisModule_ReplyWithArray(ctx, 2);
+  // RedisModule_ReplyWithSimpleString(ctx, sto->device);
+  RedisModule_ReplyWithLongLong(ctx, sto->device);
   RedisModule_ReplyWithSimpleString(ctx, sto->scriptdef);
 
   return REDISMODULE_OK;
@@ -978,6 +1024,7 @@ static bool RediAI_RegisterApi(int (*registerApiCallback)(const char *funcname, 
   REGISTER_API(ModelRunCtxOutputTensor, registerApiCallback);
   REGISTER_API(ModelRunCtxFree, registerApiCallback);
   REGISTER_API(ModelRun, registerApiCallback);
+  REGISTER_API(ModelSerialize, registerApiCallback);
   REGISTER_API(ModelGetShallowCopy, registerApiCallback);
 
   REGISTER_API(ScriptCreate, registerApiCallback);
@@ -1034,11 +1081,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-#if 0
   if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 2, 2, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
-#endif
 
   if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write", 2, -1, 2)
       == REDISMODULE_ERR)

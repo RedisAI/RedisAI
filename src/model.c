@@ -14,17 +14,81 @@
 
 RedisModuleType *RedisAI_ModelType = NULL;
 
-static void* Model_RdbLoad(struct RedisModuleIO *io, int encver) {
-  //todo
-  return NULL;
+static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
+  if (encver != RAI_ENC_VER) {
+      /* We should actually log an error here, or try to implement
+         the ability to load older versions of our data structure. */
+      return NULL;
+  }
+
+  RAI_Backend backend = RedisModule_LoadUnsigned(io);
+  RAI_Device device = RedisModule_LoadUnsigned(io);
+  size_t ninputs = RedisModule_LoadUnsigned(io);
+
+  const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
+
+  for (size_t i=0; i<ninputs; i++) {
+    inputs[i] = RedisModule_LoadStringBuffer(io, NULL);
+  }
+
+  size_t noutputs = RedisModule_LoadUnsigned(io);
+
+  const char **outputs = RedisModule_Alloc(ninputs * sizeof(char*));
+
+  for (size_t i=0; i<noutputs; i++) {
+    outputs[i] = RedisModule_LoadStringBuffer(io, NULL);
+  }
+
+  size_t len;
+
+  char *buffer = RedisModule_LoadStringBuffer(io, &len);
+
+  RAI_Error err = RAI_InitError();
+
+  RAI_Model *model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs,
+                                     buffer, len, &err);
+ 
+  // TODO: ERR
+
+  RedisModule_Free(inputs);
+  RedisModule_Free(outputs);
+  RedisModule_Free(buffer);
+
+  return model;
 }
 
-static void Model_RdbSave(RedisModuleIO *rdb, void *value) {
-  //todo
+static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
+  RAI_Model *model = (RAI_Model*)value;
+  char *buffer = NULL;
+  size_t len = 0;
+  RAI_Error err = RAI_InitError();
+
+  int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
+
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+    if (buffer) {
+      RedisModule_Free(buffer);
+    }
+    return;
+  }
+
+  RedisModule_SaveUnsigned(io, model->backend);
+  RedisModule_SaveUnsigned(io, model->device);
+  RedisModule_SaveUnsigned(io, model->ninputs);
+  for (size_t i=0; i<model->ninputs; i++) {
+    RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]));
+  }
+  RedisModule_SaveUnsigned(io, model->noutputs);
+  for (size_t i=0; i<model->noutputs; i++) {
+    RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]));
+  }
+  RedisModule_SaveStringBuffer(io, buffer, len);
 }
 
 // TODO: pass err in?
-static void Model_DTFree(void *value) {
+static void RAI_Model_DTFree(void *value) {
   RAI_Error err = RAI_InitError();
   RAI_ModelFree(value, &err);
   if (err.code != RAI_OK) {
@@ -36,11 +100,11 @@ static void Model_DTFree(void *value) {
 int RAI_ModelInit(RedisModuleCtx* ctx) {
   RedisModuleTypeMethods tmModel = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = Model_RdbLoad,
-      .rdb_save = Model_RdbSave,
+      .rdb_load = RAI_Model_RdbLoad,
+      .rdb_save = RAI_Model_RdbSave,
       .aof_rewrite = NULL,
       .mem_usage = NULL,
-      .free = Model_DTFree,
+      .free = RAI_Model_DTFree,
       .digest = NULL
   };
 
@@ -140,7 +204,6 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
 
   if (err.code != RAI_OK) {
     // TODO: take it to client somehow
-    printf("ERROR!!\n");
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
   }
@@ -167,4 +230,22 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
 RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model) {
   ++model->refCount;
   return model;
+}
+
+int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err) {
+  int ret;
+
+  switch (model->backend) {
+    case RAI_BACKEND_TENSORFLOW:
+      ret = RAI_ModelSerializeTF(model, buffer, len, err);
+      break;
+    case RAI_BACKEND_TORCH:
+      ret = RAI_ModelSerializeTorch(model, buffer, len, err);
+      break;
+    default:
+      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
+      break;
+  }
+
+  return ret;
 }
