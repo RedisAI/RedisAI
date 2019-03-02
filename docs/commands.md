@@ -65,6 +65,17 @@ AI.MODELSET resnet18 TORCH GPU < foo.pt
 AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pt
 ```
 
+## AI.MODELGET - get a model
+
+```sql
+AI.MODELGET model_key
+```
+
+* model_key - key for the model
+
+> The command returns the model as serialized by the backend (i.e. a string containing a protobuf)
+
+
 ## AI.MODELRUN - run a model
 ```sql
 AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...

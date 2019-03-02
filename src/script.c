@@ -38,6 +38,12 @@ static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
   RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
 
+static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RAI_Script *script = (RAI_Script*)value;
+
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "slc", key, script->device, script->scriptdef);
+}
+
 static void RAI_Script_DTFree(void *value) {
   RAI_Error err = RAI_InitError();
   RAI_ScriptFree(value, &err);
@@ -52,7 +58,7 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = RAI_Script_RdbLoad,
       .rdb_save = RAI_Script_RdbSave,
-      .aof_rewrite = NULL,
+      .aof_rewrite = RAI_Script_AofRewrite,
       .mem_usage = NULL,
       .free = RAI_Script_DTFree,
       .digest = NULL

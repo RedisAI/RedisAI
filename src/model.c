@@ -87,6 +87,55 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RedisModule_SaveStringBuffer(io, buffer, len);
 }
 
+static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RAI_Model *model = (RAI_Model*)value;
+
+  char *buffer = NULL;
+  size_t len = 0;
+  RAI_Error err = RAI_InitError();
+
+  int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
+
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+    if (buffer) {
+      RedisModule_Free(buffer);
+    }
+    return;
+  }
+
+  // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
+
+  RedisModuleString **inputs_ = RedisModule_Calloc(sizeof(RedisModuleString*), model->ninputs);
+  RedisModuleString **outputs_ = RedisModule_Calloc(sizeof(RedisModuleString*), model->noutputs);
+
+  RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
+
+  for (size_t i=0; i<model->ninputs; i++) {
+    inputs_[i] = RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i]));
+  }
+
+  for (size_t i=0; i<model->noutputs; i++) {
+    outputs_[i] = RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i]));
+  }
+
+  RedisModule_EmitAOF(aof, "AI.MODELSET", "sllcvcvb",
+                      key,
+                      model->backend, model->device,
+                      "INPUTS", inputs_, model->ninputs,
+                      "OUTPUTS", outputs_, model->noutputs,
+                      buffer, len);
+
+  for (size_t i=0; i<model->ninputs; i++) {
+    RedisModule_FreeString(ctx, inputs_[i]);
+  }
+
+  for (size_t i=0; i<model->noutputs; i++) {
+    RedisModule_FreeString(ctx, outputs_[i]);
+  }
+}
+
 // TODO: pass err in?
 static void RAI_Model_DTFree(void *value) {
   RAI_Error err = RAI_InitError();
@@ -102,7 +151,7 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = RAI_Model_RdbLoad,
       .rdb_save = RAI_Model_RdbSave,
-      .aof_rewrite = NULL,
+      .aof_rewrite = RAI_Model_AofRewrite,
       .mem_usage = NULL,
       .free = RAI_Model_DTFree,
       .digest = NULL

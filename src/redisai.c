@@ -231,7 +231,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
@@ -493,7 +494,8 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
@@ -759,6 +761,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   queuePush(runQueue, rinfo);
   pthread_mutex_unlock(&runQueueMutex);
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return REDISMODULE_OK;
 }
 
@@ -913,6 +917,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return REDISMODULE_OK;
 }
 
@@ -987,7 +993,8 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }

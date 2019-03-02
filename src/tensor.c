@@ -46,6 +46,40 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
   return dtype.bits / 8;
 }
 
+static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+  *dtypestr = RedisModule_Calloc(sizeof(char), 8);
+  if (dtype.code == kDLFloat) {
+    if (dtype.bits == 32) {
+      strcpy(*dtypestr, "FLOAT32");
+    }
+    else if (dtype.bits == 64) {
+      strcpy(*dtypestr, "FLOAT64");
+    }
+  }
+  else if (dtype.code == kDLInt) {
+    if (dtype.bits == 8) {
+      strcpy(*dtypestr, "INT8");
+    }
+    else if (dtype.bits == 16) {
+      strcpy(*dtypestr, "INT16");
+    }
+    else if (dtype.bits == 32) {
+      strcpy(*dtypestr, "INT32");
+    }
+    else if (dtype.bits == 64) {
+      strcpy(*dtypestr, "INT64");
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    if (dtype.bits == 8) {
+      strcpy(*dtypestr, "UINT8");
+    }
+    else if (dtype.bits == 16) {
+      strcpy(*dtypestr, "UINT16");
+    }
+  }
+}
+
 static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
 
   DLContext ctx = (DLContext){
@@ -123,6 +157,69 @@ static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value){
   RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
 }
 
+#define RAI_SPLICE_SHAPE_1(x) x[0]
+#define RAI_SPLICE_SHAPE_2(x) x[0], x[1]
+#define RAI_SPLICE_SHAPE_3(x) x[0], x[1], x[2]
+#define RAI_SPLICE_SHAPE_4(x) x[0], x[1], x[2], x[3]
+#define RAI_SPLICE_SHAPE_5(x) x[0], x[1], x[2], x[3], x[4]
+#define RAI_SPLICE_SHAPE_6(x) x[0], x[1], x[2], x[3], x[4], x[5]
+#define RAI_SPLICE_SHAPE_7(x) x[0], x[1], x[2], x[3], x[4], x[5], x[6]
+#define RAI_SPLICE_SHAPE_8(x) x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]
+
+// AI.TENSORSET tensor_key data_type shape1 shape2 ... BLOB data
+
+static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RAI_Tensor *tensor = (RAI_Tensor*)value;
+
+  char *dtypestr = NULL;
+
+  Tensor_DataTypeStr(RAI_TensorDataType(tensor), &dtypestr);
+
+  int64_t* shape = tensor->tensor.dl_tensor.shape;
+  char* data = RAI_TensorData(tensor);
+  size_t size = RAI_TensorByteSize(tensor);
+
+  // We switch over the dimensions of the tensor up to 7
+  // The reason is that we don't have a way to pass a vector of long long to RedisModule_EmitAOF,
+  // there's no format for it. Vector of strings is supported (format 'v').
+  // This might change in the future, but it needs to change in redis/src/module.c
+
+  switch (RAI_TensorNumDims(tensor)) {
+    case 1:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_1(shape), "BLOB", data, size);
+      break;
+    case 2:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_2(shape), "BLOB", data, size);
+      break;
+    case 3:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_3(shape), "BLOB", data, size);
+      break;
+    case 4:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_4(shape), "BLOB", data, size);
+      break;
+    case 5:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_5(shape), "BLOB", data, size);
+      break;
+    case 6:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_6(shape), "BLOB", data, size);
+      break;
+    case 7:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_7(shape), "BLOB", data, size);
+      break;
+    default:
+      printf("ERR: AOF serialization supports tensors of dimension up to 7\n");
+  }
+
+  RedisModule_Free(dtypestr);
+}
+
 static void RAI_Tensor_DTFree(void *value){
   RAI_TensorFree(value);
 }
@@ -132,7 +229,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx){
       .version = REDISMODULE_TYPE_METHOD_VERSION,
       .rdb_load = RAI_Tensor_RdbLoad,
       .rdb_save = RAI_Tensor_RdbSave,
-      .aof_rewrite = NULL,
+      .aof_rewrite = RAI_Tensor_AofRewrite,
       .mem_usage = NULL,
       .free = RAI_Tensor_DTFree,
       .digest = NULL,
