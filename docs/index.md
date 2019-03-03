@@ -10,7 +10,7 @@ RedisAI is a Redis module for serving tensors and executing deep learning models
 
 ## Docker
 
-To quickly tryout RedisAI, launch an instance using docker:
+To quickly tryout RedisAI, launch an instance using Docker:
 
 ```sh
 docker run -p 6379:6379 -it --rm redisai/redisai
@@ -45,7 +45,7 @@ redis-server --version
 Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 ```
 
-To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found from redis.  One example on how to do this on Linux is:
+To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found by redis.  One example on how to do this on Linux is:
 
 ```
 LD_LIBRARY_PATH=<PATH_TO>/deps/install/lib redis-server --loadmodule build/redisai.so
