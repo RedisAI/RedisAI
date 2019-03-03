@@ -474,7 +474,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     #ifdef RAI_PRINT_BACKEND_ERRORS
     printf("ERR: %s\n", err.detail);
     #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
   }
@@ -531,7 +531,7 @@ void *RedisAI_RunSession(void *arg) {
     #ifdef RAI_PRINT_BACKEND_ERRORS
     printf("ERR: %s\n", err.detail);
     #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return NULL;
   }
@@ -844,7 +844,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     #ifdef RAI_PRINT_BACKEND_ERRORS
     printf("ERR: %s\n", err.detail);
     #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
   }
@@ -918,12 +918,11 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Error err = RAI_InitError();
   script = RAI_ScriptCreate(device, scriptdef, &err);
 
-  // if (script == NULL){
   if (err.code != RAI_OK){
     #ifdef RAI_PRINT_BACKEND_ERRORS
     printf("ERR: %s\n", err.detail);
     #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
   }
