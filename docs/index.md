@@ -17,17 +17,18 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 ```
 
 ## Building
-This will checkout and build Redis and download the libraries for the backends (TensorFlow and PyTorch) for your platform.
+This will checkout and build and download the libraries for the backends
+(TensorFlow and PyTorch) for your platform.
+
+```sh
+bash get_deps.sh
+
 ```
-mkdir deps
-DEPS_DIRECTORY=deps bash get_deps.sh
 
-cd deps
-git clone git://github.com/antirez/redis.git --branch 5.0
-cd redis
-make malloc=libc -j4
-cd ../..
+Once the dependencies are downloaded, build the module itself. Note that
+CMake 3.0 or higher is required.
 
+```sh
 mkdir build
 cd build
 cmake -DDEPS_PATH=../deps/install ..
@@ -36,18 +37,21 @@ cd ..
 ```
 
 ## Start
+You will need a redis-server version 4.0.9 or greater. This should be
+available in most recent distributions:
+
+```sh
+redis-server --version
+Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
+```
+
+To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found from redis.  One example on how to do this on Linux is:
+
+```
+LD_LIBRARY_PATH=<PATH_TO>/deps/install/lib redis-server --loadmodule build/redisai.so
+```
+
 If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
-
-On Linux
-```
-LD_LIBRARY_PATH=deps/install/lib deps/redis/src/redis-server --loadmodule build/redisai.so
-```
-
-On macos
-```
-deps/redis/src/redis-server --loadmodule build/redisai.so
-```
-
 On the client, load the model
 ```
 ./deps/redis/src/redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < graph.pb
