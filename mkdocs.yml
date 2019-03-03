@@ -26,6 +26,7 @@ theme:
 pages:
     - 'Quickstart': index.md
     - 'Commands': commands.md
+    - 'Backend': dataandbackend.md
 
 markdown_extensions:
   - admonition
