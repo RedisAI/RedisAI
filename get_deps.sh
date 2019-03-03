@@ -5,13 +5,9 @@ set -x
 BASE_DIRECTORY=`pwd`
 
 # Allow different deps for different platforms:
-PLATNAME=${OSTYPE}
-if [ -e /etc/debian-version ]; then
-    PLATNAME=${PLATNAME}-deb
-fi
 
 if [ -z "$DEPS_DIRECTORY" ]; then
-  DEPS_DIRECTORY=${BASE_DIRECTORY}/deps-${PLATNAME}
+  DEPS_DIRECTORY=${BASE_DIRECTORY}/deps
 fi
 
 mkdir -p ${DEPS_DIRECTORY}
