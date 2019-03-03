@@ -5,6 +5,17 @@
 
 #include "redismodule.h"
 
+char *RAI_Chomp(const char *src) {
+  char* str = RedisModule_Strdup(src);
+  size_t len = strlen(src);
+  for (size_t i=0; i<len; i++) {
+    if (str[i] == '\n' || str[i] == '\r') {
+      str[i] = ' ';
+    }
+  }
+  return str;
+}
+
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
   if (err->code != RAI_OK) {
     return;
@@ -15,19 +26,23 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
   if (detail) {
     err->detail = RedisModule_Strdup(detail);
   } else {
-    err->detail = strdup("Generic error");
+    err->detail = RedisModule_Strdup("Generic error");
   }
+
+  err->detail_oneline = RAI_Chomp(err->detail);
 }
 
 RAI_Error RAI_InitError() {
-  RAI_Error err = {.code = RAI_OK, .detail = NULL};
+  RAI_Error err = {.code = RAI_OK, .detail = NULL, .detail_oneline = NULL};
   return err;
 }
 
 void RAI_ClearError(RAI_Error *err) {
   if (err->detail) {
-    free(err->detail);
+    RedisModule_Free(err->detail);
+    RedisModule_Free(err->detail_oneline);
     err->detail = NULL;
+    err->detail_oneline = NULL;
   }
   err->code = RAI_OK;
 }
