@@ -149,3 +149,18 @@ def test_run_mobilenet_multiproc(env):
     env.assertEqual(
         label, 'giant_panda'
     )
+
+def test_set_incorrect_script(env):
+    try:
+        env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+def test_set_correct_script(env):
+    script = '''
+       def foo(a, b):
+           return a + b
+    '''
+    env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+

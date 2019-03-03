@@ -19,6 +19,7 @@ typedef enum {
 typedef struct RAI_Error {
   RAI_ErrorCode code;
   char* detail;
+  char* detail_oneline;
 } RAI_Error;
 
 RAI_Error RAI_InitError();
