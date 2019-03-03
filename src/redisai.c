@@ -326,6 +326,9 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         break;
     }
   }
+  else {
+    assert(0);
+  }
 
   RedisModule_ReplyWithArray(ctx, ndims);
   for (long long i=0; i<ndims; i++) {

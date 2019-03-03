@@ -82,20 +82,18 @@ static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
 
 static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
 
-  DLContext ctx = (DLContext){
-      .device_type = RedisModule_LoadUnsigned(io),
-      .device_id = RedisModule_LoadUnsigned(io)
-  };
+  DLContext ctx;
+  ctx.device_type = RedisModule_LoadUnsigned(io);
+  ctx.device_id = RedisModule_LoadUnsigned(io);
 
   // For now we only support CPU tensors (except during model and script run)
   assert(ctx.device_type == kDLCPU);
   assert(ctx.device_id == 0);
 
-  DLDataType dtype = (DLDataType){
-      .bits = RedisModule_LoadUnsigned(io),
-      .code = RedisModule_LoadUnsigned(io),
-      .lanes = RedisModule_LoadUnsigned(io)
-  };
+  DLDataType dtype;
+  dtype.bits = RedisModule_LoadUnsigned(io);
+  dtype.code = RedisModule_LoadUnsigned(io);
+  dtype.lanes = RedisModule_LoadUnsigned(io);
 
   size_t ndims = RedisModule_LoadUnsigned(io);
 
