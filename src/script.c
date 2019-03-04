@@ -17,7 +17,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
   }
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   RAI_Device device = RedisModule_LoadUnsigned(io);
   size_t len;
@@ -51,7 +51,7 @@ static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, vo
 }
 
 static void RAI_Script_DTFree(void *value) {
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   RAI_ScriptFree(value, &err);
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
@@ -136,7 +136,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
   }
   array_free(sctx->outputs);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   RAI_ScriptFree(sctx->script, &err);
 
   if (err.code != RAI_OK) {

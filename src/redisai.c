@@ -470,7 +470,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t modellen;
   const char *modeldef = RedisModule_StringPtrLen(argv[argidx], &modellen);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
@@ -518,7 +518,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   char *buffer = NULL;
   size_t len = 0;
@@ -570,7 +570,7 @@ void *RedisAI_RunSession(void *arg) {
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   mstime_t start = mstime();
   rinfo->status = RAI_ModelRun(rinfo->mctx, &err);
@@ -887,7 +887,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     argidx += argoffset;
   }
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   int ret = RAI_ScriptRun(sctx, &err);
 
   if (err.code != RAI_OK) {
@@ -970,7 +970,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   size_t scriptlen;
   const char *scriptdef = RedisModule_StringPtrLen(argv[3], &scriptlen);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   script = RAI_ScriptCreate(device, scriptdef, &err);
 
   if (err.code != RAI_OK){

@@ -43,7 +43,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   char *buffer = RedisModule_LoadStringBuffer(io, &len);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   RAI_Model *model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
@@ -68,7 +68,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Model *model = (RAI_Model*)value;
    char *buffer = NULL;
    size_t len = 0;
-   RAI_Error err = RAI_InitError();
+   RAI_Error err = {0};
 
    int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
@@ -99,7 +99,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   char *buffer = NULL;
   size_t len = 0;
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
@@ -145,7 +145,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
 // TODO: pass err in?
 static void RAI_Model_DTFree(void *value) {
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   RAI_ModelFree(value, &err);
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
@@ -255,7 +255,7 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
   }
   array_free(mctx->outputs);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   RAI_ModelFree(mctx->model, &err);
 
   if (err.code != RAI_OK) {

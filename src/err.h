@@ -23,8 +23,6 @@ typedef struct RAI_Error {
   char* detail_oneline;
 } RAI_Error;
 
-RAI_Error RAI_InitError();
-
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail);
 
 void RAI_ClearError(RAI_Error *err);
