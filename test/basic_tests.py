@@ -102,14 +102,25 @@ def test_set_tensor(env):
 def test_run_tf_model(env):
     examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
     model_filename = os.path.join(examples_path, 'models/graph.pb')
+    wrong_model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
+
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
 
     con = env
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     con.assertEqual(ret, b'OK')
+
+    try:
+        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', wrong_model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         env.execute_command('AI.MODELSET', 'm_1', 'TF',
@@ -185,13 +196,23 @@ def test_run_tf_model(env):
 def test_run_torch_model(env):
     examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
     model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
+    wrong_model_filename = os.path.join(examples_path, 'models/graph.pb')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
+
     con = env
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
     con.assertEqual(ret, b'OK')
+
+    try:
+        con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', wrong_model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         env.execute_command('AI.MODELSET', 'm_1', 'TORCH', model_pb)
