@@ -114,8 +114,8 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 
-  RedisModuleString **inputs_ = RedisModule_Calloc(sizeof(RedisModuleString*), model->ninputs);
-  RedisModuleString **outputs_ = RedisModule_Calloc(sizeof(RedisModuleString*), model->noutputs);
+  RedisModuleString **inputs_ = RedisModule_Calloc(model->ninputs, sizeof(RedisModuleString*));
+  RedisModuleString **outputs_ = RedisModule_Calloc(model->noutputs, sizeof(RedisModuleString*));
 
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
 

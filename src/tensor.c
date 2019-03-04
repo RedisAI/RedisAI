@@ -47,7 +47,7 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
 }
 
 static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
-  *dtypestr = RedisModule_Calloc(sizeof(char), 8);
+  *dtypestr = RedisModule_Calloc(8, sizeof(char));
   if (dtype.code == kDLFloat) {
     if (dtype.bits == 32) {
       strcpy(*dtypestr, "FLOAT32");
