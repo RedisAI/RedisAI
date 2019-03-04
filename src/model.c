@@ -15,11 +15,11 @@
 RedisModuleType *RedisAI_ModelType = NULL;
 
 static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
-  if (encver != RAI_ENC_VER) {
-      /* We should actually log an error here, or try to implement
-         the ability to load older versions of our data structure. */
-      return NULL;
-  }
+  // if (encver != RAI_ENC_VER) {
+  //   /* We should actually log an error here, or try to implement
+  //      the ability to load older versions of our data structure. */
+  //   return NULL;
+  // }
 
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
   RAI_Device device = RedisModule_LoadUnsigned(io);
@@ -85,11 +85,11 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RedisModule_SaveUnsigned(io, model->device);
   RedisModule_SaveUnsigned(io, model->ninputs);
   for (size_t i=0; i<model->ninputs; i++) {
-    RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]));
+    RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
   }
   RedisModule_SaveUnsigned(io, model->noutputs);
   for (size_t i=0; i<model->noutputs; i++) {
-    RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]));
+    RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
   }
   RedisModule_SaveStringBuffer(io, buffer, len);
 }

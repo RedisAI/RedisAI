@@ -81,11 +81,11 @@ static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
 }
 
 static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
-  if (encver != RAI_ENC_VER) {
-      /* We should actually log an error here, or try to implement
-         the ability to load older versions of our data structure. */
-      return NULL;
-  }
+  // if (encver != RAI_ENC_VER) {
+  //   /* We should actually log an error here, or try to implement
+  //      the ability to load older versions of our data structure. */
+  //   return NULL;
+  // }
 
   DLContext ctx;
   ctx.device_type = RedisModule_LoadUnsigned(io);

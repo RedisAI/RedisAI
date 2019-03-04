@@ -77,8 +77,10 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   size_t ndims = TF_NumDims(tensor);
 
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
   for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
+    strides[i] = 1;
   }
 
   // FIXME: In TF, RunSession allocates memory for output tensors
@@ -106,7 +108,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
       .ndim = ndims,
       .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
       .shape = shape,
-      .strides = NULL,
+      .strides = strides,
       .byte_offset = 0
     },
     .manager_ctx = NULL,

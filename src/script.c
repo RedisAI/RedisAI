@@ -11,11 +11,11 @@
 RedisModuleType *RedisAI_ScriptType = NULL;
 
 static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
-  if (encver != RAI_ENC_VER) {
-      /* We should actually log an error here, or try to implement
-         the ability to load older versions of our data structure. */
-      return NULL;
-  }
+  // if (encver != RAI_ENC_VER) {
+  //   /* We should actually log an error here, or try to implement
+  //      the ability to load older versions of our data structure. */
+  //   return NULL;
+  // }
 
   RAI_Error err = {0};
 
@@ -38,7 +38,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
 static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Script *script = (RAI_Script*)value;
 
-  size_t len = strlen(script->scriptdef);
+  size_t len = strlen(script->scriptdef) + 1;
 
   RedisModule_SaveUnsigned(io, script->device);
   RedisModule_SaveStringBuffer(io, script->scriptdef, len);
