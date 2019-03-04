@@ -114,17 +114,17 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 
-  RedisModuleString **inputs_ = RedisModule_Calloc(model->ninputs, sizeof(RedisModuleString*));
-  RedisModuleString **outputs_ = RedisModule_Calloc(model->noutputs, sizeof(RedisModuleString*));
+  RedisModuleString **inputs_ = array_new(RedisModuleString*, model->ninputs);
+  RedisModuleString **outputs_ = array_new(RedisModuleString*, model->noutputs);
 
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
 
   for (size_t i=0; i<model->ninputs; i++) {
-    inputs_[i] = RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i]));
+    array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
   }
 
   for (size_t i=0; i<model->noutputs; i++) {
-    outputs_[i] = RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i]));
+    array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
   RedisModule_EmitAOF(aof, "AI.MODELSET", "sllcvcvb",
@@ -138,9 +138,13 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     RedisModule_FreeString(ctx, inputs_[i]);
   }
 
+  array_free(inputs_);
+
   for (size_t i=0; i<model->noutputs; i++) {
     RedisModule_FreeString(ctx, outputs_[i]);
   }
+
+  array_free(outputs_);
 }
 
 // TODO: pass err in?
