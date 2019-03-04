@@ -45,7 +45,6 @@ def example_multiproc_fn(env):
 def test_example_multiproc(env):
     run_test_multiproc(env, 10, lambda x: x.execute_command('set', 'x', 1))
     r = env.cmd('get', 'x')
-    print(r)
     env.assertEqual(r, b'1')
 
 
@@ -59,6 +58,42 @@ def test_set_tensor(env):
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [2, 3])
+
+    try:
+        env.execute_command('AI.TENSORSET', 1)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.TENSORSET', 'y', 'FLOAT')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     for _ in con.reloadingIterator():
         env.assertExists('x')
@@ -76,6 +111,61 @@ def test_run_tf_model(env):
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     con.assertEqual(ret, b'OK')
 
+    try:
+        env.execute_command('AI.MODELSET', 'm_1', 'TF',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_4', 'TF',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+ 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
 
@@ -103,8 +193,50 @@ def test_run_torch_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
     con.assertEqual(ret, b'OK')
 
+    try:
+        env.execute_command('AI.MODELSET', 'm_1', 'TORCH', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'b', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_3', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
@@ -219,7 +351,18 @@ def test_set_incorrect_script(env):
         env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
     except Exception as e:
         exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
+    try:
+        env.execute_command('AI.SCRIPTSET', 'nope')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.SCRIPTSET', 'more', 'CPU')
+    except Exception as e:
+        exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
@@ -247,6 +390,30 @@ def test_run_script(env):
 
     env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
     env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+
+    try:
+        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.SCRIPTRUN', 'ket', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
