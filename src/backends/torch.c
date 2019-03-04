@@ -48,21 +48,24 @@ void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
 
 int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
-  DLManagedTensor** inputs = RedisModule_Calloc(1, sizeof(*inputs));
-  DLManagedTensor** outputs = RedisModule_Calloc(1, sizeof(*outputs));
+  size_t ninputs = array_len(mctx->inputs);
+  size_t noutputs = array_len(mctx->outputs);
 
-  for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
+  DLManagedTensor** inputs = RedisModule_Calloc(ninputs, sizeof(*inputs));
+  DLManagedTensor** outputs = RedisModule_Calloc(noutputs, sizeof(*outputs));
+
+  for (size_t i=0 ; i<ninputs; ++i) {
     inputs[i] = &mctx->inputs[i].tensor->tensor;
   }
 
-  for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
+  for (size_t i=0 ; i<noutputs; ++i) {
     outputs[i] = &mctx->outputs[i].tensor->tensor;
   }
 
   char* error_descr = NULL;
   torchRunModel(mctx->model->model,
-                array_len(mctx->inputs), inputs,
-                array_len(mctx->outputs), outputs, &error_descr);
+                ninputs, inputs,
+                noutputs, outputs, &error_descr);
 
   if (error_descr != NULL) {
     RAI_SetError(error, RAI_EMODELRUN, error_descr);
