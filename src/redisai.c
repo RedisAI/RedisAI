@@ -1055,7 +1055,7 @@ int moduleRegisterApi(const char *funcname, void *funcptr);
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-  if (RedisModule_Init(ctx, "ai", 100, REDISMODULE_APIVER_1)
+  if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
   if(!RediAI_RegisterApi(moduleRegisterApi)){

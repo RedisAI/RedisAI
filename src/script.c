@@ -11,6 +11,12 @@
 RedisModuleType *RedisAI_ScriptType = NULL;
 
 static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
+  if (encver != RAI_ENC_VER) {
+      /* We should actually log an error here, or try to implement
+         the ability to load older versions of our data structure. */
+      return NULL;
+  }
+
   RAI_Error err = RAI_InitError();
 
   RAI_Device device = RedisModule_LoadUnsigned(io);

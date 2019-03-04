@@ -48,7 +48,14 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   RAI_Model *model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
  
-  // TODO: ERR
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+    if (buffer) {
+      RedisModule_Free(buffer);
+    }
+    return NULL;
+  }
 
   RedisModule_Free(inputs);
   RedisModule_Free(outputs);
@@ -59,11 +66,11 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
 static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Model *model = (RAI_Model*)value;
-  char *buffer = NULL;
-  size_t len = 0;
-  RAI_Error err = RAI_InitError();
+   char *buffer = NULL;
+   size_t len = 0;
+   RAI_Error err = RAI_InitError();
 
-  int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
+   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);

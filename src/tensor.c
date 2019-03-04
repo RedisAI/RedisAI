@@ -80,7 +80,12 @@ static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
   }
 }
 
-static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
+static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
+  if (encver != RAI_ENC_VER) {
+      /* We should actually log an error here, or try to implement
+         the ability to load older versions of our data structure. */
+      return NULL;
+  }
 
   DLContext ctx;
   ctx.device_type = RedisModule_LoadUnsigned(io);
@@ -132,7 +137,7 @@ static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
   return ret;
 }
 
-static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value){
+static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Tensor *tensor = (RAI_Tensor*)value;
 
   size_t ndim = tensor->tensor.dl_tensor.ndim;
@@ -218,7 +223,7 @@ static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, vo
   RedisModule_Free(dtypestr);
 }
 
-static void RAI_Tensor_DTFree(void *value){
+static void RAI_Tensor_DTFree(void *value) {
   RAI_TensorFree(value);
 }
 
@@ -324,7 +329,7 @@ RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
   return ret;
 }
 
-DLDataType RAI_TensorDataType(RAI_Tensor* t){
+DLDataType RAI_TensorDataType(RAI_Tensor* t) {
   return t->tensor.dl_tensor.dtype;
 }
 
@@ -337,7 +342,7 @@ size_t RAI_TensorLength(RAI_Tensor* t) {
   return len;
 }
 
-size_t RAI_TensorGetDataSize(const char* dataTypeStr){
+size_t RAI_TensorGetDataSize(const char* dataTypeStr) {
   DLDataType dtype = Tensor_GetDataType(dataTypeStr);
   return Tensor_DataTypeSize(dtype);
 }
