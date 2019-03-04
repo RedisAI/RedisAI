@@ -16,7 +16,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
   RAI_Device device = RedisModule_LoadUnsigned(io);
   size_t len;
   char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
- 
+
   RAI_Script *script = RAI_ScriptCreate(device, scriptdef, &err);
 
   RedisModule_Free(scriptdef);
@@ -26,7 +26,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
     RAI_ClearError(&err);
   }
 
-  return NULL;
+  return script;
 }
 
 static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {

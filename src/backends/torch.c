@@ -92,10 +92,6 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
 }
 
 RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_Error *error) {
-  size_t scriptlen = strlen(scriptdef);
-  char* scriptdef_ = RedisModule_Calloc(scriptlen, sizeof(char));
-  memcpy(scriptdef_, scriptdef, scriptlen);
-
   DLDeviceType dl_device;
   switch (device) {
     case RAI_DEVICE_CPU:
@@ -120,7 +116,7 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_
 
   RAI_Script* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->script = script;
-  ret->scriptdef = scriptdef_;
+  ret->scriptdef = RedisModule_Strdup(scriptdef);
   ret->device = device;
   ret->refCount = 1;
 
