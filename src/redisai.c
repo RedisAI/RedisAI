@@ -1070,23 +1070,29 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
+  int flags = RedisModule_GetContextFlags(ctx);
+  if (flags & REDISMODULE_CTX_FLAGS_AOF) {
+    RedisModule_Log(ctx, "warning", "ERR: AOF currently unsupported\r\n");
+    return REDISMODULE_ERR;
+  }
+
   if(!RediAI_RegisterApi(moduleRegisterApi)){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
   }
 
   if(!RAI_TensorInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize tensor dt");
+    RedisModule_Log(ctx, "warning", "can not initialize tensor dt\r\n");
     return REDISMODULE_ERR;
   }
 
   if(!RAI_ModelInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize model dt");
+    RedisModule_Log(ctx, "warning", "can not initialize model dt\r\n");
     return REDISMODULE_ERR;
   }
 
   if(!RAI_ScriptInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize script dt");
+    RedisModule_Log(ctx, "warning", "can not initialize script dt\r\n");
     return REDISMODULE_ERR;
   }
 
