@@ -650,6 +650,9 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   // be picked up on the next round. We also need to signal when it's time to dispose
   // of the old model.
   // The key is having a single thread looping for execution
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx, 1);
+  }
 
   RedisModule_AutoMemory(ctx);
 
@@ -693,6 +696,9 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         break;
       }
       array_append(keys, argv[argidx + idx]);
+      if (RedisModule_IsKeysPositionRequest(ctx)) {
+        RedisModule_KeyAtPos(ctx, argidx + idx);
+      }
     }
 
     long long nitems = array_len(keys);
@@ -801,6 +807,9 @@ int RedisAI_StartRunThread() {
 
 // script key, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx, 1);
+  }
 
   RedisModule_AutoMemory(ctx);
 
@@ -850,6 +859,9 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         break;
       }
       array_append(keys, argv[argidx + idx]);
+      if (RedisModule_IsKeysPositionRequest(ctx)) {
+        RedisModule_KeyAtPos(ctx, argidx + idx);
+      }
     }
 
     long long nitems = array_len(keys);
@@ -1078,36 +1090,36 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 0, 0, 0)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 0, 0, 0)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
