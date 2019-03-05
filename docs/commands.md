@@ -103,7 +103,7 @@ AI.SCRIPTSET script_key device script_source
 
 * script_key - key for storing the script
 * device - the device where the script will execute
-* script_source - a string containing TorchScript source code
+* script_source - a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 ### Example
 
