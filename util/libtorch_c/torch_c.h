@@ -28,6 +28,8 @@ void torchRunModel(void* modelCtx,
                    long nOutputs, DLManagedTensor** outputs,
                    char **error);
 
+void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, char **error);
+
 void torchDeallocContext(void* ctx);
 
 #ifdef __cplusplus

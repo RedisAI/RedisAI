@@ -77,8 +77,10 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   size_t ndims = TF_NumDims(tensor);
 
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
   for (long i = 0 ; i < ndims ; ++i){
     shape[i] = TF_Dim(tensor, i);
+    strides[i] = 1;
   }
 
   // FIXME: In TF, RunSession allocates memory for output tensors
@@ -106,7 +108,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
       .ndim = ndims,
       .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
       .shape = shape,
-      .strides = NULL,
+      .strides = strides,
       .byte_offset = 0
     },
     .manager_ctx = NULL,
@@ -222,6 +224,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   ret->model = model;
   ret->session = session;
   ret->backend = backend;
+  ret->device = device;
   ret->inputs = inputs_;
   ret->outputs = outputs_;
   ret->refCount = 1;
@@ -282,7 +285,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     port.oper = TF_GraphOperationByName(mctx->model->model, mctx->inputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
-      return 0;
+      return 1;
     }
     inputs[i] = port;
   }
@@ -292,7 +295,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     port.oper = TF_GraphOperationByName(mctx->model->model, mctx->outputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
-      return 0;
+      return 1;
     }
     outputs[i] = port;
   }
@@ -307,7 +310,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   if (TF_GetCode(status) != TF_OK) {
     RAI_SetError(error, RAI_EMODELRUN, RedisModule_Strdup(TF_Message(status)));
     TF_DeleteStatus(status);
-    return 0;
+    return 1;
   }
 
   for(size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
@@ -317,5 +320,28 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   TF_DeleteStatus(status);
 
-  return 1;
+  return 0;
+}
+
+int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
+  TF_Buffer *tf_buffer = TF_NewBuffer();
+  TF_Status *status = TF_NewStatus();
+
+  TF_GraphToGraphDef(model->model, tf_buffer, status);
+
+  if (TF_GetCode(status) != TF_OK) {
+    RAI_SetError(error, RAI_EMODELSERIALIZE, "Error serializing TF model");
+    TF_DeleteBuffer(tf_buffer);
+    TF_DeleteStatus(status);
+    return 1;
+  }
+
+  *buffer = RedisModule_Alloc(tf_buffer->length);
+  memcpy(*buffer, tf_buffer->data, tf_buffer->length);
+  *len = tf_buffer->length;
+
+  TF_DeleteBuffer(tf_buffer);
+  TF_DeleteStatus(status);
+
+  return 0;
 }

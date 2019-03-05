@@ -13,15 +13,17 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *err);
 
-void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error* err);
+void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error* err);
+int RAI_ModelRunTorch(RAI_ModelRunCtx *mctx, RAI_Error *error);
+
+int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
 RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef,
-                                  RAI_Error *err);
+                                  RAI_Error *error);
 
-void RAI_ScriptFreeTorch(RAI_Script* script, RAI_Error* err);
+void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 
-int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* err);
+int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error);
 
 #endif /* SRC_BACKENDS_TORCH_H_ */

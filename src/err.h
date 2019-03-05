@@ -7,6 +7,7 @@ typedef enum {
   RAI_EMODELCONFIGURE,
   RAI_EMODELCREATE,
   RAI_EMODELRUN,
+  RAI_EMODELSERIALIZE,
   RAI_EMODELFREE,
   RAI_ESCRIPTIMPORT,
   RAI_ESCRIPTCONFIGURE,
@@ -21,8 +22,6 @@ typedef struct RAI_Error {
   char* detail;
   char* detail_oneline;
 } RAI_Error;
-
-RAI_Error RAI_InitError();
 
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail);
 

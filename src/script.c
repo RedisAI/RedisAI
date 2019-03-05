@@ -10,17 +10,48 @@
 
 RedisModuleType *RedisAI_ScriptType = NULL;
 
-static void* Script_RdbLoad(struct RedisModuleIO *io, int encver) {
-  //todo
-  return NULL;
+static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
+  // if (encver != RAI_ENC_VER) {
+  //   /* We should actually log an error here, or try to implement
+  //      the ability to load older versions of our data structure. */
+  //   return NULL;
+  // }
+
+  RAI_Error err = {0};
+
+  RAI_Device device = RedisModule_LoadUnsigned(io);
+  size_t len;
+  char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
+
+  RAI_Script *script = RAI_ScriptCreate(device, scriptdef, &err);
+
+  RedisModule_Free(scriptdef);
+
+  if (err.code != RAI_OK) {
+    printf("ERR: %s\n", err.detail);
+    RAI_ClearError(&err);
+  }
+
+  return script;
 }
 
-static void Script_RdbSave(RedisModuleIO *rdb, void *value) {
-  //todo
+static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
+  RAI_Script *script = (RAI_Script*)value;
+
+  size_t len = strlen(script->scriptdef) + 1;
+
+  RedisModule_SaveUnsigned(io, script->device);
+  RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
 
-static void Script_DTFree(void *value) {
-  RAI_Error err = RAI_InitError();
+static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RAI_Script *script = (RAI_Script*)value;
+
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "slc", key, script->device, script->scriptdef);
+}
+
+static void RAI_Script_DTFree(void *value) {
+  RAI_Error err = {0};
   RAI_ScriptFree(value, &err);
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
@@ -31,11 +62,11 @@ static void Script_DTFree(void *value) {
 int RAI_ScriptInit(RedisModuleCtx* ctx) {
   RedisModuleTypeMethods tmScript = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = Script_RdbLoad,
-      .rdb_save = Script_RdbSave,
-      .aof_rewrite = NULL,
+      .rdb_load = RAI_Script_RdbLoad,
+      .rdb_save = RAI_Script_RdbSave,
+      .aof_rewrite = RAI_Script_AofRewrite,
       .mem_usage = NULL,
-      .free = Script_DTFree,
+      .free = RAI_Script_DTFree,
       .digest = NULL
   };
 
@@ -105,7 +136,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
   }
   array_free(sctx->outputs);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   RAI_ScriptFree(sctx->script, &err);
 
   if (err.code != RAI_OK) {
