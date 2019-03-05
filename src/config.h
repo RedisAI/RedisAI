@@ -23,4 +23,6 @@ typedef enum {
 #define RAI_COPY_RUN_OUTPUT
 #define RAI_PRINT_BACKEND_ERRORS
 
+// #define RAI_OVERRIDE_AOF_CHECK
+
 #endif /* SRC_CONFIG_H_ */

@@ -1073,7 +1073,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   int flags = RedisModule_GetContextFlags(ctx);
   if (flags & REDISMODULE_CTX_FLAGS_AOF) {
     RedisModule_Log(ctx, "warning", "ERR: AOF currently unsupported\r\n");
+#ifndef RAI_OVERRIDE_AOF_CHECK
     return REDISMODULE_ERR;
+#endif
   }
 
   if(!RediAI_RegisterApi(moduleRegisterApi)){
