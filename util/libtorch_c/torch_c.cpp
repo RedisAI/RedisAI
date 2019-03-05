@@ -292,14 +292,31 @@ extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
   }
 }
 
-extern "C" void torchRunModel(void* graphCtx,
+extern "C" void torchRunModel(void* modelCtx,
                               long nInputs, DLManagedTensor** inputs,
                               long nOutputs, DLManagedTensor** outputs,
                               char **error)
 {
-  ModuleContext* ctx = (ModuleContext*)graphCtx;
+  ModuleContext* ctx = (ModuleContext*)modelCtx;
   try {
     torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
+  }
+  catch(std::exception& e) {
+    *error = strdup(e.what());
+  }
+}
+
+extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, char **error)
+{
+  ModuleContext* ctx = (ModuleContext*)modelCtx;
+  std::ostringstream out;
+  try {
+    ctx->module->save(out);
+    auto out_str = out.str();
+    int size = out_str.size();
+    *buffer = (char *)malloc(size);
+    memcpy(*buffer, out_str.c_str(), size);
+    *len = size;
   }
   catch(std::exception& e) {
     *error = strdup(e.what());

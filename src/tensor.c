@@ -4,6 +4,7 @@
 #include <strings.h>
 #include <string.h>
 #include "utils/alloc.h"
+#include <assert.h>
 
 RedisModuleType *RedisAI_TensorType = NULL;
 
@@ -45,27 +46,195 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
   return dtype.bits / 8;
 }
 
-static void* Tensor_RdbLoad(struct RedisModuleIO *io, int encver){
-  //todo
-  return NULL;
+static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+  *dtypestr = RedisModule_Calloc(8, sizeof(char));
+  if (dtype.code == kDLFloat) {
+    if (dtype.bits == 32) {
+      strcpy(*dtypestr, "FLOAT32");
+    }
+    else if (dtype.bits == 64) {
+      strcpy(*dtypestr, "FLOAT64");
+    }
+  }
+  else if (dtype.code == kDLInt) {
+    if (dtype.bits == 8) {
+      strcpy(*dtypestr, "INT8");
+    }
+    else if (dtype.bits == 16) {
+      strcpy(*dtypestr, "INT16");
+    }
+    else if (dtype.bits == 32) {
+      strcpy(*dtypestr, "INT32");
+    }
+    else if (dtype.bits == 64) {
+      strcpy(*dtypestr, "INT64");
+    }
+  }
+  else if (dtype.code == kDLUInt) {
+    if (dtype.bits == 8) {
+      strcpy(*dtypestr, "UINT8");
+    }
+    else if (dtype.bits == 16) {
+      strcpy(*dtypestr, "UINT16");
+    }
+  }
 }
 
-static void Tensor_RdbSave(RedisModuleIO *rdb, void *value){
-  //todo
+static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
+  // if (encver != RAI_ENC_VER) {
+  //   /* We should actually log an error here, or try to implement
+  //      the ability to load older versions of our data structure. */
+  //   return NULL;
+  // }
+
+  DLContext ctx;
+  ctx.device_type = RedisModule_LoadUnsigned(io);
+  ctx.device_id = RedisModule_LoadUnsigned(io);
+
+  // For now we only support CPU tensors (except during model and script run)
+  assert(ctx.device_type == kDLCPU);
+  assert(ctx.device_id == 0);
+
+  DLDataType dtype;
+  dtype.bits = RedisModule_LoadUnsigned(io);
+  dtype.code = RedisModule_LoadUnsigned(io);
+  dtype.lanes = RedisModule_LoadUnsigned(io);
+
+  size_t ndims = RedisModule_LoadUnsigned(io);
+
+  RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
+  for (size_t i = 0 ; i < ndims ; ++i){
+    shape[i] = RedisModule_LoadUnsigned(io);
+  }
+
+  for (size_t i = 0 ; i < ndims ; ++i){
+    strides[i] = RedisModule_LoadUnsigned(io);
+  }
+
+  size_t byte_offset = RedisModule_LoadUnsigned(io);
+  
+  size_t len;
+  char *data = RedisModule_LoadStringBuffer(io, &len);
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
+      .ctx = ctx,
+      .data = data,
+      .ndim = ndims,
+      .dtype = dtype,
+      .shape = shape,
+      .strides = strides,
+      .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
+  };
+
+  ret->refCount = 1;
+  return ret;
 }
 
-static void Tensor_DTFree(void *value){
+static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value) {
+  RAI_Tensor *tensor = (RAI_Tensor*)value;
+
+  size_t ndim = tensor->tensor.dl_tensor.ndim;
+
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_type);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_id);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.bits);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.code);
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.lanes);
+  RedisModule_SaveUnsigned(io, ndim);
+  for (size_t i=0; i<ndim; i++) {
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.shape[i]);
+  }
+  for (size_t i=0; i<ndim; i++) {
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.strides[i]);
+  }
+  RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.byte_offset);
+  size_t size = RAI_TensorByteSize(tensor);
+
+  RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
+}
+
+#define RAI_SPLICE_SHAPE_1(x) x[0]
+#define RAI_SPLICE_SHAPE_2(x) x[0], x[1]
+#define RAI_SPLICE_SHAPE_3(x) x[0], x[1], x[2]
+#define RAI_SPLICE_SHAPE_4(x) x[0], x[1], x[2], x[3]
+#define RAI_SPLICE_SHAPE_5(x) x[0], x[1], x[2], x[3], x[4]
+#define RAI_SPLICE_SHAPE_6(x) x[0], x[1], x[2], x[3], x[4], x[5]
+#define RAI_SPLICE_SHAPE_7(x) x[0], x[1], x[2], x[3], x[4], x[5], x[6]
+#define RAI_SPLICE_SHAPE_8(x) x[0], x[1], x[2], x[3], x[4], x[5], x[6], x[7]
+
+// AI.TENSORSET tensor_key data_type shape1 shape2 ... BLOB data
+
+static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
+  RAI_Tensor *tensor = (RAI_Tensor*)value;
+
+  char *dtypestr = NULL;
+
+  Tensor_DataTypeStr(RAI_TensorDataType(tensor), &dtypestr);
+
+  int64_t* shape = tensor->tensor.dl_tensor.shape;
+  char* data = RAI_TensorData(tensor);
+  size_t size = RAI_TensorByteSize(tensor);
+
+  // We switch over the dimensions of the tensor up to 7
+  // The reason is that we don't have a way to pass a vector of long long to RedisModule_EmitAOF,
+  // there's no format for it. Vector of strings is supported (format 'v').
+  // This might change in the future, but it needs to change in redis/src/module.c
+
+  switch (RAI_TensorNumDims(tensor)) {
+    case 1:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_1(shape), "BLOB", data, size);
+      break;
+    case 2:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_2(shape), "BLOB", data, size);
+      break;
+    case 3:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_3(shape), "BLOB", data, size);
+      break;
+    case 4:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_4(shape), "BLOB", data, size);
+      break;
+    case 5:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_5(shape), "BLOB", data, size);
+      break;
+    case 6:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_6(shape), "BLOB", data, size);
+      break;
+    case 7:
+      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllllcb",
+                          key, dtypestr, RAI_SPLICE_SHAPE_7(shape), "BLOB", data, size);
+      break;
+    default:
+      printf("ERR: AOF serialization supports tensors of dimension up to 7\n");
+  }
+
+  RedisModule_Free(dtypestr);
+}
+
+static void RAI_Tensor_DTFree(void *value) {
   RAI_TensorFree(value);
 }
 
 int RAI_TensorInit(RedisModuleCtx* ctx){
   RedisModuleTypeMethods tmTensor = {
       .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = Tensor_RdbLoad,
-      .rdb_save = Tensor_RdbSave,
-      .aof_rewrite = NULL,
+      .rdb_load = RAI_Tensor_RdbLoad,
+      .rdb_save = RAI_Tensor_RdbSave,
+      .aof_rewrite = RAI_Tensor_AofRewrite,
       .mem_usage = NULL,
-      .free = Tensor_DTFree,
+      .free = RAI_Tensor_DTFree,
       .digest = NULL,
   };
   RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", 0, &tmTensor);
@@ -160,7 +329,7 @@ RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
   return ret;
 }
 
-DLDataType RAI_TensorDataType(RAI_Tensor* t){
+DLDataType RAI_TensorDataType(RAI_Tensor* t) {
   return t->tensor.dl_tensor.dtype;
 }
 
@@ -173,7 +342,7 @@ size_t RAI_TensorLength(RAI_Tensor* t) {
   return len;
 }
 
-size_t RAI_TensorGetDataSize(const char* dataTypeStr){
+size_t RAI_TensorGetDataSize(const char* dataTypeStr) {
   DLDataType dtype = Tensor_GetDataType(dataTypeStr);
   return Tensor_DataTypeSize(dtype);
 }

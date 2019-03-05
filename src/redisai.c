@@ -231,7 +231,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
@@ -324,6 +325,9 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RedisModule_ReplyWithError(ctx, "ERR unsupported dtype");
         break;
     }
+  }
+  else {
+    assert(0);
   }
 
   RedisModule_ReplyWithArray(ctx, ndims);
@@ -466,7 +470,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t modellen;
   const char *modeldef = RedisModule_StringPtrLen(argv[argidx], &modellen);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
@@ -493,7 +497,52 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
+
+  return REDISMODULE_OK;
+}
+
+// key
+int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc != 2) return RedisModule_WrongArity(ctx);
+
+  RedisModule_AutoMemory(ctx);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
+
+  RAI_Error err = {0};
+
+  char *buffer = NULL;
+  size_t len = 0;
+
+  RAI_ModelSerialize(mto, &buffer, &len, &err);
+
+  if (err.code != RAI_OK) {
+    #ifdef RAI_PRINT_BACKEND_ERRORS
+    printf("ERR: %s\n", err.detail);
+    #endif
+    int ret = RedisModule_ReplyWithError(ctx, err.detail);
+    RAI_ClearError(&err);
+    if (*buffer) {
+      RedisModule_Free(buffer);
+    }
+    return ret;
+  }
+
+  RedisModule_ReplyWithArray(ctx, 2);
+  //RedisModule_ReplyWithSimpleString(ctx, mto->backend);
+  //RedisModule_ReplyWithSimpleString(ctx, mto->device);
+  RedisModule_ReplyWithLongLong(ctx, mto->backend);
+  RedisModule_ReplyWithLongLong(ctx, mto->device);
+  RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
   return REDISMODULE_OK;
 }
@@ -521,7 +570,7 @@ void *RedisAI_RunSession(void *arg) {
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
 
   mstime_t start = mstime();
   rinfo->status = RAI_ModelRun(rinfo->mctx, &err);
@@ -558,7 +607,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argc);
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
-  if (!rinfo->status) {
+  if (rinfo->status) {
     int ret = RedisModule_ReplyWithError(ctx, "model run failed");
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
@@ -601,6 +650,9 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   // be picked up on the next round. We also need to signal when it's time to dispose
   // of the old model.
   // The key is having a single thread looping for execution
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx, 1);
+  }
 
   RedisModule_AutoMemory(ctx);
 
@@ -644,6 +696,9 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         break;
       }
       array_append(keys, argv[argidx + idx]);
+      if (RedisModule_IsKeysPositionRequest(ctx)) {
+        RedisModule_KeyAtPos(ctx, argidx + idx);
+      }
     }
 
     long long nitems = array_len(keys);
@@ -715,6 +770,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   queuePush(runQueue, rinfo);
   pthread_mutex_unlock(&runQueueMutex);
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return REDISMODULE_OK;
 }
 
@@ -748,9 +805,11 @@ int RedisAI_StartRunThread() {
   return REDISMODULE_OK;
 }
 
-// script key, fnname, ninputs, (input key, input name)..., (output key, output name)...
-// script key, INPUTS, ninputs, key1, key2 ... OUTPUTS noutputs key1 key2 ...
+// script key, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx, 1);
+  }
 
   RedisModule_AutoMemory(ctx);
 
@@ -800,6 +859,9 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         break;
       }
       array_append(keys, argv[argidx + idx]);
+      if (RedisModule_IsKeysPositionRequest(ctx)) {
+        RedisModule_KeyAtPos(ctx, argidx + idx);
+      }
     }
 
     long long nitems = array_len(keys);
@@ -837,7 +899,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     argidx += argoffset;
   }
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   int ret = RAI_ScriptRun(sctx, &err);
 
   if (err.code != RAI_OK) {
@@ -870,6 +932,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return REDISMODULE_OK;
 }
 
@@ -886,6 +950,9 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
+  RedisModule_ReplyWithArray(ctx, 2);
+  // RedisModule_ReplyWithSimpleString(ctx, sto->device);
+  RedisModule_ReplyWithLongLong(ctx, sto->device);
   RedisModule_ReplyWithSimpleString(ctx, sto->scriptdef);
 
   return REDISMODULE_OK;
@@ -915,7 +982,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   size_t scriptlen;
   const char *scriptdef = RedisModule_StringPtrLen(argv[3], &scriptlen);
 
-  RAI_Error err = RAI_InitError();
+  RAI_Error err = {0};
   script = RAI_ScriptCreate(device, scriptdef, &err);
 
   if (err.code != RAI_OK){
@@ -941,7 +1008,8 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
-  //RedisModule_ReplicateVerbatim(ctx);
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
@@ -978,6 +1046,7 @@ static bool RediAI_RegisterApi(int (*registerApiCallback)(const char *funcname, 
   REGISTER_API(ModelRunCtxOutputTensor, registerApiCallback);
   REGISTER_API(ModelRunCtxFree, registerApiCallback);
   REGISTER_API(ModelRun, registerApiCallback);
+  REGISTER_API(ModelSerialize, registerApiCallback);
   REGISTER_API(ModelGetShallowCopy, registerApiCallback);
 
   REGISTER_API(ScriptCreate, registerApiCallback);
@@ -998,8 +1067,16 @@ int moduleRegisterApi(const char *funcname, void *funcptr);
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-  if (RedisModule_Init(ctx, "ai", 100, REDISMODULE_APIVER_1)
+  if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
+
+  int flags = RedisModule_GetContextFlags(ctx);
+  if (flags & REDISMODULE_CTX_FLAGS_AOF) {
+    RedisModule_Log(ctx, "warning", "ERR: AOF currently unsupported\r\n");
+#ifndef RAI_OVERRIDE_AOF_CHECK
+    return REDISMODULE_ERR;
+#endif
+  }
 
   if(!RediAI_RegisterApi(moduleRegisterApi)){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
@@ -1007,52 +1084,50 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   }
 
   if(!RAI_TensorInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize tensor dt");
+    RedisModule_Log(ctx, "warning", "can not initialize tensor dt\r\n");
     return REDISMODULE_ERR;
   }
 
   if(!RAI_ModelInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize model dt");
+    RedisModule_Log(ctx, "warning", "can not initialize model dt\r\n");
     return REDISMODULE_ERR;
   }
 
   if(!RAI_ScriptInit(ctx)){
-    RedisModule_Log(ctx, "warning", "can not initialize script dt");
+    RedisModule_Log(ctx, "warning", "can not initialize script dt\r\n");
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-#if 0
-  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 2, 2, 1)
-      == REDISMODULE_ERR)
-    return REDISMODULE_ERR;
-#endif
-
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 0, 0, 0)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 2, 2, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write", 2, -1, 2)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 0, 0, 0)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
