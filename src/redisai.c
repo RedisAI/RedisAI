@@ -645,10 +645,16 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return RedisModule_ReplyWithSimpleString(ctx, "OK");
   }
 
+  size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+
+  RedisModule_ReplyWithArray(ctx, noutputs);
+
+  for (size_t i=0; i<noutputs; ++i) {
+    RAI_Tensor *t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, i);
+    RedisAI_ReplyWithTensor(ctx, t, REDISAI_DATA_BLOB);
+  }
+
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
-  // for (size_t i=0; i<RAI_ModelRunCtxNumOutputs(rinfo->mctx); ++i) {
-  //   RAI_Tensor *t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, i);
-  // }
 }
 
 // model key, INPUTS, key1, key2 ... OUTPUTS key1 key2 ...
