@@ -1,5 +1,7 @@
 #include "backends/torch.h"
 #include "tensor.h"
+#include "model.h"
+#include "script.h"
 #include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 #include "torch_c.h"
@@ -48,24 +50,20 @@ void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
 
 int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
-  size_t ninputs = array_len(mctx->inputs);
-  size_t noutputs = array_len(mctx->outputs);
+  long ninputs = array_len(mctx->inputs);
+  long noutputs;
 
   DLManagedTensor** inputs = RedisModule_Calloc(ninputs, sizeof(*inputs));
-  DLManagedTensor** outputs = RedisModule_Calloc(noutputs, sizeof(*outputs));
+  DLManagedTensor** outputs = NULL;
 
   for (size_t i=0 ; i<ninputs; ++i) {
     inputs[i] = &mctx->inputs[i].tensor->tensor;
   }
 
-  for (size_t i=0 ; i<noutputs; ++i) {
-    outputs[i] = &mctx->outputs[i].tensor->tensor;
-  }
-
   char* error_descr = NULL;
   torchRunModel(mctx->model->model,
                 ninputs, inputs,
-                noutputs, outputs, &error_descr);
+                &noutputs, &outputs, &error_descr);
 
   if (error_descr != NULL) {
     RAI_SetError(error, RAI_EMODELRUN, error_descr);
@@ -73,10 +71,22 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     return 1;
   }
 
-  for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
+  int output_keys = array_len(mctx->outputs);
+
+  if (output_keys && array_len(mctx->outputs) != noutputs) {
+    RAI_SetError(error, RAI_EMODELRUN, "Number of outputs doesn't correspond to specified output keys");
+    return 1;
+  }
+
+  for(size_t i=0 ; i<noutputs ; ++i) {
+    if (!output_keys) {
+      RAI_ModelRunCtxAddOutput(mctx, NULL);
+    }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
     mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
   }
+
+  torchFreeOutputs(&outputs);
 
   return 0;
 }
@@ -135,22 +145,18 @@ void RAI_ScriptFreeTorch(RAI_Script* script, RAI_Error* error) {
 
 int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
 
-  long nInputs = array_len(sctx->inputs);
-  long nOutputs = array_len(sctx->outputs);
+  long ninputs = array_len(sctx->inputs);
+  long noutputs;
 
-  DLManagedTensor* inputs[nInputs];
-  DLManagedTensor* outputs[nOutputs];
+  DLManagedTensor* inputs[ninputs];
+  DLManagedTensor** outputs = NULL;
 
-  for (size_t i=0; i<nInputs; i++) {
+  for (size_t i=0; i<ninputs; i++) {
     inputs[i] = &sctx->inputs[i].tensor->tensor;
   }
 
-  for (size_t i=0; i<nOutputs; i++) {
-    outputs[i] = &sctx->outputs[i].tensor->tensor;
-  }
-
   char* error_descr = NULL;
-  torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs, &error_descr);
+  torchRunScript(sctx->script->script, sctx->fnname, ninputs, inputs, &noutputs, &outputs, &error_descr);
 
   if (error_descr) {
     printf("F\n");
@@ -159,9 +165,22 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
     return 1;
   }
 
-  for (size_t i=0; i<nOutputs; i++) {
-    sctx->outputs[0].tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+  int output_keys = array_len(sctx->outputs);
+
+  if (output_keys && array_len(sctx->outputs) != noutputs) {
+    RAI_SetError(error, RAI_EMODELRUN, "Number of outputs doesn't correspond to specified output keys");
+    return 1;
   }
+
+  for(size_t i=0 ; i<noutputs ; ++i) {
+    if (!output_keys) {
+      RAI_ScriptRunCtxAddOutput(sctx);
+    }
+    RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+    sctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+  }
+
+  torchFreeOutputs(&outputs);
 
   return 0;
 }

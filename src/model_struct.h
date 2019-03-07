@@ -13,9 +13,7 @@ typedef struct RAI_Model {
   RAI_Backend backend;
   RAI_Device device;
   char **inputs;
-  size_t ninputs;
   char **outputs;
-  size_t noutputs;
   long long refCount;
 } RAI_Model;
 

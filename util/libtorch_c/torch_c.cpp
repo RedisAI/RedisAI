@@ -174,7 +174,7 @@ struct ModuleContext {
 
 void torchRunModule(ModuleContext* ctx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
-                    long nOutputs, DLManagedTensor** outputs) {
+                    long* nOutputs, DLManagedTensor*** outputs) {
   // Checks device, if GPU then move input to GPU before running
   // TODO: This will need to change at some point, as individual tensors will have their placement
   // and script will only make sure that placement is correct
@@ -203,16 +203,15 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
 
   method.run(stack);
 
-  if (stack.size() != nOutputs) {
-    throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
-  }
+  *nOutputs = stack.size();
+  *outputs = new DLManagedTensor*[stack.size()];
 
-  for (int i=0; i<nOutputs; i++) {
+  for (int i=0; i<stack.size(); i++) {
     // TODO: what about isTensorList?
     // TODO: move to target device
     if (stack[i].isTensor()) {
       torch::Tensor tensor = stack[i].toTensor();
-      outputs[i] = toManagedDLPack(tensor);
+      *outputs[i] = toManagedDLPack(tensor);
     }
   }
 }
@@ -279,7 +278,7 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
 
 extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
                                long nInputs, DLManagedTensor** inputs,
-                               long nOutputs, DLManagedTensor** outputs,
+                               long* nOutputs, DLManagedTensor*** outputs,
                                char **error)
 {
   ModuleContext* ctx = (ModuleContext*)scriptCtx;
@@ -294,7 +293,7 @@ extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
 
 extern "C" void torchRunModel(void* modelCtx,
                               long nInputs, DLManagedTensor** inputs,
-                              long nOutputs, DLManagedTensor** outputs,
+                              long* nOutputs, DLManagedTensor*** outputs,
                               char **error)
 {
   ModuleContext* ctx = (ModuleContext*)modelCtx;
@@ -304,6 +303,12 @@ extern "C" void torchRunModel(void* modelCtx,
   catch(std::exception& e) {
     *error = strdup(e.what());
   }
+}
+
+extern "C" void torchFreeOutputs(DLManagedTensor*** outputs)
+{
+  // contents are freed by the caller
+  delete[] *outputs;
 }
 
 extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, char **error)

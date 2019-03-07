@@ -20,13 +20,15 @@ void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device,
 
 void torchRunScript(void* scriptCtx, const char* fnName,
                     long nInputs, DLManagedTensor** inputs,
-                    long nOutputs, DLManagedTensor** outputs,
+                    long* nOutputs, DLManagedTensor*** outputs,
                     char **error);
 
 void torchRunModel(void* modelCtx,
                    long nInputs, DLManagedTensor** inputs,
-                   long nOutputs, DLManagedTensor** outputs,
+                   long* nOutputs, DLManagedTensor*** outputs,
                    char **error);
+
+void torchFreeOutputs(DLManagedTensor*** outputs);
 
 void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, char **error);
 

@@ -83,12 +83,14 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
 
   RedisModule_SaveUnsigned(io, model->backend);
   RedisModule_SaveUnsigned(io, model->device);
-  RedisModule_SaveUnsigned(io, model->ninputs);
-  for (size_t i=0; i<model->ninputs; i++) {
+  size_t ninputs = array_len(model->inputs);
+  RedisModule_SaveUnsigned(io, ninputs);
+  for (size_t i=0; i<ninputs; i++) {
     RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
   }
-  RedisModule_SaveUnsigned(io, model->noutputs);
-  for (size_t i=0; i<model->noutputs; i++) {
+  size_t noutputs = array_len(model->outputs);
+  RedisModule_SaveUnsigned(io, noutputs);
+  for (size_t i=0; i<noutputs; i++) {
     RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
   }
   RedisModule_SaveStringBuffer(io, buffer, len);
@@ -114,33 +116,35 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 
-  RedisModuleString **inputs_ = array_new(RedisModuleString*, model->ninputs);
-  RedisModuleString **outputs_ = array_new(RedisModuleString*, model->noutputs);
+  size_t ninputs = array_len(model->inputs);
+  size_t noutputs = array_len(model->outputs);
+  RedisModuleString **inputs_ = array_new(RedisModuleString*, ninputs);
+  RedisModuleString **outputs_ = array_new(RedisModuleString*, noutputs);
 
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
 
-  for (size_t i=0; i<model->ninputs; i++) {
+  for (size_t i=0; i<ninputs; i++) {
     array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
   }
 
-  for (size_t i=0; i<model->noutputs; i++) {
+  for (size_t i=0; i<noutputs; i++) {
     array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
   RedisModule_EmitAOF(aof, "AI.MODELSET", "sllcvcvb",
                       key,
                       model->backend, model->device,
-                      "INPUTS", inputs_, model->ninputs,
-                      "OUTPUTS", outputs_, model->noutputs,
+                      "INPUTS", inputs_, ninputs,
+                      "OUTPUTS", outputs_, noutputs,
                       buffer, len);
 
-  for (size_t i=0; i<model->ninputs; i++) {
+  for (size_t i=0; i<ninputs; i++) {
     RedisModule_FreeString(ctx, inputs_[i]);
   }
 
   array_free(inputs_);
 
-  for (size_t i=0; i<model->noutputs; i++) {
+  for (size_t i=0; i<noutputs; i++) {
     RedisModule_FreeString(ctx, outputs_[i]);
   }
 

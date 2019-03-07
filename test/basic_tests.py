@@ -272,6 +272,61 @@ def test_run_torch_model(env):
         env.assertExists('c')
 
 
+def test_run_tf_model_return(env):
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    model_filename = os.path.join(examples_path, 'models/graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    con.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+
+    results = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+
+    data = results[0][-1]
+    tensor = np.frombuffer(data, dtype=np.float32)
+    con.assertEqual(tensor[0], 4.0)
+    con.assertEqual(tensor[1], 9.0)
+
+    for _ in con.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+
+
+def test_run_torch_model_return(env):
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
+    con.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+
+    results = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+
+    data = results[0][-1]
+    tensor = np.frombuffer(data, dtype=np.float32)
+    con.assertEqual(tensor[0], 4.0)
+    con.assertEqual(tensor[1], 6.0)
+
+    for _ in con.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+
+
 def test_set_tensor_multiproc(env):
     run_test_multiproc(env, 10,
         lambda con: con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
@@ -447,3 +502,28 @@ def test_run_script(env):
         env.assertExists('a')
         env.assertExists('b')
         env.assertExists('c')
+
+
+def test_run_script_return(env):
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    script_filename = os.path.join(examples_path, 'models/script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+
+    results = env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b')
+
+    data = results[0][-1]
+    tensor = np.frombuffer(data, dtype=np.float32)
+    env.assertEqual(tensor[0], 4.0)
+    env.assertEqual(tensor[1], 6.0)
+
+    for _ in env.reloadingIterator():
+        env.assertExists('ket')
+        env.assertExists('a')
+        env.assertExists('b')

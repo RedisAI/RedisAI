@@ -781,6 +781,14 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     argidx += argoffset;
   }
 
+  if (!outputs_found) {
+    size_t noutputs = array_len(mto->outputs);
+    for (int i = 0; i < noutputs; i++) {
+      const char* opname = mto->outputs[i];
+      RAI_ModelRunCtxAddOutput(rinfo->mctx, opname);
+    }
+  }
+
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
 
   //  RedisModule_AbortBlock(bc);
@@ -859,6 +867,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleString **outkeys;
 
   long long argidx = 3;
+  bool outputs_found = false;
 
   while (argidx < argc-1) {
     bool in_inputs;
@@ -869,6 +878,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
     else if (strcasecmp(section, "OUTPUTS") == 0) {
       in_inputs = false;
+      outputs_found = true;
     }
 
     RedisModuleString** keys = array_new(RedisModuleString*, argc - argidx);
@@ -931,26 +941,41 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return ret;
   }
 
-  for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
-    RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
-                                                 REDISMODULE_READ|REDISMODULE_WRITE);
-    int type = RedisModule_KeyType(outkey);
-    if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
+  if (outputs_found) {
+    for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
+      RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
+                                                   REDISMODULE_READ|REDISMODULE_WRITE);
+      int type = RedisModule_KeyType(outkey);
+      if (type != REDISMODULE_KEYTYPE_EMPTY &&
+          !(type == REDISMODULE_KEYTYPE_MODULE &&
+            RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
+        RedisModule_CloseKey(outkey);
+        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+      }
+      RAI_Tensor *t = RAI_ScriptRunCtxOutputTensor(sctx, i);
+      if (t) {
+        RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
+      }
       RedisModule_CloseKey(outkey);
-      return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
+
+    RAI_ScriptRunCtxFree(sctx);
+    
+    RedisModule_ReplicateVerbatim(ctx);
+
+    return RedisModule_ReplyWithSimpleString(ctx, "OK");
+  }
+
+  size_t noutputs = RAI_ScriptRunCtxNumOutputs(sctx);
+
+  RedisModule_ReplyWithArray(ctx, noutputs);
+
+  for (size_t i=0; i<noutputs; ++i) {
     RAI_Tensor *t = RAI_ScriptRunCtxOutputTensor(sctx, i);
-    if (t) {
-      RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
-    }
-    RedisModule_CloseKey(outkey);
+    RedisAI_ReplyWithTensor(ctx, t, REDISAI_DATA_BLOB);
   }
 
   RAI_ScriptRunCtxFree(sctx);
-
-  RedisModule_ReplyWithSimpleString(ctx, "OK");
 
   RedisModule_ReplicateVerbatim(ctx);
 

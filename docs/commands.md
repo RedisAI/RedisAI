@@ -78,15 +78,15 @@ AI.MODELGET model_key
 
 ## AI.MODELRUN - run a model
 ```sql
-AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...
+AI.MODELRUN model_key INPUTS input_key1 ... [OUTPUTS output_key1 ...]
 ```
 
 * model_key - key for the model
 * INPUTS input_key1 ... - keys for tensors to use as inputs
-* OUTPUTS output_key2 ... - keys for storing output tensors
+* OUTPUTS output_key1 ... - (optional) keys for storing output tensors
 
 > The request is queued and evaded asynchronously from a separate thread. The client blocks until the computation finishes.
-
+> If `OUTPUTS` is given, then results are stored at the specified keys, otherwise they are returned.
 > If needed, input tensors are copied to the device specified in `AI.MODELSET` before execution.
 
 ### Example
@@ -136,14 +136,15 @@ AI.SCRIPTGET addscript
 ## AI.SCRIPTRUN - run a script
 
 ```sql
-AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
+AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... [OUTPUTS output_key1 ...]
 ```
 
 * tensor_key - key for the script
 * fn_name - name of the function to execute
 * INPUTS input_key1 ... - keys for tensors to use as inputs
-* OUTPUTS output_key1 ... - keys for storing output tensors
+* OUTPUTS output_key1 ... - (optional) keys for storing output tensors
 
+> If `OUTPUTS` is given, then results are stored at the specified keys, otherwise they are returned.
 > If needed, input tensors are copied to the device specified in `AI.SCRIPTSET` before execution.
 
 
