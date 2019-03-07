@@ -2,7 +2,7 @@ REDIS_CLI=../../deps/redis/src/redis-cli
 
 echo "SET MODEL"
 $REDIS_CLI -x AI.MODELSET foo TF GPU INPUTS a b OUTPUTS mul < graph.pb
-#$REDIS_CLI AI.MODELGET foo
+$REDIS_CLI AI.MODELGET foo
 
 echo "SET TENSORS"
 $REDIS_CLI AI.TENSORSET a FLOAT 2 VALUES 2 3
