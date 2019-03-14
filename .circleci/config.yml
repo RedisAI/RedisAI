@@ -27,7 +27,7 @@ jobs:
             echo `cmake --version`
             rm -rf /home/circleci/project/deps
             bash get_deps.sh cpu
-            git clone git://github.com/antirez/redis.git --branch 5.0
+            git clone git://github.com/antirez/redis.git --branch 5.0.3
             (cd redis && make malloc=libc -j4 && sudo make install)
 
       - save_cache:
