@@ -207,12 +207,13 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
     throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
   }
 
+  torch::DeviceType output_device = torch::kCPU;
+
   for (int i=0; i<nOutputs; i++) {
     // TODO: what about isTensorList?
-    // TODO: move to target device
     if (stack[i].isTensor()) {
       torch::Tensor tensor = stack[i].toTensor();
-      outputs[i] = toManagedDLPack(tensor);
+      outputs[i] = toManagedDLPack(tensor.to(output_device));
     }
   }
 }
