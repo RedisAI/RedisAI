@@ -1115,7 +1115,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 0, 0, 0)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -1127,7 +1127,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 0, 0, 0)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
