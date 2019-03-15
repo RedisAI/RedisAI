@@ -6,6 +6,12 @@ ADD_LIBRARY(redisai_obj OBJECT
     err.c
     script.c
     tensor.c
-    utils/alloc.c)
+    util/alloc.c
+    rmutil/sds.c
+    rmutil/args.c
+    rmutil/heap.c
+    rmutil/priority_queue.c)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/rmutil)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/util)

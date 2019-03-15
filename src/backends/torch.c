@@ -1,7 +1,7 @@
 #include "backends/torch.h"
 #include "tensor.h"
-#include "utils/alloc.h"
-#include "utils/arr_rm_alloc.h"
+#include "util/alloc.h"
+#include "util/arr_rm_alloc.h"
 #include "torch_c.h"
 
 
