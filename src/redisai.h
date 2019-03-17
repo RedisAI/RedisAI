@@ -8,12 +8,14 @@
 
 #define MODULE_API_FUNC(x) (*x)
 
+#ifndef REDISAI_H_INCLUDE
 typedef struct RAI_Tensor RAI_Tensor;
 typedef struct RAI_Model RAI_Model;
 typedef struct RAI_Script RAI_Script;
 
 typedef struct RAI_ModelRunCtx RAI_ModelRunCtx;
 typedef struct RAI_ScriptRunCtx RAI_ScriptRunCtx;
+#endif
 
 #define REDISAI_BACKEND_TENSORFLOW 0
 #define REDISAI_BACKEND_TORCH 1
