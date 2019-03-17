@@ -11,7 +11,9 @@
 #include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 
+#define REDISAI_H_INCLUDE
 #include "redisai.h"
+#undef REDISAI_H_INCLUDE
 
 typedef struct queueItem {
   struct queueItem *next;
