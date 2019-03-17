@@ -11,6 +11,8 @@
 #include "utils/alloc.h"
 #include "utils/arr_rm_alloc.h"
 
+#include "redisai.h"
+
 typedef struct queueItem {
   struct queueItem *next;
   void *value;
@@ -1022,7 +1024,15 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return false;\
   }
 
+
+static int RAI_GetAPIVersion(){
+  return REDISAI_LLAPI_VERSION;
+}
+
 static bool RediAI_RegisterApi(int (*registerApiCallback)(const char *funcname, void *funcptr)){
+
+  REGISTER_API(GetAPIVersion, registerApiCallback);
+
   REGISTER_API(TensorCreate, registerApiCallback);
   REGISTER_API(TensorGetDataSize, registerApiCallback);
   REGISTER_API(TensorFree, registerApiCallback);
