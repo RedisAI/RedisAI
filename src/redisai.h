@@ -69,7 +69,7 @@ int MODULE_API_FUNC(RedisAI_GetAPIVersion)();
     return REDISMODULE_ERR; \
   }
 
-static int RediAI_Initialize(){
+static int RedisAI_Initialize(){
 
   REDISAI_MODULE_INIT_FUNCTION(GetAPIVersion);
 
