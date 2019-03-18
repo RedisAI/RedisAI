@@ -10,7 +10,8 @@ ADD_LIBRARY(redisai_obj OBJECT
     rmutil/sds.c
     rmutil/args.c
     rmutil/heap.c
-    rmutil/priority_queue.c)
+    rmutil/priority_queue.c
+    rmutil/vector.c)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/rmutil)
