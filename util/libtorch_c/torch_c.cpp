@@ -203,18 +203,41 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
 
   method.run(stack);
 
-  if (stack.size() != nOutputs) {
-    throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
-  }
-
   torch::DeviceType output_device = torch::kCPU;
 
-  for (int i=0; i<nOutputs; i++) {
-    // TODO: what about isTensorList?
-    if (stack[i].isTensor()) {
-      torch::Tensor tensor = stack[i].toTensor();
-      outputs[i] = toManagedDLPack(tensor.to(output_device));
+  int count = 0;
+  for (int i=0; i<stack.size(); i++) {
+    if (count > nOutputs-1) {
+      throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
     }
+
+    if (stack[i].isTensor()) {
+      outputs[count++] = toManagedDLPack(stack[i].toTensor().to(output_device));
+    }
+    else if (stack[i].isTensorList()) {
+      auto& elements = (*stack[i].toTensorList()).elements();
+      for (int j=0; j<elements.size(); j++) {
+        outputs[count++] = toManagedDLPack(elements[j].to(output_device));
+      }
+    }
+    else if (stack[i].isTuple()) {
+      auto& elements = stack[i].toTuple()->elements();
+      for (int j=0; j<elements.size(); j++) {
+        if (elements[j].isTensor()) {
+          outputs[count++] = toManagedDLPack(elements[j].toTensor().to(output_device));
+        }
+        else {
+          throw std::runtime_error(std::string("Function returned non-tensor values") + fnName);
+        }
+      }
+    }
+    else {
+      throw std::runtime_error(std::string("Function returned non-tensor values") + fnName);
+    }
+  }
+
+  if (count != nOutputs) {
+    throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
   }
 }
 
