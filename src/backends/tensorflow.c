@@ -319,6 +319,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   for(size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i]);
     mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+    RAI_TensorFree(output_tensor);
   }
 
   TF_DeleteStatus(status);
