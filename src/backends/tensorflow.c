@@ -78,11 +78,11 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
 
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
-  for (size_t i = 0 ; i < ndims ; ++i) {
+  for (int64_t i = 0 ; i < ndims ; ++i) {
     shape[i] = TF_Dim(tensor, i);
     strides[i] = 1;
   }
-  for (size_t i = ndims-2 ; i >= 0 ; --i) {
+  for (int64_t i = ndims-2 ; i >= 0 ; --i) {
     strides[i] *= strides[i+1] * shape[i+1];
   }
 
