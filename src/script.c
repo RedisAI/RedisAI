@@ -96,6 +96,15 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script) {
   return sctx;
 }
 
+RAI_ScriptRunCtx* RAI_ScriptRunCtxCreateEx(RAI_Script* script, const char *fnname) {
+  RAI_ScriptRunCtx* sctx = RAI_ScriptRunCtxCreate(script);
+  size_t fnname_len = strlen(fnname);
+  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
+  memcpy(sctx->fnname, fnname, fnname_len);
+  return sctx;
+}
+
+
 static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx, RAI_ScriptCtxParam* paramArr,
                                  RAI_Tensor* tensor) {
 

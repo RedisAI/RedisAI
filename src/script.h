@@ -14,6 +14,7 @@ RAI_Script* RAI_ScriptCreate(RAI_Device device, const char* scriptdef, RAI_Error
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err);
 
 RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script);
+RAI_ScriptRunCtx* RAI_ScriptRunCtxCreateEx(RAI_Script* script, const char *fnname);
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor);
 int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx);
 size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx);

@@ -834,11 +834,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
-  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
-
-  size_t fnname_len = strlen(fnname);
-  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
-  memcpy(sctx->fnname, fnname, fnname_len);
+  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreateEx(sto, fnname);
 
   RedisModuleString **outkeys;
 
