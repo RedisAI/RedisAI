@@ -809,7 +809,7 @@ int RedisAI_StartRunThread() {
   return REDISMODULE_OK;
 }
 
-// script key, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
+// script key, fnname, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
