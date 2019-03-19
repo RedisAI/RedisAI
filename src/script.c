@@ -136,6 +136,8 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
   }
   array_free(sctx->outputs);
 
+  RedisModule_Free(sctx->fnname);
+
   RAI_Error err = {0};
   RAI_ScriptFree(sctx->script, &err);
 
