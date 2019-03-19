@@ -253,10 +253,13 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
   size_t len = 1;
-  for (long long i = 0 ; i < ndims ; ++i){
+  for (int64_t i = 0 ; i < ndims ; ++i){
     shape[i] = dims[i];
     strides[i] = 1;
     len *= dims[i];
+  }
+  for (int64_t i = ndims-2 ; i >= 0 ; --i) {
+    strides[i] *= strides[i+1] * shape[i+1];
   }
 
   DLContext ctx = (DLContext){
