@@ -53,7 +53,7 @@ RAI_Model* MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model* model);
 
 RAI_Script* MODULE_API_FUNC(RedisAI_ScriptCreate)(int backend, int device, const char* modeldef, size_t modellen);
 void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script* model);
-RAI_ScriptRunCtx* MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script* model);
+RAI_ScriptRunCtx* MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script* model, const char *fnname);
 int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInput)(RAI_ScriptRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor);
 int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddOutput)(RAI_ScriptRunCtx* mctx, const char* outputName);
 size_t MODULE_API_FUNC(RedisAI_ScriptRunCtxNumOutputs)(RAI_ScriptRunCtx* mctx);

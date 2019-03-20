@@ -809,7 +809,7 @@ int RedisAI_StartRunThread() {
   return REDISMODULE_OK;
 }
 
-// script key, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
+// script key, fnname, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
@@ -834,11 +834,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
-  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto);
-
-  size_t fnname_len = strlen(fnname);
-  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
-  memcpy(sctx->fnname, fnname, fnname_len);
+  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto, fnname);
 
   RedisModuleString **outkeys;
 

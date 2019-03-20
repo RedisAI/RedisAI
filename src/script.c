@@ -87,12 +87,15 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
   RAI_ScriptFreeTorch(script, err);
 }
 
-RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script) {
+RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
   RAI_ScriptRunCtx* sctx = RedisModule_Calloc(1, sizeof(*sctx));
   sctx->script = RAI_ScriptGetShallowCopy(script);
   sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
   sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
+  size_t fnname_len = strlen(fnname);
+  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
+  memcpy(sctx->fnname, fnname, fnname_len);
   return sctx;
 }
 
@@ -135,6 +138,8 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
     }
   }
   array_free(sctx->outputs);
+
+  RedisModule_Free(sctx->fnname);
 
   RAI_Error err = {0};
   RAI_ScriptFree(sctx->script, &err);
