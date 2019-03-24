@@ -6,7 +6,6 @@ RedisAI is a Redis module for serving tensors and executing deep learning models
 
 1. [Docker](#docker)
 2. [Build](#building)
-3. [Start](#start)
 
 ## Docker
 
@@ -72,5 +71,14 @@ To start redis with the RedisAI module loaded, you need to make sure the depende
 ```
 LD_LIBRARY_PATH=<PATH_TO>/deps/install/lib redis-server --loadmodule build/redisai.so
 ```
+
+## Client libraries
+
+Some languages have client libraries that provide support for RedisAI's commands:
+
+| Project | Language | License | Author | URL |
+| ------- | -------- | ------- | ------ | --- |
+| JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
+| redisai-py | Python | BSD-2 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
 
 Full documentation of the api can be found [here](commands.md).

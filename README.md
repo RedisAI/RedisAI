@@ -81,6 +81,16 @@ To start redis with the RedisAI module loaded:
 redis-server --loadmodule build/redisai.so
 ```
 
+## Client libraries
+
+Some languages have client libraries that provide support for RedisAI's commands:
+
+| Project | Language | License | Author | URL |
+| ------- | -------- | ------- | ------ | --- |
+| JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
+| redisai-py | Python | BSD-2 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
+
+
 ## Backend Dependancy
 
 RedisAI currently supports PyTorch (libtorch) and Tensorflow (libtensorflow) as backends. We are also building support for ONNXRuntime backend soon. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
