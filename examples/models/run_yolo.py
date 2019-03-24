@@ -3,7 +3,11 @@ import numpy as np
 import torch
 from PIL import Image
 from PIL import ImageDraw
+import sys
 
+if len(sys.argv) < 2:
+    print("Specify an image as the command line argument")
+    sys.exit(0)
 
 labels20 = [
     "aeroplane",     #  0
@@ -40,18 +44,11 @@ with open('yolo_boxes.py', 'rb') as f:
 r.execute_command('AI.SCRIPTSET', 'yolo-post', 'CPU', script)
 
 
-
-
-
-# filename = "../img/sample_dog_416.jpg"
-filename = "../img/sample_office_416.jpg"
-
-img_jpg = Image.open(filename)
+img_jpg = Image.open(sys.argv[1])
 
 # normalize
 img = np.array(img_jpg).astype(np.float32)
-img -= 128.0
-img /= 128.0
+img /= 256.0
 
 r.execute_command('AI.TENSORSET', 'in', 'FLOAT', 1, 416, 416, 3, 'BLOB', img.tobytes())
 

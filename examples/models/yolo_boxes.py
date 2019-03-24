@@ -42,14 +42,14 @@ def nms(boxes):
                 for j in range(boxes.shape[1] - (i+1)):
                     j_idx = sort_ids[j + i+1]
                     box_j = boxes[b, j_idx]
-                    if bbox_iou(box_i, box_j) > nms_thresh:
-                        boxes[b, j_idx].zero_()
+                    if float(box_j[4]) > 0. and bbox_iou(box_i, box_j) > nms_thresh:
+                        boxes[b, j_idx] = torch.zeros(7)
 
     return boxes
 
 
 def get_region_boxes(output):
-    conf_thresh = 0.25
+    conf_thresh = 0.2
     num_classes = 20
     num_anchors = 5
     anchor_step = 2
@@ -95,7 +95,7 @@ def get_region_boxes(output):
             for cx in range(w):
                 for i in range(num_anchors):
                     ind = b*sz_hwa + i*sz_hw + cy*w + cx
-                    det_conf =  det_confs[ind]
+                    det_conf = det_confs[ind]
                     conf = det_confs[ind] * cls_max_confs[ind]
     
                     if bool(conf > conf_thresh):
