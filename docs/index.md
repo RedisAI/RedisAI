@@ -48,7 +48,7 @@ bash get_deps.sh
 
 ```
 
-Once the dependencies are downloaded, build the module itself. Note that
+After the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
 ```sh
@@ -60,15 +60,16 @@ cd ..
 ```
 
 ## Start
-You will need a redis-server version 4.0.9 or greater. This should be
-available in most recent distributions:
+
+You must have a redis-server version 4.0.9 or greater, available in most recent distributions:
 
 ```sh
 redis-server --version
 Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 ```
 
-To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found by redis.  One example on how to do this on Linux is:
+To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found by redis.
+One example of how to do this on Linux is:
 
 ```
 LD_LIBRARY_PATH=<PATH_TO>/deps/install/lib redis-server --loadmodule build/redisai.so
