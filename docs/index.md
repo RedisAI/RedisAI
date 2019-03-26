@@ -1,6 +1,6 @@
 <img src="images/logo.svg" alt="logo" width="200"/>
 
-# RedisAI Module
+# RedisAI
 
 RedisAI is a Redis module for serving tensors and executing deep learning models.
 
