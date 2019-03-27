@@ -27,7 +27,7 @@ if [ ! -d dlpack ]; then
 fi
 
 mkdir -p ${PREFIX}
-cp -a dlpack/include ${PREFIX}
+cp -d -r --no-preserve=ownership dlpack/include ${PREFIX}
 
 ## TENSORFLOW
 TF_VERSION="1.12.0"
@@ -50,7 +50,7 @@ if [ ! -e ${LIBTF_ARCHIVE} ]; then
   wget https://storage.googleapis.com/tensorflow/libtensorflow/${LIBTF_ARCHIVE}
 fi
 
-tar xf ${LIBTF_ARCHIVE} --strip-components=1 -C ${PREFIX}
+tar xf ${LIBTF_ARCHIVE} --no-same-owner --strip-components=1 -C ${PREFIX}
 
 ## PYTORCH
 
@@ -87,7 +87,7 @@ if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
 fi
 
 unzip -o ${LIBTORCH_ARCHIVE}
-tar cf - libtorch | tar xf - --strip-components=1 -C ${PREFIX}
+tar cf - libtorch | tar xf -  --no-same-owner --strip-components=1 -C ${PREFIX}
 rm -rf libtorch
 
 if [[ "${PT_OS}" == "macos" ]]; then
@@ -96,7 +96,7 @@ if [[ "${PT_OS}" == "macos" ]]; then
   if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
     wget "https://github.com/intel/mkl-dnn/releases/download/v0.17.1/${MKL_BUNDLE}.tgz"
   fi
-  tar xf ${MKL_BUNDLE}.tgz --strip-components=1 -C ${PREFIX}
+  tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${PREFIX}
 fi
 
 echo "Done"
