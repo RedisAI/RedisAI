@@ -1,4 +1,3 @@
-[![license](https://img.shields.io/github/license/RedisAI/RedisAI.svg)](https://github.com/RedisAI/RedisAI)
 [![GitHub issues](https://img.shields.io/github/release/RedisAI/RedisAI.svg)](https://github.com/RedisAI/RedisAI/releases/latest)
 [![CircleCI](https://circleci.com/gh/RedisAI/RedisAI/tree/master.svg?style=svg)](https://circleci.com/gh/RedisAI/RedisAI/tree/master)
 
@@ -94,6 +93,6 @@ Read the docs at [redisai.io](http://redisai.io).
 
 ## License
 
-AGPL-3.0 https://opensource.org/licenses/AGPL-3.0
+Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2019, Orobix Srl & Redis Labs
+Copyright 2019, Orobix Srl & Redis Labs Ltd
