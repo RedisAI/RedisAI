@@ -177,14 +177,14 @@ def test_run_tf_model(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
  
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'9'])
+    con.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     for _ in con.reloadingIterator():
         env.assertExists('m')
@@ -226,8 +226,8 @@ def test_run_torch_model(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'b', 'OUTPUTS')
@@ -263,7 +263,7 @@ def test_run_torch_model(env):
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'6'])
+    con.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     for _ in con.reloadingIterator():
         env.assertExists('m')
@@ -409,8 +409,8 @@ def test_run_script(env):
 
     env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
 
-    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3)
-    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 2, 3)
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     try:
         env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
@@ -440,7 +440,7 @@ def test_run_script(env):
 
     tensor = env.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(values, [b'4', b'6'])
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
