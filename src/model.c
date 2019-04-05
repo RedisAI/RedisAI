@@ -218,23 +218,23 @@ RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
   return mctx;
 }
 
-static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam* paramArr,
+static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** paramArr,
                                 const char* name, RAI_Tensor* tensor) {
 
   RAI_ModelCtxParam param = {
       .name = name,
       .tensor = tensor ? RAI_TensorGetShallowCopy(tensor): NULL,
   };
-  paramArr = array_append(paramArr, param);
+  *paramArr = array_append(*paramArr, param);
   return 1;
 }
 
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor) {
-  return Model_RunCtxAddParam(mctx, mctx->inputs, inputName, inputTensor);
+  return Model_RunCtxAddParam(mctx, &mctx->inputs, inputName, inputTensor);
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName) {
-  return Model_RunCtxAddParam(mctx, mctx->outputs, outputName, NULL);
+  return Model_RunCtxAddParam(mctx, &mctx->outputs, outputName, NULL);
 }
 
 size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx) {
