@@ -27,7 +27,11 @@ if [ ! -d dlpack ]; then
 fi
 
 mkdir -p ${PREFIX}
-cp -d -r --no-preserve=ownership dlpack/include ${PREFIX}
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  cp -d -r --no-preserve=ownership dlpack/include ${PREFIX}
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  cp -r dlpack/include ${PREFIX}
+fi
 
 ## TENSORFLOW
 TF_VERSION="1.12.0"
