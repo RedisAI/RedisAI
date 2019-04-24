@@ -4,6 +4,7 @@
 #include <math.h>
 #include <string.h>
 #include <assert.h>
+#include <stdarg.h>
 
 int AC_Advance(ArgsCursor *ac) {
   return AC_AdvanceBy(ac, 1);
@@ -196,6 +197,61 @@ int AC_GetSlice(ArgsCursor *ac, ArgsCursor *dst, size_t n) {
   dst->type = ac->type;
   AC_AdvanceBy(ac, n);
   return 0;
+}
+
+int AC_AdvanceUntilMatches(ArgsCursor *ac, int n, const char **args) {
+  const char *cur;
+  if (AC_IsAtEnd(ac)) {
+    return 0;
+  }
+
+  int rv;
+  int matched = 0;
+  for (int i=0; i<n; i++) {
+    rv = AC_GetString(ac, &cur, NULL, AC_F_NOADVANCE);
+    assert(rv == AC_OK);
+    matched = !strcasecmp(args[i], cur);
+    if (matched) {
+      break;
+    }
+    AC_Advance(ac);
+    if (AC_IsAtEnd(ac)) {
+      break;
+    }
+  }
+
+  return rv;
+}
+
+int AC_GetSliceUntilMatches(ArgsCursor *ac, ArgsCursor *dest, int n, const char **args) {
+  size_t offset0 = ac->offset;
+
+  int rv = AC_AdvanceUntilMatches(ac, n, args);
+
+  dest->objs = ac->objs + offset0;
+  dest->argc = ac->offset - offset0;
+  dest->offset = 0;
+  dest->type = ac->type;
+
+  return 0;
+}
+
+int AC_GetSliceToOffset(ArgsCursor *ac, ArgsCursor *dest, int offset) {
+  size_t offset0 = ac->offset;
+  size_t n = offset - offset0;
+
+  dest->objs = ac->objs + offset0;
+  dest->argc = n;
+  dest->offset = 0;
+  dest->type = ac->type;
+
+  AC_AdvanceBy(ac, n);
+
+  return 0;
+}
+
+int AC_GetSliceToEnd(ArgsCursor *ac, ArgsCursor *dest) {
+  return AC_GetSliceToOffset(ac, dest, ac->argc-1);
 }
 
 static int parseSingleSpec(ArgsCursor *ac, ACArgSpec *spec) {

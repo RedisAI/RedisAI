@@ -102,6 +102,27 @@ int AC_GetVarArgs(ArgsCursor *ac, ArgsCursor *dest);
  */
 int AC_GetSlice(ArgsCursor *ac, ArgsCursor *dest, size_t n);
 
+/**
+ * Consume arguments until one of the <args> is hit
+ */
+int AC_AdvanceUntilMatches(ArgsCursor *ac, int n, const char **args);
+
+/**
+ * Consume the next arguments until one of the arg in args is matched,
+ * and place them in <dest>
+ */
+int AC_GetSliceUntilMatches(ArgsCursor *ac, ArgsCursor *dest, int n, const char **args);
+
+/**
+ * Consume the next arguments until the given offset and place them in <dest>
+ */
+int AC_GetSliceToOffset(ArgsCursor *ac, ArgsCursor *dest, int offset);
+
+/**
+ * Consume the next arguments until the end of the cursor and place them in <dest>
+ */
+int AC_GetSliceToEnd(ArgsCursor *ac, ArgsCursor *dest);
+
 typedef enum {
   AC_ARGTYPE_STRING,
   AC_ARGTYPE_RSTRING,
