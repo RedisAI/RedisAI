@@ -453,24 +453,33 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   ArgsCursor optionsac;
-  AC_GetSliceToOffset(&ac, &optionsac, argc-2);
+  AC_GetSliceToOffset(&ac, &optionsac, argc-1);
 
-  ArgsCursor inac;
-  ArgsCursor outac;
+  if (optionsac.argc == 0 && backend != RAI_BACKEND_TORCH) {
+    return RedisModule_ReplyWithError(ctx, "Insufficient arguments, INPUTS and OUTPUTS not specified.");
+  }
+
+  ArgsCursor inac = {0};
+  ArgsCursor outac = {0};
   if (optionsac.argc > 0) {
     const char *option;
     AC_GetString(&optionsac, &option, NULL, 0); 
 
-    size_t ninputs;
     if (strcasecmp(option, "INPUTS") == 0) {
       const char* matches[] = {"OUTPUTS"};
       AC_GetSliceUntilMatches(&optionsac, &inac, 1, matches);
+    }
+    else {
+      return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
     }
 
     if (!AC_IsAtEnd(&optionsac)) {
       AC_GetString(&optionsac, &option, NULL, 0); 
       if (strcasecmp(option, "OUTPUTS") == 0) {
         AC_GetSliceToEnd(&optionsac, &outac);
+      }
+      else {
+        return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
       }
     }
   }
@@ -706,9 +715,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
 
-  // TODO INPUTS OUTPUTS
-  ArgsCursor inac;
-  ArgsCursor outac;
+  ArgsCursor inac = {0};
+  ArgsCursor outac = {0};
 
   const char *option;
   AC_GetString(&ac, &option, NULL, 0); 
@@ -857,14 +865,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const char* fnname;
   AC_GetString(&ac, &fnname, NULL, 0); 
  
-  RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
-
-  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto, fnname);
-
-  RedisModuleString **outkeys;
-
-  ArgsCursor inac;
-  ArgsCursor outac;
+  ArgsCursor inac = {0};
+  ArgsCursor outac = {0};
 
   const char *option;
   AC_GetString(&ac, &option, NULL, 0); 
@@ -872,10 +874,16 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     const char* matches[] = {"OUTPUTS"};
     AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
   }
+  else {
+    return RedisModule_ReplyWithError(ctx, "INPUTS not specified.");
+  }
 
   AC_GetString(&ac, &option, NULL, 0); 
   if (strcasecmp(option, "OUTPUTS") == 0) {
     AC_GetSliceToEnd(&ac, &outac);
+  }
+  else {
+    return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
   }
 
   size_t ninputs = inac.argc;
@@ -889,6 +897,12 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   for (size_t i=0; i<noutputs; i++) {
     AC_GetRString(&outac, outputs+i, 0); 
   }
+
+  RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
+
+  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto, fnname);
+
+  RedisModuleString **outkeys;
 
   for (size_t i=0; i<ninputs; i++) {
     RedisModuleKey *argkey = RedisModule_OpenKey(ctx, inputs[i], REDISMODULE_READ);

@@ -207,17 +207,15 @@ int AC_AdvanceUntilMatches(ArgsCursor *ac, int n, const char **args) {
 
   int rv;
   int matched = 0;
-  for (int i=0; i<n; i++) {
+  while (!AC_IsAtEnd(ac)) {
     rv = AC_GetString(ac, &cur, NULL, AC_F_NOADVANCE);
     assert(rv == AC_OK);
-    matched = !strcasecmp(args[i], cur);
-    if (matched) {
-      break;
+    for (int i=0; i<n; i++) {
+      matched = !strcasecmp(args[i], cur);
+      if (matched) break;
     }
+    if (matched) break;
     AC_Advance(ac);
-    if (AC_IsAtEnd(ac)) {
-      break;
-    }
   }
 
   return rv;
@@ -251,7 +249,7 @@ int AC_GetSliceToOffset(ArgsCursor *ac, ArgsCursor *dest, int offset) {
 }
 
 int AC_GetSliceToEnd(ArgsCursor *ac, ArgsCursor *dest) {
-  return AC_GetSliceToOffset(ac, dest, ac->argc-1);
+  return AC_GetSliceToOffset(ac, dest, ac->argc);
 }
 
 static int parseSingleSpec(ArgsCursor *ac, ACArgSpec *spec) {
