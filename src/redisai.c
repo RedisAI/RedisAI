@@ -447,7 +447,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   ArgsCursor optionsac;
-  AC_GetSliceToOffset(&ac, &optionsac, argc-1);
+  AC_GetSliceToOffset(&ac, &optionsac, argc-2);
 
   if (optionsac.argc == 0 && backend != RAI_BACKEND_TORCH) {
     return RedisModule_ReplyWithError(ctx, "Insufficient arguments, INPUTS and OUTPUTS not specified.");
@@ -456,15 +456,15 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   ArgsCursor inac = {0};
   ArgsCursor outac = {0};
   if (optionsac.argc > 0) {
-    if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
-      return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
+    if (!AC_AdvanceIfMatch(&optionsac, "INPUTS")) {
+      return RedisModule_ReplyWithError(ctx, "INPUTS not specified.");
     }
 
     const char* matches[] = {"OUTPUTS"};
     AC_GetSliceUntilMatches(&optionsac, &inac, 1, matches);
 
     if (!AC_IsAtEnd(&optionsac)) {
-      if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
+      if (!AC_AdvanceIfMatch(&optionsac, "OUTPUTS")) {
         return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
       }
 
@@ -702,17 +702,18 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   ArgsCursor inac = {0};
   ArgsCursor outac = {0};
 
-  const char *option;
-  AC_GetString(&ac, &option, NULL, 0); 
-  if (strcasecmp(option, "INPUTS") == 0) {
-    const char* matches[] = {"OUTPUTS"};
-    AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
+  if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
+    return RedisModule_ReplyWithError(ctx, "INPUTS not specified.");
   }
 
-  AC_GetString(&ac, &option, NULL, 0); 
-  if (strcasecmp(option, "OUTPUTS") == 0) {
-    AC_GetSliceToEnd(&ac, &outac);
+  const char* matches[] = {"OUTPUTS"};
+  AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
+
+  if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
+    return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
   }
+
+  AC_GetSliceToEnd(&ac, &outac);
 
   size_t ninputs = inac.argc;
   RedisModuleString *inputs[ninputs];
