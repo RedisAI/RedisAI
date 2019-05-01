@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <strings.h>
 #include <string.h>
-#include "utils/alloc.h"
+#include "util/alloc.h"
 #include <assert.h>
 
 RedisModuleType *RedisAI_TensorType = NULL;
