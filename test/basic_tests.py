@@ -176,7 +176,19 @@ def test_run_tf_model(env):
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
- 
+
+    try:
+        env.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
@@ -249,6 +261,18 @@ def test_run_torch_model(env):
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
