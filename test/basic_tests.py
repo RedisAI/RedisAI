@@ -283,6 +283,12 @@ def test_run_torch_model(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c', 'd')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
@@ -364,7 +370,7 @@ def run_mobilenet(con, img, input_var, output_var):
     con.execute_command('AI.MODELRUN', 'mobilenet',
                         'INPUTS', 'input', 'OUTPUTS', 'output')
 
-    con.execute_command('DEL','input')
+    con.execute_command('DEL', 'input')
 
 
 def test_run_mobilenet_multiproc(env):
