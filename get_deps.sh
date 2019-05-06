@@ -103,4 +103,28 @@ if [[ "${PT_OS}" == "macos" ]]; then
   tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${PREFIX}
 fi
 
+## ONNXRUNTIME
+ORT_VERSION="0.4.0"
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+  if [[ "$1" == "cpu" ]]; then
+    ORT_OS="linux-x64"
+    ORT_BUILD="cpu"
+  else
+    ORT_OS="linux-x64-gpu"
+    ORT_BUILD="gpu"
+  fi
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+  ORT_OS="osx-x64"
+  ORT_BUILD=""
+fi
+
+ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_VERSION}.tgz
+
+if [ ! -e ${ORT_ARCHIVE} ]; then
+  echo "Downloading ONNXRuntime ${ORT_VERSION} ${ORT_BUILD}"
+  wget https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
+fi
+
+tar xf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C ${PREFIX}
+
 echo "Done"
