@@ -578,6 +578,7 @@ struct RedisAI_RunInfo {
   RedisModuleString **outkeys;
   RAI_ModelRunCtx* mctx;
   int status;
+  RAI_Error* err;
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
@@ -588,6 +589,10 @@ void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
   RAI_ModelRunCtxFree(rinfo->mctx);
 
+  if (rinfo->err) {
+    RAI_ClearError(rinfo->err);
+  }
+
   RedisModule_Free(rinfo);
 }
 
@@ -596,18 +601,17 @@ void *RedisAI_RunSession(void *arg) {
 
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
 
-  RAI_Error err = {0};
+  rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
 
   mstime_t start = mstime();
-  rinfo->status = RAI_ModelRun(rinfo->mctx, &err);
+  rinfo->status = RAI_ModelRun(rinfo->mctx, rinfo->err);
   mstime_t end = mstime();
 
-  if (err.code != RAI_OK) {
+  if (rinfo->err->code != RAI_OK) {
     #ifdef RAI_PRINT_BACKEND_ERRORS
-    printf("ERR: %s\n", err.detail);
+    printf("ERR: %s\n", rinfo->err->detail);
     #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-    RAI_ClearError(&err);
+    RedisModule_UnblockClient(rinfo->client, rinfo);
     return NULL;
   }
 
@@ -634,7 +638,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
   if (rinfo->status) {
-    int ret = RedisModule_ReplyWithError(ctx, "model run failed");
+    int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
   }
@@ -738,6 +742,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   struct RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
   rinfo->outkeys = NULL;
+  rinfo->err = NULL;
 
   for (size_t i=0; i<ninputs; i++) {
     RedisModuleKey *argkey = RedisModule_OpenKey(ctx, inputs[i], REDISMODULE_READ);
