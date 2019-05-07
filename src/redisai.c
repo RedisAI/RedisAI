@@ -1037,7 +1037,6 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 #define EXECUTION_PLAN_FREE_MSG 100
 
 #define REGISTER_API(name, ctx) \
-  RedisAI_ ## name = RAI_ ## name;\
   if (RedisModule_ExportSharedAPI) {\
     if (RedisModule_ExportSharedAPI(ctx, "RedisAI_" #name, RAI_ ## name) != REDISMODULE_OK) {\
       RedisModule_Log(ctx, "warning", "Could not register RedisAI_%s", #name);\
