@@ -1036,62 +1036,65 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
 #define EXECUTION_PLAN_FREE_MSG 100
 
-#define REGISTER_API(name, registerApiCallback) \
-  if(registerApiCallback("RedisAI_" #name, RAI_ ## name)){\
-      printf("could not register RedisAI_" #name "\r\n");\
-      return false;\
+#define REGISTER_API(name, ctx) \
+  if (RedisModule_ExportSharedAPI) {\
+    if (RedisModule_ExportSharedAPI(ctx, "RedisAI_" #name, RAI_ ## name) != REDISMODULE_OK) {\
+      RedisModule_Log(ctx, "warning", "Could not register RedisAI_%s", #name);\
+      return REDISMODULE_ERR;\
+    }\
   }
 
-
-static int RAI_GetAPIVersion(){
+static int RAI_GetLLAPIVersion(){
   return REDISAI_LLAPI_VERSION;
 }
 
-static bool RediAI_RegisterApi(int (*registerApiCallback)(const char *funcname, void *funcptr)){
+static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
 
-  REGISTER_API(GetAPIVersion, registerApiCallback);
+  if (!RedisModule_ExportSharedAPI) {
+    RedisModule_Log(ctx, "warning", "Redis version does not support SharedAPI; running without exposing C API to other modules.");
+  }
 
-  REGISTER_API(TensorCreate, registerApiCallback);
-  REGISTER_API(TensorGetDataSize, registerApiCallback);
-  REGISTER_API(TensorFree, registerApiCallback);
-  REGISTER_API(TensorSetData, registerApiCallback);
-  REGISTER_API(TensorSetValueFromLongLong, registerApiCallback);
-  REGISTER_API(TensorSetValueFromDouble, registerApiCallback);
-  REGISTER_API(TensorGetValueAsDouble, registerApiCallback);
-  REGISTER_API(TensorGetValueAsLongLong, registerApiCallback);
-  REGISTER_API(TensorGetShallowCopy, registerApiCallback);
-  REGISTER_API(TensorNumDims, registerApiCallback);
-  REGISTER_API(TensorDim, registerApiCallback);
-  REGISTER_API(TensorByteSize, registerApiCallback);
-  REGISTER_API(TensorData, registerApiCallback);
+  REGISTER_API(GetLLAPIVersion, ctx);
 
-  REGISTER_API(ModelCreate, registerApiCallback);
-  REGISTER_API(ModelFree, registerApiCallback);
-  REGISTER_API(ModelRunCtxCreate, registerApiCallback);
-  REGISTER_API(ModelRunCtxAddInput, registerApiCallback);
-  REGISTER_API(ModelRunCtxAddOutput, registerApiCallback);
-  REGISTER_API(ModelRunCtxNumOutputs, registerApiCallback);
-  REGISTER_API(ModelRunCtxOutputTensor, registerApiCallback);
-  REGISTER_API(ModelRunCtxFree, registerApiCallback);
-  REGISTER_API(ModelRun, registerApiCallback);
-  REGISTER_API(ModelSerialize, registerApiCallback);
-  REGISTER_API(ModelGetShallowCopy, registerApiCallback);
+  REGISTER_API(TensorCreate, ctx);
+  REGISTER_API(TensorGetDataSize, ctx);
+  REGISTER_API(TensorFree, ctx);
+  REGISTER_API(TensorSetData, ctx);
+  REGISTER_API(TensorSetValueFromLongLong, ctx);
+  REGISTER_API(TensorSetValueFromDouble, ctx);
+  REGISTER_API(TensorGetValueAsDouble, ctx);
+  REGISTER_API(TensorGetValueAsLongLong, ctx);
+  REGISTER_API(TensorGetShallowCopy, ctx);
+  REGISTER_API(TensorNumDims, ctx);
+  REGISTER_API(TensorDim, ctx);
+  REGISTER_API(TensorByteSize, ctx);
+  REGISTER_API(TensorData, ctx);
 
-  REGISTER_API(ScriptCreate, registerApiCallback);
-  REGISTER_API(ScriptFree, registerApiCallback);
-  REGISTER_API(ScriptRunCtxCreate, registerApiCallback);
-  REGISTER_API(ScriptRunCtxAddInput, registerApiCallback);
-  REGISTER_API(ScriptRunCtxAddOutput, registerApiCallback);
-  REGISTER_API(ScriptRunCtxNumOutputs, registerApiCallback);
-  REGISTER_API(ScriptRunCtxOutputTensor, registerApiCallback);
-  REGISTER_API(ScriptRunCtxFree, registerApiCallback);
-  REGISTER_API(ScriptRun, registerApiCallback);
-  REGISTER_API(ScriptGetShallowCopy, registerApiCallback);
+  REGISTER_API(ModelCreate, ctx);
+  REGISTER_API(ModelFree, ctx);
+  REGISTER_API(ModelRunCtxCreate, ctx);
+  REGISTER_API(ModelRunCtxAddInput, ctx);
+  REGISTER_API(ModelRunCtxAddOutput, ctx);
+  REGISTER_API(ModelRunCtxNumOutputs, ctx);
+  REGISTER_API(ModelRunCtxOutputTensor, ctx);
+  REGISTER_API(ModelRunCtxFree, ctx);
+  REGISTER_API(ModelRun, ctx);
+  REGISTER_API(ModelSerialize, ctx);
+  REGISTER_API(ModelGetShallowCopy, ctx);
 
-  return true;
+  REGISTER_API(ScriptCreate, ctx);
+  REGISTER_API(ScriptFree, ctx);
+  REGISTER_API(ScriptRunCtxCreate, ctx);
+  REGISTER_API(ScriptRunCtxAddInput, ctx);
+  REGISTER_API(ScriptRunCtxAddOutput, ctx);
+  REGISTER_API(ScriptRunCtxNumOutputs, ctx);
+  REGISTER_API(ScriptRunCtxOutputTensor, ctx);
+  REGISTER_API(ScriptRunCtxFree, ctx);
+  REGISTER_API(ScriptRun, ctx);
+  REGISTER_API(ScriptGetShallowCopy, ctx);
+
+  return REDISMODULE_OK;
 }
-
-int moduleRegisterApi(const char *funcname, void *funcptr);
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
@@ -1106,7 +1109,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 #endif
   }
 
-  if(!RediAI_RegisterApi(moduleRegisterApi)){
+  if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
   }
