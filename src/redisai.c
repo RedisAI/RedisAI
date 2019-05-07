@@ -1040,7 +1040,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisAI_ ## name = RAI_ ## name;\
   if (RedisModule_ExportSharedAPI) {\
     if (RedisModule_ExportSharedAPI(ctx, "RedisAI_" #name, RAI_ ## name) != REDISMODULE_OK) {\
-      printf("could not register RedisAI_" #name "\r\n");\
+      RedisModule_Log(ctx, "warning", "Could not register RedisAI_%s", #name);\
       return REDISMODULE_ERR;\
     }\
   }
