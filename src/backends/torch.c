@@ -166,7 +166,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
   }
 
   for (size_t i=0; i<nOutputs; i++) {
-    sctx->outputs[0].tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+    sctx->outputs[i].tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
   }
 
   return 0;
