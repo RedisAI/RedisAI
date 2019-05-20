@@ -430,7 +430,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   else if (strcasecmp(bckstr, "TORCH") == 0) {
     backend = RAI_BACKEND_TORCH;
   }
-  else if (strcasecmp(bckstr, "ORT") == 0) {
+  else if (strcasecmp(bckstr, "ONNX") == 0) {
     backend = RAI_BACKEND_ONNXRUNTIME;
   }
   else {
@@ -453,7 +453,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   ArgsCursor optionsac;
   AC_GetSliceToOffset(&ac, &optionsac, argc-2);
 
-  if (optionsac.argc == 0 && backend != RAI_BACKEND_TORCH) {
+  if (optionsac.argc == 0 && backend == RAI_BACKEND_TENSORFLOW) {
     return RedisModule_ReplyWithError(ctx, "Insufficient arguments, INPUTS and OUTPUTS not specified.");
   }
 
