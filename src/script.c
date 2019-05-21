@@ -149,6 +149,8 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
   }
+
+  RedisModule_Free(sctx);
 }
 
 int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
