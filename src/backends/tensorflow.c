@@ -349,7 +349,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     RAI_TensorFree(output_tensor);
   }
 
-  // TODO: add
+  // TODO: add (make sure we deallocate once)
   // for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
   //   TF_DeleteTensor(inputTensorsValues[i]);
   // }
