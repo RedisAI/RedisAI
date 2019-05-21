@@ -591,7 +591,6 @@ void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
   if (rinfo->err) {
     RAI_ClearError(rinfo->err);
-    RedisModule_Free(rinfo->err);
   }
 
   RedisModule_Free(rinfo);
@@ -790,9 +789,6 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   queuePush(runQueue, rinfo);
   pthread_mutex_unlock(&runQueueMutex);
 
-  // RedisAI_RunSession(rinfo);
-  // RedisAI_FreeRunInfo(ctx, rinfo);
-  // return RedisModule_ReplyWithSimpleString(ctx, "foo");
   RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
