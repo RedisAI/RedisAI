@@ -271,6 +271,8 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
   }
+
+  RedisModule_Free(mctx);
 }
 
 int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
