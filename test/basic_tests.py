@@ -205,7 +205,7 @@ def test_run_tf_model(env):
         env.assertExists('c')
 
 
-def _test_run_torch_model(env):
+def test_run_torch_model(env):
     examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
     model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
     wrong_model_filename = os.path.join(examples_path, 'models/graph.pb')
