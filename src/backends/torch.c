@@ -26,7 +26,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
 
   if (model == NULL) {
     RAI_SetError(error, RAI_EMODELCREATE, error_descr);
-    free(error_descr);
+    RedisModule_Free(error_descr);
     return NULL;
   }
 
@@ -69,14 +69,14 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   if (error_descr != NULL) {
     RAI_SetError(error, RAI_EMODELRUN, error_descr);
-    free(error_descr);
+    RedisModule_Free(error_descr);
     return 1;
   }
 
   for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     if (outputs[i] == NULL) {
       RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected number of outputs.");
-      free(error_descr);
+      RedisModule_Free(error_descr);
       return 1;
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
@@ -93,7 +93,7 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
 
   if (*buffer == NULL) {
     RAI_SetError(error, RAI_EMODELSERIALIZE, error_descr);
-    free(error_descr);
+    RedisModule_Free(error_descr);
     return 1;
   }
 
@@ -119,7 +119,7 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_
 
   if (script == NULL) {
     RAI_SetError(error, RAI_ESCRIPTCREATE, error_descr);
-    free(error_descr);
+    RedisModule_Free(error_descr);
     return NULL;
   }
 
@@ -163,7 +163,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
   if (error_descr) {
     printf("F\n");
     RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
-    free(error_descr);
+    RedisModule_Free(error_descr);
     return 1;
   }
 
