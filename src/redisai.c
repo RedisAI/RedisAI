@@ -262,6 +262,10 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
                                             REDISMODULE_READ);
   int type = RedisModule_KeyType(key);
+  if (type == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR cannot get tensor from empty key");
+  }
   if (!(type == REDISMODULE_KEYTYPE_MODULE &&
         RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
     RedisModule_CloseKey(key);
@@ -536,7 +540,12 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   AC_GetRString(&ac, &keystr, 0);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
-  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+  int type = RedisModule_KeyType(key);
+  if (type == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR cannot get model from empty key");
+  }
+  if (!(type == REDISMODULE_KEYTYPE_MODULE &&
         RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
@@ -963,8 +972,12 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AC_GetRString(&ac, &keystr, 0);
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
-
-  if (!(RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_MODULE &&
+  int type = RedisModule_KeyType(key);
+  if (type == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR cannot get script from empty key");
+  }
+  if (!(type == REDISMODULE_KEYTYPE_MODULE &&
         RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
