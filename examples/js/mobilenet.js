@@ -74,7 +74,7 @@ async function run(filenames) {
 
     console.log("Getting output tensor");
     let out_data = await redis.callBuffer('AI.TENSORGET', 'output_' + i, 'BLOB');
-    let out_array = buffer_to_float32array(out_data[4]);
+    let out_array = buffer_to_float32array(out_data[out_data.length - 1]);
 
     label = argmax(out_array);
 
