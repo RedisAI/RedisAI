@@ -263,7 +263,8 @@ extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t
   return dl_tensor;
 }
 
-extern "C" void* torchCompileScript(const char* script, DLDeviceType device, char **error)
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device,
+                                    char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
@@ -272,13 +273,16 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, cha
     ctx->module = module;
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what());
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
     return NULL;
   }
   return ctx;
 }
 
-extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType device, char **error)
+extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType device,
+                                char **error, void* (*alloc)(size_t))
 {
   std::string graphstr(graph, graphlen);
   std::istringstream graph_stream(graphstr, std::ios_base::binary);
@@ -295,7 +299,9 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     ctx->module = module;
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what());
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
     return NULL;
   }
   return ctx;
@@ -304,33 +310,37 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
 extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
                                long nInputs, DLManagedTensor** inputs,
                                long nOutputs, DLManagedTensor** outputs,
-                               char **error)
+                               char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = (ModuleContext*)scriptCtx;
   try {
     torchRunModule(ctx, fnName, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    std::cout<<"EXCEPTION!"<<std::endl;
-    *error = strdup(e.what());
+    size_t len = strlen(e.what());
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
   }
 }
 
 extern "C" void torchRunModel(void* modelCtx,
                               long nInputs, DLManagedTensor** inputs,
                               long nOutputs, DLManagedTensor** outputs,
-                              char **error)
+                              char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = (ModuleContext*)modelCtx;
   try {
     torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what());
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
   }
 }
 
-extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, char **error)
+extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len,
+                                    char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = (ModuleContext*)modelCtx;
   std::ostringstream out;
@@ -338,12 +348,14 @@ extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len, 
     ctx->module->save(out);
     auto out_str = out.str();
     int size = out_str.size();
-    *buffer = (char *)malloc(size);
+    *buffer = (char *)alloc(size);
     memcpy(*buffer, out_str.c_str(), size);
     *len = size;
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what());
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
   }
 }
 

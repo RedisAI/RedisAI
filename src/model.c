@@ -93,9 +93,9 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   }
   RedisModule_SaveStringBuffer(io, buffer, len);
 
-  // if (buffer) {
-  //   RedisModule_Free(buffer);
-  // }
+  if (buffer) {
+    RedisModule_Free(buffer);
+  }
 }
 
 static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
