@@ -178,6 +178,20 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
         env.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e

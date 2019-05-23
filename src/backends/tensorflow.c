@@ -172,7 +172,29 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
     return NULL;
   }
 
-  TF_DeleteImportGraphDefOptions(options);
+  for (size_t i=0; i<ninputs; ++i) {
+    TF_Operation* oper = TF_GraphOperationByName(model, inputs[i]);
+    if (oper == NULL) {
+      size_t len = strlen(inputs[i]);
+      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
+      sprintf(msg, "Input node named \"%s\" not found in TF graph.", inputs[i]);
+      RAI_SetError(error, RAI_EMODELIMPORT, msg);
+      return NULL;
+    }
+  }
+
+  for (size_t i=0; i<noutputs; ++i) {
+    TF_Operation* oper = TF_GraphOperationByName(model, outputs[i]);
+    if (oper == NULL) {
+      size_t len = strlen(outputs[i]);
+      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
+      sprintf(msg, "Output node named \"%s\" not found in TF graph.", outputs[i]);
+      RAI_SetError(error, RAI_EMODELIMPORT, msg);
+      return NULL;
+    }
+  }
+
+   TF_DeleteImportGraphDefOptions(options);
   TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
