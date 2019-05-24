@@ -83,6 +83,7 @@ function run(filenames) {
                });
       });
    });
+
 }
 
 run(Array.from(process.argv).splice(2));
