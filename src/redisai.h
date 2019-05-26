@@ -78,6 +78,11 @@ int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
 static int RedisAI_Initialize(RedisModuleCtx* ctx){
 
+  if(!RedisModule_GetSharedAPI){
+    RedisModule_Log(ctx, "warning", "redis version is not compatible with module shared api, use redis 5.0.4 or above.");
+    return REDISMODULE_ERR;
+  }
+
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreate);
