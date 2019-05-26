@@ -69,53 +69,53 @@ RAI_Script* MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script* script);
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
-
-#define REDISAI_MODULE_INIT_FUNCTION(name) \
-  if (RedisModule_GetApi("RedisAI_" #name, ((void **)&RedisAI_ ## name))) { \
-    printf("could not initialize RedisAI_" #name "\r\n");\
+#define REDISAI_MODULE_INIT_FUNCTION(ctx, name) \
+  RedisAI_ ## name = RedisModule_GetSharedAPI(ctx, "RedisAI_" #name);\
+  if(!RedisAI_ ## name){\
+    RedisModule_Log(ctx, "warning", "could not initialize RedisAI_" #name "\r\n");\
     return REDISMODULE_ERR; \
   }
 
-static int RedisAI_Initialize(){
+static int RedisAI_Initialize(RedisModuleCtx* ctx){
 
-  REDISAI_MODULE_INIT_FUNCTION(GetLLAPIVersion);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 
-  REDISAI_MODULE_INIT_FUNCTION(TensorCreate);
-  REDISAI_MODULE_INIT_FUNCTION(TensorGetDataSize);
-  REDISAI_MODULE_INIT_FUNCTION(TensorFree);
-  REDISAI_MODULE_INIT_FUNCTION(TensorSetData);
-  REDISAI_MODULE_INIT_FUNCTION(TensorSetValueFromLongLong);
-  REDISAI_MODULE_INIT_FUNCTION(TensorSetValueFromDouble);
-  REDISAI_MODULE_INIT_FUNCTION(TensorGetValueAsDouble);
-  REDISAI_MODULE_INIT_FUNCTION(TensorGetValueAsLongLong);
-  REDISAI_MODULE_INIT_FUNCTION(TensorGetShallowCopy);
-  REDISAI_MODULE_INIT_FUNCTION(TensorNumDims);
-  REDISAI_MODULE_INIT_FUNCTION(TensorDim);
-  REDISAI_MODULE_INIT_FUNCTION(TensorByteSize);
-  REDISAI_MODULE_INIT_FUNCTION(TensorData);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetDataSize);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorFree);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetData);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetValueFromLongLong);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetValueFromDouble);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetValueAsDouble);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetValueAsLongLong);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorNumDims);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDim);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorByteSize);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorData);
 
-  REDISAI_MODULE_INIT_FUNCTION(ModelCreate);
-  REDISAI_MODULE_INIT_FUNCTION(ModelFree);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxCreate);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxAddInput);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxAddOutput);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxNumOutputs);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxOutputTensor);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRunCtxFree);
-  REDISAI_MODULE_INIT_FUNCTION(ModelRun);
-  REDISAI_MODULE_INIT_FUNCTION(ModelGetShallowCopy);
-  REDISAI_MODULE_INIT_FUNCTION(ModelSerialize);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelFree);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxAddInput);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxAddOutput);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxNumOutputs);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxOutputTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunCtxFree);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRun);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelSerialize);
 
-  REDISAI_MODULE_INIT_FUNCTION(ScriptCreate);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptFree);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxCreate);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxAddInput);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxAddOutput);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxNumOutputs);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxOutputTensor);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRunCtxFree);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptRun);
-  REDISAI_MODULE_INIT_FUNCTION(ScriptGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxCreate);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInput);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddOutput);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxNumOutputs);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxOutputTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxFree);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRun);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptGetShallowCopy);
 
   if(RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION){
     return REDISMODULE_ERR;
