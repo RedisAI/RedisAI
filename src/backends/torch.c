@@ -51,8 +51,10 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   size_t ninputs = array_len(mctx->inputs);
   size_t noutputs = array_len(mctx->outputs);
 
-  DLManagedTensor** inputs = RedisModule_Calloc(ninputs, sizeof(*inputs));
-  DLManagedTensor** outputs = RedisModule_Calloc(noutputs, sizeof(*outputs));
+  // DLManagedTensor** inputs = RedisModule_Calloc(ninputs, sizeof(*inputs));
+  // DLManagedTensor** outputs = RedisModule_Calloc(noutputs, sizeof(*outputs));
+  DLManagedTensor* inputs[ninputs];
+  DLManagedTensor* outputs[noutputs];
 
   for (size_t i=0 ; i<ninputs; ++i) {
     inputs[i] = &mctx->inputs[i].tensor->tensor;
