@@ -51,8 +51,6 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   size_t ninputs = array_len(mctx->inputs);
   size_t noutputs = array_len(mctx->outputs);
 
-  // DLManagedTensor** inputs = RedisModule_Calloc(ninputs, sizeof(*inputs));
-  // DLManagedTensor** outputs = RedisModule_Calloc(noutputs, sizeof(*outputs));
   DLManagedTensor* inputs[ninputs];
   DLManagedTensor* outputs[noutputs];
 
@@ -163,7 +161,6 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
                  &error_descr, RedisModule_Alloc);
 
   if (error_descr) {
-    printf("F\n");
     RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
     RedisModule_Free(error_descr);
     return 1;
