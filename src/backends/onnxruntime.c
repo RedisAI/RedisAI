@@ -69,71 +69,6 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
-
-#if 0
-RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
-  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
-
-  DLContext ctx = (DLContext){
-      .device_type = kDLCPU,
-      .device_id = 0
-  };
-
-  size_t ndims = TF_NumDims(tensor);
-
-  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
-  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
-  for (int64_t i = 0 ; i < ndims ; ++i) {
-    shape[i] = TF_Dim(tensor, i);
-    strides[i] = 1;
-  }
-  for (int64_t i = ndims-2 ; i >= 0 ; --i) {
-    strides[i] *= strides[i+1] * shape[i+1];
-  }
-
-  // FIXME: In TF, RunSession allocates memory for output tensors
-  // This means that we either memcpy the tensor data and let
-  // Redis be responsible for the memory, or we reuse the TF
-  // allocated memory, which might not be optimal down the road
-  // Note: on YOLO this has no impact on perf
-#ifdef RAI_COPY_RUN_OUTPUT
-  size_t len = TF_TensorByteSize(tensor);
-  char* data = RedisModule_Calloc(len, sizeof(*data));
-  memcpy(data, TF_TensorData(tensor), len);
-#endif
-
-  // TODO: use manager_ctx to ensure TF tensor doesn't get deallocated
-  // This applies to outputs
-
-  ret->tensor = (DLManagedTensor){
-    .dl_tensor = (DLTensor){
-      .ctx = ctx,
-#ifdef RAI_COPY_RUN_OUTPUT
-      .data = data,
-#else
-      .data = TF_TensorData(tensor),
-#endif
-      .ndim = ndims,
-      .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
-      .shape = shape,
-      .strides = strides,
-      .byte_offset = 0
-    },
-    .manager_ctx = NULL,
-    .deleter = NULL
-  };
-
-  ret->refCount = 1;
-  return ret;
-}
-
-void RAI_TFDeallocator(void* data, size_t len, void* arg) {
-  // printf("DEALLOCATOR CALLED\n");
-  // do nothing, memory is managed by Redis
-}
-
-#endif
-
 OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t) {
   // TODO: create outside and pass?
   OrtAllocatorInfo* allocator_info;
@@ -149,8 +84,6 @@ OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t) {
     t->tensor.dl_tensor.ndim,
     RAI_GetOrtDataTypeFromDL(t->tensor.dl_tensor.dtype),
     &out);
-
-  // printf("%d %d %d\n", t->tensor.dl_tensor.shape[0], t->tensor.dl_tensor.shape[1], t->tensor.dl_tensor.ndim);
 
   OrtReleaseAllocatorInfo(allocator_info);
 
@@ -170,7 +103,7 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
   OrtTensorTypeAndShapeInfo* info = OrtCreateTensorTypeAndShapeInfo();
   status = OrtGetTensorShapeAndType(v, &info);
   // TODO: deal with status
-  // size_t ndims = OrtGetDimensionsCount(info);
+
   size_t ndims = OrtGetNumOfDimensions(info);
 
   int64_t dims[ndims];
@@ -208,8 +141,7 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
 #ifdef RAI_COPY_RUN_OUTPUT
       .data = data,
 #else
-      #error zero-copy passing output memory from ORT not supported
-      // .data = TF_TensorData(tensor),
+      #error zero-copy passing output memory from ORT not currently supported
 #endif
       .ndim = ndims,
       .dtype = dtype,
@@ -225,35 +157,12 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
   return ret;
 }
 
-// void RAI_OrtDeallocator(void* data, size_t len, void* arg) {
-//   // printf("DEALLOCATOR CALLED\n");
-//   // do nothing, memory is managed by Redis
-// }
-
-
-//#ifdef RAI_COPY_RUN_INPUT
-//  TF_Tensor* out = TF_AllocateTensor(
-//      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-//      t->tensor.dl_tensor.shape,
-//      t->tensor.dl_tensor.ndim,
-//      RAI_TensorByteSize(t));
-//  memcpy(TF_TensorData(out), t->tensor.dl_tensor.data, TF_TensorByteSize(out));
-//  return out;
-//#else
-//  return TF_NewTensor(
-//      RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-//      t->tensor.dl_tensor.shape,
-//      t->tensor.dl_tensor.ndim,
-//      t->tensor.dl_tensor.data,
-//      RAI_TensorByteSize(t),
-//      &RAI_TFDeallocator,
-//      NULL);
-//#endif /* RAI_COPY_RUN_INPUT */
-
 typedef struct RAI_ONNXBuffer {
   char* data;
   size_t len;
 } RAI_ONNXBuffer;
+
+OrtEnv* env = NULL;
 
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
                               const char *modeldef, size_t modellen,
@@ -262,15 +171,16 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   // TODO: take from
   // https://github.com/microsoft/onnxruntime/blob/master/csharp/test/Microsoft.ML.OnnxRuntime.EndToEndTests.Capi/C_Api_Sample.cpp
 
-  OrtStatus* onnx_status;
+  OrtStatus* onnx_status = NULL;
 
-  OrtEnv* env;
-  onnx_status = OrtCreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
+  if (env == NULL) {
+    onnx_status = OrtCreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
+  }
 
   if (onnx_status != NULL) {
     const char* msg = OrtGetErrorMessage(onnx_status);
+    RAI_SetError(error, RAI_EMODELRUN, msg);
     OrtReleaseStatus(onnx_status);
-    // TODO fill err
     return NULL;
   }
 
@@ -375,8 +285,8 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   const char* input_names[n_input_nodes];
   const char* output_names[n_output_nodes];
 
-  const OrtValue* inputs[n_input_nodes];
-  OrtValue** outputs;
+  OrtValue* inputs[n_input_nodes];
+  OrtValue* outputs[n_output_nodes];
 
   size_t ninputs = array_len(mctx->inputs);
   size_t noutputs = array_len(mctx->outputs);
@@ -430,11 +340,16 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   //                _In_ OrtRunOptions* run_options,
   //                _In_ const char* const* input_names, _In_ const OrtValue* const* input, size_t input_len,
   //                _In_ const char* const* output_names, size_t output_names_len, _Out_ OrtValue** output);
-  printf("%d %d\n", n_input_nodes, n_output_nodes);
   OrtRunOptions* run_options = NULL;
-  status = OrtRun(session, run_options, input_names, inputs, n_input_nodes, output_names, n_output_nodes, outputs);
+  status = OrtRun(session, run_options, input_names, (const OrtValue* const*) inputs,
+                  n_input_nodes, output_names, n_output_nodes, outputs);
 
-  // set to output in mctx
+  if (status) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELRUN, msg);
+    OrtReleaseStatus(status);
+    return 1;
+  }
 
   for (size_t i=0; i<n_output_nodes; i++) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i]);
@@ -444,11 +359,6 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     OrtReleaseValue(outputs[i]);
   }
 
-  ////////////////////////////////////////////////////////
-  // TODO
-  // RAI_TensorCreateFromOrtValue;
-
-  // TODO: deallocate input
   for (size_t i=0; i<n_input_nodes; i++) {
     OrtReleaseValue(inputs[i]);
   }

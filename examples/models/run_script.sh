@@ -1,4 +1,4 @@
-REDIS_CLI=../../deps/redis/src/redis-cli
+REDIS_CLI=redis-cli
 
 echo "SET INCORRECT SCRIPT"
 $REDIS_CLI -x AI.SCRIPTSET foo CPU < script_err.txt
