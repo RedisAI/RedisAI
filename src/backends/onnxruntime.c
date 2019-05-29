@@ -45,24 +45,23 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
   return 0;
 }
 
-#if 0
-DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
+DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
   switch (dtype) {
-    case TF_FLOAT:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_FLOAT:
       return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1 };
-    case TF_DOUBLE:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_DOUBLE:
       return (DLDataType){ .code = kDLFloat, .bits = 64, .lanes = 1 };
-    case TF_INT8:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT8:
       return (DLDataType){ .code = kDLInt, .bits = 8, .lanes = 1 };
-    case TF_INT16:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT16:
       return (DLDataType){ .code = kDLInt, .bits = 16, .lanes = 1 };
-    case TF_INT32:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT32:
       return (DLDataType){ .code = kDLInt, .bits = 32, .lanes = 1 };
-    case TF_INT64:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_INT64:
       return (DLDataType){ .code = kDLInt, .bits = 64, .lanes = 1 };
-    case TF_UINT8:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8:
       return (DLDataType){ .code = kDLUInt, .bits = 8, .lanes = 1 };
-    case TF_UINT16:
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
       return (DLDataType){ .code = kDLUInt, .bits = 16, .lanes = 1 };
     default:
       return (DLDataType){ .bits = 0 };
@@ -70,6 +69,8 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
+
+#if 0
 RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor) {
   RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
@@ -133,7 +134,7 @@ void RAI_TFDeallocator(void* data, size_t len, void* arg) {
 
 #endif
 
-OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t){
+OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t) {
   // TODO: create outside and pass?
   OrtAllocatorInfo* allocator_info;
   OrtStatus* status;
@@ -149,10 +150,86 @@ OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t){
     RAI_GetOrtDataTypeFromDL(t->tensor.dl_tensor.dtype),
     &out);
 
+  // printf("%d %d %d\n", t->tensor.dl_tensor.shape[0], t->tensor.dl_tensor.shape[1], t->tensor.dl_tensor.ndim);
+
   OrtReleaseAllocatorInfo(allocator_info);
 
   return out;
 }
+
+RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
+  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
+
+  DLContext ctx = (DLContext){
+      .device_type = kDLCPU,
+      .device_id = 0
+  };
+
+  OrtStatus* status = NULL;
+
+  OrtTensorTypeAndShapeInfo* info = OrtCreateTensorTypeAndShapeInfo();
+  status = OrtGetTensorShapeAndType(v, &info);
+  // TODO: deal with status
+  // size_t ndims = OrtGetDimensionsCount(info);
+  size_t ndims = OrtGetNumOfDimensions(info);
+
+  int64_t dims[ndims];
+  OrtGetDimensions(info, dims, ndims);
+
+  enum ONNXTensorElementDataType ort_dtype = OrtGetTensorElementType(info);
+
+  OrtReleaseTensorTypeAndShapeInfo(info);
+
+  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
+  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
+  for (int64_t i = 0 ; i < ndims ; ++i) {
+    shape[i] = dims[i];
+    strides[i] = 1;
+  }
+  for (int64_t i = ndims-2 ; i >= 0 ; --i) {
+    strides[i] *= strides[i+1] * shape[i+1];
+  }
+
+  DLDataType dtype = RAI_GetDLDataTypeFromORT(ort_dtype);
+#ifdef RAI_COPY_RUN_OUTPUT
+  char* ort_data;
+  status = OrtGetTensorMutableData(v, (void**)&ort_data);
+  size_t len = dtype.bits * OrtGetTensorShapeElementCount(info);
+  char* data = RedisModule_Calloc(len, sizeof(*data));
+  memcpy(data, ort_data, len);
+#endif
+
+  // TODO: use manager_ctx to ensure ORT tensor doesn't get deallocated
+  // This applies to outputs
+
+  ret->tensor = (DLManagedTensor){
+    .dl_tensor = (DLTensor){
+      .ctx = ctx,
+#ifdef RAI_COPY_RUN_OUTPUT
+      .data = data,
+#else
+      #error zero-copy passing output memory from ORT not supported
+      // .data = TF_TensorData(tensor),
+#endif
+      .ndim = ndims,
+      .dtype = dtype,
+      .shape = shape,
+      .strides = strides,
+      .byte_offset = 0
+    },
+    .manager_ctx = NULL,
+    .deleter = NULL
+  };
+
+  ret->refCount = 1;
+  return ret;
+}
+
+// void RAI_OrtDeallocator(void* data, size_t len, void* arg) {
+//   // printf("DEALLOCATOR CALLED\n");
+//   // do nothing, memory is managed by Redis
+// }
+
 
 //#ifdef RAI_COPY_RUN_INPUT
 //  TF_Tensor* out = TF_AllocateTensor(
@@ -349,10 +426,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   OrtReleaseAllocator(allocator);
 
-// ORT_API_STATUS(OrtRun, _Inout_ OrtSession* sess,
-//                _In_ OrtRunOptions* run_options,
-//                _In_ const char* const* input_names, _In_ const OrtValue* const* input, size_t input_len,
-//                _In_ const char* const* output_names, size_t output_names_len, _Out_ OrtValue** output);
+  // ORT_API_STATUS(OrtRun, _Inout_ OrtSession* sess,
+  //                _In_ OrtRunOptions* run_options,
+  //                _In_ const char* const* input_names, _In_ const OrtValue* const* input, size_t input_len,
+  //                _In_ const char* const* output_names, size_t output_names_len, _Out_ OrtValue** output);
+  printf("%d %d\n", n_input_nodes, n_output_nodes);
   OrtRunOptions* run_options = NULL;
   status = OrtRun(session, run_options, input_names, inputs, n_input_nodes, output_names, n_output_nodes, outputs);
 
