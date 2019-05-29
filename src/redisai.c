@@ -573,8 +573,6 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   RedisModule_ReplyWithArray(ctx, 3);
-  //RedisModule_ReplyWithSimpleString(ctx, mto->backend);
-  //RedisModule_ReplyWithSimpleString(ctx, mto->device);
   RedisModule_ReplyWithLongLong(ctx, mto->backend);
   RedisModule_ReplyWithLongLong(ctx, mto->device);
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
