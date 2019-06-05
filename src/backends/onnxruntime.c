@@ -136,8 +136,6 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
 
   enum ONNXTensorElementDataType ort_dtype = OrtGetTensorElementType(info);
 
-  OrtReleaseTensorTypeAndShapeInfo(info);
-
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
   for (int64_t i = 0 ; i < ndims ; ++i) {
@@ -162,6 +160,8 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
   char* data = RedisModule_Calloc(len, sizeof(*data));
   memcpy(data, ort_data, len);
 #endif
+
+  OrtReleaseTensorTypeAndShapeInfo(info);
 
   // TODO: use manager_ctx to ensure ORT tensor doesn't get deallocated
   // This applies to outputs
