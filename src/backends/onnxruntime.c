@@ -69,11 +69,17 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
-OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t) {
+OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t, RAI_Error *error) {
   // TODO: create outside and pass?
   OrtAllocatorInfo* allocator_info;
   OrtStatus* status;
   status = OrtCreateCpuAllocatorInfo(OrtArenaAllocator, OrtMemTypeDefault, &allocator_info);
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    return NULL;
+  }
 
   OrtValue* out;
   status = OrtCreateTensorWithDataAsOrtValue(
@@ -85,12 +91,26 @@ OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t) {
     RAI_GetOrtDataTypeFromDL(t->tensor.dl_tensor.dtype),
     &out);
 
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    OrtReleaseAllocatorInfo(allocator_info);
+    return NULL;
+  }
+
   OrtReleaseAllocatorInfo(allocator_info);
 
   return out;
 }
 
-RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
+RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
+  if (!OrtIsTensor(v)) {
+    // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a tensor.
+    // If return value is string, emit warning.
+    return NULL;
+  }
+
   RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
@@ -102,7 +122,12 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
 
   OrtTensorTypeAndShapeInfo* info = OrtCreateTensorTypeAndShapeInfo();
   status = OrtGetTensorShapeAndType(v, &info);
-  // TODO: deal with status
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    return NULL;
+  }
 
   size_t ndims = OrtGetNumOfDimensions(info);
 
@@ -127,6 +152,12 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v) {
 #ifdef RAI_COPY_RUN_OUTPUT
   char* ort_data;
   status = OrtGetTensorMutableData(v, (void**)&ort_data);
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    return NULL;
+  }
   size_t len = dtype.bits * OrtGetTensorShapeElementCount(info);
   char* data = RedisModule_Calloc(len, sizeof(*data));
   memcpy(data, ort_data, len);
@@ -206,8 +237,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   // loading a model from a buffer, we'll keep this as is
   char tmpfile[256];
   FILE *fp;
-  snprintf(tmpfile,256,"temp-%d.onnx", (int) getpid());
-  fp = fopen(tmpfile,"w");
+  snprintf(tmpfile, 256, "temp-%d.onnx", (int) getpid());
+  fp = fopen(tmpfile, "w");
   if (!fp) {
     RAI_SetError(error, RAI_EMODELCREATE, "ERR: cannot write ONNX tmp file\n");
     return NULL;
@@ -278,10 +309,24 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   size_t n_input_nodes;
   status = OrtSessionGetInputCount(session, &n_input_nodes);
-
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    OrtReleaseAllocator(allocator);
+    return 1;
+  }
+ 
   size_t n_output_nodes;
   status = OrtSessionGetOutputCount(session, &n_output_nodes);
-
+  if (status != NULL) {
+    const char* msg = OrtGetErrorMessage(status);
+    RAI_SetError(error, RAI_EMODELCREATE, msg);
+    OrtReleaseStatus(status);
+    OrtReleaseAllocator(allocator);
+    return 1;
+  }
+ 
   const char* input_names[n_input_nodes];
   const char* output_names[n_output_nodes];
 
@@ -293,21 +338,36 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   if (ninputs != n_input_nodes) {
     RAI_SetError(error, RAI_EMODELRUN, "Unexpected number of inputs for graph\n");
+    OrtReleaseAllocator(allocator);
     return 1;
   }
 
   if (noutputs != n_output_nodes) {
     RAI_SetError(error, RAI_EMODELRUN, "Unexpected number of outputs for graph\n");
+    OrtReleaseAllocator(allocator);
     return 1;
   }
 
   for (size_t i=0; i<n_input_nodes; i++) {
     char* input_name;
     status = OrtSessionGetInputName(session, i, allocator, &input_name);
+    if (status != NULL) {
+      const char* msg = OrtGetErrorMessage(status);
+      RAI_SetError(error, RAI_EMODELCREATE, msg);
+      OrtReleaseStatus(status);
+      OrtReleaseAllocator(allocator);
+      return 1;
+    }
+ 
     input_names[i] = input_name;
 
-    inputs[i] = RAI_OrtValueFromTensor(mctx->inputs[i].tensor);
-
+    inputs[i] = RAI_OrtValueFromTensor(mctx->inputs[i].tensor, error);
+    if (error->code != RAI_OK) {
+      OrtReleaseStatus(status);
+      OrtReleaseAllocator(allocator);
+      return 1;
+    }
+ 
     // TODO: use this to check input dim, shapes
     #if 0
     OrtTypeInfo* typeinfo;
@@ -331,10 +391,17 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   for (size_t i=0; i<n_output_nodes; i++) {
     char* output_name;
     status = OrtSessionGetOutputName(session, i, allocator, &output_name);
-    output_names[i] = output_name;
-  }
+    if (status != NULL) {
+      const char* msg = OrtGetErrorMessage(status);
+      RAI_SetError(error, RAI_EMODELCREATE, msg);
+      OrtReleaseStatus(status);
+      OrtReleaseAllocator(allocator);
+      return 1;
+    }
 
-  OrtReleaseAllocator(allocator);
+    output_names[i] = output_name;
+    outputs[i] = NULL;
+  }
 
   // ORT_API_STATUS(OrtRun, _Inout_ OrtSession* sess,
   //                _In_ OrtRunOptions* run_options,
@@ -348,20 +415,32 @@ int RAI_ModelRunORT(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     const char* msg = OrtGetErrorMessage(status);
     RAI_SetError(error, RAI_EMODELRUN, msg);
     OrtReleaseStatus(status);
+    OrtReleaseAllocator(allocator);
     return 1;
   }
 
   for (size_t i=0; i<n_output_nodes; i++) {
-    RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i]);
-    mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-    RAI_TensorFree(output_tensor);
- 
+    RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], error);
+    if (error->code != RAI_OK) {
+      OrtReleaseStatus(status);
+      OrtReleaseAllocator(allocator);
+      return 1;
+    }
+    if (output_tensor) {
+      mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+      RAI_TensorFree(output_tensor);
+    }
+    else {
+      printf("ERR: non-tensor output from ONNX models, ignoring (currently unsupported).\n");
+    }
     OrtReleaseValue(outputs[i]);
   }
 
   for (size_t i=0; i<n_input_nodes; i++) {
     OrtReleaseValue(inputs[i]);
   }
+
+  OrtReleaseAllocator(allocator);
 
   return 0;
 }
@@ -370,6 +449,7 @@ int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Erro
   RAI_ONNXBuffer* onnxbuffer = (RAI_ONNXBuffer*)model->data;
   *buffer = RedisModule_Calloc(onnxbuffer->len, sizeof(char));
   memcpy(*buffer, onnxbuffer->data, onnxbuffer->len);
+  *len = onnxbuffer->len;
 
   return 0;
 }
