@@ -1,4 +1,4 @@
-display_name: redisai
+display_name: RedisAI
 author: Orobix and RedisLabs
 email: luca.antiga@orobix.com
 description: Serving tensors and executing deep learning graphs
