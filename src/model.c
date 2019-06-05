@@ -70,11 +70,11 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
 static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Model *model = (RAI_Model*)value;
-   char *buffer = NULL;
-   size_t len = 0;
-   RAI_Error err = {0};
+  char *buffer = NULL;
+  size_t len = 0;
+  RAI_Error err = {0};
 
-   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
+  int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
