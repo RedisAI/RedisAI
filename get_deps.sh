@@ -6,7 +6,6 @@ set -x
 BASE_DIRECTORY=`pwd`
 
 # Allow different deps for different platforms:
-
 if [ -z "$DEPS_DIRECTORY" ]; then
   DEPS_DIRECTORY=${BASE_DIRECTORY}/deps
 fi
