@@ -78,7 +78,6 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
     if (outputs[i] == NULL) {
       RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected number of outputs.");
-      RedisModule_Free(error_descr);
       return 1;
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
