@@ -217,7 +217,7 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
   }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
-    assert(0);
+    abort();
   }
 
   RedisModule_Free(model);
