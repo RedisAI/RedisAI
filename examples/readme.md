@@ -17,7 +17,7 @@ This is a CLI tool and there are alreadys some example images that you can play 
 To get started run the following from `examples/js`:
 
 ```bash
-> node modilenet.js ../img/panda.jpg
+> node mobilenet.js ../img/panda.jpg
 ```
 
 Press `ctrl-c` to end the program.

@@ -7,8 +7,8 @@ const Helpers = require('./Helpers');
 const config = {
    jsonClassIndex: 'imagenet_class_index.json',
    modelFile: '../models/mobilenet_v2_1.4_224_frozen.pb',
-   inputPath: 'input',
-   outputPath: 'MobilenetV2/Predictions/Reshape_1',
+   inputNode:  'input',
+   outputNode: 'MobilenetV2/Predictions/Reshape_1',
    imageHeight: 224,
    imageWidth: 224,
 };
@@ -40,7 +40,15 @@ function run(filenames) {
           * https://github.com/luin/ioredis#pipelining
           */
          redis.pipeline()
+              .call('AI.MODELSET', 'mobilenet', 'TF', 'CPU', 'INPUTS', config.inputNode, 'OUTPUTS', config.outputNode, buffer)
               .call('AI.TENSORSET', 'input_' + key, 'FLOAT', 1, config.imageWidth, config.imageHeight, 3, 'BLOB', buffer)
+              /**
+               * Important note: we're using the same input/output keys here...why? Well, in this example
+               * we're not too concerned about anything staying around, we're looking at the images
+               * checking for matches and moving along. In the real world you may need some of
+               * these keys and data to do other things, in which case, you'd want to make
+               * sure you're not overwriting all your keys :)
+               */
               .call('AI.MODELRUN', 'mobilenet', 'INPUTS', 'input_' + key, 'OUTPUTS', 'output_' + key)
               .callBuffer('AI.TENSORGET', 'output_' + key, 'BLOB')
               .exec((err, results) => {
