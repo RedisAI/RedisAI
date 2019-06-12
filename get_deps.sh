@@ -57,7 +57,7 @@ tar xf ${LIBTF_ARCHIVE} --no-same-owner --strip-components=1 -C ${PREFIX}
 
 ## PYTORCH
 
-PT_VERSION="1.0.1"
+PT_VERSION="1.1.0"
 #PT_VERSION="latest"
 
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
@@ -95,9 +95,9 @@ rm -rf libtorch
 
 if [[ "${PT_OS}" == "macos" ]]; then
   # also download mkl
-  MKL_BUNDLE=mklml_mac_2019.0.1.20180928
+  MKL_BUNDLE=mklml_mac_2019.0.3.20190220
   if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
-    wget "https://github.com/intel/mkl-dnn/releases/download/v0.17.1/${MKL_BUNDLE}.tgz"
+    wget "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
   fi
   tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${PREFIX}
 fi
