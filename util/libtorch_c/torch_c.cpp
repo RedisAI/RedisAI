@@ -1,6 +1,7 @@
 #include "torch_c.h"
 #include <torch/torch.h>
 #include <torch/csrc/jit/import.h>
+#include <torch/csrc/jit/script/compilation_unit.h>
 #include <iostream>
 #include <sstream>
 
@@ -8,11 +9,11 @@
 
 namespace {
 
-static DLDataType getDLDataType(const at::Type& type) {
+static DLDataType getDLDataType(const at::Tensor& t) {
   DLDataType dtype;
   dtype.lanes = 1;
-  dtype.bits = type.elementSizeInBytes() * 8;
-  switch (type.scalarType()) {
+  dtype.bits = t.element_size() * 8;
+  switch (t.scalar_type()) {
     case at::ScalarType::Byte:
       dtype.code = DLDataTypeCode::kDLUInt;
       break;
@@ -37,6 +38,10 @@ static DLDataType getDLDataType(const at::Type& type) {
     case at::ScalarType::Half:
       dtype.code = DLDataTypeCode::kDLFloat;
       break;
+    case at::ScalarType::Bool:
+      throw std::logic_error("Bool is not supported by dlpack");
+    case at::ScalarType::QInt8:
+      throw std::logic_error("QInt8 is not supported by dlpack");
     case at::ScalarType::ComplexHalf:
       throw std::logic_error("ComplexHalf is not supported by dlpack");
     case at::ScalarType::ComplexFloat:
@@ -51,10 +56,10 @@ static DLDataType getDLDataType(const at::Type& type) {
   return dtype;
 }
 
-static DLContext getDLContext(const at::Type& type, const int64_t& device_id) {
+static DLContext getDLContext(const at::Tensor& tensor, const int64_t& device_id) {
   DLContext ctx;
   ctx.device_id = device_id;
-  if (type.is_cuda()) {
+  if (tensor.is_cuda()) {
     ctx.device_type = DLDeviceType::kDLGPU;
   } else {
     ctx.device_type = DLDeviceType::kDLCPU;
@@ -134,8 +139,8 @@ torch::Tensor fromDLPack(const DLTensor* src) {
   at::DeviceType device_type = getATenDeviceType(src->ctx.device_type);
   at::ScalarType stype = toScalarType(src->dtype);
   return torch::from_blob(src->data,
-      at::IntList(src->shape, src->ndim),
-      at::IntList(src->strides, src->ndim),
+      at::IntArrayRef(src->shape, src->ndim),
+      at::IntArrayRef(src->strides, src->ndim),
       torch::device(device_type).dtype(stype));
 }
 
@@ -158,9 +163,9 @@ DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
   if (src.is_cuda()) {
     device_id = src.get_device();
   }
-  atDLMTensor->tensor.dl_tensor.ctx = getDLContext(src.type(), device_id);
+  atDLMTensor->tensor.dl_tensor.ctx = getDLContext(src, device_id);
   atDLMTensor->tensor.dl_tensor.ndim = src.dim();
-  atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src.type());
+  atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src);
   atDLMTensor->tensor.dl_tensor.shape = const_cast<int64_t*>(src.sizes().data());
   atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t*>(src.strides().data());
   atDLMTensor->tensor.dl_tensor.byte_offset = 0;
@@ -169,6 +174,7 @@ DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
 
 struct ModuleContext {
   std::shared_ptr<torch::jit::script::Module> module;
+  std::shared_ptr<torch::jit::script::CompilationUnit> cu;
   DLDeviceType device;
 };
 
@@ -191,8 +197,6 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
       throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
   }
 
-  torch::jit::script::Method& method = ctx->module->get_method(fnName);
-
   torch::jit::Stack stack;
 
   for (int i=0; i<nInputs; i++) {
@@ -201,7 +205,14 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
     stack.push_back(tensor.to(device));
   }
 
-  method.run(stack);
+  if (ctx->module) {
+    torch::jit::script::Method& method = ctx->module->get_method(fnName);
+    method.run(stack);
+  }
+  else {
+    torch::jit::script::Function& fn = ctx->cu->get_function(fnName);
+    fn.run(stack);
+  }
 
   torch::DeviceType output_device = torch::kCPU;
 
@@ -254,8 +265,8 @@ extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t
   at::DeviceType device_type = getATenDeviceType(kDLCPU);
   at::ScalarType stype = toScalarType(dtype);
   torch::Tensor tensor = torch::from_blob(data,
-      at::IntList(shape, ndims),
-      at::IntList(strides, ndims),
+      at::IntArrayRef(shape, ndims),
+      at::IntArrayRef(strides, ndims),
       torch::device(at::DeviceType::CPU).dtype(stype));
 
   DLManagedTensor *dl_tensor = toManagedDLPack(tensor);
@@ -269,8 +280,9 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device,
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
   try {
-    auto module = torch::jit::compile(script);
-    ctx->module = module;
+    auto cu = torch::jit::compile(script);
+    ctx->cu = cu;
+    ctx->module = nullptr;
   }
   catch(std::exception& e) {
     size_t len = strlen(e.what());
@@ -297,6 +309,7 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     }
     module->to(aten_device);
     ctx->module = module;
+    ctx->cu = nullptr;
   }
   catch(std::exception& e) {
     size_t len = strlen(e.what());
