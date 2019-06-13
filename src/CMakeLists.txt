@@ -1,4 +1,5 @@
 ADD_LIBRARY(redisai_obj OBJECT
+    backends/onnxruntime.c
     backends/tensorflow.c
     backends/torch.c
     redisai.c

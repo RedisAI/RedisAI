@@ -9,6 +9,10 @@
 #include "backends/torch.h"
 #endif /* RAI_TORCH_BACKEND */
 
+#ifdef RAI_ONNXRUNTIME_BACKEND
+#include "backends/onnxruntime.h"
+#endif /* RAI_ONNXRUNTIME_BACKEND */
+
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 
@@ -66,11 +70,11 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
 static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   RAI_Model *model = (RAI_Model*)value;
-   char *buffer = NULL;
-   size_t len = 0;
-   RAI_Error err = {0};
+  char *buffer = NULL;
+  size_t len = 0;
+  RAI_Error err = {0};
 
-   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
+  int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
@@ -187,6 +191,9 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device,
   else if (backend == RAI_BACKEND_TORCH) {
     model = RAI_ModelCreateTorch(backend, device, modeldef, modellen, err);
   }
+  else if (backend == RAI_BACKEND_ONNXRUNTIME) {
+    model = RAI_ModelCreateORT(backend, device, modeldef, modellen, err);
+  }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
   }
@@ -205,9 +212,12 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
   else if (model->backend == RAI_BACKEND_TORCH) {
     RAI_ModelFreeTorch(model, err);
   }
+  else if (model->backend == RAI_BACKEND_ONNXRUNTIME) {
+    RAI_ModelFreeORT(model, err);
+  }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
-    assert(0);
+    abort();
   }
 
   RedisModule_Free(model);
@@ -285,6 +295,9 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
     case RAI_BACKEND_TORCH:
       ret = RAI_ModelRunTorch(mctx, err);
       break;
+    case RAI_BACKEND_ONNXRUNTIME:
+      ret = RAI_ModelRunORT(mctx, err);
+      break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
       break;
@@ -307,6 +320,9 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
       break;
     case RAI_BACKEND_TORCH:
       ret = RAI_ModelSerializeTorch(model, buffer, len, err);
+      break;
+    case RAI_BACKEND_ONNXRUNTIME:
+      ret = RAI_ModelSerializeORT(model, buffer, len, err);
       break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");

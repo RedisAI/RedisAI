@@ -1,4 +1,4 @@
-REDIS_CLI=../../deps/redis/src/redis-cli
+REDIS_CLI=redis-cli
 
 MODEL_FILE=tiny-yolo-voc.pb
 INPUT_VAR=input

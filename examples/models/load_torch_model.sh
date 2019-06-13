@@ -1,4 +1,4 @@
-REDIS_CLI=../../deps/redis/src/redis-cli
+REDIS_CLI=redis-cli
 
 echo "SET MODEL"
 $REDIS_CLI -x AI.MODELSET foo TORCH CPU < pt-minimal.pt

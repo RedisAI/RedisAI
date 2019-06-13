@@ -61,7 +61,7 @@ AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2
 ```
 
 * model_key - Key for storing the model
-* backend - The backend corresponding to the model being set. Allowed values: `TF`, `TORCH`.
+* backend - The backend corresponding to the model being set. Allowed values: `TF`, `TORCH`, `ONNX`.
 * device - Device where the model is loaded and where the computation will run. Allowed values: `CPU`, `GPU`.
 * INPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to inputs [`TF` backend only]
 * OUTPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to outputs [`TF` backend only]
@@ -75,6 +75,10 @@ AI.MODELSET resnet18 TORCH GPU < foo.pt
 
 ```sql
 AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pt
+```
+
+```sql
+AI.MODELSET mnist_net ONNX CPU < mnist.onnx
 ```
 
 ## AI.MODELGET
