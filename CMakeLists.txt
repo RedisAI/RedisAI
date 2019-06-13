@@ -54,3 +54,10 @@ IF (APPLE)
     SET_TARGET_PROPERTIES(redisai PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
+
+# create ramp/redisai.so with RUNPATH set to /opt/redislabs/lib for RLEC compliance
+add_custom_command(TARGET redisai POST_BUILD
+    COMMAND mkdir -p $<TARGET_FILE_DIR:redisai>/ramp
+    COMMAND cp -f $<TARGET_FILE:redisai> $<TARGET_FILE_DIR:redisai>/ramp/
+    COMMAND patchelf --set-rpath /opt/redislabs/lib $<TARGET_FILE_DIR:redisai>/ramp/`basename $<TARGET_FILE:redisai>`
+    )
