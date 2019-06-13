@@ -316,6 +316,142 @@ def test_run_torch_model(env):
         env.assertExists('c')
 
 
+def test_run_onnx_model(env):
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    model_filename = os.path.join(examples_path, 'models/mnist.onnx')
+    wrong_model_filename = os.path.join(examples_path, 'models/graph.pb')
+    sample_filename = os.path.join(examples_path, 'models/one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', model_pb)
+    con.assertEqual(ret, b'OK')
+
+    try:
+        con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', wrong_model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_1', 'ONNX', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_3', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+
+    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+    for _ in con.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+
+
+def test_run_onnxml_model(env):
+    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
+    linear_model_filename = os.path.join(examples_path, 'models/linear_iris.onnx')
+    logreg_model_filename = os.path.join(examples_path, 'models/logreg_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        linear_model = f.read()
+
+    with open(logreg_model_filename, 'rb') as f:
+        logreg_model = f.read()
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', 'CPU', linear_model)
+    con.assertEqual(ret, b'OK')
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', 'CPU', logreg_model)
+    con.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
+
+    con.execute_command('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out')
+    con.execute_command('AI.MODELRUN', 'logreg', 'INPUTS', 'features', 'OUTPUTS', 'logreg_out', 'logreg_probs')
+
+    linear_out = con.execute_command('AI.TENSORGET', 'linear_out', 'VALUES')
+    logreg_out = con.execute_command('AI.TENSORGET', 'logreg_out', 'VALUES')
+
+    env.assertEqual(float(linear_out[2][0]), -0.090524077415466309)
+    env.assertEqual(logreg_out[2][0], 0)
+
+    for _ in con.reloadingIterator():
+        env.assertExists('linear')
+        env.assertExists('logreg')
+
+
 def test_set_tensor_multiproc(env):
     run_test_multiproc(env, 10,
         lambda con: con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))

@@ -17,6 +17,7 @@ typedef struct RAI_Model {
   char **outputs;
   size_t noutputs;
   long long refCount;
+  void* data;
 } RAI_Model;
 
 typedef struct RAI_ModelCtxParam {

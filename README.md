@@ -46,7 +46,7 @@ redis-cli
 
 ## Building
 This will checkout and build and download the libraries for the backends
-(TensorFlow and PyTorch) for your platform.
+(TensorFlow, PyTorch, ONNXRuntime) for your platform.
 
 ```sh
 bash get_deps.sh
@@ -89,15 +89,14 @@ Some languages have client libraries that provide support for RedisAI's commands
 | JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
 | redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
 
-
 ## Backend Dependancy
 
-RedisAI currently supports PyTorch (libtorch) and Tensorflow (libtensorflow) as backends. We are also building support for ONNXRuntime backend soon. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
+RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
 
 
 | RedisAI | PyTorch | TensorFlow | ONNXRuntime   |
 |:--------|:-------:|:----------:|:-------------:|
-| 0.1.0   | 1.0.1   | 1.12.0     | Not Yet       |
+| 0.1.0   | 1.0.1   | 1.12.0     | 0.4.0         |
 
 
 ## Documentation

@@ -315,7 +315,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     inputs[i] = port;
   }
 
-  for (size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
+  for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
     TF_Output port;
     port.oper = TF_GraphOperationByName(mctx->model->model, mctx->outputs[i].name);
     port.index = 0;
@@ -348,6 +348,14 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
     RAI_TensorFree(output_tensor);
   }
+
+  // TODO: add (make sure we deallocate once)
+  // for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
+  //   TF_DeleteTensor(inputTensorsValues[i]);
+  // }
+  // for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
+  //   TF_DeleteTensor(outputTensorsValues[i]);
+  // }
 
   TF_DeleteStatus(status);
 
