@@ -1,5 +1,6 @@
 [![GitHub issues](https://img.shields.io/github/release/RedisAI/RedisAI.svg)](https://github.com/RedisAI/RedisAI/releases/latest)
 [![CircleCI](https://circleci.com/gh/RedisAI/RedisAI/tree/master.svg?style=svg)](https://circleci.com/gh/RedisAI/RedisAI/tree/master)
+[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/redisai/redisai.svg)](https://hub.docker.com/r/redisai/redisai/builds/)
 
 # RedisAI
 
