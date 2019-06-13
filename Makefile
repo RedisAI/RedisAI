@@ -44,10 +44,14 @@ ifeq ($(wildcard build/pyenv/.),)
 	. ./build/pyenv/bin/activate ;\
 	pip install git+https://github.com/RedisLabs/RAMP
 endif
-	@set -xe ;\
+	@echo "Building RAMP file ..."
+	@set -e ;\
 	. ./build/pyenv/bin/activate ;\
 	ln -fs $(PWD)/deps/install/lib/ $(REDIS_ENT_LIB_PATH) ;\
-	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.${PACK_VER}.zip" $(PWD)/build/ramp/redisai.so ;\
+	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.${PACK_VER}.zip" $(PWD)/build/ramp/redisai.so 2>&1 > /dev/null ;\
 	rm /opt/redislabs/lib
+	@echo Done.
+	@echo "Building dependencies file redisai-dependencies.${PACK_VER}.tgz ..."
 	@cd deps/install/lib; \
 	tar pczf ../../../build/redisai-dependencies.${PACK_VER}.tgz *.so*
+	@echo Done.
