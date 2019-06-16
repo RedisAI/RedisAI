@@ -44,7 +44,7 @@ rlec_runpath_fix:
 	@echo Fixing RLEC RUNPATH...
 	@mkdir -p $(BINDIR)/ramp
 	@cp -f $(BINDIR)/redisai.so $(BINDIR)/ramp/
-	@patchelf --set-rpath $(REDIS_ENT_LIB_PATH) $(BINDIR)/redisai.so
+	@patchelf --set-rpath $(REDIS_ENT_LIB_PATH) $(BINDIR)/ramp/redisai.so
 
 pack: rlec_runpath_fix
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
