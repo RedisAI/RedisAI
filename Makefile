@@ -18,7 +18,7 @@ endif
 
 BINDIR=$(PWD)/build
 
-.PHONY: all clean deps pack
+.PHONY: all clean deps pack rlec_runpath_fix
 
 all:
 ifeq ($(wildcard build/.),)
@@ -36,10 +36,17 @@ else
 endif
 
 deps:
-	./get_deps.sh $(DEPS_FLAGS)
+	@echo Fetching dependencies...
+	@./get_deps.sh $(DEPS_FLAGS)
 
 # in pack: create ramp/redisai.so with RUNPATH set to /opt/redislabs/lib for RLEC compliance
-pack:
+rlec_runpath_fix: 
+	@echo Fixing RLEC RUNPATH...
+	@mkdir -p $(BINDIR)/ramp
+	@cp -f $(BINDIR)/redisai.so $(BINDIR)/ramp/
+	@patchelf --set-rpath $(REDIS_ENT_LIB_PATH) $(BINDIR)/redisai.so
+
+pack: rlec_runpath_fix
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
 	@[ ! -e $(REDIS_ENT_LIB_PATH) ] || { echo "$(REDIS_ENT_LIB_PATH) exists - aborting."; exit 1; }
 ifeq ($(wildcard build/pyenv/.),)
@@ -48,9 +55,6 @@ ifeq ($(wildcard build/pyenv/.),)
 	pip install git+https://github.com/RedisLabs/RAMP
 endif
 	@echo "Building RAMP file ..."
-	@mkdir -p $(BINDIR)/ramp
-	@cp -f $(BINDIR)/redisai.so $(BINDIR)/ramp/
-	@patchelf --set-rpath $(REDIS_ENT_LIB_PATH) $(BINDIR)/redisai.so
 	@set -e ;\
 	. ./build/pyenv/bin/activate ;\
 	ln -fs $(PWD)/deps/install/lib/ $(REDIS_ENT_LIB_PATH) ;\
@@ -61,4 +65,3 @@ endif
 	@cd deps/install/lib; \
 	tar pczf ../../../build/redisai-dependencies.${PACK_VER}.tgz *.so*
 	@echo Done.
-
