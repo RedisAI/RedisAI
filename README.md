@@ -112,4 +112,4 @@ Read the docs at [redisai.io](http://redisai.io).
 
 Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2019, Orobix Srl & Redis Labs Ltd
+Copyright 2019, Tensorwerk Inc & Redis Labs Ltd
