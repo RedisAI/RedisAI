@@ -35,6 +35,8 @@ RUN set -ex;\
 FROM redis
 ENV LD_LIBRARY_PATH /usr/lib/redis/modules/
 
+RUN set -e; apt-get -qq update; apt-get install -y libgomp1
+
 RUN set -ex;\
     mkdir -p "$LD_LIBRARY_PATH";
 
