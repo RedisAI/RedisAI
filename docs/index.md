@@ -40,9 +40,7 @@ redis-cli
 ```
 
 ## Building
-This will checkout and build and download the libraries for the backends
-(TensorFlow and PyTorch) for your platform.
-
+This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform.
 ```sh
 bash get_deps.sh
 
