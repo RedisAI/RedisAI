@@ -1,89 +1,97 @@
-let fs = require('fs');
-let Redis = require('ioredis');
-let Jimp = require('jimp');
+const fs = require('fs');
+const Redis = require('ioredis');
+const Jimp = require('jimp');
+const Helpers = require('./Helpers');
 
-function argmax(arr, start, end) {
-  start = start | 0;
-  end = end | arr.length;
-  let index = 0;
-  let value = arr[index];
-  for (let i=start; i<end; i++) {
-    if (arr[i] > value) {
-      value = arr[i];
-      index = i;
-    }
-  }
-  return index;
+// Simple configuration, all these files should exist already in the example folder
+const config = {
+   jsonClassIndex: 'imagenet_class_index.json',
+   modelFile: '../models/mobilenet_v2_1.4_224_frozen.pb',
+   inputNode:  'input',
+   outputNode: 'MobilenetV2/Predictions/Reshape_1',
+   imageHeight: 224,
+   imageWidth: 224,
+};
+
+const answerSet = [];
+const helpers  = new Helpers();
+const labels   = JSON.parse(fs.readFileSync(config.jsonClassIndex));
+const redis    = new Redis({ parser: 'javascript' });
+
+let progress = 0;
+
+function run(filenames) {
+
+   /**
+    * We're looping over each image and seeing if we can find a match
+    */
+   filenames.forEach((filename, key, filenames) => {
+      Jimp.read(filename).then((inputImage) => {
+         console.log(`\nWorking on ${filename}`);
+         let image = inputImage.cover(config.imageWidth, config.imageHeight);
+         let normalized = helpers.normalizeRGB(image.bitmap.data, image.hasAlpha());
+         let buffer = Buffer.from(normalized.buffer);
+
+         console.log("...Setting input tensor \n...running model");
+
+         /**
+          * Redis Pipelines, this allows us to set up and batch our commands
+          * If you want to learn more about how IORedis does this check out
+          * https://github.com/luin/ioredis#pipelining
+          */
+         redis.pipeline()
+              .call('AI.MODELSET', 'mobilenet', 'TF', 'CPU', 'INPUTS', config.inputNode, 'OUTPUTS', config.outputNode, buffer)
+              .call('AI.TENSORSET', 'input_' + key, 'FLOAT', 1, config.imageWidth, config.imageHeight, 3, 'BLOB', buffer)
+              /**
+               * Important note: we're using the same input/output keys here...why? Well, in this example
+               * we're not too concerned about anything staying around, we're looking at the images
+               * checking for matches and moving along. In the real world you may need some of
+               * these keys and data to do other things, in which case, you'd want to make
+               * sure you're not overwriting all your keys :)
+               */
+              .call('AI.MODELRUN', 'mobilenet', 'INPUTS', 'input_' + key, 'OUTPUTS', 'output_' + key)
+              .callBuffer('AI.TENSORGET', 'output_' + key, 'BLOB')
+              .exec((err, results) => {
+
+                  /**
+                   * THis looks a wierd, but this is because of how pipelines
+                   * work. When the pipeline is executed the output is
+                   * put into the results as part of an array, so
+                   * in this case, we don't need the output
+                   * from the first or second `.calls` we
+                   * only need the data from the
+                   * AI.TENSORGET() so this
+                   * just helps us get to
+                   * the right data
+                   */
+                  let bufferResults = results[2][1];
+
+                  let label = helpers.argmax(
+                           helpers.bufferToFloat32Array(bufferResults[bufferResults.length - 1]));
+
+                  // We push our match into the answer set
+                  answerSet.push({
+                     'filename': filename,
+                     'matches': labels[label-1][1]
+                  });
+
+                  /**
+                   * forEach is not async, but the pipeline calls are so we need
+                   * to set a progress check and wait until we've actually
+                   * checked all the images. Once we know we've looked
+                   * at all the images then we can display the table
+                   * results. This stops us from having multiple
+                   * tables for each image that gets processed
+                   */
+                  progress++;
+                  if (progress === filenames.length) {
+                     console.log("\n...OK I think I got something...\n");
+                     console.table(answerSet, ['filename', 'matches']);
+                  }
+               });
+      });
+   });
+
 }
 
-function normalize_rgb(buffer) {
-  let npixels = buffer.length / 4;
-  let out = new Float32Array(npixels * 3);
-  for (let i=0; i<npixels; i++) {
-    out[3*i]   = buffer[4*i]   / 128 - 1;
-    out[3*i+1] = buffer[4*i+1] / 128 - 1;
-    out[3*i+2] = buffer[4*i+2] / 128 - 1;
-  }
-  return out;
-}
-
-function buffer_to_float32array(buffer) {
-  let out_array = new Float32Array(buffer.length / 4);
-  for (let i=0; i<out_array.length; i++) {
-    out_array[i] = buffer.readFloatLE(4*i);
-  }
-  return out_array;
-}
-
-async function run(filenames) {
-
-  let json_labels = fs.readFileSync("imagenet_class_index.json");
-  let labels = JSON.parse(json_labels);
-
-  let redis = new Redis({ parser: 'javascript' });
-
-  const model_filename = '../models/mobilenet_v2_1.4_224_frozen.pb';
-  const input_var = 'input';
-  const output_var = 'MobilenetV2/Predictions/Reshape_1';
-
-  const buffer = fs.readFileSync(model_filename, {'flag': 'r'});
-
-  console.log("Setting model");
-  redis.call('AI.MODELSET', 'mobilenet', 'TF', 'CPU', 'INPUTS', input_var, 'OUTPUTS', output_var, buffer);
-
-  const image_height = 224;
-  const image_width = 224;
-
-  for (i in filenames) {
-
-    console.log("Reading image");
-    let input_image = await Jimp.read(filenames[i]);
-
-    let image = input_image.cover(image_width, image_height);
-    let normalized = normalize_rgb(image.bitmap.data, image.hasAlpha());
-
-    let buffer = Buffer.from(normalized.buffer);
-
-    console.log("Setting input tensor");
-    redis.call('AI.TENSORSET', 'input_' + i,
-                     'FLOAT', 1, image_width, image_height, 3,
-                     'BLOB', buffer);
-
-    console.log("Running model");
-    redis.call('AI.MODELRUN', 'mobilenet', 'INPUTS', 'input_' + i, 'OUTPUTS', 'output_' + i);
-
-    console.log("Getting output tensor");
-    let out_data = await redis.callBuffer('AI.TENSORGET', 'output_' + i, 'BLOB');
-    let out_array = buffer_to_float32array(out_data[out_data.length - 1]);
-
-    label = argmax(out_array);
-
-    console.log(filenames[i], labels[label-1]);
-  }
-}
-
-let filenames = Array.from(process.argv)
-filenames.splice(0, 2);
-
-run(filenames);
-
+run(Array.from(process.argv).splice(2));
