@@ -97,12 +97,14 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ON
 
 | RedisAI | PyTorch | TensorFlow | ONNXRuntime   |
 |:--------|:-------:|:----------:|:-------------:|
-| 0.1.0   | 1.0.1   | 1.12.0     | 0.4.0         |
+| 0.1.0   | 1.0.1     | 1.12.0     | None          |
+| 0.2.1   | 1.0.1     | 1.12.0     | None          |
+| 0.3.1   | 1.1     | 1.12.0     | 0.4.0         |
 
 
 ## Documentation
 
-Read the docs at [redisai.io](http://redisai.io).
+Read the docs at [redisai.io](http://redisai.io). Checkout our [showcase repo](https://github.com/RedisAI/redisai-examples) for a lot of examples written using different client libraries.
 
 ## Mailing List
 
