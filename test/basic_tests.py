@@ -100,9 +100,9 @@ def test_set_tensor(env):
 
 
 def test_run_tf_model(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    model_filename = os.path.join(examples_path, 'models/graph.pb')
-    wrong_model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+    wrong_model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
@@ -220,9 +220,9 @@ def test_run_tf_model(env):
 
 
 def test_run_torch_model(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    model_filename = os.path.join(examples_path, 'models/pt-minimal.pt')
-    wrong_model_filename = os.path.join(examples_path, 'models/graph.pb')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
@@ -317,10 +317,10 @@ def test_run_torch_model(env):
 
 
 def test_run_onnx_model(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    model_filename = os.path.join(examples_path, 'models/mnist.onnx')
-    wrong_model_filename = os.path.join(examples_path, 'models/graph.pb')
-    sample_filename = os.path.join(examples_path, 'models/one.raw')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist.onnx')
+    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
@@ -418,9 +418,9 @@ def test_run_onnx_model(env):
 
 
 def test_run_onnxml_model(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    linear_model_filename = os.path.join(examples_path, 'models/linear_iris.onnx')
-    logreg_model_filename = os.path.join(examples_path, 'models/logreg_iris.onnx')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+    logreg_model_filename = os.path.join(test_data_path, 'logreg_iris.onnx')
 
     with open(linear_model_filename, 'rb') as f:
         linear_model = f.read()
@@ -463,10 +463,10 @@ def test_set_tensor_multiproc(env):
 
 
 def load_mobilenet_test_data():
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    labels_filename = os.path.join(examples_path, 'js/imagenet_class_index.json')
-    image_filename = os.path.join(examples_path, 'img/panda.jpg')
-    model_filename = os.path.join(examples_path, 'models/mobilenet_v2_1.4_224_frozen.pb')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
+    image_filename = os.path.join(test_data_path, 'panda.jpg')
+    model_filename = os.path.join(test_data_path, 'mobilenet_v2_1.4_224_frozen.pb')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
@@ -568,8 +568,8 @@ def test_set_incorrect_script(env):
 
 
 def test_set_correct_script(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    script_filename = os.path.join(examples_path, 'models/script.txt')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    script_filename = os.path.join(test_data_path, 'script.txt')
 
     with open(script_filename, 'rb') as f:
         script = f.read()
@@ -581,8 +581,8 @@ def test_set_correct_script(env):
 
 
 def test_run_script(env):
-    examples_path = os.path.join(os.path.dirname(__file__), '..', 'examples')
-    script_filename = os.path.join(examples_path, 'models/script.txt')
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    script_filename = os.path.join(test_data_path, 'script.txt')
 
     with open(script_filename, 'rb') as f:
         script = f.read()
