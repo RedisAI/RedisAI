@@ -1,8 +1,0 @@
-{
-  "name": "redis_mobilenet",
-  "version": "0.2.0",
-  "dependencies": {
-    "ioredis": "^4.0.2",
-    "jimp": "^0.5.6"
-  }
-}
