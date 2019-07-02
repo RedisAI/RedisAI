@@ -105,13 +105,13 @@ fi
 ## ONNXRUNTIME
 ORT_VERSION="0.4.0"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  if [[ "$1" == "cpu" ]]; then
+  #if [[ "$1" == "cpu" ]]; then
     ORT_OS="linux-x64"
     ORT_BUILD="cpu"
-  else
-    ORT_OS="linux-x64-gpu"
-    ORT_BUILD="gpu"
-  fi
+  #else
+  #  ORT_OS="linux-x64-gpu"
+  #  ORT_BUILD="gpu"
+  #fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
   ORT_OS="osx-x64"
   ORT_BUILD=""
