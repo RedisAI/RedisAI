@@ -610,8 +610,6 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
 
-  RedisModule_ReplicateVerbatim(ctx);
-
   return REDISMODULE_OK;
 }
 
