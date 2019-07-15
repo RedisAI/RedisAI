@@ -304,25 +304,25 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
 
   switch (mctx->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
-      ret = RAI_backends.tf.model_run(mctx, err);
       if (!RAI_backends.tf.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
         return REDISMODULE_ERR;
       }
+      ret = RAI_backends.tf.model_run(mctx, err);
       break;
     case RAI_BACKEND_TORCH:
-      ret = RAI_backends.torch.model_run(mctx, err);
       if (!RAI_backends.torch.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
         return REDISMODULE_ERR;
       }
+      ret = RAI_backends.torch.model_run(mctx, err);
       break;
     case RAI_BACKEND_ONNXRUNTIME:
-      ret = RAI_backends.onnx.model_run(mctx, err);
       if (!RAI_backends.onnx.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
         return REDISMODULE_ERR;
       }
+      ret = RAI_backends.onnx.model_run(mctx, err);
       break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");

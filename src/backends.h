@@ -28,6 +28,6 @@ typedef struct RAI_LoadedBackends {
   RAI_LoadedBackend onnx;
 } RAI_LoadedBackends;
 
-static RAI_LoadedBackends RAI_backends;
+RAI_LoadedBackends RAI_backends;
 
 #endif

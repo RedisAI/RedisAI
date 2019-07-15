@@ -1082,7 +1082,6 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
 
   if (handle == NULL) {
     RedisModule_Log(ctx, "warning", "Could not load TF backend from %s: %s", path, dlerror());
-    printf("A\n");
     return REDISMODULE_ERR;
   } 
 
@@ -1095,7 +1094,6 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
   if (backend.model_create_with_nodes == NULL) {
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelCreateTF. TF backend not loaded from %s", path);
-    printf("B\n");
     return REDISMODULE_ERR;
   }
 
@@ -1104,7 +1102,6 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
   if (backend.model_free == NULL) {
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelFreeTF. TF backend not loaded from %s", path);
-    printf("C\n");
     return REDISMODULE_ERR;
   }
 
@@ -1113,7 +1110,6 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
   if (backend.model_run == NULL) {
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelRunTF. TF backend not loaded from %s", path);
-    printf("D\n");
     return REDISMODULE_ERR;
   }
 
@@ -1122,11 +1118,9 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
   if (backend.model_serialize == NULL) {
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelSerializeTF. TF backend not loaded from %s", path);
-    printf("E\n");
     return REDISMODULE_ERR;
   }
 
-  printf("F\n");
   RAI_backends.tf = backend;
 
   return REDISMODULE_OK;

@@ -1,6 +1,5 @@
 #include "backends/torch.h"
 #include "tensor.h"
-#include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "torch_c.h"
 

@@ -1,6 +1,5 @@
 #include "backends/onnxruntime.h"
 #include "tensor.h"
-#include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 
 #include "onnxruntime_c_api.h"
