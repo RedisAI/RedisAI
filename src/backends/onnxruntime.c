@@ -3,6 +3,8 @@
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 
+#include "onnxruntime_c_api.h"
+
 // TODO for getpid, remove when ONNXRuntime can read from stream
 #include <sys/types.h>
 #include <unistd.h>

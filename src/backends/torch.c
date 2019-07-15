@@ -4,7 +4,6 @@
 #include "util/arr_rm_alloc.h"
 #include "torch_c.h"
 
-
 RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {

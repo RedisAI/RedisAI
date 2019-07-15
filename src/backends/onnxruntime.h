@@ -6,8 +6,6 @@
 #include "model_struct.h"
 #include "err.h"
 
-#include "onnxruntime_c_api.h"
-
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
                               const char *modeldef, size_t modellen,
                               RAI_Error *err);

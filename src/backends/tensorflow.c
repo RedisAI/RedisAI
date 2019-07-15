@@ -3,6 +3,8 @@
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 
+#include "tensorflow/c/c_api.h"
+
 TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
 
   if (dtype.code == kDLFloat) {

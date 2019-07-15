@@ -7,8 +7,6 @@
 #include "model_struct.h"
 #include "err.h"
 
-#include "torch_c.h"
-
 RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *err);
