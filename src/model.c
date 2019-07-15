@@ -175,16 +175,29 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device,
                            const char *modeldef, size_t modellen, RAI_Error* err) {
   RAI_Model *model;
   if (backend == RAI_BACKEND_TENSORFLOW) {
+    if (!RAI_backends.tf.model_create_with_nodes) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+      return NULL;
+    }
     model = RAI_backends.tf.model_create_with_nodes(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TORCH) {
+    if (!RAI_backends.torch.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+      return NULL;
+    }
     model = RAI_backends.torch.model_create(backend, device, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_ONNXRUNTIME) {
+    if (!RAI_backends.onnx.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+      return NULL;
+    }
     model = RAI_backends.onnx.model_create(backend, device, modeldef, modellen, err);
   }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
+    return NULL;
   }
 
   return model;
@@ -196,17 +209,29 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
   }
 
   if (model->backend == RAI_BACKEND_TENSORFLOW) {
+    if (!RAI_backends.tf.model_free) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+      return;
+    }
     RAI_backends.tf.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_TORCH) {
+    if (!RAI_backends.torch.model_free) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+      return;
+    }
     RAI_backends.torch.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_ONNXRUNTIME) {
+    if (!RAI_backends.onnx.model_free) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+      return;
+    }
     RAI_backends.onnx.model_free(model, err);
   }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
-    abort();
+    return;
   }
 
   RedisModule_Free(model);
@@ -280,16 +305,28 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
   switch (mctx->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
       ret = RAI_backends.tf.model_run(mctx, err);
+      if (!RAI_backends.tf.model_run) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+        return REDISMODULE_ERR;
+      }
       break;
     case RAI_BACKEND_TORCH:
       ret = RAI_backends.torch.model_run(mctx, err);
+      if (!RAI_backends.torch.model_run) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+        return REDISMODULE_ERR;
+      }
       break;
     case RAI_BACKEND_ONNXRUNTIME:
       ret = RAI_backends.onnx.model_run(mctx, err);
+      if (!RAI_backends.onnx.model_run) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+        return REDISMODULE_ERR;
+      }
       break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
-      break;
+      return REDISMODULE_ERR;
   }
 
   return ret;
@@ -305,17 +342,29 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
 
   switch (model->backend) {
     case RAI_BACKEND_TENSORFLOW:
+      if (!RAI_backends.tf.model_serialize) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+        return REDISMODULE_ERR;
+      }
       ret = RAI_backends.tf.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_TORCH:
+      if (!RAI_backends.torch.model_serialize) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+        return REDISMODULE_ERR;
+      }
       ret = RAI_backends.torch.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_ONNXRUNTIME:
+      if (!RAI_backends.onnx.model_serialize) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+        return REDISMODULE_ERR;
+      }
       ret = RAI_backends.onnx.model_serialize(model, buffer, len, err);
       break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
-      break;
+      return REDISMODULE_ERR;
   }
 
   return ret;

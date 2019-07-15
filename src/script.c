@@ -72,7 +72,10 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
 }
 
 RAI_Script *RAI_ScriptCreate(RAI_Device device, const char *scriptdef, RAI_Error* err) {
-
+  if (!RAI_backends.torch.script_create) {
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    return NULL;
+  }
   return RAI_backends.torch.script_create(device, scriptdef, err);
 }
 
@@ -81,6 +84,11 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
     return;
   }
 
+  if (!RAI_backends.torch.script_free) {
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    return;
+  }
+ 
   RAI_backends.torch.script_free(script, err);
 }
 
@@ -151,6 +159,11 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
 }
 
 int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
+  if (!RAI_backends.torch.script_run) {
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    return REDISMODULE_ERR;
+  }
+ 
   return RAI_backends.torch.script_run(sctx, err);
 }
 
