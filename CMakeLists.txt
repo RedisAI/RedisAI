@@ -45,7 +45,6 @@ ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 ADD_SUBDIRECTORY(util/libtorch_c)
 ADD_SUBDIRECTORY(src)
 ADD_LIBRARY(redisai SHARED $<TARGET_OBJECTS:redisai_obj>)
-TARGET_LINK_LIBRARIES(redisai ${ORT_LIBRARIES} torch_c ${TF_LIBRARIES} ${platDeps})
 
 SET_TARGET_PROPERTIES(redisai PROPERTIES PREFIX "")
 SET_TARGET_PROPERTIES(redisai PROPERTIES SUFFIX ".so")
@@ -54,3 +53,18 @@ IF (APPLE)
     SET_TARGET_PROPERTIES(redisai PROPERTIES
         LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
+
+ADD_LIBRARY(redisai_tensorflow SHARED $<TARGET_OBJECTS:redisai_tensorflow_obj>)
+TARGET_LINK_LIBRARIES(redisai_tensorflow ${TF_LIBRARIES})
+SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES PREFIX "")
+SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES SUFFIX ".so")
+
+ADD_LIBRARY(redisai_torch SHARED $<TARGET_OBJECTS:redisai_torch_obj>)
+TARGET_LINK_LIBRARIES(redisai_torch torch_c ${platDeps})
+SET_TARGET_PROPERTIES(redisai_torch PROPERTIES PREFIX "")
+SET_TARGET_PROPERTIES(redisai_torch PROPERTIES SUFFIX ".so")
+
+ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
+TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
+SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")
+SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES SUFFIX ".so")

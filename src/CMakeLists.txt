@@ -1,7 +1,4 @@
 ADD_LIBRARY(redisai_obj OBJECT
-    backends/onnxruntime.c
-    backends/tensorflow.c
-    backends/torch.c
     redisai.c
     model.c
     err.c
@@ -13,6 +10,21 @@ ADD_LIBRARY(redisai_obj OBJECT
     rmutil/heap.c
     rmutil/priority_queue.c
     rmutil/vector.c)
+
+ADD_LIBRARY(redisai_tensorflow_obj OBJECT
+    backends/tensorflow.c
+    err.c
+    tensor.c)
+
+ADD_LIBRARY(redisai_torch_obj OBJECT
+    backends/torch.c
+    err.c
+    tensor.c)
+
+ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
+    backends/onnxruntime.c
+    err.c
+    tensor.c)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/rmutil)
