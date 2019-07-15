@@ -1,9 +1,6 @@
 #include "script.h"
 #include "script_struct.h"
-
-#ifdef RAI_TORCH_BACKEND
-#include "backends/torch.h"
-#endif /* RAI_TORCH_BACKEND */
+#include "backends.h"
 
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
@@ -76,7 +73,7 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
 
 RAI_Script *RAI_ScriptCreate(RAI_Device device, const char *scriptdef, RAI_Error* err) {
 
-  return RAI_ScriptCreateTorch(device, scriptdef, err);
+  return RAI_backends.torch.script_create(device, scriptdef, err);
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
@@ -84,7 +81,7 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
     return;
   }
 
-  RAI_ScriptFreeTorch(script, err);
+  RAI_backends.torch.script_free(script, err);
 }
 
 RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script, const char *fnname) {
@@ -154,7 +151,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
 }
 
 int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
-  return RAI_ScriptRunTorch(sctx, err);
+  return RAI_backends.torch.script_run(sctx, err);
 }
 
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {
