@@ -1078,6 +1078,11 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
+  if (RAI_backends.tf.model_run != NULL) {
+    RedisModule_Log(ctx, "warning", "Could not load TF backend: backend already loaded");
+    return REDISMODULE_ERR;
+  }
+
   void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 
   if (handle == NULL) {
@@ -1127,6 +1132,11 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
 }
 
 int RedisAI_Config_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
+  if (RAI_backends.torch.model_run != NULL) {
+    RedisModule_Log(ctx, "warning", "Could not load TORCH backend: backend already loaded");
+    return REDISMODULE_ERR;
+  }
+
   void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 
   if (handle == NULL) {
@@ -1199,6 +1209,11 @@ int RedisAI_Config_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
 }
 
 int RedisAI_Config_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
+  if (RAI_backends.onnx.model_run != NULL) {
+    RedisModule_Log(ctx, "warning", "Could not load ONNX backend: backend already loaded");
+    return REDISMODULE_ERR;
+  }
+
   void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
 
   if (handle == NULL) {
