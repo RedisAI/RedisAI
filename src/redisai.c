@@ -1138,6 +1138,8 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
 
   RAI_backends.tf = backend;
 
+  RedisModule_Log(ctx, "notice", "TF backend loaded from %s", path);
+
   return REDISMODULE_OK;
 }
 
@@ -1225,6 +1227,8 @@ int RedisAI_Config_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
 
   RAI_backends.torch = backend;
 
+  RedisModule_Log(ctx, "notice", "TORCH backend loaded from %s", path);
+
   return REDISMODULE_OK;
 }
 
@@ -1287,6 +1291,8 @@ int RedisAI_Config_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path
   }
 
   RAI_backends.onnx = backend;
+
+  RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);
 
   return REDISMODULE_OK;
 }
