@@ -1092,6 +1092,16 @@ int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path)
 
   RAI_LoadedBackend backend = {0};
 
+  int (*init_backend)(int (*)(const char *, void *));
+  init_backend = (int (*)(int (*)(const char *, void *)))
+                  (unsigned long) dlsym(handle, "RAI_InitBackendTF");
+  if (init_backend == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendTF. TF backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+  init_backend(RedisModule_GetApi);
+
   backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, RAI_Device,
                                      size_t, const char**, size_t, const char**,
                                      const char*, size_t, RAI_Error*))
@@ -1145,6 +1155,16 @@ int RedisAI_Config_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
   } 
 
   RAI_LoadedBackend backend = {0};
+
+  int (*init_backend)(int (*)(const char *, void *));
+  init_backend = (int (*)(int (*)(const char *, void *)))
+                  (unsigned long) dlsym(handle, "RAI_InitBackendTorch");
+  if (init_backend == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendTorch. TORCH backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+  init_backend(RedisModule_GetApi);
 
   backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device,
                           const char*, size_t, RAI_Error*))
@@ -1223,7 +1243,15 @@ int RedisAI_Config_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path
 
   RAI_LoadedBackend backend = {0};
 
-  backend.model_create_with_nodes = NULL;
+  int (*init_backend)(int (*)(const char *, void *));
+  init_backend = (int (*)(int (*)(const char *, void *)))
+                  (unsigned long) dlsym(handle, "RAI_InitBackendORT");
+  if (init_backend == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendORT. ONNX backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+  init_backend(RedisModule_GetApi);
 
   backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device,
                           const char*, size_t, RAI_Error*))

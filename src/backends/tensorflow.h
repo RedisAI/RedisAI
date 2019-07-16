@@ -6,6 +6,8 @@
 #include "model_struct.h"
 #include "err.h"
 
+int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *));
+
 RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,

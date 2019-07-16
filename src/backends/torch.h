@@ -7,6 +7,8 @@
 #include "model_struct.h"
 #include "err.h"
 
+int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *));
+
 RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *err);
