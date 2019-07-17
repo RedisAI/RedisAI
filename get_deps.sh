@@ -16,20 +16,32 @@ DEPS_DIRECTORY=$PWD # -- to avoid relative/absolute confusion
 
 PREFIX=${DEPS_DIRECTORY}/install
 mkdir -p ${PREFIX}
-rm -rf ${PREFIX}/share
-rm -rf ${PREFIX}/lib
-rm -rf ${PREFIX}/include
+
+DLPACK_PREFIX=${PREFIX}/dlpack
+rm -rf ${DLPACK_PREFIX}
+mkdir -p ${DLPACK_PREFIX}
+
+TF_PREFIX=${PREFIX}/libtensorflow
+rm -rf ${TF_PREFIX}
+mkdir -p ${TF_PREFIX}
+
+TORCH_PREFIX=${PREFIX}/libtorch
+rm -rf ${TORCH_PREFIX}
+mkdir -p ${TORCH_PREFIX}
+
+ORT_PREFIX=${PREFIX}/onnxruntime
+rm -rf ${ORT_PREFIX}
+mkdir -p ${ORT_PREFIX}
 
 if [ ! -d dlpack ]; then
     echo "Cloning dlpack"
     git clone --depth 1 https://github.com/dmlc/dlpack.git
 fi
 
-mkdir -p ${PREFIX}
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
-  cp -d -r --no-preserve=ownership dlpack/include ${PREFIX}
+  cp -d -r --no-preserve=ownership dlpack/include ${DLPACK_PREFIX}
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-  cp -r dlpack/include ${PREFIX}
+  cp -r dlpack/include ${DLPACK_PREFIX}
 fi
 
 ## TENSORFLOW
@@ -53,7 +65,7 @@ if [ ! -e ${LIBTF_ARCHIVE} ]; then
   wget https://storage.googleapis.com/tensorflow/libtensorflow/${LIBTF_ARCHIVE}
 fi
 
-tar xf ${LIBTF_ARCHIVE} --no-same-owner --strip-components=1 -C ${PREFIX}
+tar xf ${LIBTF_ARCHIVE} --no-same-owner --strip-components=1 -C ${TF_PREFIX}
 
 ## PYTORCH
 
@@ -90,7 +102,7 @@ if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
 fi
 
 unzip -o ${LIBTORCH_ARCHIVE}
-tar cf - libtorch | tar xf -  --no-same-owner --strip-components=1 -C ${PREFIX}
+tar cf - libtorch | tar xf -  --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
 rm -rf libtorch
 
 if [[ "${PT_OS}" == "macos" ]]; then
@@ -99,7 +111,8 @@ if [[ "${PT_OS}" == "macos" ]]; then
   if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
     wget "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
   fi
-  tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${PREFIX}
+  tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
+  tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
 fi
 
 ## ONNXRUNTIME
@@ -124,6 +137,6 @@ if [ ! -e ${ORT_ARCHIVE} ]; then
   wget https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
 fi
 
-tar xf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C ${PREFIX}
+tar xf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
 
 echo "Done"
