@@ -1453,7 +1453,6 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-
   if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
@@ -1482,9 +1481,39 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
+  if (argc > 0 && argc % 2 != 0) {
+    RedisModule_Log(ctx, "warning", "Even number of arguments provided to module. Please provide arguments as KEY VAL pairs.");
+  }
+
+  for (int i=0; i<argc/2; i++) {
+    const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
+    const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
+
+    int ret = REDISMODULE_OK;
+    if (strcasecmp(key, "TF") == 0) {
+      ret = RedisAI_Config_LoadBackend_TensorFlow(ctx, val);
+    }
+    else if (strcasecmp(key, "TORCH") == 0) {
+      ret = RedisAI_Config_LoadBackend_Torch(ctx, val);
+    }
+    else if (strcasecmp(key, "ONNX") == 0) {
+      ret = RedisAI_Config_LoadBackend_ONNXRuntime(ctx, val);
+    }
+    else {
+      ret = REDISMODULE_ERR;
+    }
+
+    if (ret == REDISMODULE_ERR) {
+      const char *msg = "ERR: error processing argument";
+      char* buffer = RedisModule_Calloc(10 + strlen(msg) + strlen(key) + strlen(val), sizeof(*buffer));
+      sprintf(buffer, "%s: %s %s", msg, key, val);
+      RedisModule_Log(ctx, "warning", buffer);
+      RedisModule_Free(buffer);
+    }
+  }
+
   if (RedisAI_StartRunThread() == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
   return REDISMODULE_OK;
 }
-
