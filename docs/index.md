@@ -85,3 +85,11 @@ Some languages have client libraries that provide support for RedisAI's commands
 | redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
 
 Full documentation of the api can be found [here](commands.md).
+
+## Mailing List / Forum
+
+Got questions? Feel free to ask at the [RedisAI mailing list](https://groups.google.com/forum/#!forum/redisai).
+
+## License
+
+Redis Source Available License Agreement - see [LICENSE](https://raw.githubusercontent.com/RedisAI/RedisAI/master/LICENSE)
