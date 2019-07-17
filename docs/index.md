@@ -21,7 +21,7 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 
 On the client, load the model
 ```sh
-redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < examples/models/graph.pb
+redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
@@ -41,7 +41,7 @@ redis-cli
 
 ## Building
 This will checkout and build and download the libraries for the backends
-(TensorFlow and PyTorch) for your platform.
+(TensorFlow, PyTorch, ONNXRuntime) for your platform.
 
 ```sh
 bash get_deps.sh
@@ -55,11 +55,11 @@ CMake 3.0 or higher is required.
 mkdir build
 cd build
 cmake -DDEPS_PATH=../deps/install ..
-make
+make && make install
 cd ..
 ```
 
-## Start
+### Running the server
 
 You must have a redis-server version 4.0.9 or greater, available in most recent distributions:
 
@@ -68,11 +68,10 @@ redis-server --version
 Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 ```
 
-To start redis with the RedisAI module loaded, you need to make sure the dependencies can be found by redis.
-One example of how to do this on Linux is:
+To start Redis with the RedisAI module loaded:
 
 ```
-LD_LIBRARY_PATH=<PATH_TO>/deps/install/lib redis-server --loadmodule build/redisai.so
+redis-server --loadmodule install/redisai.so
 ```
 
 ## Client libraries

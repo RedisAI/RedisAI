@@ -27,7 +27,7 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 
 On the client, load the model
 ```sh
-redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < examples/models/graph.pb
+redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
@@ -61,7 +61,7 @@ CMake 3.0 or higher is required.
 mkdir build
 cd build
 cmake -DDEPS_PATH=../deps/install ..
-make
+make && make install
 cd ..
 ```
 
@@ -75,10 +75,10 @@ redis-server --version
 Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 ```
 
-To start redis with the RedisAI module loaded:
+To start Redis with the RedisAI module loaded:
 
 ```sh
-redis-server --loadmodule build/redisai.so
+redis-server --loadmodule install/redisai.so
 ```
 
 ## Client libraries
