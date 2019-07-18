@@ -688,13 +688,21 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   // be picked up on the next round. We also need to signal when it's time to dispose
   // of the old model.
   // The key is having a single thread looping for execution
+  if (argc < 3) return RedisModule_WrongArity(ctx);
+
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
+    for (int i=2; i<argc; i++) {
+      const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
+      if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
+        continue;
+      }
+      RedisModule_KeyAtPos(ctx, i);
+    }
+    return REDISMODULE_OK;
   }
 
   RedisModule_AutoMemory(ctx);
-
-  if (argc < 3) return RedisModule_WrongArity(ctx);
 
   ArgsCursor ac;
   ArgsCursor_InitRString(&ac, argv+1, argc-1);
@@ -848,13 +856,21 @@ int RedisAI_StartRunThread() {
 
 // script key, fnname, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc < 4) return RedisModule_WrongArity(ctx);
+
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
+    for (int i=3; i<argc; i++) {
+      const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
+      if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
+        continue;
+      }
+      RedisModule_KeyAtPos(ctx, i);
+    }
+    return REDISMODULE_OK;
   }
 
   RedisModule_AutoMemory(ctx);
-
-  if (argc < 4) return RedisModule_WrongArity(ctx);
 
   ArgsCursor ac;
   ArgsCursor_InitRString(&ac, argv+1, argc-1);
@@ -1187,7 +1203,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -1199,7 +1215,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 4, 4, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
