@@ -692,7 +692,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
-    for (int i=1; i<argc; i++) {
+    for (int i=2; i<argc; i++) {
       const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
       if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
         continue;
@@ -860,7 +860,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
-    for (int i=2; i<argc; i++) {
+    for (int i=3; i<argc; i++) {
       const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
       if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
         continue;
