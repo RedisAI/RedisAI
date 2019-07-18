@@ -580,6 +580,36 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return REDISMODULE_OK;
 }
 
+// key
+int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc != 2) return RedisModule_WrongArity(ctx);
+
+  RedisModule_AutoMemory(ctx);
+
+  ArgsCursor ac;
+  ArgsCursor_InitRString(&ac, argv+1, argc-1);
+
+  RedisModuleString* keystr;
+  AC_GetRString(&ac, &keystr, 0);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
+  int type = RedisModule_KeyType(key);
+  if (type == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR no model at key");
+  }
+  if (!(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RedisModule_DeleteKey(key);
+  RedisModule_CloseKey(key);
+
+  return RedisModule_ReplyWithSimpleString(ctx, "OK");
+}
+
 struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString **outkeys;
@@ -1028,6 +1058,36 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   return REDISMODULE_OK;
 }
 
+// key
+int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  if (argc != 2) return RedisModule_WrongArity(ctx);
+
+  RedisModule_AutoMemory(ctx);
+
+  ArgsCursor ac;
+  ArgsCursor_InitRString(&ac, argv+1, argc-1);
+
+  RedisModuleString* keystr;
+  AC_GetRString(&ac, &keystr, 0);
+
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
+  int type = RedisModule_KeyType(key);
+  if (type == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR no script at key");
+  }
+  if (!(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
+  RedisModule_DeleteKey(key);
+  RedisModule_CloseKey(key);
+
+  return RedisModule_ReplyWithSimpleString(ctx, "OK");
+}
+
 // key device scriptdef
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
@@ -1203,6 +1263,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
+  if (RedisModule_CreateCommand(ctx, "ai.modeldel", RedisAI_ModelDel_RedisCommand, "write", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
   if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
@@ -1212,6 +1276,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
 
   if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
+
+  if (RedisModule_CreateCommand(ctx, "ai.scriptdel", RedisAI_ScriptDel_RedisCommand, "write", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
