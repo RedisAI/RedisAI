@@ -50,7 +50,10 @@ This will checkout and build and download the libraries for the backends (Tensor
 
 ```sh
 bash get_deps.sh
-
+```
+Alternatively, run the following to only fetch the CPU-only backends.
+```sh
+bash get_deps.sh cpu
 ```
 
 Once the dependencies are downloaded, build the module itself. Note that
