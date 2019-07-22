@@ -592,7 +592,7 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RedisModuleString* keystr;
   AC_GetRString(&ac, &keystr, 0);
 
-  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type == REDISMODULE_KEYTYPE_EMPTY) {
     RedisModule_CloseKey(key);
@@ -1070,7 +1070,7 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleString* keystr;
   AC_GetRString(&ac, &keystr, 0);
 
-  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
   if (type == REDISMODULE_KEYTYPE_EMPTY) {
     RedisModule_CloseKey(key);

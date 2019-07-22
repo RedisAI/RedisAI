@@ -111,8 +111,8 @@ def test_del_tf_model(env):
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     con.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELDEL', 'm')
-    con.assertEqual(ret, b'OK')
+    con.execute_command('AI.MODELDEL', 'm')
+    con.assertFalse(con.execute_command('EXISTS', 'm'))
 
 
 def test_run_tf_model(env):
@@ -607,7 +607,7 @@ def test_del_script(env):
     env.assertEqual(ret, b'OK')
 
     ret = env.execute_command('AI.SCRIPTDEL', 'ket')
-    env.assertEqual(ret, b'OK')
+    env.assertFalse(env.execute_command('EXISTS', 'ket'))
 
 
 def test_run_script(env):

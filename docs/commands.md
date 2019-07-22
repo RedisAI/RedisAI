@@ -94,6 +94,19 @@ AI.MODELGET model_key
 The command returns the model as serialized by the backend, that is a string containing a protobuf.
 
 
+## AI.MODELDEL
+
+Removes a model at a specified key.
+
+```sql
+AI.MODELDEL model_key
+```
+
+* model_key - Key for the model
+
+Currently, the command is fully equivalent to calling `DEL` on `model_key`.
+
+
 ## AI.MODELRUN
 
 Run a model.
@@ -150,6 +163,20 @@ AI.SCRIPTGET script_key
 ```
 
 * script_key - key for the script
+
+
+## AI.SCRIPTDEL
+
+Removes a script at a specified key.
+
+```sql
+AI.SCRIPTDEL script_key
+```
+
+* script_key - key for the script
+
+Currently, the command is fully equivalent to calling `DEL` on `script_key`.
+
 
 ### SCRIPTGET Example
 
