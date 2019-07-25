@@ -99,6 +99,22 @@ def test_set_tensor(env):
         env.assertExists('x')
 
 
+def test_del_tf_model(env):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    con.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.MODELDEL', 'm')
+    con.assertFalse(con.execute_command('EXISTS', 'm'))
+
+
 def test_run_tf_model(env):
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
@@ -578,6 +594,20 @@ def test_set_correct_script(env):
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
+
+
+def test_del_script(env):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    script_filename = os.path.join(test_data_path, 'script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = env.execute_command('AI.SCRIPTDEL', 'ket')
+    env.assertFalse(env.execute_command('EXISTS', 'ket'))
 
 
 def test_run_script(env):
