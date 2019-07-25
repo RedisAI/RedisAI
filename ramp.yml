@@ -15,3 +15,8 @@ capabilities:
     - failover_migrate
     - persistence_rdb
     - clustering
+exclude_commands:
+    - ai.modelset
+    - ai.modeldel
+    - ai.scriptset
+    - ai.scriptdel
