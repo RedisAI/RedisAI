@@ -39,16 +39,12 @@ deps:
 	@echo Fetching dependencies...
 	@./get_deps.sh $(DEPS_FLAGS)
 
-# in pack: create ramp/redisai.so with RUNPATH set to /opt/redislabs/lib for RLEC compliance
 rlec_runpath_fix: 
 	@echo Fixing RLEC RUNPATH...
-	@mkdir -p $(BINDIR)/ramp
-	@cp -f $(BINDIR)/redisai.so $(BINDIR)/ramp/
-	@patchelf --set-rpath $(REDIS_ENT_LIB_PATH) $(BINDIR)/ramp/redisai.so
+	@patchelf --set-rpath '@ORIGIN:$(REDIS_ENT_LIB_PATH)' $(BINDIR)/redisai.so
 
 pack: rlec_runpath_fix
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
-	@[ ! -e $(REDIS_ENT_LIB_PATH) ] || { echo "$(REDIS_ENT_LIB_PATH) exists - aborting."; exit 1; }
 ifeq ($(wildcard build/pyenv/.),)
 	@virtualenv build/pyenv ;\
 	. ./build/pyenv/bin/activate ;\
@@ -57,11 +53,17 @@ endif
 	@echo "Building RAMP file ..."
 	@set -e ;\
 	. ./build/pyenv/bin/activate ;\
-	ln -fs $(PWD)/deps/install/lib/ $(REDIS_ENT_LIB_PATH) ;\
-	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.${PACK_VER}.zip" $(BINDIR)/ramp/redisai.so 2>&1 > /dev/null ;\
-	rm $(REDIS_ENT_LIB_PATH)
-	@echo Done.
-	@echo "Building dependencies file redisai-dependencies.${PACK_VER}.tgz ..."
-	@cd deps/install/lib; \
-	tar pczf ../../../build/redisai-dependencies.${PACK_VER}.tgz *.so*
-	@echo Done.
+	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
+	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(BINDIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
+	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
+	rm -f $RAMPOUT ;\
+	echo "Done."
+	@echo "Building dependencies file ..."
+	@set -e ;\
+	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
+	echo PACKAGE_NAME=$$PACKAGE_NAME ;\
+	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
+	cd deps/install/lib; \
+	echo ARCHOSVER=$$ARCHOSVER ;\
+	tar pczf ../../../build/redisai-dependencies.$$ARCHOSVER.tgz *.so*
+	@echo "Done."
