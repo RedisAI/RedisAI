@@ -63,7 +63,7 @@ jobs:
             mkdir -p ~/workspace/build
             cp install/ramp/$MODULE_ARTIFACT ~/workspace/
             # cp deps/install/lib/*.so*  ~/workspace/
-            cp install/backends  ~/workspace/
+            cp -r install/backends ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
