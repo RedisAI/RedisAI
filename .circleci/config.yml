@@ -43,8 +43,8 @@ jobs:
             cd build
             cmake -DDEPS_PATH=../deps/install ..
             make && make install
-            # cd ..
-            # make rlec_runpath_fix
+            cd ..
+            make rlec_runpath_fix
 
       - run:
           name: Test
