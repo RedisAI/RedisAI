@@ -50,7 +50,7 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip -q uninstall -y RLTest || true
-            pip -q install git+https://github.com/RedisLabsModules/RLTest@py3
+            pip -q install git+https://github.com/RedisLabsModules/RLTest@master
             pip -q install -r test/test_requirements.txt
             git lfs pull
             python3 -m RLTest --test test/basic_tests.py --module build/redisai.so
@@ -59,7 +59,7 @@ jobs:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp build/ramp/$MODULE_ARTIFACT ~/workspace/
+            cp build/$MODULE_ARTIFACT ~/workspace/
             cp deps/install/lib/*.so*  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:

@@ -12,7 +12,8 @@ __pycache__
 /build/
 examples/js/node_modules/
 examples/js/package-lock.json
-/test/venv
+/test/venv/
+/test/logs/
 
 # Eclipse (if that's your jam...)
 .project

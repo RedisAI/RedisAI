@@ -43,8 +43,6 @@ deps:
 	@echo Fetching dependencies...
 	@./get_deps.sh $(DEPS_FLAGS)
 
-rlec_runpath_fix: ;
-
 pack: rlec_runpath_fix
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
 ifeq ($(wildcard build/pyenv/.),)
@@ -75,7 +73,7 @@ ifeq ($(wildcard venv/.),)
 	@set -e ;\
 	cd test ;\
 	. venv/bin/activate ;\
-	pip -q install git+https://github.com/RedisLabsModules/RLTest@py3 ;\
+	pip -q install git+https://github.com/RedisLabsModules/RLTest@master ;\
 	pip -q install -r test_requirements.txt
 	@git lfs pull
 endif
