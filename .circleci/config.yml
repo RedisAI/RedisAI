@@ -43,8 +43,8 @@ jobs:
             cd build
             cmake -DDEPS_PATH=../deps/install ..
             make && make install
-            cd ..
-            make rlec_runpath_fix
+            # cd ..
+            # make rlec_runpath_fix
 
       - run:
           name: Test
@@ -62,7 +62,8 @@ jobs:
           command: |
             mkdir -p ~/workspace/build
             cp build/ramp/$MODULE_ARTIFACT ~/workspace/
-            cp deps/install/lib/*.so*  ~/workspace/
+            # cp deps/install/lib/*.so*  ~/workspace/
+            cp install/backends  ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace

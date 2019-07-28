@@ -26,7 +26,7 @@ ifeq ($(wildcard build/.),)
 	cd build; \
 	cmake -DDEPS_PATH=../deps/install ..
 endif
-	$(MAKE) -C build
+	$(MAKE) -C build && $(MAKE) -C build install
 
 clean:
 ifeq ($(ALL),1)
