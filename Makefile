@@ -5,6 +5,8 @@ else
 DEPS_FLAGS=cpu
 endif
 
+UNAME_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
+
 export REDIS_ENT_LIB_PATH=/opt/redislabs/lib
 
 GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD)
@@ -29,8 +31,10 @@ ifeq ($(wildcard build/.),)
 	cmake -DDEPS_PATH=../deps/install ..
 endif
 	$(MAKE) -C build
+ifeq ($(UNAME_S),Linux)
 	@echo Fixing RLEC RUNPATH...
 	@patchelf --set-rpath '$$ORIGIN:$(REDIS_ENT_LIB_PATH)' $(BINDIR)/redisai.so
+endif
 
 clean:
 ifeq ($(ALL),1)
