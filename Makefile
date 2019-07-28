@@ -18,15 +18,19 @@ endif
 
 BINDIR=$(PWD)/build
 
-.PHONY: all clean deps pack rlec_runpath_fix test
+.PHONY: all build clean deps pack rlec_runpath_fix test
 
-all:
+all: build
+
+build:
 ifeq ($(wildcard build/.),)
 	mkdir -p build
 	cd build; \
 	cmake -DDEPS_PATH=../deps/install ..
 endif
 	$(MAKE) -C build
+	@echo Fixing RLEC RUNPATH...
+	@patchelf --set-rpath '$$ORIGIN:$(REDIS_ENT_LIB_PATH)' $(BINDIR)/redisai.so
 
 clean:
 ifeq ($(ALL),1)
@@ -39,9 +43,7 @@ deps:
 	@echo Fetching dependencies...
 	@./get_deps.sh $(DEPS_FLAGS)
 
-rlec_runpath_fix: 
-	@echo Fixing RLEC RUNPATH...
-	@patchelf --set-rpath '@ORIGIN:$(REDIS_ENT_LIB_PATH)' $(BINDIR)/redisai.so
+rlec_runpath_fix: ;
 
 pack: rlec_runpath_fix
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }

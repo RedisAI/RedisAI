@@ -28,8 +28,7 @@ RUN set -ex;\
     mkdir -p build;\
     cd build;\
     cmake -DDEPS_PATH=../deps/install ..;\
-    make;\
-    cd ..
+    make
 
 # Package the runner
 FROM redis
