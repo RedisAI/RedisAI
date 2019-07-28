@@ -61,7 +61,7 @@ jobs:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp build/ramp/$MODULE_ARTIFACT ~/workspace/
+            cp install/ramp/$MODULE_ARTIFACT ~/workspace/
             # cp deps/install/lib/*.so*  ~/workspace/
             cp install/backends  ~/workspace/
             cp ramp.yml ~/workspace/
