@@ -80,4 +80,5 @@ endif
 	@set -e ;\
 	cd test ;\
 	. venv/bin/activate ;\
+	LD_LIBRARY_PATH=$(PWD)/deps/install/lib \
 	python3 -m RLTest --test basic_tests.py --module $(BINDIR)/redisai.so
