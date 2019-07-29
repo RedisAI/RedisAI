@@ -47,12 +47,14 @@ redis-cli
 ```
 
 ## Building
-This will checkout and build and download the libraries for the backends
-(TensorFlow, PyTorch, ONNXRuntime) for your platform.
+This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA to be installed.
 
 ```sh
 bash get_deps.sh
-
+```
+Alternatively, run the following to only fetch the CPU-only backends.
+```sh
+bash get_deps.sh cpu
 ```
 
 Once the dependencies are downloaded, build the module itself. Note that
