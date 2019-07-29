@@ -19,8 +19,9 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 
 ### Give it a try
 
-On the client, load the model
+On the client, load a backend (TF, TORCH or ONNX), and set the model
 ```sh
+redis-cli AI.CONFIG LOADBACKEND TF install/backends/redisai_tensorflow/redisai_tensorflow.so
 redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
 ```
 
