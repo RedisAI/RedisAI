@@ -110,6 +110,9 @@ def test_del_tf_model(env):
         model_pb = f.read()
 
     con = env
+
+    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
+
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     con.assertEqual(ret, b'OK')
@@ -626,6 +629,8 @@ def test_del_script(env):
 
     with open(script_filename, 'rb') as f:
         script = f.read()
+
+    env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     ret = env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
     env.assertEqual(ret, b'OK')
