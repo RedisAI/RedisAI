@@ -6,11 +6,7 @@
 #include "model_struct.h"
 #include "err.h"
 
-#include "tensorflow/c/c_api.h"
-
-RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor);
-
-TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t);
+int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *));
 
 RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
                              size_t ninputs, const char **inputs,

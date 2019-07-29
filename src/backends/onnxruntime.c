@@ -1,11 +1,22 @@
 #include "backends/onnxruntime.h"
 #include "tensor.h"
-#include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
+
+#include "onnxruntime_c_api.h"
 
 // TODO for getpid, remove when ONNXRuntime can read from stream
 #include <sys/types.h>
 #include <unistd.h>
+
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
+  get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
+  get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
+  get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
+  get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
+  get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
+
+  return REDISMODULE_OK;
+}
 
 ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
   if (dtype.code == kDLFloat) {

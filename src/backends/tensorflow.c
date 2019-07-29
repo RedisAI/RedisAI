@@ -1,7 +1,18 @@
 #include "backends/tensorflow.h"
 #include "tensor.h"
-#include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
+
+#include "tensorflow/c/c_api.h"
+
+int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *)) {
+  get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
+  get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
+  get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
+  get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
+  get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
+
+  return REDISMODULE_OK;
+}
 
 TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
 

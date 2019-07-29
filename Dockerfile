@@ -28,20 +28,18 @@ RUN set -ex;\
     mkdir -p build;\
     cd build;\
     cmake -DDEPS_PATH=../deps/install ..;\
-    make;\
+    make && make install;\
     cd ..
 
 # Package the runner
 FROM redis
-ENV LD_LIBRARY_PATH /usr/lib/redis/modules/
 
 RUN set -e; apt-get -qq update; apt-get install -y libgomp1
 
 RUN set -ex;\
-    mkdir -p "$LD_LIBRARY_PATH";
+    mkdir -p /usr/lib/redis/modules/;
 
-COPY --from=builder /redisai/build/redisai.so "$LD_LIBRARY_PATH"
-COPY --from=builder /redisai/deps/install/lib/*.so* "$LD_LIBRARY_PATH"
+COPY --from=builder /redisai/install/ /usr/lib/redis/modules/
 
 WORKDIR /data
 EXPOSE 6379
