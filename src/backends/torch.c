@@ -1,9 +1,17 @@
 #include "backends/torch.h"
 #include "tensor.h"
-#include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "torch_c.h"
 
+int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
+  get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
+  get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
+  get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
+  get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
+  get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
+
+  return REDISMODULE_OK;
+}
 
 RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
                                 const char *modeldef, size_t modellen,
