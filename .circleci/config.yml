@@ -42,9 +42,7 @@ jobs:
             mkdir build
             cd build
             cmake -DDEPS_PATH=../deps/install ..
-            make && make install
-            cd ..
-            make rlec_runpath_fix
+            make
 
       - run:
           name: Test
@@ -52,7 +50,7 @@ jobs:
             python3 -m venv venv
             . venv/bin/activate
             pip -q uninstall -y RLTest || true
-            pip -q install git+https://github.com/RedisLabsModules/RLTest@py3
+            pip -q install git+https://github.com/RedisLabsModules/RLTest@master
             pip -q install -r test/test_requirements.txt
             git lfs pull
             python3 -m RLTest --test test/basic_tests.py --module install/redisai.so
@@ -61,7 +59,7 @@ jobs:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp install/ramp/$MODULE_ARTIFACT ~/workspace/
+            cp install/$MODULE_ARTIFACT ~/workspace/
             # cp deps/install/lib/*.so*  ~/workspace/
             cp -r install/backends ~/workspace/
             cp ramp.yml ~/workspace/
