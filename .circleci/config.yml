@@ -2,7 +2,7 @@ version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/redis:5.0.5-buster
+      - image: circleci/python:3.6.8
 
     steps:
       - checkout
@@ -20,12 +20,8 @@ jobs:
             ./deps/readies/bin/getpy2
             ./system-setup.py
             make deps
-            bash get_deps.sh cpu
-            # git clone git://github.com/antirez/redis.git --branch 5.0.3
-            # (cd redis && make malloc=libc -j4 && sudo make install)
-            mkdir -p ~/.ssh
-            ssh-keyscan -H github.com >> ~/.ssh/known_hosts
-            ssh git@github.com git-lfs-authenticate "${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}" download
+            git clone git://github.com/antirez/redis.git --branch 5.0.3
+            (cd redis && make malloc=libc -j4 && sudo make install)
 
       - save_cache:
           paths:
