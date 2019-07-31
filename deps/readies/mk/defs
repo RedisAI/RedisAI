@@ -1,0 +1,6 @@
+
+MK=$(ROOT)/deps/readies/mk
+
+include $(MK)/common.defs
+include $(MK)/variant.defs
+include $(MK)/bindirs.defs

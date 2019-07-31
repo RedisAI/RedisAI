@@ -8,12 +8,15 @@ __pycache__
 
 # Dirs
 /install/
-/deps/
+/deps/*
+!/deps/readies/
+!/deps/*.py
 /build/
 examples/js/node_modules/
 examples/js/package-lock.json
 /test/venv/
 /test/logs/
+/1/
 
 # Eclipse (if that's your jam...)
 .project
