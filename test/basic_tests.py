@@ -111,7 +111,7 @@ def test_del_tf_model(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
@@ -134,7 +134,7 @@ def test_run_tf_model(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
@@ -257,7 +257,7 @@ def test_run_torch_model(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
     con.assertEqual(ret, b'OK')
@@ -361,7 +361,7 @@ def test_run_onnx_model(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'ONNX', os.path.join(BACKENDS_PATH, 'redisai_onnxruntime/redisai_onnxruntime.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'ONNX', os.path.join(BACKENDS_PATH, 'redisai_onnxruntime/redisai_onnxruntime.so'))
 
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', model_pb)
     con.assertEqual(ret, b'OK')
@@ -461,7 +461,7 @@ def test_run_onnxml_model(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'ONNX', os.path.join(BACKENDS_PATH, 'redisai_onnxruntime/redisai_onnxruntime.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'ONNX', os.path.join(BACKENDS_PATH, 'redisai_onnxruntime/redisai_onnxruntime.so'))
 
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', 'CPU', linear_model)
     con.assertEqual(ret, b'OK')
@@ -522,7 +522,7 @@ def test_run_mobilenet(env):
     output_var = 'MobilenetV2/Predictions/Reshape_1'
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
 
     model_pb, labels, img = load_mobilenet_test_data()
 
@@ -565,7 +565,7 @@ def test_run_mobilenet_multiproc(env):
 
     con = env
 
-    con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
+    # con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TF', os.path.join(BACKENDS_PATH, 'redisai_tensorflow/redisai_tensorflow.so'))
 
     model_pb, labels, img = load_mobilenet_test_data()
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'CPU',
@@ -587,7 +587,7 @@ def test_run_mobilenet_multiproc(env):
 
 
 def test_set_incorrect_script(env):
-    env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
+    # env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     try:
         env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
@@ -609,7 +609,7 @@ def test_set_incorrect_script(env):
 
 
 def test_set_correct_script(env):
-    env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
+    # env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
@@ -630,7 +630,7 @@ def test_del_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
+    # env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     ret = env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
     env.assertEqual(ret, b'OK')
@@ -640,7 +640,7 @@ def test_del_script(env):
 
 
 def test_run_script(env):
-    env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
+    # env.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', os.path.join(BACKENDS_PATH, 'redisai_torch/redisai_torch.so'))
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')

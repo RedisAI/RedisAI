@@ -1,4 +1,3 @@
-
 ifeq ($(CUDA),1)
 DEPS_FLAGS=
 else
@@ -22,9 +21,6 @@ BINDIR=$(PWD)/install
 
 all: build
 
-version:
-	@echo $(PACK_VER)
-
 build:
 ifeq ($(wildcard build/.),)
 	mkdir -p build
@@ -36,7 +32,7 @@ endif
 
 clean:
 ifeq ($(ALL),1)
-	rm -rf build deps
+	rm -rf build deps/install install
 else
 	$(MAKE) -C build clean
 endif
@@ -47,14 +43,8 @@ deps:
 
 pack:
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
-ifeq ($(wildcard build/pyenv/.),)
-	@virtualenv build/pyenv ;\
-	. ./build/pyenv/bin/activate ;\
-	pip install git+https://github.com/RedisLabs/RAMP
-endif
 	@echo "Building RAMP file ..."
 	@set -e ;\
-	. ./build/pyenv/bin/activate ;\
 	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
 	LD_LIBRARY_PATH=$(PWD)/deps/install/lib \
 	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(BINDIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
@@ -66,21 +56,14 @@ endif
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
 	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
 	cd install ;\
-	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER.tgz
-	@echo "Done."
+	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER.tgz ;\
+	echo "Done."
 
 test:
-ifeq ($(wildcard venv/.),)
-	@python3 -m venv test/venv
-	@set -e ;\
-	cd test ;\
-	. venv/bin/activate ;\
-	pip -q install git+https://github.com/RedisLabsModules/RLTest@master ;\
-	pip -q install -r test_requirements.txt
 	@git lfs pull
-endif
 	@set -e ;\
 	cd test ;\
-	. venv/bin/activate ;\
-	LD_LIBRARY_PATH=$(PWD)/install \
-	python3 -m RLTest --test basic_tests.py --module $(BINDIR)/redisai.so
+	python3 -m RLTest --test basic_tests.py --module $(BINDIR)/redisai.so \
+		--module-args "TF $(BINDIR)/backends/redisai_tensorflow/redisai_tensorflow.so ONNX $(BINDIR)/backends/redisai_onnxruntime/redisai_onnxruntime.so TORCH $(BINDIR)/backends/redisai_torch/redisai_torch.so"
+
+# LD_LIBRARY_PATH=$(PWD)/install

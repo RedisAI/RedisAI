@@ -10,7 +10,7 @@ import paella
 
 #----------------------------------------------------------------------------------------------
 
-class RedisGearsSetup(paella.Setup):
+class RedisAISetup(paella.Setup):
     def __init__(self, nop=False):
         paella.Setup.__init__(self, nop)
 
@@ -19,15 +19,16 @@ class RedisGearsSetup(paella.Setup):
         self.pip_install("wheel")
         self.pip_install("setuptools --upgrade")
         
-        self.install("git python3 cmake ca-certificates curl unzip wget patchelf awscli")
+        self.install("git cmake ca-certificates curl unzip wget patchelf awscli")
+        self.install("python3 python3-pip python3-venv python3-psutil python3-networkx")
 
     def debian_compat(self):
-        # self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
-        # self.install("git-lfs")
-        # self.run("git lfs install")
+        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
+        self.install("git-lfs")
+        self.run("git lfs install")
 
         self.install("build-essential")
-        self.install("python-psutil")
+        # self.install("python-psutil")
 
     def redhat_compat(self):
         self.group_install("'Development Tools'")
@@ -47,9 +48,10 @@ class RedisGearsSetup(paella.Setup):
 
     def common_last(self):
         if not self.has_command("ramp"):
-            self.pip_install("git+https://github.com/RedisLabs/RAMP --upgrade")
+            self.pip3_install("git+https://github.com/RedisLabs/RAMP --upgrade")
         if not self.has_command("RLTest"):
-            self.pip_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
+            self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
+        self.pip3_install("-r test/test_requirements.txt")
 
 #----------------------------------------------------------------------------------------------
 
@@ -57,4 +59,4 @@ parser = argparse.ArgumentParser(description='Set up system for build.')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
-RedisGearsSetup(nop = args.nop).setup()
+RedisAISetup(nop = args.nop).setup()

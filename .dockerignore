@@ -1,4 +1,7 @@
-deps/*
-install/*
+/deps/*
+!/deps/readies/
+!/deps/*.py
+/build/
+/install/
 **/*.o
 **/*.so

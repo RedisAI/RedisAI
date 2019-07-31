@@ -62,7 +62,7 @@ LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-x86_64-${TF_VERSION}.tar.gz
 
 if [ ! -e ${LIBTF_ARCHIVE} ]; then
   echo "Downloading libtensorflow ${TF_VERSION} ${TF_BUILD}"
-  wget https://storage.googleapis.com/tensorflow/libtensorflow/${LIBTF_ARCHIVE}
+  wget -q https://storage.googleapis.com/tensorflow/libtensorflow/${LIBTF_ARCHIVE}
 fi
 
 tar xf ${LIBTF_ARCHIVE} --no-same-owner --strip-components=1 -C ${TF_PREFIX}
@@ -98,7 +98,7 @@ LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_BUILD}-${PT_VERSION}.zip
 
 if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
   echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-  curl -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
+  curl -s -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
 fi
 
 unzip -o ${LIBTORCH_ARCHIVE}
@@ -109,7 +109,7 @@ if [[ "${PT_OS}" == "macos" ]]; then
   # also download mkl
   MKL_BUNDLE=mklml_mac_2019.0.3.20190220
   if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
-    wget "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
+    wget -q "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
   fi
   tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
   tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
@@ -134,7 +134,7 @@ ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_VERSION}.tgz
 
 if [ ! -e ${ORT_ARCHIVE} ]; then
   echo "Downloading ONNXRuntime ${ORT_VERSION} ${ORT_BUILD}"
-  wget https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
+  wget -q https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
 fi
 
 tar xf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
