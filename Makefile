@@ -60,6 +60,7 @@ pack:
 	echo "Done."
 
 test:
+	@git lfs install
 	@git lfs pull
 	@set -e ;\
 	cd test ;\
