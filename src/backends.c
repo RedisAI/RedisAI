@@ -1,3 +1,6 @@
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
 #include "backends.h"
 #include "redismodule.h"
 
