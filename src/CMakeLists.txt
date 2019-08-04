@@ -1,5 +1,6 @@
 ADD_LIBRARY(redisai_obj OBJECT
     redisai.c
+    backends.c
     model.c
     err.c
     script.c
