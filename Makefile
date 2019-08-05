@@ -23,11 +23,15 @@ BACKENDS_PATH ?= $(BINDIR)/backends
 
 all: build
 
+ifeq ($(DEBUG),1)
+CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
+endif
+
 build:
 ifeq ($(wildcard build/.),)
 	mkdir -p build
 	cd build; \
-	cmake -DDEPS_PATH=../deps/install ..
+	cmake -DDEPS_PATH=../deps/install $(CMAKE_FLAGS) ..
 endif
 	$(MAKE) -C build
 	$(MAKE) -C build install

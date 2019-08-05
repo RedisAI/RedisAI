@@ -7,8 +7,6 @@ FROM ${OS} AS builder
 ARG PACK=0
 ARG TEST=0
 
-SHELL ["/bin/bash", "-c"]
-
 WORKDIR /redisai
 COPY --from=redis /usr/local/ /usr/local/
 
@@ -24,8 +22,8 @@ RUN ./get_deps.sh cpu
 
 ADD ./ /redisai
 RUN make all
-RUN [[ $PACK == 1 ]] && make pack
-RUN [[ $TEST == 1 ]] && make test
+RUN if [ "$PACK" = "1" ]; then make pack; fi
+RUN if [ "$TEST" = "1" ]; then make test; fi
 
 #----------------------------------------------------------------------------------------------
 FROM redis
