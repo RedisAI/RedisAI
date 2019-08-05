@@ -29,5 +29,10 @@ typedef struct RAI_LoadedBackends {
 } RAI_LoadedBackends;
 
 RAI_LoadedBackends RAI_backends;
+char* RAI_BackendsPath;
+
+int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
+
+int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 
 #endif
