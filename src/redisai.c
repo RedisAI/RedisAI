@@ -8,7 +8,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdbool.h>
-#include <dlfcn.h>
 
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
@@ -499,6 +498,19 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RAI_Error err = {0};
 
   model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+
+  if (err.code == RAI_EBACKENDNOTLOADED) {
+    RedisModule_Log(ctx, "warning", "Backend %s not loaded, will try loading default backend\n", bckstr);
+    int ret = RAI_LoadDefaultBackend(ctx, backend);
+    if (ret == REDISMODULE_ERR) {
+      RedisModule_Log(ctx, "error", "Could not load %s default backend\n", bckstr);
+      int ret = RedisModule_ReplyWithError(ctx, "ERR: could not load backend");
+      RAI_ClearError(&err);
+      return ret;
+    }
+    RAI_ClearError(&err);
+    model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+  }
 
   if (err.code != RAI_OK) {
     #ifdef RAI_PRINT_BACKEND_ERRORS
@@ -1124,6 +1136,19 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Error err = {0};
   script = RAI_ScriptCreate(device, scriptdef, &err);
 
+  if (err.code == RAI_EBACKENDNOTLOADED) {
+    RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend\n");
+    int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
+    if (ret == REDISMODULE_ERR) {
+      RedisModule_Log(ctx, "error", "Could not load TORCH default backend\n");
+      int ret = RedisModule_ReplyWithError(ctx, "ERR: could not load backend");
+      RAI_ClearError(&err);
+      return ret;
+    }
+    RAI_ClearError(&err);
+    script = RAI_ScriptCreate(device, scriptdef, &err);
+  }
+
   if (err.code != RAI_OK){
     #ifdef RAI_PRINT_BACKEND_ERRORS
     printf("ERR: %s\n", err.detail);
@@ -1153,226 +1178,6 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   return REDISMODULE_OK;
 }
 
-int RedisAI_Config_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
-  if (RAI_backends.tf.model_run != NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load TF backend: backend already loaded");
-    return REDISMODULE_ERR;
-  }
-
-  void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-
-  if (handle == NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load TF backend from %s: %s", path, dlerror());
-    return REDISMODULE_ERR;
-  } 
-
-  RAI_LoadedBackend backend = {0};
-
-  int (*init_backend)(int (*)(const char *, void *));
-  init_backend = (int (*)(int (*)(const char *, void *)))
-                  (unsigned long) dlsym(handle, "RAI_InitBackendTF");
-  if (init_backend == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendTF. TF backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-  init_backend(RedisModule_GetApi);
-
-  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, RAI_Device,
-                                     size_t, const char**, size_t, const char**,
-                                     const char*, size_t, RAI_Error*))
-                                     (unsigned long) dlsym(handle, "RAI_ModelCreateTF");
-  if (backend.model_create_with_nodes == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelCreateTF. TF backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_free = (void (*)(RAI_Model*, RAI_Error*))
-                        (unsigned long) dlsym(handle, "RAI_ModelFreeTF");
-  if (backend.model_free == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelFreeTF. TF backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
-                      (unsigned long) dlsym(handle, "RAI_ModelRunTF");
-  if (backend.model_run == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelRunTF. TF backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_serialize = (int (*)(RAI_Model*, char**, size_t*, RAI_Error*))
-                             (unsigned long) dlsym(handle, "RAI_ModelSerializeTF");
-  if (backend.model_serialize == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelSerializeTF. TF backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  RAI_backends.tf = backend;
-
-  RedisModule_Log(ctx, "notice", "TF backend loaded from %s", path);
-
-  return REDISMODULE_OK;
-}
-
-int RedisAI_Config_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
-  if (RAI_backends.torch.model_run != NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load TORCH backend: backend already loaded");
-    return REDISMODULE_ERR;
-  }
-
-  void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-
-  if (handle == NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load TORCH backend from %s: %s", path, dlerror());
-    return REDISMODULE_ERR;
-  } 
-
-  RAI_LoadedBackend backend = {0};
-
-  int (*init_backend)(int (*)(const char *, void *));
-  init_backend = (int (*)(int (*)(const char *, void *)))
-                  (unsigned long) dlsym(handle, "RAI_InitBackendTorch");
-  if (init_backend == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-  init_backend(RedisModule_GetApi);
-
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device,
-                          const char*, size_t, RAI_Error*))
-                         (unsigned long) dlsym(handle, "RAI_ModelCreateTorch");
-  if (backend.model_create == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelCreateTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_free = (void (*)(RAI_Model*, RAI_Error*))
-                        (unsigned long) dlsym(handle, "RAI_ModelFreeTorch");
-  if (backend.model_free == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelFreeTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
-                       (unsigned long) dlsym(handle, "RAI_ModelRunTorch");
-  if (backend.model_run == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelRunTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_serialize = (int (*)(RAI_Model*, char**, size_t*, RAI_Error*))
-                             (unsigned long) dlsym(handle, "RAI_ModelSerializeTorch");
-  if (backend.model_serialize == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelSerializeTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.script_create = (RAI_Script* (*)(RAI_Device, const char*, RAI_Error*))
-                           (unsigned long) dlsym(handle, "RAI_ScriptCreateTorch");
-  if (backend.script_create == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ScriptCreateTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.script_free = (void (*)(RAI_Script*, RAI_Error*))
-                         (unsigned long) dlsym(handle, "RAI_ScriptFreeTorch");
-  if (backend.script_free == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ScriptFreeTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.script_run = (int (*)(RAI_ScriptRunCtx*, RAI_Error*))
-                        (unsigned long) dlsym(handle, "RAI_ScriptRunTorch");
-  if (backend.script_run == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ScriptRunTorch. TORCH backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  RAI_backends.torch = backend;
-
-  RedisModule_Log(ctx, "notice", "TORCH backend loaded from %s", path);
-
-  return REDISMODULE_OK;
-}
-
-int RedisAI_Config_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
-  if (RAI_backends.onnx.model_run != NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load ONNX backend: backend already loaded");
-    return REDISMODULE_ERR;
-  }
-
-  void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-
-  if (handle == NULL) {
-    RedisModule_Log(ctx, "warning", "Could not load ONNX backend from %s: %s", path, dlerror());
-    return REDISMODULE_ERR;
-  } 
-
-  RAI_LoadedBackend backend = {0};
-
-  int (*init_backend)(int (*)(const char *, void *));
-  init_backend = (int (*)(int (*)(const char *, void *)))
-                  (unsigned long) dlsym(handle, "RAI_InitBackendORT");
-  if (init_backend == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendORT. ONNX backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-  init_backend(RedisModule_GetApi);
-
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device,
-                          const char*, size_t, RAI_Error*))
-                         (unsigned long) dlsym(handle, "RAI_ModelCreateORT");
-  if (backend.model_create == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelCreateORT. ONNX backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_free = (void (*)(RAI_Model*, RAI_Error*))
-                        (unsigned long) dlsym(handle, "RAI_ModelFreeORT");
-  if (backend.model_free == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelFreeORT. ONNX backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
-                      (unsigned long) dlsym(handle, "RAI_ModelRunORT");
-  if (backend.model_run == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelRunORT. ONNX backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  backend.model_serialize = (int (*)(RAI_Model*, char**, size_t*, RAI_Error*))
-                            (unsigned long) dlsym(handle, "RAI_ModelSerializeORT");
-  if (backend.model_serialize == NULL) {
-    dlclose(handle);
-    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelSerializeORT. ONNX backend not loaded from %s", path);
-    return REDISMODULE_ERR;
-  }
-
-  RAI_backends.onnx = backend;
-
-  RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);
-
-  return REDISMODULE_OK;
-}
-
 int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
@@ -1389,13 +1194,13 @@ int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, in
 
   int ret;
   if (strcasecmp(backend, "TF") == 0) {
-    ret = RedisAI_Config_LoadBackend_TensorFlow(ctx, path);
+    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, path);
   }
   else if (strcasecmp(backend, "TORCH") == 0) {
-    ret = RedisAI_Config_LoadBackend_Torch(ctx, path);
+    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, path);
   }
   else if (strcasecmp(backend, "ONNX") == 0) {
-    ret = RedisAI_Config_LoadBackend_ONNXRuntime(ctx, path);
+    ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, path);
   }
   else {
     return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
@@ -1406,6 +1211,17 @@ int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, in
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR error loading backend");
+}
+
+int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
+  RedisModule_AutoMemory(ctx);
+
+  if (RAI_BackendsPath != NULL) {
+    RedisModule_Free(RAI_BackendsPath);
+  }
+  RAI_BackendsPath = RedisModule_Strdup(path);
+
+  return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -1421,6 +1237,10 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
   if (strcasecmp(subcommand, "LOADBACKEND") == 0) {
     return RedisAI_Config_LoadBackend(ctx, argv + 1, argc - 1);
+  }
+
+  if (strcasecmp(subcommand, "BACKENDSPATH") == 0) {
+    return RedisAI_Config_BackendsPath(ctx, RedisModule_StringPtrLen(argv[1], NULL));
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR unsupported subcommand");
@@ -1501,6 +1321,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 #endif
   }
 
+  RAI_BackendsPath = NULL;
+
   if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
@@ -1574,14 +1396,24 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
 
     int ret = REDISMODULE_OK;
+    if (strcasecmp(key, "BACKENDSPATH") == 0) {
+      ret = RedisAI_Config_BackendsPath(ctx, val);
+    }
+  }
+
+  for (int i=0; i<argc/2; i++) {
+    const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
+    const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
+
+    int ret = REDISMODULE_OK;
     if (strcasecmp(key, "TF") == 0) {
-      ret = RedisAI_Config_LoadBackend_TensorFlow(ctx, val);
+      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, val);
     }
     else if (strcasecmp(key, "TORCH") == 0) {
-      ret = RedisAI_Config_LoadBackend_Torch(ctx, val);
+      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, val);
     }
     else if (strcasecmp(key, "ONNX") == 0) {
-      ret = RedisAI_Config_LoadBackend_ONNXRuntime(ctx, val);
+      ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, val);
     }
     else {
       ret = REDISMODULE_ERR;

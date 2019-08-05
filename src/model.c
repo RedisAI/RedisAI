@@ -40,6 +40,18 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Model *model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
+
+  if (err.code == RAI_EBACKENDNOTLOADED) {
+    RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
+    int ret = RAI_LoadDefaultBackend(ctx, backend);
+    if (ret == REDISMODULE_ERR) {
+      RedisModule_Log(ctx, "error", "Could not load default backend\n");
+      RAI_ClearError(&err);
+      return NULL;
+    }
+    RAI_ClearError(&err);
+    model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, buffer, len, &err);
+  }
  
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
