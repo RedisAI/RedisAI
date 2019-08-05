@@ -17,7 +17,7 @@ jobs:
       - run:
           name: install dependencies
           command: |
-            sudo ./deps/readies/bin/getpy2
+            sudo ./deps/readies/bin/getpy
             sudo ./system-setup.py
             make deps
             git clone git://github.com/antirez/redis.git --branch 5.0.3

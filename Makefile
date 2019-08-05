@@ -34,12 +34,13 @@ endif
 
 clean:
 ifeq ($(ALL),1)
-	rm -rf build deps/install install
+	rm -rf build install deps/dlpack deps/install deps/*.tar.gz deps/*.zip deps/*.tgz
+	
 else
 	$(MAKE) -C build clean
 endif
 
-deps:
+deps fetch:
 	@echo Fetching dependencies...
 	@./get_deps.sh $(DEPS_FLAGS)
 
@@ -70,5 +71,4 @@ test:
 	@git lfs pull
 	@set -e ;\
 	cd test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(BINDIR)/redisai.so \
-		--module-args "TF $(BACKENDS_PATH)/redisai_tensorflow/redisai_tensorflow.so ONNX $(BACKENDS_PATH)/redisai_onnxruntime/redisai_onnxruntime.so TORCH $(BACKENDS_PATH)/redisai_torch/redisai_torch.so"
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(BINDIR)/redisai.so

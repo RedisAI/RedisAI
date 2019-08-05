@@ -7,6 +7,8 @@ FROM ${OS} AS builder
 ARG PACK=0
 ARG TEST=0
 
+SHELL ["/bin/bash", "-c"]
+
 WORKDIR /redisai
 COPY --from=redis /usr/local/ /usr/local/
 

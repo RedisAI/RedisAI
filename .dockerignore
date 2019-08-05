@@ -5,3 +5,5 @@
 /install/
 **/*.o
 **/*.so
+/.venv/
+/venv/

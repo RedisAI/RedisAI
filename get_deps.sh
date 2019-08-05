@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
-set -x
+[[ $VERBOSE == 1 ]] && set -x
 
 BASE_DIRECTORY=`pwd`
 
@@ -101,7 +101,7 @@ if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
   curl -s -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
 fi
 
-unzip -o ${LIBTORCH_ARCHIVE}
+unzip -q -o ${LIBTORCH_ARCHIVE}
 tar cf - libtorch | tar xf -  --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
 rm -rf libtorch
 
