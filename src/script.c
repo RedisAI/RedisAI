@@ -22,6 +22,18 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Script *script = RAI_ScriptCreate(device, scriptdef, &err);
 
+  if (err.code == RAI_EBACKENDNOTLOADED) {
+    RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
+    int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
+    if (ret == REDISMODULE_ERR) {
+      RedisModule_Log(ctx, "error", "Could not load default TORCH backend\n");
+      RAI_ClearError(&err);
+      return NULL;
+    }
+    RAI_ClearError(&err);
+    script = RAI_ScriptCreate(device, scriptdef, &err);
+  }
+ 
   RedisModule_Free(scriptdef);
 
   if (err.code != RAI_OK) {
