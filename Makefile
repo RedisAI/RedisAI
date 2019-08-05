@@ -66,6 +66,7 @@ pack_deps: pack_ramp
 	echo "Done."
 
 test:
+	@git lfs install
 	@git lfs pull
 	@set -e ;\
 	cd test ;\
