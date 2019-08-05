@@ -1,6 +1,11 @@
+ARG OS=debian:buster
+
 #----------------------------------------------------------------------------------------------
 FROM redis AS redis
-FROM debian:buster AS builder
+FROM ${OS} AS builder
+
+ARG PACK=0
+ARG TEST=0
 
 WORKDIR /redisai
 COPY --from=redis /usr/local/ /usr/local/
@@ -9,7 +14,7 @@ COPY ./deps/readies/ deps/readies/
 COPY ./system-setup.py .
 COPY ./test/test_requirements.txt test/
 
-RUN ./deps/readies/bin/getpy2
+RUN ./deps/readies/bin/getpy
 RUN ./system-setup.py
 
 COPY ./get_deps.sh .
@@ -17,8 +22,8 @@ RUN ./get_deps.sh cpu
 
 ADD ./ /redisai
 RUN make all
-# RUN make pack
-# RUN make test
+RUN [[ $PACK == 1 ]] && make pack
+RUN [[ $TEST == 1 ]] && make test
 
 #----------------------------------------------------------------------------------------------
 FROM redis

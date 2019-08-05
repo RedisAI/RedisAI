@@ -17,7 +17,9 @@ endif
 
 BINDIR=$(PWD)/install
 
-.PHONY: all build clean deps pack test
+BACKENDS_PATH ?= $(BINDIR)/backends
+
+.PHONY: all build clean deps pack pack_ramp pack_deps test
 
 all: build
 
@@ -41,7 +43,9 @@ deps:
 	@echo Fetching dependencies...
 	@./get_deps.sh $(DEPS_FLAGS)
 
-pack:
+pack: pack_ramp pack_deps
+
+pack_ramp:
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
 	@echo "Building RAMP file ..."
 	@set -e ;\
@@ -51,6 +55,8 @@ pack:
 	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
 	rm -f $RAMPOUT ;\
 	echo "Done."
+
+pack_deps: pack_ramp
 	@echo "Building dependencies file ..."
 	@set -e ;\
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
@@ -63,7 +69,5 @@ test:
 	@git lfs pull
 	@set -e ;\
 	cd test ;\
-	python3 -m RLTest --test basic_tests.py --module $(BINDIR)/redisai.so \
-		--module-args "TF $(BINDIR)/backends/redisai_tensorflow/redisai_tensorflow.so ONNX $(BINDIR)/backends/redisai_onnxruntime/redisai_onnxruntime.so TORCH $(BINDIR)/backends/redisai_torch/redisai_torch.so"
-
-# LD_LIBRARY_PATH=$(PWD)/install
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(BINDIR)/redisai.so \
+		--module-args "TF $(BACKENDS_PATH)/redisai_tensorflow/redisai_tensorflow.so ONNX $(BACKENDS_PATH)/redisai_onnxruntime/redisai_onnxruntime.so TORCH $(BACKENDS_PATH)/redisai_torch/redisai_torch.so"

@@ -1,8 +1,8 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import sys
 import os
-import popen2
+from subprocess import Popen, PIPE
 import argparse
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deps/readies"))
@@ -16,11 +16,10 @@ class RedisAISetup(paella.Setup):
 
     def common_first(self):
         self.setup_pip()
-        self.pip_install("wheel")
-        self.pip_install("setuptools --upgrade")
+        self.pip3_install("wheel")
+        self.pip3_install("setuptools --upgrade")
         
         self.install("git cmake ca-certificates curl unzip wget patchelf awscli")
-        self.install("python3 python3-pip python3-venv python3-psutil python3-networkx")
 
     def debian_compat(self):
         self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
@@ -28,22 +27,22 @@ class RedisAISetup(paella.Setup):
         self.run("git lfs install")
 
         self.install("build-essential")
-        # self.install("python-psutil")
+        self.install("python3 python3-pip python3-venv python3-psutil python3-networkx")
 
     def redhat_compat(self):
         self.group_install("'Development Tools'")
         self.install("redhat-lsb-core")
 
-        # uninstall and install psutil (order is important), otherwise RLTest fails
-        self.run("pip uninstall -y psutil")
-        self.install("python2-psutil")
+        self.install("epel-release")
+        self.install("python36 python36-pip")
+        self.install("python36-psutil")
 
     def fedora(self):
         self.group_install("'Development Tools'")
 
     def macosx(self):
-        r, w, e = popen2.popen3('xcode-select -p')
-        if r.readlines() == []:
+        p = Popen('xcode-select -p', stdout=PIPE, close_fds=True, shell=True)
+        if p.stdout.readlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
 
     def common_last(self):

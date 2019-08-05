@@ -60,6 +60,8 @@ class Setup(OnPlatform):
             self.python = "python"
         elif self.has_command("python2"):
             self.python = "python2"
+        elif self.has_command("python3"):
+            self.python = "python3"
 
         if self.os == 'macosx':
             # this is required because osx pip installed are done with --user
@@ -146,8 +148,9 @@ class Setup(OnPlatform):
     def setup_pip(self):
         get_pip = "set -e; cd /tmp; curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py"
         if not self.has_command("pip"):
-            self.install("curl")
-            self.run(get_pip + "; " + self.python + " get-pip.py", output_on_error=True)
+            self.install("python3-pip")
+            # self.install("curl")
+            # self.run(get_pip + "; " + self.python + " get-pip.py", output_on_error=True)
         ## fails on ubuntu 18:
         # if not has_command("pip3") and has_command("python3"):
         #     run(get_pip + "; python3 get-pip.py")
