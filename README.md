@@ -71,6 +71,8 @@ make && make install
 cd ..
 ```
 
+Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
+
 ### Running the server
 
 You will need a redis-server version 4.0.9 or greater. This should be
