@@ -1,6 +1,8 @@
 <img src="images/logo.svg" alt="logo" width="200"/>
 
 # RedisAI
+[![Mailing List](https://img.shields.io/badge/Mailing%20List-RedisAI-blue)](https://groups.google.com/forum/#!forum/redisai)
+[![Gitter](https://badges.gitter.im/RedisLabs/RedisAI.svg)](https://gitter.im/RedisLabs/RedisAI?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 RedisAI is a Redis module for serving tensors and executing deep learning models.
 
