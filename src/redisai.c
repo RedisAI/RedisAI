@@ -1240,7 +1240,11 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
   }
 
   if (strcasecmp(subcommand, "BACKENDSPATH") == 0) {
-    return RedisAI_Config_BackendsPath(ctx, RedisModule_StringPtrLen(argv[1], NULL));
+    if (argc > 2) {
+      return RedisAI_Config_BackendsPath(ctx, RedisModule_StringPtrLen(argv[2], NULL));
+    } else {
+      return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: missing path argument");
+    }
   }
 
   return RedisModule_ReplyWithError(ctx, "ERR unsupported subcommand");
