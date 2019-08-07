@@ -42,6 +42,7 @@ class RedisAISetup(paella.Setup):
 
     def macosx(self):
         p = Popen('xcode-select -p', stdout=PIPE, close_fds=True, shell=True)
+        p.communicate()
         if p.stdout.readlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
 
