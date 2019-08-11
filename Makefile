@@ -68,7 +68,7 @@ pack_ramp:
 	@echo "Building RAMP file ..."
 	@set -e ;\
 	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
-	LD_LIBRARY_PATH=$(PWD)/deps/install/lib \
+	LD_LIBRARY_PATH=$(PWD)/deps/install-$(ENGINE)/lib \
 	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(BINDIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
 	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
 	rm -f $RAMPOUT ;\
@@ -79,7 +79,7 @@ pack_deps: pack_ramp
 	@set -e ;\
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
 	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
-	cd install ;\
+	cd install-$(ENGINE) ;\
 	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER-$(ENGINE).tgz ;\
 	echo "Done."
 

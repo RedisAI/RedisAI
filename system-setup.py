@@ -27,7 +27,7 @@ class RedisAISetup(paella.Setup):
         # self.run("git lfs install")
 
         self.install("build-essential")
-        self.install("python3 python3-pip python3-venv python3-psutil python3-networkx")
+        self.install("python3-venv python3-psutil python3-networkx")
 
     def redhat_compat(self):
         self.group_install("'Development Tools'")
