@@ -41,7 +41,10 @@ else
   echo "dlpack is in place."
 fi
 
-[[ ! -d ${DLPACK_PREFIX}/include ]] && ln -s dlpack/include ${DLPACK_PREFIX}/include
+if [[ ! -d ${DLPACK_PREFIX}/include ]]; then
+	mkdir -p ${DLPACK_PREFIX}
+	ln -sf ${DEPS_DIR}/dlpack/include ${DLPACK_PREFIX}/include
+fi
 
 ## TENSORFLOW
 
@@ -121,10 +124,10 @@ if [[ ! -d ${TORCH_PREFIX} ]]; then
   
   if [ ! -e "${LIBTORCH_ARCHIVE}" ]; then
     echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-    # curl -s -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
+    curl -s -L ${LIBTORCH_URL} > ${LIBTORCH_ARCHIVE}
   fi
   
-  unzip -q -o ${LIBTORCH_ARCHIVE} -d ${TORCH_PREFIX}/..
+  unzip -q -o ${LIBTORCH_ARCHIVE} -d ${TORCH_PREFIX}/../
   
   echo "Done."
   

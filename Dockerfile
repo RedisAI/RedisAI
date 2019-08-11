@@ -32,7 +32,7 @@ RUN set -e; apt-get -qq update; apt-get install -y libgomp1
 
 RUN mkdir -p /usr/lib/redis/modules/
 
-COPY --from=builder /redisai/install/ /usr/lib/redis/modules/
+COPY --from=builder /redisai/install-cpu/ /usr/lib/redis/modules/
 
 WORKDIR /data
 EXPOSE 6379
