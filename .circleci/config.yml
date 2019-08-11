@@ -42,9 +42,8 @@ jobs:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp install/$MODULE_ARTIFACT ~/workspace/
-            # cp deps/install/lib/*.so*  ~/workspace/
-            cp -r install/backends ~/workspace/
+            cp install-cpu/$MODULE_ARTIFACT ~/workspace/
+            cp -r install-cpu/backends ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace
