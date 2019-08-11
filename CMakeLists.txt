@@ -18,6 +18,8 @@ GET_FILENAME_COMPONENT(depsAbs
     "${DEPS_PATH}" REALPATH
     BASE_DIR "${CMAKE_BINARY_DIR}")
 
+# SET(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-9.0)
+
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
 INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
 INCLUDE_DIRECTORIES(${depsAbs}/libtorch/include)
@@ -68,7 +70,7 @@ IF (APPLE)
         LINK_FLAGS "-undefined dynamic_lookup")
 ENDIF()
 
-SET(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install)
+SET(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install-${ENGINE})
 
 INSTALL(TARGETS redisai LIBRARY DESTINATION .)
 

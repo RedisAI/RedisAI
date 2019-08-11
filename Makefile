@@ -1,7 +1,14 @@
-ifeq ($(CUDA),1)
-DEPS_FLAGS=
+override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
+
+ifeq ($(GPU),1)
+ifeq ($(CPU),1)
+$(error CPU=1 and GPU=1 (or CUDA=1) are conflicting)
+endif
+DEPS_FLAGS=gpu
+ENGINE=gpu
 else
 DEPS_FLAGS=cpu
+ENGINE=cpu
 endif
 
 export REDIS_ENT_LIB_PATH=/opt/redislabs/lib
@@ -15,11 +22,18 @@ else
 PACK_VER:=$(VERSION)
 endif
 
-BINDIR=$(PWD)/install
+BINDIR=$(PWD)/install-$(ENGINE)
 
 BACKENDS_PATH ?= $(BINDIR)/backends
 
-.PHONY: all build clean deps pack pack_ramp pack_deps test
+#----------------------------------------------------------------------------------------------
+
+setup:
+	@echo Setting up system...
+	$(SHOW)./deps/readies/bin/getpy
+	$(SHOW)./system-setup.py
+
+.PHONY: all setup build clean deps pack pack_ramp pack_deps test
 
 all: build
 
@@ -28,18 +42,17 @@ CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
 endif
 
 build:
-ifeq ($(wildcard build/.),)
+ifeq ($(wildcard build/Makefile),)
 	mkdir -p build
 	cd build; \
-	cmake -DDEPS_PATH=../deps/install $(CMAKE_FLAGS) ..
+	cmake -DENGINE=$(ENGINE) -DDEPS_PATH=../deps/install-$(ENGINE) $(CMAKE_FLAGS) ..
 endif
 	$(MAKE) -C build
 	$(MAKE) -C build install
 
 clean:
 ifeq ($(ALL),1)
-	rm -rf build install deps/dlpack deps/install deps/*.tar.gz deps/*.zip deps/*.tgz
-	
+	rm -rf build install deps/dlpack deps/install-$(ENGINE) deps/*.tar.gz deps/*.zip deps/*.tgz
 else
 	$(MAKE) -C build clean
 endif
@@ -67,7 +80,7 @@ pack_deps: pack_ramp
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
 	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
 	cd install ;\
-	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER.tgz ;\
+	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER-$(ENGINE).tgz ;\
 	echo "Done."
 
 test:
