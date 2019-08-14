@@ -587,8 +587,28 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   RedisModule_ReplyWithArray(ctx, 3);
-  RedisModule_ReplyWithLongLong(ctx, mto->backend);
-  RedisModule_ReplyWithLongLong(ctx, mto->device);
+
+  switch (mto->backend) {
+    case REDISAI_BACKEND_TENSORFLOW:
+      RedisModule_ReplyWithSimpleString(ctx, "TF");
+      break;
+    case REDISAI_BACKEND_TORCH:
+      RedisModule_ReplyWithSimpleString(ctx, "TORCH");
+      break;
+    case REDISAI_BACKEND_ONNXRUNTIME:
+      RedisModule_ReplyWithSimpleString(ctx, "ONNX");
+      break;
+  }
+
+  switch (mto->device) {
+    case REDISAI_DEVICE_CPU:
+      RedisModule_ReplyWithSimpleString(ctx, "CPU");
+      break;
+    case REDISAI_DEVICE_GPU:
+      RedisModule_ReplyWithSimpleString(ctx, "GPU");
+      break;
+  }
+
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
   return REDISMODULE_OK;
