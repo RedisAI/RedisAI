@@ -1387,17 +1387,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     RedisModule_Log(ctx, "warning", "Even number of arguments provided to module. Please provide arguments as KEY VAL pairs.");
   }
 
-  for (int i=0; i<argc/2; i++) {
-    const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
-    const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
-
-    int ret = REDISMODULE_OK;
-    if (strcasecmp(key, "BACKENDSPATH") == 0) {
-      ret = RedisAI_Config_BackendsPath(ctx, val);
-    }
-  }
-
-  for (int i=0; i<argc/2; i++) {
+  for (int i = 0; i < argc/2; ++i) {
     const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
     const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
 
@@ -1411,7 +1401,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     else if (strcasecmp(key, "ONNX") == 0) {
       ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, val);
     }
-    else {
+    else if (strcasecmp(key, "BACKENDSPATH") == 0) {
+      ret = RedisAI_Config_BackendsPath(ctx, val);
+    } else {
       ret = REDISMODULE_ERR;
     }
 
