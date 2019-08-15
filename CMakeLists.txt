@@ -25,7 +25,7 @@ INCLUDE_DIRECTORIES(${depsAbs}/onnxruntime/include)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-SET(CMAKE_C_STANDARD 99)
+SET(CMAKE_C_STANDARD 11)
 
 FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow libtensorflow.so
              PATHS ${depsAbs}/libtensorflow/lib)
