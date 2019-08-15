@@ -39,15 +39,6 @@ IF (NOT ORT_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
 ENDIF()
 
-IF (APPLE)
-    FIND_LIBRARY(MKL_LIBRARIES NAMES mklml
-                 PATHS ${depsAbs}/onnxruntime/lib)
-    IF (NOT MKL_LIBRARIES)
-        MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
-    ENDIF()
-    SET(TORCH_LIBRARIES "${MKL_LIBRARIES}")
-ENDIF()
-
 # Find Torch stuff and build our wrapper
 SET (Torch_DIR ${depsAbs}/libtorch/share/cmake/Torch)
 FIND_PACKAGE(Torch REQUIRED)
