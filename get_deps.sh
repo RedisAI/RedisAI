@@ -7,16 +7,16 @@ set -e
 
 if [[ "$1" == "cpu" ]]; then
 	GPU=no
-	VARIANT=cpu
+	DEVICE=cpu
 elif [[ "$1" == "gpu" ]]; then
 	GPU=yes
-	VARIANT=gpu
+	DEVICE=gpu
 else
 	GPU=${GPU:-no}
 	if [[ $GPU == 1 ]]; then
-		VARIANT=gpu
+		DEVICE=gpu
 	else
-		VARIANT=cpu
+		DEVICE=cpu
 	fi
 fi
 
@@ -24,7 +24,7 @@ DEPS_DIR=$HERE/deps
 mkdir -p ${DEPS_DIR}
 cd ${DEPS_DIR}
 
-PREFIX=${DEPS_DIR}/install-$VARIANT
+PREFIX=${DEPS_DIR}/install-$DEVICE
 mkdir -p ${PREFIX}
 
 ## DLPACK
@@ -173,7 +173,7 @@ if [[ ! -d ${ORT_PREFIX} ]]; then
   mkdir -p ${ORT_PREFIX}
 
   if [ ! -e ${ORT_ARCHIVE} ]; then
-    echo "Downloading ONNXRuntime ${ORT_VERSION} ${VARIANT}"
+    echo "Downloading ONNXRuntime ${ORT_VERSION} ${DEVICE}"
     wget -q https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
   fi
   

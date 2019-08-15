@@ -7,7 +7,7 @@ __pycache__
 *.pyc
 
 # Dirs
-/install/
+/install*/
 /deps/*
 !/deps/readies/
 !/deps/*.py

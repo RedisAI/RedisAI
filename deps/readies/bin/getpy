@@ -1,9 +1,13 @@
 #!/bin/bash
 
-show_if_error() {
-	{ "${@:1}"; } > /tmp/py.log  2>&1
-	[ $? != 0 ] && cat /tmp/py.log
-	rm -f /tmp/py.log
+[ "$VERBOSE" = "1" ] && set -x
+
+runn() {
+	[[ $NOP == 1 ]] && { echo "${@:1}"; return; }
+	__runn_log=$(mktemp /tmp/run.XXXXX)
+	{ "${@:1}"; } > $__runn_log  2>&1
+	[ $? != 0 ] && cat $__runn_log
+	rm -f $__runn_log
 }
 
 if [ ! -z $(command -v python) ]; then
@@ -13,18 +17,18 @@ fi
 [ ! -z $(command -v python3) ] && exit 0
 
 if [ ! -z $(command -v apt-get) ]; then
-	show_if_error apt-get -qq update
-	show_if_error apt-get -qq install -y python3
+	runn apt-get -qq update
+	runn apt-get -qq install -y python3
 elif [ ! -z $(command -v dnf) ]; then
-	show_if_error dnf install -y python3
+	runn dnf install -y python3
 elif [ ! -z $(command -v yum) ]; then
-	show_if_error yum install -y epel-release
-	show_if_error yum install -y python36
+	runn yum install -y epel-release
+	runn yum install -y python36
 elif [ ! -z $(command -v apk) ]; then
-	show_if_error apk update
-	show_if_error apk add python3
+	runn apk update
+	runn apk add python3
 elif [ ! -z $(command -v brew) ]; then
-	show_if_error brew install python3
+	runn brew install python3
 fi
 
 if [ -z $(command -v python3) ]; then

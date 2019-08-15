@@ -5,10 +5,10 @@ ifeq ($(CPU),1)
 $(error CPU=1 and GPU=1 (or CUDA=1) are conflicting)
 endif
 DEPS_FLAGS=gpu
-ENGINE=gpu
+DEVICE=gpu
 else
 DEPS_FLAGS=cpu
-ENGINE=cpu
+DEVICE=cpu
 endif
 
 export REDIS_ENT_LIB_PATH=/opt/redislabs/lib
@@ -22,20 +22,26 @@ else
 PACK_VER:=$(VERSION)
 endif
 
-BINDIR=$(PWD)/install-$(ENGINE)
+BINDIR=$(PWD)/build
+INSTALL_DIR=$(PWD)/install-$(DEVICE)
 
-BACKENDS_PATH ?= $(BINDIR)/backends
+BACKENDS_PATH ?= $(INSTALL_DIR)/backends
+
+RAMP:=ramp
 
 #----------------------------------------------------------------------------------------------
-
-setup:
-	@echo Setting up system...
-	$(SHOW)./deps/readies/bin/getpy
-	$(SHOW)./system-setup.py
 
 .PHONY: all setup build clean deps pack pack_ramp pack_deps test
 
 all: build
+
+setup:
+	@echo Setting up system...
+	./deps/readies/bin/getpy
+	./system-setup.py
+
+show-setup:
+	@./system-setup.py --nop
 
 ifeq ($(DEBUG),1)
 CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
@@ -45,14 +51,15 @@ build:
 ifeq ($(wildcard build/Makefile),)
 	mkdir -p build
 	cd build; \
-	cmake -DENGINE=$(ENGINE) -DDEPS_PATH=../deps/install-$(ENGINE) $(CMAKE_FLAGS) ..
+	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=../deps/install-$(DEVICE) $(CMAKE_FLAGS) ..
 endif
 	$(MAKE) -C build
 	$(MAKE) -C build install
+	ln -sf install-$(DEVICE) install
 
 clean:
 ifeq ($(ALL),1)
-	rm -rf build install deps/dlpack deps/install-$(ENGINE) deps/*.tar.gz deps/*.zip deps/*.tgz
+	rm -rf build install deps/dlpack deps/install-$(DEVICE) deps/*.tar.gz deps/*.zip deps/*.tgz
 else
 	$(MAKE) -C build clean
 endif
@@ -68,10 +75,14 @@ pack_ramp:
 	@echo "Building RAMP file ..."
 	@set -e ;\
 	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
-	LD_LIBRARY_PATH=$(PWD)/deps/install-$(ENGINE)/lib \
-	ramp pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(BINDIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
+	LD_LIBRARY_PATH=$(PWD)/deps/install-$(DEVICE)/lib \
+	$(RAMP) pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(INSTALL_DIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
 	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
-	rm -f $RAMPOUT ;\
+	cat $(BINDIR)/PACKAGE | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $(BINDIR)/VERSION ;\
+	VERSION=$$(cat $(BINDIR)/VERSION) ;\
+	$(RAMP) pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" \
+		-c "BACKENDSPATH /opt/redislabs/lib/redisai-cpu-$$VERSION/backends" $(INSTALL_DIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
+	rm -f $$RAMPOUT ;\
 	echo "Done."
 
 pack_deps: pack_ramp
@@ -79,8 +90,13 @@ pack_deps: pack_ramp
 	@set -e ;\
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
 	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
-	cd install-$(ENGINE) ;\
-	find backends -name "*.so*" | xargs tar pczf redisai-dependencies.$$ARCHOSVER-$(ENGINE).tgz ;\
+	VERSION=$$(cat $(BINDIR)/VERSION) ;\
+	cd install-$(DEVICE) ;\
+	rm -rf redisai-$(DEVICE)-$$VERSION ;\
+	mkdir redisai-$(DEVICE)-$$VERSION ;\
+	mv backends redisai-$(DEVICE)-$$VERSION ;\
+	ln -s redisai-$(DEVICE)-$$VERSION/backends backends ;\
+	find redisai-$(DEVICE)-$$VERSION -name "*.so*" | xargs tar pczf redisai-$(DEVICE)-dependencies.$$ARCHOSVER.tgz ;\
 	echo "Done."
 
 test:
@@ -88,4 +104,4 @@ test:
 	@git lfs pull
 	@set -e ;\
 	cd test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(BINDIR)/redisai.so
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so

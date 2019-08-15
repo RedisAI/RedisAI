@@ -1,5 +1,7 @@
 #!/bin/bash
 
+[ "$VERBOSE" = "1" ] && set -x
+
 show_if_error() {
 	{ "${@:1}"; } > /tmp/py2.log  2>&1
 	[ $? != 0 ] && cat /tmp/py2.log

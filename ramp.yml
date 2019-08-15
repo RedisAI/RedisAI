@@ -7,11 +7,6 @@ license: GNU Affero General Public License v3.0
 command_line_args: ""
 min_redis_version: "5.0"
 min_redis_pack_version: "5.4"
-os_list:
-    - ubuntu18.04
-    - rhel7
-    - ubuntu16.04
-    - ubuntu14.04
 capabilities:
     - types
     - no_multi_key

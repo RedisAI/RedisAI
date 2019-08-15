@@ -2,7 +2,7 @@
 !/deps/readies/
 !/deps/*.py
 /build/
-/install/
+/install*/
 **/*.o
 **/*.so
 /.venv/

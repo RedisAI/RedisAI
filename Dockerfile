@@ -4,9 +4,6 @@ ARG OS=debian:buster
 FROM redis AS redis
 FROM ${OS} AS builder
 
-ARG PACK=0
-ARG TEST=0
-
 WORKDIR /redisai
 COPY --from=redis /usr/local/ /usr/local/
 
@@ -22,6 +19,10 @@ RUN ./get_deps.sh cpu
 
 ADD ./ /redisai
 RUN make all
+
+ARG PACK=0
+ARG TEST=0
+
 RUN if [ "$PACK" = "1" ]; then make pack; fi
 RUN if [ "$TEST" = "1" ]; then make test; fi
 
@@ -36,7 +37,4 @@ COPY --from=builder /redisai/install-cpu/ /usr/lib/redis/modules/
 
 WORKDIR /data
 EXPOSE 6379
-CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so", \
-        "TF", "/usr/lib/redis/modules//backends/redisai_tensorflow/redisai_tensorflow.so", \
-        "TORCH", "/usr/lib/redis/modules//backends/redisai_torch/redisai_torch.so", \
-        "ONNX", "/usr/lib/redis/modules//backends/redisai_onnxruntime/redisai_onnxruntime.so"]
+CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]
