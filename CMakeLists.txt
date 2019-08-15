@@ -3,7 +3,8 @@ PROJECT(RedisAI)
 
 IF (NOT DEPS_PATH)
     # dependencies are required!
-    MESSAGE(FATAL_ERROR "DEPS PATH Missing!")
+    SET(DEPS_PATH ../deps/install)
+    # MESSAGE(FATAL_ERROR "DEPS PATH Missing!")
 ENDIF()
 
 FUNCTION(ADD_LDFLAGS _TARGET NEW_FLAGS)
