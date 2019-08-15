@@ -113,6 +113,10 @@ error:
 RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
   OrtStatus* status = NULL;
 
+  RAI_Tensor* ret = NULL;
+  int64_t *shape = NULL;
+  int64_t *strides = NULL;
+ 
   int is_tensor;
   status = OrtIsTensor(v, &is_tensor);
   if (status != NULL) goto error;
@@ -123,7 +127,7 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
     return NULL;
   }
 
-  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
+  ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
       .device_type = kDLCPU,
@@ -147,8 +151,8 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
     status = OrtGetTensorElementType(info, &ort_dtype);
     if (status != NULL) goto error;
 
-    int64_t *shape = RedisModule_Calloc(ndims, sizeof(*shape));
-    int64_t *strides = RedisModule_Calloc(ndims, sizeof(*strides));
+    shape = RedisModule_Calloc(ndims, sizeof(*shape));
+    strides = RedisModule_Calloc(ndims, sizeof(*strides));
     for (int64_t i = 0; i < ndims; ++i)
     {
       shape[i] = dims[i];
@@ -164,15 +168,11 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
     char *ort_data;
     status = OrtGetTensorMutableData(v, (void **)&ort_data);
     if (status != NULL) {
-      RedisModule_Free(shape);
-      RedisModule_Free(strides);
       goto error;
     }
     size_t elem_count;
     status = OrtGetTensorShapeElementCount(info, &elem_count);
     if (status != NULL) {
-      RedisModule_Free(shape);
-      RedisModule_Free(strides);
       goto error;
     }
 
@@ -209,6 +209,15 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
 error:
   RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
   OrtReleaseStatus(status);
+  if (shape != NULL) {
+    RedisModule_Free(shape);
+  }
+  if (strides != NULL) {
+    RedisModule_Free(shape);
+  }
+  if (ret != NULL) {
+    RedisModule_Free(ret);
+  }
   return NULL;
 }
 
@@ -239,13 +248,21 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   // TODO: probably these options could be configured at the AI.CONFIG level
   OrtSessionOptions* session_options;
   status = OrtCreateSessionOptions(&session_options);
-  if (status != NULL) goto error;
+  if (status != NULL) {
+    goto error;
+  }
 
   status = OrtSetSessionThreadPoolSize(session_options, 1);
-  if (status != NULL) goto error;
+  if (status != NULL) {
+    OrtReleaseSessionOptions(session_options);
+    goto error;
+  }
 
   status = OrtSetSessionGraphOptimizationLevel(session_options, 1);
-  if (status != NULL) goto error;
+  if (status != NULL) {
+    OrtReleaseSessionOptions(session_options);
+    goto error;
+  }
 
   // TODO: we will need to propose a more dynamic way to request a specific provider,
   // e.g. given the name, in ONNXRuntiem
