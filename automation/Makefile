@@ -61,7 +61,7 @@ endif
 
 deps fetch:
 	@echo Fetching dependencies...
-	@$(ROOT)/get_deps.sh $(DEPS_FLAGS)
+	$(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
 pack: pack_ramp pack_deps
 
