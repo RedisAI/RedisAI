@@ -5,7 +5,7 @@ import os
 from subprocess import Popen, PIPE
 import argparse
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deps/readies"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "readies"))
 import paella
 
 #----------------------------------------------------------------------------------------------
@@ -22,12 +22,9 @@ class RedisAISetup(paella.Setup):
         self.install("git cmake ca-certificates curl unzip wget patchelf awscli")
 
     def debian_compat(self):
-        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
-        self.install("git-lfs")
-        # self.run("git lfs install")
-
         self.install("build-essential")
         self.install("python3-venv python3-psutil python3-networkx")
+        self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
         self.group_install("'Development Tools'")
@@ -37,15 +34,23 @@ class RedisAISetup(paella.Setup):
         self.install("python36 python36-pip")
         self.install("python36-psutil")
 
+        self.install_git_lfs_on_linux()
+        
     def fedora(self):
         self.group_install("'Development Tools'")
+        self.install_git_lfs_on_linux()
 
     def macosx(self):
         p = Popen('xcode-select -p', stdout=PIPE, close_fds=True, shell=True)
-        p.communicate()
-        if p.stdout.readlines() == []:
+        out, _ = p.communicate()
+        if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
+        self.install("git-lfs")
 
+    def install_git_lfs_on_linux(self):
+        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
+        self.install("git-lfs")
+    
     def common_last(self):
         if not self.has_command("ramp"):
             self.pip3_install("git+https://github.com/RedisLabs/RAMP --upgrade")

@@ -24,12 +24,15 @@ DEPS_DIR=$HERE/deps
 mkdir -p ${DEPS_DIR}
 cd ${DEPS_DIR}
 
-PREFIX=${DEPS_DIR}/install-$DEVICE
+PREFIX=${DEPS_DIR}/install
 mkdir -p ${PREFIX}
 
-## DLPACK
-
 DLPACK_PREFIX=${PREFIX}/dlpack
+TF_PREFIX=${PREFIX}/libtensorflow
+TORCH_PREFIX=${PREFIX}/libtorch
+ORT_PREFIX=${PREFIX}/onnxruntime
+
+## DLPACK
 
 [[ $FORCE == 1 ]] && rm -rf ${DLPACK_PREFIX}
 
@@ -49,7 +52,6 @@ fi
 ## TENSORFLOW
 
 TF_VERSION="1.12.0"
-TF_PREFIX=${PREFIX}/libtensorflow
 
 [[ $FORCE == 1 ]] && rm -rf ${TF_PREFIX}
 
@@ -88,8 +90,6 @@ fi
 
 PT_VERSION="1.1.0"
 #PT_VERSION="latest"
-
-TORCH_PREFIX=${PREFIX}/libtorch
 
 [[ $FORCE == 1 ]] && rm -rf ${TORCH_PREFIX}
 
@@ -132,13 +132,16 @@ if [[ ! -d ${TORCH_PREFIX} ]]; then
   echo "Done."
   
   if [[ "${PT_OS}" == "macos" ]]; then
+	echo "Installing MKL ..."
     # also download mkl
     MKL_BUNDLE=mklml_mac_2019.0.3.20190220
     if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
       wget -q "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
     fi
-    tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
-    tar xf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
+    tar xzf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
+	mkdir -p ${ORT_PREFIX}
+    tar xzf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
+	echo "Done."
   fi
 else
   echo "librotch is in place."
@@ -157,11 +160,9 @@ if [[ "$OSTYPE" == "linux-gnu" ]]; then
     ORT_BUILD="-gpu"
   fi
 elif [[ "$OSTYPE" == "darwin"* ]]; then
-  ORT_OS="osx-x64"
+  ORT_OS="osx"
   ORT_BUILD=""
 fi
-
-ORT_PREFIX=${PREFIX}/onnxruntime
 
 [[ $FORCE == 1 ]] && rm -rf ${ORT_PREFIX}
 
@@ -174,7 +175,7 @@ if [[ ! -d ${ORT_PREFIX} ]]; then
 
   if [ ! -e ${ORT_ARCHIVE} ]; then
     echo "Downloading ONNXRuntime ${ORT_VERSION} ${DEVICE}"
-    wget -q https://github.com/Microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
+    wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
   fi
   
   tar xf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C ${ORT_PREFIX}

@@ -7,24 +7,23 @@ FROM ${OS} AS builder
 WORKDIR /redisai
 COPY --from=redis /usr/local/ /usr/local/
 
-COPY ./deps/readies/ deps/readies/
-COPY ./system-setup.py .
+COPY ./automation/ automation/
 COPY ./test/test_requirements.txt test/
 
-RUN ./deps/readies/bin/getpy
-RUN ./system-setup.py
+RUN ./automation/readies/bin/getpy
+RUN ./automation/system-setup.py
 
 COPY ./get_deps.sh .
 RUN ./get_deps.sh cpu
 
 ADD ./ /redisai
-RUN make all
+RUN make -C automation all
 
 ARG PACK=0
 ARG TEST=0
 
-RUN if [ "$PACK" = "1" ]; then make pack; fi
-RUN if [ "$TEST" = "1" ]; then make test; fi
+RUN if [ "$PACK" = "1" ]; then make -C automation pack; fi
+RUN if [ "$TEST" = "1" ]; then make -C automation test; fi
 
 #----------------------------------------------------------------------------------------------
 FROM redis

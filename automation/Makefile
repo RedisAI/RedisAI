@@ -1,3 +1,6 @@
+
+ROOT:=..
+
 override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
 
 ifeq ($(GPU),1)
@@ -10,8 +13,6 @@ else
 DEPS_FLAGS=cpu
 DEVICE=cpu
 endif
-
-export REDIS_ENT_LIB_PATH=/opt/redislabs/lib
 
 GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD)
 GIT_COMMIT:=$(shell git describe --always --abbrev=7 --dirty="+")
@@ -29,44 +30,38 @@ BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
 RAMP:=ramp
 
+ifeq ($(DEBUG),1)
+CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
+endif
+
 #----------------------------------------------------------------------------------------------
 
 .PHONY: all setup build clean deps pack pack_ramp pack_deps test
 
 all: build
 
-setup:
-	@echo Setting up system...
-	./deps/readies/bin/getpy
-	./system-setup.py
-
-show-setup:
-	@./system-setup.py --nop
-
-ifeq ($(DEBUG),1)
-CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
-endif
-
 build:
 ifeq ($(wildcard build/Makefile),)
-	mkdir -p build
-	cd build; \
-	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=../deps/install-$(DEVICE) $(CMAKE_FLAGS) ..
+	mkdir -p $(ROOT)/build
+	cd $(ROOT)/build; \
+	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=$(ROOT)/deps/install-$(DEVICE) $(CMAKE_FLAGS) $(ROOT)
 endif
-	$(MAKE) -C build
-	$(MAKE) -C build install
-	ln -sf install-$(DEVICE) install
+	$(MAKE) -C $(ROOT)/build
+	$(MAKE) -C $(ROOT)/build install
+	cd $(ROOT) ;\
+	[ ! -e install ] && ln -sf install-$(DEVICE) install
 
 clean:
 ifeq ($(ALL),1)
+	cd $(ROOT) ;\
 	rm -rf build install deps/dlpack deps/install-$(DEVICE) deps/*.tar.gz deps/*.zip deps/*.tgz
 else
-	$(MAKE) -C build clean
+	$(MAKE) -C $(ROOT)/build clean
 endif
 
 deps fetch:
 	@echo Fetching dependencies...
-	@./get_deps.sh $(DEPS_FLAGS)
+	@$(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
 pack: pack_ramp pack_deps
 
@@ -74,8 +69,8 @@ pack_ramp:
 	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
 	@echo "Building RAMP file ..."
 	@set -e ;\
+	cd $(ROOT) ;\
 	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
-	LD_LIBRARY_PATH=$(PWD)/deps/install-$(DEVICE)/lib \
 	$(RAMP) pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(INSTALL_DIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
 	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
 	cat $(BINDIR)/PACKAGE | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $(BINDIR)/VERSION ;\
@@ -88,6 +83,7 @@ pack_ramp:
 pack_deps: pack_ramp
 	@echo "Building dependencies file ..."
 	@set -e ;\
+	cd $(ROOT) ;\
 	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
 	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
 	VERSION=$$(cat $(BINDIR)/VERSION) ;\
@@ -95,7 +91,7 @@ pack_deps: pack_ramp
 	rm -rf redisai-$(DEVICE)-$$VERSION ;\
 	mkdir redisai-$(DEVICE)-$$VERSION ;\
 	mv backends redisai-$(DEVICE)-$$VERSION ;\
-	ln -s redisai-$(DEVICE)-$$VERSION/backends backends ;\
+	ln -sf redisai-$(DEVICE)-$$VERSION/backends backends ;\
 	find redisai-$(DEVICE)-$$VERSION -name "*.so*" | xargs tar pczf redisai-$(DEVICE)-dependencies.$$ARCHOSVER.tgz ;\
 	echo "Done."
 
@@ -103,5 +99,5 @@ test:
 	@git lfs install
 	@git lfs pull
 	@set -e ;\
-	cd test ;\
+	cd $(ROOT)/test ;\
 	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so

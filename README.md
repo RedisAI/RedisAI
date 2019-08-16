@@ -28,7 +28,7 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 
 ### Give it a try
 
-On the client, load a backend (TF, TORCH, or ONNX), and set the model
+On the client, load a backend (TF, TORCH or ONNX), and set the model
 ```sh
 redis-cli AI.CONFIG LOADBACKEND TF install/backends/redisai_tensorflow/redisai_tensorflow.so
 redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
@@ -50,38 +50,25 @@ redis-cli
 ```
 
 ## Building
-In order to build RedisAI, some artifacts need to be installed, notably Python 3. Those can be installed using:
-
-```
-make setup
-```
-
-To examine dependencies in detail, prior to installing them, it is possible to invoke:
-
-```
-./deps/readies/bin/getpy
-make show-setup
-```
-
-(The first command will install Python 3, and the second one will show list of installation commands for the rest of the artifacts.)
-
-----
-
-The following will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA to be installed.
+This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA to be installed.
 
 ```sh
-make deps GPU=1
+bash get_deps.sh
 ```
 Alternatively, run the following to only fetch the CPU-only backends.
 ```sh
-make deps CPU=1
+bash get_deps.sh cpu
 ```
 
 Once the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
 ```sh
-make build
+mkdir build
+cd build
+cmake -DDEPS_PATH=../deps/install ..
+make && make install
+cd ..
 ```
 
 Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
