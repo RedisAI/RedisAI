@@ -148,8 +148,7 @@ else
 fi
 
 ## ONNXRUNTIME
-
-ORT_VERSION="0.4.0"
+ORT_VERSION="0.5.0"
 ORT_ARCH="x64"
 if [[ "$OSTYPE" == "linux-gnu" ]]; then
   if [[ "$1" == "cpu" ]]; then

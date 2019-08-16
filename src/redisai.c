@@ -587,8 +587,28 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   RedisModule_ReplyWithArray(ctx, 3);
-  RedisModule_ReplyWithLongLong(ctx, mto->backend);
-  RedisModule_ReplyWithLongLong(ctx, mto->device);
+
+  switch (mto->backend) {
+    case REDISAI_BACKEND_TENSORFLOW:
+      RedisModule_ReplyWithSimpleString(ctx, "TF");
+      break;
+    case REDISAI_BACKEND_TORCH:
+      RedisModule_ReplyWithSimpleString(ctx, "TORCH");
+      break;
+    case REDISAI_BACKEND_ONNXRUNTIME:
+      RedisModule_ReplyWithSimpleString(ctx, "ONNX");
+      break;
+  }
+
+  switch (mto->device) {
+    case REDISAI_DEVICE_CPU:
+      RedisModule_ReplyWithSimpleString(ctx, "CPU");
+      break;
+    case REDISAI_DEVICE_GPU:
+      RedisModule_ReplyWithSimpleString(ctx, "GPU");
+      break;
+  }
+
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
   return REDISMODULE_OK;
@@ -650,31 +670,23 @@ void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
 void *RedisAI_RunSession(void *arg) {
   struct RedisAI_RunInfo *rinfo = (struct RedisAI_RunInfo*)arg;
-
-  RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
-
   rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
 
   mstime_t start = mstime();
   rinfo->status = RAI_ModelRun(rinfo->mctx, rinfo->err);
   mstime_t end = mstime();
-
-  if (rinfo->err->code != RAI_OK) {
-    #ifdef RAI_PRINT_BACKEND_ERRORS
-    printf("ERR: %s\n", rinfo->err->detail);
-    #endif
-    RedisModule_UnblockClient(rinfo->client, rinfo);
-    return NULL;
-  }
-
+  RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
   RedisModule_ThreadSafeContextLock(ctx);
-  RedisModule_Log(ctx, "notice", "RAI_ModelRun took %fs", (end - start) / 1000.0);
+  if (rinfo->err->code != RAI_OK) {
+    RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
+  }
+  else{
+    RedisModule_Log(ctx, "verbose", "RAI_ModelRun took %fms", (end - start));
+  }
   RedisModule_ThreadSafeContextUnlock(ctx);
 
   RedisModule_UnblockClient(rinfo->client, rinfo);
-
   RedisModule_FreeThreadSafeContext(ctx);
-
   return NULL;
 }
 
@@ -1395,6 +1407,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     RedisModule_Log(ctx, "warning", "Even number of arguments provided to module. Please provide arguments as KEY VAL pairs.");
   }
 
+  // need BACKENDSPATH set up before loading specific backends
   for (int i=0; i<argc/2; i++) {
     const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
     const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
@@ -1419,7 +1432,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     else if (strcasecmp(key, "ONNX") == 0) {
       ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, val);
     }
-    else {
+    else if (strcasecmp(key, "BACKENDSPATH") == 0) {
+      // aleady taken care of
+    } else {
       ret = REDISMODULE_ERR;
     }
 
