@@ -4,10 +4,6 @@
 
 #include "onnxruntime_c_api.h"
 
-// TODO for getpid, remove when ONNXRuntime can read from stream
-#include <sys/types.h>
-#include <unistd.h>
-
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
   get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
   get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
@@ -115,37 +111,48 @@ error:
 }
 
 RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
-  if (!OrtIsTensor(v)) {
+  OrtStatus* status = NULL;
+
+  RAI_Tensor* ret = NULL;
+  int64_t *shape = NULL;
+  int64_t *strides = NULL;
+ 
+  int is_tensor;
+  status = OrtIsTensor(v, &is_tensor);
+  if (status != NULL) goto error;
+
+  if (!is_tensor) {
     // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a tensor.
     // If return value is string, emit warning.
     return NULL;
   }
 
-  RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
+  ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
       .device_type = kDLCPU,
       .device_id = 0
   };
 
-  OrtStatus* status = NULL;
-
-  OrtTensorTypeAndShapeInfo* info = OrtCreateTensorTypeAndShapeInfo();
-  status = OrtGetTensorShapeAndType(v, &info);
-  if (status != NULL) {
-    goto error;
-  }
+  OrtTensorTypeAndShapeInfo* info;
+  status = OrtGetTensorTypeAndShape(v, &info);
+  if (status != NULL) goto error;
 
   {
-    size_t ndims = OrtGetNumOfDimensions(info);
+    size_t ndims;
+    status = OrtGetDimensionsCount(info, &ndims);
+    if (status != NULL) goto error;
 
     int64_t dims[ndims];
-    OrtGetDimensions(info, dims, ndims);
+    status = OrtGetDimensions(info, dims, ndims);
+    if (status != NULL) goto error;
 
-    enum ONNXTensorElementDataType ort_dtype = OrtGetTensorElementType(info);
+    enum ONNXTensorElementDataType ort_dtype;
+    status = OrtGetTensorElementType(info, &ort_dtype);
+    if (status != NULL) goto error;
 
-    int64_t *shape = RedisModule_Calloc(ndims, sizeof(*shape));
-    int64_t *strides = RedisModule_Calloc(ndims, sizeof(*strides));
+    shape = RedisModule_Calloc(ndims, sizeof(*shape));
+    strides = RedisModule_Calloc(ndims, sizeof(*strides));
     for (int64_t i = 0; i < ndims; ++i)
     {
       shape[i] = dims[i];
@@ -160,11 +167,16 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
 #ifdef RAI_COPY_RUN_OUTPUT
     char *ort_data;
     status = OrtGetTensorMutableData(v, (void **)&ort_data);
-    if (status != NULL)
-    {
+    if (status != NULL) {
       goto error;
     }
-    size_t len = dtype.bits * OrtGetTensorShapeElementCount(info);
+    size_t elem_count;
+    status = OrtGetTensorShapeElementCount(info, &elem_count);
+    if (status != NULL) {
+      goto error;
+    }
+
+    size_t len = dtype.bits * elem_count;
     char *data = RedisModule_Calloc(len, sizeof(*data));
     memcpy(data, ort_data, len);
 #endif
@@ -197,6 +209,15 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
 error:
   RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
   OrtReleaseStatus(status);
+  if (shape != NULL) {
+    RedisModule_Free(shape);
+  }
+  if (strides != NULL) {
+    RedisModule_Free(shape);
+  }
+  if (ret != NULL) {
+    RedisModule_Free(ret);
+  }
   return NULL;
 }
 
@@ -225,9 +246,23 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   }
 
   // TODO: probably these options could be configured at the AI.CONFIG level
-  OrtSessionOptions* session_options = OrtCreateSessionOptions();
-  OrtSetSessionThreadPoolSize(session_options, 1);
-  OrtSetSessionGraphOptimizationLevel(session_options, 1);
+  OrtSessionOptions* session_options;
+  status = OrtCreateSessionOptions(&session_options);
+  if (status != NULL) {
+    goto error;
+  }
+
+  status = OrtSetSessionThreadPoolSize(session_options, 1);
+  if (status != NULL) {
+    OrtReleaseSessionOptions(session_options);
+    goto error;
+  }
+
+  status = OrtSetSessionGraphOptimizationLevel(session_options, 1);
+  if (status != NULL) {
+    OrtReleaseSessionOptions(session_options);
+    goto error;
+  }
 
   // TODO: we will need to propose a more dynamic way to request a specific provider,
   // e.g. given the name, in ONNXRuntiem
@@ -239,37 +274,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
 
   OrtSession* session;
 
-#define RAI_ONNX_NO_SESSION_FROM_ARRAY
-#ifdef RAI_ONNX_NO_SESSION_FROM_ARRAY
-  // NOTE This works as long as setting a model is mono-thread
-  // Since this solution is temporary until ONNXRuntime implements
-  // loading a model from a buffer, we'll keep this as is
-  char tmpfile[256];
-  FILE *fp;
-  snprintf(tmpfile, 256, "temp-%d.onnx", (int) getpid());
-  fp = fopen(tmpfile, "w");
-  if (!fp) {
-    RAI_SetError(error, RAI_EMODELCREATE, "ERR: cannot write ONNX tmp file\n");
-    return NULL;
-  }
-  size_t nwritten = fwrite(modeldef, sizeof(char), modellen, fp);
-  if (nwritten < modellen ||
-      fflush(fp) == EOF || 
-      fsync(fileno(fp)) == -1 ||
-      fclose(fp) == EOF) {
-    RAI_SetError(error, RAI_EMODELCREATE, "ERR: cannot flush or close ONNX tmp file\n");
-    return NULL;
-  }
-  status = OrtCreateSession(env, tmpfile, session_options, &session);
-#else
-  onnx_status = OrtCreateSessionFromArray(env, modeldef, modellen, session_options, &session);
-#endif
+  status = OrtCreateSessionFromArray(env, modeldef, modellen, session_options, &session);
 
   OrtReleaseSessionOptions(session_options);
-
-#ifdef RAI_ONNX_NO_SESSION_FROM_ARRAY
-  unlink(tmpfile);
-#endif
 
   if (status != NULL) {
     goto error;
