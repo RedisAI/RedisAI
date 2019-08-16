@@ -19,7 +19,7 @@ jobs:
           command: |
             sudo ./automation/readies/bin/getpy
             sudo ./automation/system-setup.py
-            make deps
+            make -C automation deps
             git clone git://github.com/antirez/redis.git --branch 5.0.3
             (cd redis && make malloc=libc -j4 && sudo make install)
 
