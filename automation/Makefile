@@ -44,7 +44,7 @@ build:
 ifeq ($(wildcard build/Makefile),)
 	mkdir -p $(ROOT)/build
 	cd $(ROOT)/build; \
-	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=$(ROOT)/deps/install-$(DEVICE) $(CMAKE_FLAGS) $(ROOT)
+	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=$(ROOT)/deps/install $(CMAKE_FLAGS) $(ROOT)
 endif
 	$(MAKE) -C $(ROOT)/build
 	$(MAKE) -C $(ROOT)/build install

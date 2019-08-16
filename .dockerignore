@@ -1,7 +1,7 @@
-/deps/*
+/deps/
 /build/
 /install*/
 **/*.o
 **/*.so
-/.venv/
-/venv/
+.venv/
+venv*/
