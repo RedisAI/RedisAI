@@ -96,6 +96,10 @@ ENDIF()
 INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
 INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_torch)
 
+IF(${DEVICE} STREQUAL "gpu")
+  ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
+ENDIF()
+
 ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
 TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
 SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")
