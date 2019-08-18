@@ -1,4 +1,4 @@
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu16.04 AS builder
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 AS builder
 
 ENV DEPS "build-essential git ca-certificates curl unzip wget libgomp1 patchelf"
 ENV NVIDIA_VISIBLE_DEVICES all
