@@ -28,9 +28,8 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 
 ### Give it a try
 
-On the client, load a backend (TF, TORCH or ONNX), and set the model
+On the client, set the model
 ```sh
-redis-cli AI.CONFIG LOADBACKEND TF install/backends/redisai_tensorflow/redisai_tensorflow.so
 redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
 ```
 
@@ -55,7 +54,7 @@ This will checkout and build and download the libraries for the backends (Tensor
 ```sh
 bash get_deps.sh
 ```
-Alternatively, run the following to only fetch the CPU-only backends.
+Alternatively, run the following to only fetch the CPU-only backends even on GPU machines.
 ```sh
 bash get_deps.sh cpu
 ```
@@ -66,7 +65,7 @@ CMake 3.0 or higher is required.
 ```sh
 mkdir build
 cd build
-cmake -DDEPS_PATH=../deps/install ..
+cmake ..
 make && make install
 cd ..
 ```
@@ -86,7 +85,7 @@ Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 To start Redis with the RedisAI module loaded:
 
 ```sh
-redis-server --loadmodule install/redisai.so
+redis-server --loadmodule install-cpu/redisai.so
 ```
 
 ## Client libraries
@@ -108,6 +107,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ON
 | 0.1.0   | 1.0.1     | 1.12.0     | None          |
 | 0.2.1   | 1.0.1     | 1.12.0     | None          |
 | 0.3.1   | 1.1     | 1.12.0     | 0.4.0         |
+| master  | 1.1     | 1.12.0     | 0.5.0         |
 
 
 ## Documentation
