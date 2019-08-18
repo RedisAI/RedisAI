@@ -102,7 +102,7 @@ if [[ ! -d ${TORCH_PREFIX} ]]; then
     if [[ "$1" == "cpu" ]]; then
       PT_BUILD="cpu"
     else
-      PT_BUILD="cu90"
+      PT_BUILD="cu100"
     fi
   elif [[ "$OSTYPE" == "darwin"* ]]; then
     PT_OS="macos"
