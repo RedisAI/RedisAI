@@ -6,18 +6,18 @@ set -e
 [[ $VERBOSE == 1 ]] && set -x
 
 if [[ "$1" == "cpu" ]]; then
-	GPU=no
-	DEVICE=cpu
+  GPU=no
+  DEVICE=cpu
 elif [[ "$1" == "gpu" ]]; then
-	GPU=yes
-	DEVICE=gpu
+  GPU=yes
+  DEVICE=gpu
 else
-	GPU=${GPU:-no}
-	if [[ $GPU == 1 ]]; then
-		DEVICE=gpu
-	else
-		DEVICE=cpu
-	fi
+  GPU=${GPU:-no}
+  if [[ $GPU == 1 ]]; then
+    DEVICE=gpu
+  else
+    DEVICE=cpu
+  fi
 fi
 
 DEPS_DIR=$HERE/deps
@@ -39,19 +39,19 @@ ORT_PREFIX=${PREFIX}/onnxruntime
 if [[ ! -d dlpack ]]; then
     echo "Cloning dlpack ..."
     git clone --depth 1 https://github.com/dmlc/dlpack.git
-	echo "Done."
+    echo "Done."
 else
   echo "dlpack is in place."
 fi
 
 if [[ ! -d ${DLPACK_PREFIX}/include ]]; then
-	mkdir -p ${DLPACK_PREFIX}
-	ln -sf ${DEPS_DIR}/dlpack/include ${DLPACK_PREFIX}/include
+    mkdir -p ${DLPACK_PREFIX}
+    ln -sf ${DEPS_DIR}/dlpack/include ${DLPACK_PREFIX}/include
 fi
 
 ## TENSORFLOW
 
-TF_VERSION="1.12.0"
+TF_VERSION="1.14.0"
 
 [[ $FORCE == 1 ]] && rm -rf ${TF_PREFIX}
 
@@ -88,8 +88,7 @@ fi
 
 ## PYTORCH
 
-PT_VERSION="1.1.0"
-#PT_VERSION="latest"
+PT_VERSION="1.2.0"
 
 [[ $FORCE == 1 ]] && rm -rf ${TORCH_PREFIX}
 
@@ -132,16 +131,16 @@ if [[ ! -d ${TORCH_PREFIX} ]]; then
   echo "Done."
   
   if [[ "${PT_OS}" == "macos" ]]; then
-	echo "Installing MKL ..."
+    echo "Installing MKL ..."
     # also download mkl
     MKL_BUNDLE=mklml_mac_2019.0.3.20190220
     if [ ! -e "${MKL_BUNDLE}.tgz" ]; then
       wget -q "https://github.com/intel/mkl-dnn/releases/download/v0.18/${MKL_BUNDLE}.tgz"
     fi
     tar xzf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${TORCH_PREFIX}
-	mkdir -p ${ORT_PREFIX}
+    mkdir -p ${ORT_PREFIX}
     tar xzf ${MKL_BUNDLE}.tgz --no-same-owner --strip-components=1 -C ${ORT_PREFIX}
-	echo "Done."
+    echo "Done."
   fi
 else
   echo "librotch is in place."

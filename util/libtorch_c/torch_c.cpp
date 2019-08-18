@@ -40,8 +40,14 @@ static DLDataType getDLDataType(const at::Tensor& t) {
       break;
     case at::ScalarType::Bool:
       throw std::logic_error("Bool is not supported by dlpack");
+    case at::ScalarType::BFloat16:
+      throw std::logic_error("BFloat16 is not supported by dlpack");
     case at::ScalarType::QInt8:
       throw std::logic_error("QInt8 is not supported by dlpack");
+    case at::ScalarType::QUInt8:
+      throw std::logic_error("QUInt8 is not supported by dlpack");
+    case at::ScalarType::QInt32:
+      throw std::logic_error("QInt32 is not supported by dlpack");
     case at::ScalarType::ComplexHalf:
       throw std::logic_error("ComplexHalf is not supported by dlpack");
     case at::ScalarType::ComplexFloat:
@@ -206,18 +212,18 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
   }
 
   if (ctx->module) {
-    torch::jit::script::Method& method = ctx->module->get_method(fnName);
+    torch::jit::script::Method method = ctx->module->get_method(fnName);
     method.run(stack);
   }
   else {
-    torch::jit::script::Function& fn = ctx->cu->get_function(fnName);
+    torch::jit::Function& fn = ctx->cu->get_function(fnName);
     fn.run(stack);
   }
 
   torch::DeviceType output_device = torch::kCPU;
 
   int count = 0;
-  for (int i=0; i<stack.size(); i++) {
+  for (size_t i=0; i<stack.size(); i++) {
     if (count > nOutputs-1) {
       throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") + fnName);
     }
@@ -226,14 +232,14 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
       outputs[count++] = toManagedDLPack(stack[i].toTensor().to(output_device));
     }
     else if (stack[i].isTensorList()) {
-      auto& elements = (*stack[i].toTensorList()).elements();
-      for (int j=0; j<elements.size(); j++) {
-        outputs[count++] = toManagedDLPack(elements[j].to(output_device));
+      auto list = stack[i].toTensorList();
+      for (size_t j=0; j<list.size(); j++) {
+        outputs[count++] = toManagedDLPack(list.get(j).to(output_device));
       }
     }
     else if (stack[i].isTuple()) {
       auto& elements = stack[i].toTuple()->elements();
-      for (int j=0; j<elements.size(); j++) {
+      for (size_t j=0; j<elements.size(); j++) {
         if (elements[j].isTensor()) {
           outputs[count++] = toManagedDLPack(elements[j].toTensor().to(output_device));
         }
@@ -262,7 +268,7 @@ extern "C" void torchBasicTest()
 
 extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t* shape, int64_t* strides, char* data)
 {
-  at::DeviceType device_type = getATenDeviceType(kDLCPU);
+  // at::DeviceType device_type = getATenDeviceType(kDLCPU);
   at::ScalarType stype = toScalarType(dtype);
   torch::Tensor tensor = torch::from_blob(data,
       at::IntArrayRef(shape, ndims),
@@ -302,7 +308,7 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
   ctx->device = device;
   try {
     // TODO: move to device now
-    auto module = torch::jit::load(graph_stream);
+    auto module = std::make_shared<torch::jit::script::Module>(torch::jit::load(graph_stream));
     auto aten_device = getATenDeviceType(device);
     if (aten_device == at::DeviceType::CUDA && !torch::cuda::is_available()) {
       throw std::logic_error("GPU requested but CUDA not available");

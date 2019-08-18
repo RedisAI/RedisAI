@@ -34,7 +34,7 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 SET(CMAKE_C_STANDARD 11)
 
-FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow libtensorflow.so
+FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
              PATHS ${depsAbs}/libtensorflow/lib)
 IF (NOT TF_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find tensorflow")
