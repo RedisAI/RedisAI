@@ -1,8 +1,8 @@
-version: 2
+version: 2.1
 jobs:
   build:
     docker:
-      - image: circleci/python:3.6.8
+      - image: circleci/python:3.7.4-buster
 
     steps:
       - checkout
@@ -12,58 +12,38 @@ jobs:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+          # - v1-dependencies-
 
       - run:
           name: install dependencies
           command: |
-            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-            sudo apt-get install -y git-lfs patchelf
-            git lfs install
-            curl -o cmake-3.12.4-Linux-x86_64.sh https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh
-            mkdir /home/circleci/project/cmake-bin
-            sh cmake-3.12.4-Linux-x86_64.sh --prefix=/home/circleci/project/cmake-bin --skip-license
-            sudo ln -s /home/circleci/project/cmake-bin/bin/cmake /usr/local/bin/cmake
-            echo `cmake --version`
-            rm -rf /home/circleci/project/deps
-            bash get_deps.sh cpu
+            sudo ./automation/readies/bin/getpy
+            sudo ./automation/system-setup.py
+            ./get_deps.sh cpu
             git clone git://github.com/antirez/redis.git --branch 5.0.3
             (cd redis && make malloc=libc -j4 && sudo make install)
 
       - save_cache:
           paths:
             - deps
-          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+          key: v2-dependencies-{{ checksum "get_deps.sh" }}
 
       - run:
           name: Build
           command: |
-            rm -rf build
-            mkdir build
-            cd build
-            cmake -DDEPS_PATH=../deps/install ..
-            make && make install
-            cd ..
-            make rlec_runpath_fix
+            make -C automation all
+            make -C automation pack
 
       - run:
           name: Test
-          command: |
-            python3 -m venv venv
-            . venv/bin/activate
-            pip -q uninstall -y RLTest || true
-            pip -q install git+https://github.com/RedisLabsModules/RLTest@py3
-            pip -q install -r test/test_requirements.txt
-            git lfs pull
-            python3 -m RLTest --test test/basic_tests.py --module install/redisai.so
+          command: make -C automation test
 
       - run:
           name: Persist Artifacts
           command: |
             mkdir -p ~/workspace/build
-            cp install/ramp/$MODULE_ARTIFACT ~/workspace/
-            # cp deps/install/lib/*.so*  ~/workspace/
-            cp -r install/backends ~/workspace/
+            cp install-cpu/$MODULE_ARTIFACT ~/workspace/
+            cp -r install-cpu/backends ~/workspace/
             cp ramp.yml ~/workspace/
       - persist_to_workspace:
           root: ~/workspace

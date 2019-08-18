@@ -1,4 +1,7 @@
-deps/*
-install/*
+/deps/
+/build/
+/install*/
 **/*.o
 **/*.so
+.venv/
+venv*/

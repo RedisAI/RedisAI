@@ -7,11 +7,16 @@ __pycache__
 *.pyc
 
 # Dirs
-install/
-deps/
-build/
+/install*/
+/deps/*
+/build/
 examples/js/node_modules/
 examples/js/package-lock.json
+/test/venv/
+/test/logs/
+/1/
+/venv/
+/.venv/
 
 # Eclipse (if that's your jam...)
 .project

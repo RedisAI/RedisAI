@@ -1,45 +1,38 @@
-FROM redis AS builder
+ARG OS=debian:buster
 
-ENV DEPS "build-essential git ca-certificates curl unzip wget libgomp1 patchelf"
+#----------------------------------------------------------------------------------------------
+FROM redis AS redis
+FROM ${OS} AS builder
 
-# install latest cmake
-ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
-RUN mkdir /opt/cmake
-RUN sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
-RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
-RUN cmake --version
-
-# Set up a build environment
-RUN set -ex;\
-    deps="$DEPS";\
-    apt-get update;\
-    apt-get install -y --no-install-recommends $deps
-
-# Get the dependencies
 WORKDIR /redisai
+COPY --from=redis /usr/local/ /usr/local/
+
+COPY ./automation/ automation/
+COPY ./test/test_requirements.txt test/
+
+RUN ./automation/readies/bin/getpy
+RUN ./automation/system-setup.py
+
+COPY ./get_deps.sh .
+RUN ./get_deps.sh cpu
+
 ADD ./ /redisai
-RUN set -ex;\
-    mkdir -p deps;\
-    DEPS_DIRECTORY=deps bash ./get_deps.sh cpu
+RUN make -C automation all
 
-# Build the source
-RUN set -ex;\
-    rm -rf build;\
-    mkdir -p build;\
-    cd build;\
-    cmake -DDEPS_PATH=../deps/install ..;\
-    make && make install;\
-    cd ..
+ARG PACK=0
+ARG TEST=0
 
-# Package the runner
+RUN if [ "$PACK" = "1" ]; then make -C automation pack; fi
+RUN if [ "$TEST" = "1" ]; then make -C automation test; fi
+
+#----------------------------------------------------------------------------------------------
 FROM redis
 
 RUN set -e; apt-get -qq update; apt-get install -y libgomp1
 
-RUN set -ex;\
-    mkdir -p /usr/lib/redis/modules/;
+RUN mkdir -p /usr/lib/redis/modules/
 
-COPY --from=builder /redisai/install/ /usr/lib/redis/modules/
+COPY --from=builder /redisai/install-cpu/ /usr/lib/redis/modules/
 
 WORKDIR /data
 EXPOSE 6379
