@@ -34,7 +34,7 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 SET(CMAKE_C_STANDARD 11)
 
-FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow libtensorflow.so
+FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
              PATHS ${depsAbs}/libtensorflow/lib)
 IF (NOT TF_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find tensorflow")
@@ -95,6 +95,10 @@ ELSE ()
 ENDIF()
 INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
 INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_torch)
+
+IF(${DEVICE} STREQUAL "gpu")
+  ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
+ENDIF()
 
 ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
 TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})

@@ -49,11 +49,12 @@ redis-cli
 ```
 
 ## Building
-This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA to be installed.
+This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA 10.0 to be installed.
 
 ```sh
 bash get_deps.sh
 ```
+
 Alternatively, run the following to only fetch the CPU-only backends even on GPU machines.
 ```sh
 bash get_deps.sh cpu
@@ -106,8 +107,8 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ON
 |:--------|:-------:|:----------:|:-------------:|
 | 0.1.0   | 1.0.1     | 1.12.0     | None          |
 | 0.2.1   | 1.0.1     | 1.12.0     | None          |
-| 0.3.1   | 1.1     | 1.12.0     | 0.4.0         |
-| master  | 1.1     | 1.12.0     | 0.5.0         |
+| 0.3.1   | 1.1.0     | 1.12.0     | 0.4.0         |
+| master  | 1.2.0     | 1.14.0     | 0.5.0         |
 
 
 ## Documentation
