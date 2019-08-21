@@ -1,6 +1,4 @@
 
-MK=$(ROOT)/automation/readies/mk
-
-include $(MK)/common.defs
-include $(MK)/variant.defs
-include $(MK)/bindirs.defs
+include $(MK)/help.defs
+include $(MK)/build.defs
+include $(MK)/cmake.defs

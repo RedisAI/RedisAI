@@ -1,5 +1,7 @@
 
-build: __sep bindirs
+.PHONY: build clean
+
+build: $(MK_MAKEFILES) $(TARGET)
 ifeq (,$(wildcard $(BUILD_DIR)/Makefile))
 	$(SHOW)cd $(BUILD_DIR); $(realpath $(SRCDIR))/configure $(CONFIGURE_FLAGS)
 endif

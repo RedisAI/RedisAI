@@ -1,5 +1,19 @@
 
 ROOT:=..
+include readies/mk/main
+
+MK_CMAKE:=1
+MK_CMAKE_INSTALL:=1
+
+define HELP
+make fetch # download and prepare dependant modules
+make build # compile and link
+make clean # remove build artifacts
+make pack  # create installation packages
+make test  # run tests
+endef
+
+#---------------------------------------------------------------------------------------------- 
 
 override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
 
@@ -14,89 +28,65 @@ DEPS_FLAGS=cpu
 DEVICE=cpu
 endif
 
-GIT_BRANCH:=$(shell git rev-parse --abbrev-ref HEAD)
-GIT_COMMIT:=$(shell git describe --always --abbrev=7 --dirty="+")
+SRCDIR=..
+BINDIR=$(BINROOT)/src
+INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 
-ifeq ($(VERSION),)
-PACK_VER:=$(GIT_BRANCH)-$(GIT_COMMIT)
-else
-PACK_VER:=$(VERSION)
-endif
-
-BINDIR=$(PWD)/build
-INSTALL_DIR=$(PWD)/install-$(DEVICE)
+TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
-RAMP:=ramp
+CMAKE_FLAGS += \
+	-DDEPS_PATH=$(realpath $(ROOT)/deps) \
+	-DDEVICE=$(DEVICE)
 
-ifeq ($(DEBUG),1)
-CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
-endif
+include readies/mk/defs
 
 #----------------------------------------------------------------------------------------------
 
-.PHONY: all setup build clean deps pack pack_ramp pack_deps test
+.PHONY: deps fetch pack pack_ramp pack_deps test
 
-all: build
+include $(MK)/rules
 
-build:
-ifeq ($(wildcard build/Makefile),)
-	mkdir -p $(ROOT)/build
-	cd $(ROOT)/build; \
-	cmake -DDEVICE=$(DEVICE) -DDEPS_PATH=$(ROOT)/deps/install $(CMAKE_FLAGS) $(ROOT)
-endif
-	$(MAKE) -C $(ROOT)/build
-	$(MAKE) -C $(ROOT)/build install
+#---------------------------------------------------------------------------------------------- 
+
+$(TARGET): $(MK_MAKEFILES) $(DEPS)
+	$(MAKE) -C $(BINDIR)
+	$(MAKE) -C $(BINDIR) install
 	cd $(ROOT) ;\
-	[ ! -e install ] && ln -sf install-$(DEVICE) install
+	if [ ! -e install ]; then ln -sf install-$(DEVICE) install; fi
 
 clean:
 ifeq ($(ALL),1)
 	cd $(ROOT) ;\
 	rm -rf build install deps/dlpack deps/install-$(DEVICE) deps/*.tar.gz deps/*.zip deps/*.tgz
 else
-	$(MAKE) -C $(ROOT)/build clean
+	$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
-deps fetch:
-	@echo Fetching dependencies...
-	$(ROOT)/get_deps.sh $(DEPS_FLAGS)
+#---------------------------------------------------------------------------------------------- 
 
-pack: pack_ramp pack_deps
+fetch:
+	@echo Fetching dependencies...
+	$(SHOW)VERBOSE=$(_SHOW) ./get_deps.sh $(DEPS_FLAGS)
+
+#----------------------------------------------------------------------------------------------
+
+pack: $(BINDIR)/BINDIR pack_ramp pack_deps
+
+$(BINDIR)/BINDIR: $(BIN_DIRS)
+	$(SHOW)echo $(BINDIR)>$(BINDIR)/BINDIR
 
 pack_ramp:
-	@[ ! -z `command -v redis-server` ] || { echo "Cannot find redis-server - aborting."; exit 1; }
-	@echo "Building RAMP file ..."
-	@set -e ;\
-	cd $(ROOT) ;\
-	RAMPOUT=$$(mktemp /tmp/ramp.XXXXXX) ;\
-	$(RAMP) pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" $(INSTALL_DIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
-	tail -1 $$RAMPOUT > $(BINDIR)/PACKAGE ;\
-	cat $(BINDIR)/PACKAGE | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $(BINDIR)/VERSION ;\
-	VERSION=$$(cat $(BINDIR)/VERSION) ;\
-	$(RAMP) pack -m $(PWD)/ramp.yml -o "build/redisai.{os}-{architecture}.{semantic_version}.zip" \
-		-c "BACKENDSPATH /opt/redislabs/lib/redisai-cpu-$$VERSION/backends" $(INSTALL_DIR)/redisai.so 2> /dev/null | grep '.zip' > $$RAMPOUT ;\
-	rm -f $$RAMPOUT ;\
-	echo "Done."
+	$(SHOW)RAMP=1 DEVICE=$(DEVICE) BINDIR=$(BINROOT) ./pack.sh
 
 pack_deps: pack_ramp
-	@echo "Building dependencies file ..."
-	@set -e ;\
-	cd $(ROOT) ;\
-	PACK_FNAME=$$(basename `cat $(BINDIR)/PACKAGE`) ;\
-	ARCHOSVER=$$(echo "$$PACK_FNAME" | sed -e "s/^redisai\.\([^.]*\..*\)\.zip/\1/") ;\
-	VERSION=$$(cat $(BINDIR)/VERSION) ;\
-	cd install-$(DEVICE) ;\
-	rm -rf redisai-$(DEVICE)-$$VERSION ;\
-	mkdir redisai-$(DEVICE)-$$VERSION ;\
-	mv backends redisai-$(DEVICE)-$$VERSION ;\
-	ln -sf redisai-$(DEVICE)-$$VERSION/backends backends ;\
-	find redisai-$(DEVICE)-$$VERSION -name "*.so*" | xargs tar pczf redisai-$(DEVICE)-dependencies.$$ARCHOSVER.tgz ;\
-	echo "Done."
+	$(SHOW)DEPS=1 DEVICE=$(DEVICE) BINDIR=$(BINROOT) ./pack.sh
+
+#----------------------------------------------------------------------------------------------
 
 test:
-	@git lfs install
+	@[[ $(git lfs env > /dev/null 2>&1 ; echo $?) != 0 ]] && git lfs install
 	@git lfs pull
 	@set -e ;\
 	cd $(ROOT)/test ;\

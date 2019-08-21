@@ -3,7 +3,7 @@ PROJECT(RedisAI)
 
 IF (NOT DEPS_PATH)
     # dependencies are required!
-    SET(DEPS_PATH ../deps/install)
+    SET(DEPS_PATH ../deps)
     # MESSAGE(FATAL_ERROR "DEPS PATH Missing!")
 ENDIF()
 
@@ -20,10 +20,10 @@ FUNCTION(ADD_LDFLAGS _TARGET NEW_FLAGS)
 ENDFUNCTION()
 
 GET_FILENAME_COMPONENT(depsAbs
-    "${DEPS_PATH}" REALPATH
-    BASE_DIR "${CMAKE_BINARY_DIR}")
+    "${DEPS_PATH}" REALPATH BASE_DIR ${CMAKE_SOURCE_DIR})
+#    BASE_DIR "${CMAKE_BINARY_DIR}")
 
-# SET(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-9.0)
+# SET(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-10.0)
 
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
 INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
@@ -34,28 +34,49 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 SET(CMAKE_C_STANDARD 11)
 
-FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
+#----------------------------------------------------------------------------------------------
+
+FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow #libtensorflow.so 
              PATHS ${depsAbs}/libtensorflow/lib)
 IF (NOT TF_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find tensorflow")
 ENDIF()
 
+#----------------------------------------------------------------------------------------------
+
 FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
-             PATHS ${depsAbs}/onnxruntime/lib)
+	PATHS ${depsAbs}/onnxruntime/lib)
 IF (NOT ORT_LIBRARIES)
     MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
 ENDIF()
 
+#----------------------------------------------------------------------------------------------
+
+IF (APPLE)
+    FIND_LIBRARY(MKL_LIBRARIES NAMES mklml)
+    IF (NOT MKL_LIBRARIES)
+        MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
+    ENDIF()
+    SET(platDeps "${MKL_LIBRARIES}")
+ENDIF()
+
+#----------------------------------------------------------------------------------------------
+
 # Find Torch stuff and build our wrapper
 SET (Torch_DIR ${depsAbs}/libtorch/share/cmake/Torch)
 FIND_PACKAGE(Torch REQUIRED)
+
 INCLUDE_DIRECTORIES(util/libtorch_c)
 ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 
 ADD_SUBDIRECTORY(util/libtorch_c)
+
+#----------------------------------------------------------------------------------------------
+
 ADD_SUBDIRECTORY(src)
 ADD_LIBRARY(redisai SHARED $<TARGET_OBJECTS:redisai_obj>)
 
+# TARGET_LINK_LIBRARIES(redisai ${ORT_LIBRARIES} torch_c ${TF_LIBRARIES} ${platDeps} ${CMAKE_DL_LIBS})
 TARGET_LINK_LIBRARIES(redisai ${CMAKE_DL_LIBS})
 
 SET_TARGET_PROPERTIES(redisai PROPERTIES PREFIX "")
@@ -70,6 +91,15 @@ SET(CMAKE_INSTALL_PREFIX ${CMAKE_SOURCE_DIR}/install-${DEVICE})
 
 INSTALL(TARGETS redisai LIBRARY DESTINATION .)
 
+IF (APPLE)
+  SET_TARGET_PROPERTIES(redisai PROPERTIES INSTALL_RPATH "@loader_path/lib")
+ELSE ()
+  ADD_LDFLAGS(redisai "-Wl,--enable-new-dtags")
+  SET_TARGET_PROPERTIES(redisai PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+ENDIF()
+
+#----------------------------------------------------------------------------------------------
+
 ADD_LIBRARY(redisai_tensorflow SHARED $<TARGET_OBJECTS:redisai_tensorflow_obj>)
 TARGET_LINK_LIBRARIES(redisai_tensorflow ${TF_LIBRARIES})
 SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES PREFIX "")
@@ -81,7 +111,10 @@ ELSE ()
   SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
 ENDIF()
 INSTALL(TARGETS redisai_tensorflow LIBRARY DESTINATION backends/redisai_tensorflow)
-INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_tensorflow)
+INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_tensorflow 
+	FILES_MATCHING PATTERN "*.so*")
+
+#----------------------------------------------------------------------------------------------
 
 ADD_LIBRARY(redisai_torch SHARED $<TARGET_OBJECTS:redisai_torch_obj>)
 TARGET_LINK_LIBRARIES(redisai_torch torch_c ${TORCH_LIBRARIES})
@@ -94,9 +127,12 @@ ELSE ()
   SET_TARGET_PROPERTIES(redisai_torch PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
 ENDIF()
 INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
-INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_torch)
+INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_torch 
+	FILES_MATCHING PATTERN "*.so*")
 
-IF(${DEVICE} STREQUAL "gpu")
+#----------------------------------------------------------------------------------------------
+
+IF (${DEVICE} STREQUAL "gpu")
   ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
 ENDIF()
 
@@ -111,4 +147,7 @@ ELSE ()
   SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
 ENDIF()
 INSTALL(TARGETS redisai_onnxruntime LIBRARY DESTINATION backends/redisai_onnxruntime)
-INSTALL(DIRECTORY ${depsAbs}/onnxruntime/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_onnxruntime)
+INSTALL(DIRECTORY ${depsAbs}/onnxruntime/lib DESTINATION ${CMAKE_INSTALL_PREFIX}/backends/redisai_onnxruntime 
+	FILES_MATCHING PATTERN "*.so*")
+
+#----------------------------------------------------------------------------------------------

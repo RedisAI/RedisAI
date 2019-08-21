@@ -1,0 +1,11 @@
+
+ifneq ($(MK_CMAKE),)
+
+$(BINDIR)/Makefile : $(SRCDIR)/CMakeLists.txt
+	$(SHOW)cd $(BINDIR); cmake $(CMAKE_WHY) $(CMAKE_FLAGS) $(realpath $(SRCDIR))
+
+#	$(SHOW)cd $(BINDIR); \
+#	CMAKE_REL_ROOT=`python -c "import os; print os.path.relpath('$(SRCDIR)', '$$PWD')"` \
+#	cmake $(CMAKE_FLAGS) $$CMAKE_REL_ROOT
+
+endif # MK_CMAKE

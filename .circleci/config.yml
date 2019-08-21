@@ -20,13 +20,13 @@ jobs:
             sudo ./automation/readies/bin/getpy
             sudo ./automation/system-setup.py
             ./get_deps.sh cpu
-            git clone git://github.com/antirez/redis.git --branch 5.0.3
+            git clone git://github.com/antirez/redis.git --branch 5.0.5
             (cd redis && make malloc=libc -j4 && sudo make install)
 
       - save_cache:
           paths:
             - deps
-          key: v2-dependencies-{{ checksum "get_deps.sh" }}
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
 
       - run:
           name: Build

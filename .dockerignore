@@ -1,7 +1,10 @@
+/bin/
 /deps/
-/build/
 /install*/
-**/*.o
-**/*.so
 .venv/
 venv*/
+/[0-9]*/
+/install
+*.zip
+*.tgz
+*.tar.gz

@@ -47,8 +47,7 @@ RUN set -ex;\
 # Package the runner
 FROM builder
 
-RUN set -ex;\
-    mkdir -p /usr/lib/redis/modules/;
+RUN mkdir -p /usr/lib/redis/modules/
 
 COPY --from=builder /redisai/install/ /usr/lib/redis/modules/
 

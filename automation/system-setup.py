@@ -52,10 +52,10 @@ class RedisAISetup(paella.Setup):
         self.install("git-lfs")
     
     def common_last(self):
-        if not self.has_command("ramp"):
-            self.pip3_install("git+https://github.com/RedisLabs/RAMP --upgrade")
         if not self.has_command("RLTest"):
             self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
+        if not self.has_command("ramp"):
+            self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
         self.pip3_install("-r test/test_requirements.txt")
 
 #----------------------------------------------------------------------------------------------
