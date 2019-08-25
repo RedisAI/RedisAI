@@ -54,7 +54,7 @@ include $(MK)/rules
 #---------------------------------------------------------------------------------------------- 
 
 prebuild:
-	@if [ -d $(ROOT)/deps ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
+	@if [ ! -d $(ROOT)/deps ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
 
 $(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
 	$(MAKE) -C $(BINDIR)

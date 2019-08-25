@@ -49,35 +49,31 @@ cd ${DEPS_DIR}
 # PREFIX=${DEPS_DIR}/install
 # mkdir -p ${PREFIX}
 
-# DLPACK_PREFIX=${PREFIX}/dlpack
-# TF_PREFIX=${PREFIX}/libtensorflow
-# TORCH_PREFIX=${PREFIX}/libtorch
-# ORT_PREFIX=${PREFIX}/onnxruntime
+DLPACK=dlpack
+LIBTENSORFLOW=libtensorflow
+LIBTORCH=libtorch
+MKL=mkl
+ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
 
-[[ $FORCE == 1 ]] && rm -rf dlpack
+[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
-if [[ ! -d dlpack ]]; then
+if [[ ! -d $DLPACK ]]; then
 	echo "Cloning dlpack ..."
-    git clone --depth 1 https://github.com/dmlc/dlpack.git
+    git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
 	echo "Done."
 else
 	echo "dlpack is in place."
 fi
 
-# if [[ ! -d dlpack/include ]]; then
-#     mkdir -p dlpack
-#     ln -sf ${DEPS_DIR}/dlpack/include ${DLPACK_PREFIX}/include
-# fi
-
 #################################################################################### TENSORFLOW
 
 TF_VERSION="1.14.0"
 
-[[ $FORCE == 1 ]] && rm -rf tensorflow
+[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
 
-if [[ ! -d tensorflow ]]; then
+if [[ ! -d $LIBTENSORFLOW ]]; then
 	echo "Installing TensorFlow ..."
 	
 	if [[ $OS == linux ]]; then
@@ -112,10 +108,10 @@ if [[ ! -d tensorflow ]]; then
 
 	[[ ! -f $LIBTF_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTF_ARCHIVE
 
-	rm -rf tensorflow.x
-	mkdir tensorflow.x
-	tar xf $LIBTF_ARCHIVE --no-same-owner --strip-components=1 -C tensorflow.x
-	mv tensorflow.x tensorflow
+	rm -rf $LIBTENSORFLOW.x
+	mkdir $LIBTENSORFLOW.x
+	tar xf $LIBTF_ARCHIVE --no-same-owner --strip-components=1 -C $LIBTENSORFLOW.x
+	mv $LIBTENSORFLOW.x $LIBTENSORFLOW
 	
 	echo "Done."
 else
@@ -126,9 +122,9 @@ fi
 
 PT_VERSION="1.2.0"
 
-[[ $FORCE == 1 ]] && rm -rf libtorch
+[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
 
-if [[ ! -d libtorch ]]; then
+if [[ ! -d $LIBTORCH ]]; then
 	echo "Installing libtorch ..."
 
 	if [[ $OS == linux ]]; then
@@ -157,12 +153,12 @@ if [[ ! -d libtorch ]]; then
 
 	[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
 
-	rm -rf libtorch.x
-	mkdir libtorch.x
+	rm -rf $LIBTORCH.x
+	mkdir $LIBTORCH.x
 
-	tar xf $LIBTORCH_ARCHIVE --no-same-owner -C libtorch.x
-	mv libtorch.x/libtorch libtorch
-	rmdir libtorch.x
+	tar xf $LIBTORCH_ARCHIVE --no-same-owner -C $LIBTORCH.x
+	mv $LIBTORCH.x/libtorch $LIBTORCH
+	rmdir $LIBTORCH.x
 	
 	echo "Done."
 else
@@ -181,10 +177,10 @@ if [[ ! -d mkl ]]; then
 		MKL_ARCHIVE=mklml_${MKL_OS}_${MKL_BUNDLE_VER}.tgz
 		[[ ! -e ${MKL_ARCHIVE} ]] && wget -q https://github.com/intel/mkl-dnn/releases/download/v${MKL_VERSION}/${MKL_ARCHIVE}
 
-		rm -rf mkl.x
-		mkdir mkl.x
-		tar xzf ${MKL_ARCHIVE} --no-same-owner --strip-components=1 -C mkl.x
-		mv mkl.x mkl
+		rm -rf $MKL.x
+		mkdir $MKL.x
+		tar xzf ${MKL_ARCHIVE} --no-same-owner --strip-components=1 -C $MKL.x
+		mv $MKL.x $MKL
 
 		echo "Done."
 	fi
@@ -196,9 +192,9 @@ fi
 
 ORT_VERSION="0.5.0"
 
-[[ $FORCE == 1 ]] && rm -rf onnxruntime
+[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
 
-if [[ ! -d onnxruntime ]]; then
+if [[ ! -d $ONNXRUNTIME ]]; then
 	echo "Installing ONNXRuntime ..."
 
 	if [[ $OS == linux ]]; then
@@ -227,15 +223,12 @@ if [[ ! -d onnxruntime ]]; then
 
 	ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
 
-	if [[ ! -e ${ORT_ARCHIVE} ]]; then
-		wget -q $ORT_URL_BASE/${ORT_ARCHIVE}
-		echo "Done."
-	fi
+	[[ ! -e ${ORT_ARCHIVE} ]] && wget -q $ORT_URL_BASE/${ORT_ARCHIVE}
 
-	rm -rf onnxruntime.x
-	mkdir onnxruntime.x
-	tar xzf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C onnxruntime.x
-	mv onnxruntime.x onnxruntime
+	rm -rf $ONNXRUNTIME.x
+	mkdir $ONNXRUNTIME.x
+	tar xzf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C $ONNXRUNTIME.x
+	mv $ONNXRUNTIME.x $ONNXRUNTIME
 	
 	echo "Done."
 else
@@ -256,4 +249,4 @@ fi
 #	echo "Binaries in place."
 #fi
 
-echo "Done."
+# echo "Done."
