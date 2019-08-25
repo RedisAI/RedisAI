@@ -2,10 +2,12 @@
 
 [ "$VERBOSE" = "1" ] && set -x
 
-show_if_error() {
-	{ "${@:1}"; } > /tmp/py2.log  2>&1
-	[ $? != 0 ] && cat /tmp/py2.log
-	rm -f /tmp/py2.log
+runn() {
+	[[ $NOP == 1 ]] && { echo "${@:1}"; return; }
+	__runn_log=$(mktemp /tmp/run.XXXXX)
+	{ "${@:1}"; } > $__runn_log  2>&1
+	[ $? != 0 ] && cat $__runn_log
+	rm -f $__runn_log
 }
 
 if [ ! -z $(command -v python) ]; then
@@ -13,19 +15,22 @@ if [ ! -z $(command -v python) ]; then
 fi
 
 [ ! -z $(command -v python2) ] && exit 0
+[ ! -z $(command -v python2.7) ] && exit 0
+
+[[ $CHECK == 1 ]] && exit 1
 
 if [ ! -z $(command -v apt-get) ]; then
-	show_if_error apt-get -qq update
-	show_if_error apt-get -qq install -y python
+	runn apt-get -qq update
+	runn apt-get -qq install -y python
 elif [ ! -z $(command -v dnf) ]; then
-	show_if_error dnf install -y python2
+	runn dnf install -y python2
 elif [ ! -z $(command -v yum) ]; then
-	show_if_error yum install -y python2
+	runn yum install -y python2
 elif [ ! -z $(command -v apk) ]; then
-	show_if_error apk update
-	show_if_error apk add python2
+	runn apk update
+	runn apk add python2
 elif [ ! -z $(command -v brew) ]; then
-	show_if_error brew install python2
+	runn brew install python2
 fi
 
 if [ -z $(command -v python) ]; then

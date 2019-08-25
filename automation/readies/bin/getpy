@@ -16,6 +16,8 @@ fi
 
 [ ! -z $(command -v python3) ] && exit 0
 
+[[ $CHECK == 1 ]] && exit 1
+
 if [ ! -z $(command -v apt-get) ]; then
 	runn apt-get -qq update
 	runn apt-get -qq install -y python3

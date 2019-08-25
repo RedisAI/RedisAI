@@ -6,11 +6,14 @@ MK_CMAKE:=1
 MK_CMAKE_INSTALL:=1
 
 define HELP
-make fetch # download and prepare dependant modules
-make build # compile and link
-make clean # remove build artifacts
-make pack  # create installation packages
-make test  # run tests
+make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
+make fetch    # download and prepare dependant modules
+make build    # compile and link
+make clean    # remove build artifacts
+make pack     # create installation packages
+make test     # run tests
+make deploy   # copy packages to S3
+make release  # release a version
 endef
 
 #---------------------------------------------------------------------------------------------- 
@@ -40,7 +43,7 @@ CMAKE_FLAGS += \
 	-DDEPS_PATH=$(realpath $(ROOT)/deps) \
 	-DDEVICE=$(DEVICE)
 
-include readies/mk/defs
+include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
 
@@ -50,7 +53,10 @@ include $(MK)/rules
 
 #---------------------------------------------------------------------------------------------- 
 
-$(TARGET): $(MK_MAKEFILES) $(DEPS)
+prebuild:
+	@if [ -d $(ROOT)/deps ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
+
+$(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
 	$(MAKE) -C $(BINDIR)
 	$(MAKE) -C $(BINDIR) install
 	cd $(ROOT) ;\
