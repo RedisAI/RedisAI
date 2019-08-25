@@ -74,7 +74,7 @@ endif
 
 fetch:
 	@echo Fetching dependencies...
-	$(SHOW)VERBOSE=$(_SHOW) ./get_deps.sh $(DEPS_FLAGS)
+	$(SHOW)VERBOSE=$(_SHOW)$(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
 #----------------------------------------------------------------------------------------------
 
