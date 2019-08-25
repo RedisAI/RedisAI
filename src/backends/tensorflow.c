@@ -160,7 +160,7 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t deviceid,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,
                              const char *modeldef, size_t modellen,
@@ -205,7 +205,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
     }
   }
 
-   TF_DeleteImportGraphDefOptions(options);
+  TF_DeleteImportGraphDefOptions(options);
   TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
@@ -225,6 +225,18 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   if (device == RAI_DEVICE_CPU) {
     uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
     TF_SetConfig(sessionOptions, (void *)config, 9, status);
+  }
+  else if (device == RAI_DEVICE_GPU) {
+    if (deviceid == -1) {
+      // #error(update proto)
+      // uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
+      // TF_SetConfig(sessionOptions, (void *)config, 9, status);
+    }
+    else {
+      // #error(update proto)
+      // uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
+      // TF_SetConfig(sessionOptions, (void *)config, 9, status);
+    }
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
@@ -261,6 +273,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   ret->session = session;
   ret->backend = backend;
   ret->device = device;
+  ret->deviceid = deviceid;
   ret->inputs = inputs_;
   ret->outputs = outputs_;
   ret->refCount = 1;

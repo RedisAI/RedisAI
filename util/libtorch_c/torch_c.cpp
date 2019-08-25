@@ -144,10 +144,13 @@ at::ScalarType toScalarType(const DLDataType& dtype) {
 torch::Tensor fromDLPack(const DLTensor* src) {
   at::DeviceType device_type = getATenDeviceType(src->ctx.device_type);
   at::ScalarType stype = toScalarType(src->dtype);
+  // torch::Device device(device_type, src->ctx.device_id);
+  torch::Device device(device_type, -1);
+  // torch::DeviceType device = device_type;
   return torch::from_blob(src->data,
       at::IntArrayRef(src->shape, src->ndim),
       at::IntArrayRef(src->strides, src->ndim),
-      torch::device(device_type).dtype(stype));
+      torch::device(device).dtype(stype));
 }
 
 struct ATenDLMTensor {
@@ -182,6 +185,7 @@ struct ModuleContext {
   std::shared_ptr<torch::jit::script::Module> module;
   std::shared_ptr<torch::jit::script::CompilationUnit> cu;
   DLDeviceType device;
+  int64_t device_id;
 };
 
 void torchRunModule(ModuleContext* ctx, const char* fnName,
@@ -191,17 +195,19 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
   // TODO: This will need to change at some point, as individual tensors will have their placement
   // and script will only make sure that placement is correct
 
-  torch::DeviceType device;
+  torch::DeviceType device_type;
   switch (ctx->device) {
     case kDLCPU:
-      device = torch::kCPU;
+      device_type = torch::kCPU;
       break;
     case kDLGPU:
-      device = torch::kCUDA;
+      device_type = torch::kCUDA;
       break;
     default:
       throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
   }
+
+  torch::Device device(device_type, ctx->device_id);
 
   torch::jit::Stack stack;
 
@@ -220,7 +226,8 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
     fn.run(stack);
   }
 
-  torch::DeviceType output_device = torch::kCPU;
+  torch::DeviceType output_device_type = torch::kCPU;
+  torch::Device output_device(output_device_type, -1);
 
   int count = 0;
   for (size_t i=0; i<stack.size(); i++) {
@@ -270,21 +277,24 @@ extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t
 {
   // at::DeviceType device_type = getATenDeviceType(kDLCPU);
   at::ScalarType stype = toScalarType(dtype);
+  torch::Device device(getATenDeviceType(kDLCPU), -1);
   torch::Tensor tensor = torch::from_blob(data,
       at::IntArrayRef(shape, ndims),
       at::IntArrayRef(strides, ndims),
-      torch::device(at::DeviceType::CPU).dtype(stype));
+      // torch::device(at::DeviceType::CPU).dtype(stype));
+      torch::device(device).dtype(stype));
 
   DLManagedTensor *dl_tensor = toManagedDLPack(tensor);
 
   return dl_tensor;
 }
 
-extern "C" void* torchCompileScript(const char* script, DLDeviceType device,
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
                                     char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
+  ctx->device_id = device_id;
   try {
     auto cu = torch::jit::compile(script);
     ctx->cu = cu;
@@ -299,20 +309,22 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device,
   return ctx;
 }
 
-extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType device,
+extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType device, int64_t device_id,
                                 char **error, void* (*alloc)(size_t))
 {
   std::string graphstr(graph, graphlen);
   std::istringstream graph_stream(graphstr, std::ios_base::binary);
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
+  ctx->device_id = device_id;
   try {
     // TODO: move to device now
     auto module = std::make_shared<torch::jit::script::Module>(torch::jit::load(graph_stream));
-    auto aten_device = getATenDeviceType(device);
-    if (aten_device == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+    auto aten_device_type = getATenDeviceType(device);
+    if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
       throw std::logic_error("GPU requested but CUDA not available");
     }
+    torch::Device aten_device(aten_device_type, device_id);
     module->to(aten_device);
     ctx->module = module;
     ctx->cu = nullptr;

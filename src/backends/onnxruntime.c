@@ -228,7 +228,7 @@ typedef struct RAI_ONNXBuffer {
 
 OrtEnv* env = NULL;
 
-RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
+RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t deviceid,
                               const char *modeldef, size_t modellen,
                               RAI_Error *error) {
 
@@ -268,7 +268,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   // e.g. given the name, in ONNXRuntime
 #if RAI_ONNXRUNTIME_USE_CUDA
   if (device == RAI_DEVICE_GPU) {
-    OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, 0);
+    OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
   }
 #endif
 
@@ -297,13 +297,14 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device,
   ret->session = session;
   ret->backend = backend;
   ret->device = device;
+  ret->deviceid = deviceid;
   ret->refCount = 1;
   ret->data = onnxbuffer;
 
   return ret;
 
 error:
-  RAI_SetError(error, RAI_EMODELRUN, OrtGetErrorMessage(status));
+  RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
   OrtReleaseStatus(status);
   return NULL;
 }
