@@ -12,6 +12,7 @@
 #include "util/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "rmutil/args.h"
+#include "rmutil/khash.h"
 
 #define REDISAI_H_INCLUDE
 #include "redisai.h"
@@ -86,6 +87,70 @@ void queueRelease(queue *queue) {
   queue->len = 0;
 }
 
+typedef struct RunQueueInfo {
+  pthread_mutex_t run_queue_mutex;
+  queue *run_queue;
+  pthread_t run_thread_id;
+} RunQueueInfo;
+
+void freeRunQueueInfo(RunQueueInfo* info) {
+  if (info->run_queue) {
+    RedisModule_Free(info->run_queue);
+  }
+
+  RedisModule_Free(info);
+}
+
+KHASH_MAP_INIT_INT64(run_queues, RunQueueInfo *);
+
+static kh_run_queues_t* run_queues = NULL;
+
+static pthread_mutex_t global_run_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void *RedisAI_Run_ThreadMain(void *arg);
+
+size_t deviceToKey(RAI_Device device, int64_t deviceid) {
+  // allow deviceid == -1
+  return device * (RAI_MAX_DEVICE_ID + 1) + (deviceid + 1);
+}
+
+int ensureRunQueue(RAI_Device device, int64_t deviceid) {
+  if (deviceid < -1 || deviceid > RAI_MAX_DEVICE_ID) {
+    return 0;
+  }
+
+  size_t key = deviceToKey(device, deviceid);
+
+  khiter_t key_iter = kh_get_run_queues(run_queues, key);
+  if (key_iter != kh_end(run_queues)) {
+    return 1;
+  }
+
+  RunQueueInfo* run_queue_info = RedisModule_Calloc(1, sizeof(RunQueueInfo));
+  // run_queue->run_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
+  run_queue_info->run_queue = queueCreate();
+
+  pthread_t tid;
+
+  if (pthread_create(&tid, NULL, RedisAI_Run_ThreadMain, run_queue_info) != 0) {
+    freeRunQueueInfo(run_queue_info);
+    return REDISMODULE_ERR;
+  }
+
+  run_queue_info->run_thread_id = tid;
+
+  int dummy;
+
+  pthread_mutex_lock(&global_run_queue_mutex);
+
+  khiter_t iter = kh_put_run_queues(run_queues, key, &dummy);
+  kh_value(run_queues, iter) = run_queue_info;
+
+  pthread_mutex_unlock(&global_run_queue_mutex);
+
+  return 1;
+}
+
 static pthread_mutex_t runQueueMutex = PTHREAD_MUTEX_INITIALIZER;
 static queue *runQueue;
 
@@ -108,6 +173,26 @@ enum RedisAI_DataFmt {
   REDISAI_DATA_VALUES,
   REDISAI_DATA_NONE
 };
+
+int parseDeviceStr(const char* devicestr, RAI_Device* device, int64_t* deviceid) {
+  if (strcasecmp(devicestr, "CPU") == 0) {
+    *device = RAI_DEVICE_CPU;
+    *deviceid = -1;
+  }
+  else if (strcasecmp(devicestr, "GPU") == 0) {
+    *device = RAI_DEVICE_GPU;
+    *deviceid = -1;
+  }
+  else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
+    *device = RAI_DEVICE_GPU;
+    sscanf(devicestr, "GPU:%lld", deviceid);
+  }
+  else {
+    return 0;
+  }
+
+  return 1;
+}
 
 // ================================
 
@@ -439,15 +524,11 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   const char* devicestr;
-  int device;
   AC_GetString(&ac, &devicestr, NULL, 0); 
-  if (strcasecmp(devicestr, "CPU") == 0) {
-    device = RAI_DEVICE_CPU;
-  }
-  else if (strcasecmp(devicestr, "GPU") == 0) {
-    device = RAI_DEVICE_GPU;
-  }
-  else {
+
+  RAI_Device device;
+  int64_t deviceid;
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
     return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
   }
 
@@ -497,7 +578,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Error err = {0};
 
-  model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+  model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend %s not loaded, will try loading default backend\n", bckstr);
@@ -509,7 +590,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       return ret;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, device, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+    model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
   }
 
   if (err.code != RAI_OK) {
@@ -521,6 +602,21 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return ret;
   }
 
+  // TODO: if backend loaded, make sure there's a queue
+
+  if (!ensureRunQueue(device, deviceid)) {
+    RAI_ModelFree(model, &err);
+    if (err.code != RAI_OK) {
+      #ifdef RAI_PRINT_BACKEND_ERRORS
+      printf("ERR: %s\n", err.detail);
+      #endif
+      int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
+      RAI_ClearError(&err);
+      return ret;
+    }
+    return RedisModule_ReplyWithError(ctx, "ERR: could not initialize queue on requested device");
+  }
+
   RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
       REDISMODULE_READ|REDISMODULE_WRITE);
   int type = RedisModule_KeyType(key);
@@ -528,6 +624,15 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       !(type == REDISMODULE_KEYTYPE_MODULE &&
         RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
     RedisModule_CloseKey(key);
+    RAI_ModelFree(model, &err);
+    if (err.code != RAI_OK) {
+      #ifdef RAI_PRINT_BACKEND_ERRORS
+      printf("ERR: %s\n", err.detail);
+      #endif
+      int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
+      RAI_ClearError(&err);
+      return ret;
+    }
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
@@ -600,14 +705,16 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       break;
   }
 
+  char device[256];
   switch (mto->device) {
     case REDISAI_DEVICE_CPU:
-      RedisModule_ReplyWithSimpleString(ctx, "CPU");
+      strcpy(device, "CPU");
       break;
     case REDISAI_DEVICE_GPU:
-      RedisModule_ReplyWithSimpleString(ctx, "GPU");
+      sprintf(device, "GPU:%lld", mto->deviceid);
       break;
   }
+  RedisModule_ReplyWithSimpleString(ctx, device);
 
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
@@ -647,18 +754,27 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString **outkeys;
-  RAI_ModelRunCtx* mctx;
+  RAI_ModelRunCtx *mctx;
+  RAI_ScriptRunCtx *sctx;
   int status;
   RAI_Error* err;
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
-  for(int i = 0 ; i < RAI_ModelRunCtxNumOutputs(rinfo->mctx) ; ++i){
-    RedisModule_FreeString(ctx, rinfo->outkeys[i]);
+  if (rinfo->mctx) {
+    for(int i = 0 ; i < RAI_ModelRunCtxNumOutputs(rinfo->mctx) ; ++i){
+      RedisModule_FreeString(ctx, rinfo->outkeys[i]);
+    }
+    RedisModule_Free(rinfo->outkeys);
+    RAI_ModelRunCtxFree(rinfo->mctx);
   }
-  RedisModule_Free(rinfo->outkeys);
-
-  RAI_ModelRunCtxFree(rinfo->mctx);
+  else if (rinfo->sctx) {
+    for(int i = 0 ; i < RAI_ScriptRunCtxNumOutputs(rinfo->sctx) ; ++i){
+      RedisModule_FreeString(ctx, rinfo->outkeys[i]);
+    }
+    RedisModule_Free(rinfo->outkeys);
+    RAI_ScriptRunCtxFree(rinfo->sctx);
+  }
 
   if (rinfo->err) {
     RAI_ClearError(rinfo->err);
@@ -672,16 +788,24 @@ void *RedisAI_RunSession(void *arg) {
   struct RedisAI_RunInfo *rinfo = (struct RedisAI_RunInfo*)arg;
   rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
 
-  mstime_t start = mstime();
-  rinfo->status = RAI_ModelRun(rinfo->mctx, rinfo->err);
-  mstime_t end = mstime();
+  mstime_t start, end;
+  if (rinfo->mctx) {
+    start = mstime();
+    rinfo->status = RAI_ModelRun(rinfo->mctx, rinfo->err);
+    end = mstime();
+  }
+  else if (rinfo->sctx) {
+    start = mstime();
+    rinfo->status = RAI_ScriptRun(rinfo->sctx, rinfo->err);
+    end = mstime();
+  }
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
   RedisModule_ThreadSafeContextLock(ctx);
   if (rinfo->err->code != RAI_OK) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
   }
   else{
-    RedisModule_Log(ctx, "verbose", "RAI_ModelRun took %fms", (end - start));
+    RedisModule_Log(ctx, "verbose", "Run took %fms", (end - start));
   }
   RedisModule_ThreadSafeContextUnlock(ctx);
 
@@ -707,7 +831,14 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return ret;
   }
 
-  for (size_t i=0; i<RAI_ModelRunCtxNumOutputs(rinfo->mctx); ++i) {
+  size_t num_outputs = 0;
+  if (rinfo->mctx) {
+    num_outputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+  }
+  else if (rinfo->sctx) {
+    num_outputs = RAI_ScriptRunCtxNumOutputs(rinfo->sctx);
+  }
+  for (size_t i=0; i<num_outputs; ++i) {
     RedisModuleKey *outkey = RedisModule_OpenKey(ctx, rinfo->outkeys[i],
                                                  REDISMODULE_READ|REDISMODULE_WRITE);
     int type = RedisModule_KeyType(outkey);
@@ -718,7 +849,13 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
       RedisAI_FreeRunInfo(ctx, rinfo);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
-    RAI_Tensor *t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, i);
+    RAI_Tensor *t = NULL;
+    if (rinfo->mctx) {
+      t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, i);
+    }
+    else if (rinfo->sctx) {
+      t = RAI_ScriptRunCtxOutputTensor(rinfo->sctx, i);
+    }
     if (t) {
       RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
     }
@@ -818,6 +955,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
+  rinfo->sctx = NULL;
   rinfo->outkeys = NULL;
   rinfo->err = NULL;
 
@@ -863,14 +1001,27 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     rinfo->outkeys[i] = outputs[i];
   }
 
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
-
   //  RedisModule_AbortBlock(bc);
   //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
 
-  pthread_mutex_lock(&runQueueMutex);
-  queuePush(runQueue, rinfo);
-  pthread_mutex_unlock(&runQueueMutex);
+ // TODO: evaluate if kh is thread-safe when reading
+
+  size_t queue_key = deviceToKey(mto->device, mto->deviceid);
+
+  pthread_mutex_lock(&global_run_queue_mutex);
+  khiter_t key_iter = kh_get_run_queues(run_queues, queue_key);
+  if (key_iter == kh_end(run_queues)) {
+    pthread_mutex_unlock(&global_run_queue_mutex);
+    return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
+  }
+  RunQueueInfo run_queue_info = *kh_value(run_queues, key_iter);
+  pthread_mutex_unlock(&global_run_queue_mutex);
+
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
+
+  pthread_mutex_lock(&run_queue_info.run_queue_mutex);
+  queuePush(run_queue_info.run_queue, rinfo);
+  pthread_mutex_unlock(&run_queue_info.run_queue_mutex);
 
   // RedisAI_RunSession(rinfo);
   // RedisAI_FreeRunInfo(ctx, rinfo);
@@ -882,10 +1033,12 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
 void *RedisAI_Run_ThreadMain(void *arg) {
 
+  RunQueueInfo* run_queue_info = (RunQueueInfo*)arg;
+
   while(1) {
-    pthread_mutex_lock(&runQueueMutex);
-    queueItem *item = queuePop(runQueue);
-    pthread_mutex_unlock(&runQueueMutex);
+    pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+    queueItem *item = queuePop(run_queue_info->run_queue);
+    pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
     if (item) {
       RedisAI_RunSession(item->value);
@@ -896,18 +1049,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
     usleep(1000);
   }
-}
-
-int RedisAI_StartRunThread() {
-  pthread_t tid;
-
-  runQueue = queueCreate();
-
-  if (pthread_create(&tid, NULL, RedisAI_Run_ThreadMain, NULL) != 0) {
-    return REDISMODULE_ERR;
-  }
-
-  return REDISMODULE_OK;
 }
 
 // script key, fnname, INPUTS, key1, key2 ... OUTPUTS, key1, key2 ...
@@ -951,7 +1092,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   const char* fnname;
   AC_GetString(&ac, &fnname, NULL, 0); 
- 
+
   ArgsCursor inac = {0};
   ArgsCursor outac = {0};
 
@@ -1013,41 +1154,62 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_RetainString(ctx, outputs[i]);
     outkeys[i] = outputs[i];
   }
- 
-  RAI_Error err = {0};
-  int ret = RAI_ScriptRun(sctx, &err);
 
-  if (err.code != RAI_OK) {
-    #ifdef RAI_PRINT_BACKEND_ERRORS
-    printf("ERR: %s\n", err.detail);
-    #endif
-    int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-    RAI_ClearError(&err);
-    return ret;
+  struct RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
+  rinfo->mctx = NULL;
+  rinfo->sctx = sctx;
+  rinfo->outkeys = outkeys;
+  rinfo->err = NULL;
+
+  size_t queue_key = deviceToKey(sto->device, sto->deviceid);
+
+  pthread_mutex_lock(&global_run_queue_mutex);
+  khiter_t key_iter = kh_get_run_queues(run_queues, queue_key);
+  if (key_iter == kh_end(run_queues)) {
+    pthread_mutex_unlock(&global_run_queue_mutex);
+    return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
+  RunQueueInfo run_queue_info = *kh_value(run_queues, key_iter);
+  pthread_mutex_unlock(&global_run_queue_mutex);
 
-  for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
-    RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
-                                                 REDISMODULE_READ|REDISMODULE_WRITE);
-    int type = RedisModule_KeyType(outkey);
-    if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
-      RedisModule_CloseKey(outkey);
-      return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
-    }
-    RAI_Tensor *t = RAI_ScriptRunCtxOutputTensor(sctx, i);
-    if (t) {
-      RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
-    }
-    RedisModule_CloseKey(outkey);
-  }
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
 
-  RAI_ScriptRunCtxFree(sctx);
-
-  RedisModule_ReplyWithSimpleString(ctx, "OK");
+  pthread_mutex_lock(&run_queue_info.run_queue_mutex);
+  queuePush(run_queue_info.run_queue, rinfo);
+  pthread_mutex_unlock(&run_queue_info.run_queue_mutex);
 
   RedisModule_ReplicateVerbatim(ctx);
+ 
+  // RAI_Error err = {0};
+  // int ret = RAI_ScriptRun(sctx, &err);
+
+  // if (err.code != RAI_OK) {
+  //   #ifdef RAI_PRINT_BACKEND_ERRORS
+  //   printf("ERR: %s\n", err.detail);
+  //   #endif
+  //   int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
+  //   RAI_ClearError(&err);
+  //   return ret;
+  // }
+
+  // for (size_t i=0; i<RAI_ScriptRunCtxNumOutputs(sctx); ++i) {
+  //   RedisModuleKey *outkey = RedisModule_OpenKey(ctx, outkeys[i],
+  //                                                REDISMODULE_READ|REDISMODULE_WRITE);
+  //   int type = RedisModule_KeyType(outkey);
+  //   if (type != REDISMODULE_KEYTYPE_EMPTY &&
+  //       !(type == REDISMODULE_KEYTYPE_MODULE &&
+  //         RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
+  //     RedisModule_CloseKey(outkey);
+  //     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  //   }
+  //   RAI_Tensor *t = RAI_ScriptRunCtxOutputTensor(sctx, i);
+  //   if (t) {
+  //     RedisModule_ModuleTypeSetValue(outkey, RedisAI_TensorType, RAI_TensorGetShallowCopy(t));
+  //   }
+  //   RedisModule_CloseKey(outkey);
+  // }
+
+  // RAI_ScriptRunCtxFree(sctx);
 
   return REDISMODULE_OK;
 }
@@ -1134,14 +1296,10 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   const char* devicestr;
   AC_GetString(&ac, &devicestr, NULL, 0); 
-  int device;
-  if (strcasecmp(devicestr, "CPU") == 0) {
-    device = RAI_DEVICE_CPU;
-  }
-  else if (strcasecmp(devicestr, "GPU") == 0) {
-    device = RAI_DEVICE_GPU;
-  }
-  else {
+
+  RAI_Device device;
+  int64_t deviceid;
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
     return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
   }
 
@@ -1152,7 +1310,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
 
   RAI_Error err = {0};
-  script = RAI_ScriptCreate(device, scriptdef, &err);
+  script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend\n");
@@ -1164,7 +1322,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return ret;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(device, scriptdef, &err);
+    script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
   }
 
   if (err.code != RAI_OK){
@@ -1174,6 +1332,19 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
+  }
+
+  if (!ensureRunQueue(device, deviceid)) {
+    RAI_ScriptFree(script, &err);
+    if (err.code != RAI_OK) {
+      #ifdef RAI_PRINT_BACKEND_ERRORS
+      printf("ERR: %s\n", err.detail);
+      #endif
+      int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
+      RAI_ClearError(&err);
+      return ret;
+    }
+    return RedisModule_ReplyWithError(ctx, "ERR: could not initialize queue on requested device");
   }
 
   RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
@@ -1453,8 +1624,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
   }
 
-  if (RedisAI_StartRunThread() == REDISMODULE_ERR)
-    return REDISMODULE_ERR;
+  run_queues = kh_init_run_queues();
+
+  // if (!ensureRunQueue(RAI_DEVICE_CPU, -1)) {
+  //   return REDISMODULE_ERR;
+  // }
 
   return REDISMODULE_OK;
 }
