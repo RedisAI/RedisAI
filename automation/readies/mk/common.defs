@@ -1,5 +1,8 @@
 
 _SHOW:=$(SHOW)
+ifeq ($(_SHOW),)
+_SHOW:=0
+endif
 ifeq ($(SHOW),1)
 override SHOW:=
 else
