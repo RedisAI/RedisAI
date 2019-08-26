@@ -1077,8 +1077,14 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
   RedisModule_ReplyWithArray(ctx, 2);
-  // RedisModule_ReplyWithSimpleString(ctx, sto->device);
-  RedisModule_ReplyWithLongLong(ctx, sto->device);
+  switch (sto->device) {
+    case REDISAI_DEVICE_CPU:
+        RedisModule_ReplyWithSimpleString(ctx, "CPU");
+        break;
+    case REDISAI_DEVICE_GPU:
+        RedisModule_ReplyWithSimpleString(ctx, "GPU");
+        break;
+    }
   RedisModule_ReplyWithSimpleString(ctx, sto->scriptdef);
 
   return REDISMODULE_OK;
