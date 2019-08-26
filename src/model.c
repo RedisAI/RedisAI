@@ -138,7 +138,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
-  char backend[256];
+  char backend[256] = "";
   switch (model->backend) {
     case RAI_BACKEND_TENSORFLOW:
       strcpy(backend, "TF");
@@ -151,7 +151,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
       break;
   }
 
-  char device[256];
+  char device[256] = "";
   switch (model->device) {
     case RAI_DEVICE_CPU:
       strcpy(device, "CPU");

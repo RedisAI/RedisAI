@@ -58,7 +58,7 @@ static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
 static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
   RAI_Script *script = (RAI_Script*)value;
 
-  char device[256];
+  char device[256] = "";
   switch (script->device) {
     case RAI_DEVICE_CPU:
       strcpy(device, "CPU");

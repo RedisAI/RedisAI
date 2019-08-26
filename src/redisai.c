@@ -705,7 +705,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       break;
   }
 
-  char device[256];
+  char device[256] = "";
   switch (mto->device) {
     case REDISAI_DEVICE_CPU:
       strcpy(device, "CPU");
