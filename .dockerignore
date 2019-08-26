@@ -1,10 +1,9 @@
 /bin/
 /deps/
-/install*/
+/install*
 .venv/
 venv*/
 /[0-9]*/
-/install
 *.zip
 *.tgz
 *.tar.gz

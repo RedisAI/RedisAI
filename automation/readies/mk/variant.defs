@@ -35,7 +35,7 @@ else
 __VARIANT:=-$(VARIANT)
 endif
 FULL_VARIANT:=$(OS)-$(ARCH)-$(FLAVOR)$(__VARIANT)
-FULL_VARIANT_REL:=$(OS)-$(ARCH)-release$(__VARIANT)
+FULL_VARIANT.release:=$(OS)-$(ARCH)-release$(__VARIANT)
 
 ifneq ($(origin VARIANT),)
 $(eval $(shell if [ -z $(VARIANT) ]; then rm -f $(ROOT)/VARIANT; else echo $(VARIANT)>$(ROOT)/VARIANT; fi))

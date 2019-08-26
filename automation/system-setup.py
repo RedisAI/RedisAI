@@ -19,7 +19,9 @@ class RedisAISetup(paella.Setup):
         self.pip3_install("wheel")
         self.pip3_install("setuptools --upgrade")
         
-        self.install("git cmake ca-certificates curl unzip wget patchelf awscli")
+        if self.os == 'linux':
+            self.install("ca-certificates")
+        self.install("git cmake curl unzip wget patchelf awscli")
 
     def debian_compat(self):
         self.install("build-essential")
@@ -56,7 +58,7 @@ class RedisAISetup(paella.Setup):
             self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
         if not self.has_command("ramp"):
             self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
-        self.pip3_install("-r test/test_requirements.txt")
+        self.pip3_install("-r ../test/test_requirements.txt")
 
 #----------------------------------------------------------------------------------------------
 

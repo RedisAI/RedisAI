@@ -1,6 +1,6 @@
 /bin/
 /deps/
-/install*/
+/install*
 /test/venv/
 /test/logs/
 .venv/

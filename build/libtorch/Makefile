@@ -8,12 +8,16 @@ OSNICK ?= buster
 
 S3_URL=redismodules/pytorch
 
-STEM=libtorch-cpu-linux
+OS:=$(shell $(ROOT)/automation/readies/bin/platform --os)
+ifeq ($(OS),macosx)
+OS:=macos
+endif
+STEM=libtorch-cpu-$(OS)
 
-OS.bionic=ubuntu:bionic
-OS.stretch=debian:stretch-slim
-OS.buster=debian:buster-slim
-OS=$(OS.$(OSNICK))
+DOCKER_OS.bionic=ubuntu:bionic
+DOCKER_OS.stretch=debian:stretch-slim
+DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS=$(DOCKER_OS.$(OSNICK))
  
 #----------------------------------------------------------------------------------------------
 
@@ -34,7 +38,7 @@ $(eval $(call targets,PUBLISH,publish))
 define build_x64 # (1=arch, 2=tar-arch)
 build_x64:
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 \
-		--build-arg OS=$(OS) $(ROOT)
+		--build-arg OS=$(DOCKER_OS) $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
 	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(2)-$(VERSION).tar.gz .
 
@@ -79,6 +83,12 @@ build: $(BUILD_TARGETS)
 $(eval $(call build_x64,x64,x86_64))
 $(eval $(call build_arm,arm64v8,arm64))
 $(eval $(call build_arm,arm32v7,arm))
+
+ifneq ($(filter publish,$(MAKECMDGOALS)),)
+ifeq ($(wildcard $(HOME)/.aws/credentials),)
+$(error Please run 'aws configure' and provide it with access credentials)
+endif
+endif
 
 publish: $(PUBLISH_TARGETS)
 

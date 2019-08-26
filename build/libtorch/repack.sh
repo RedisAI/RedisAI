@@ -16,6 +16,9 @@ fi
 OS=$(python3 $ROOT/automation/readies/bin/platform --os)
 ARCH=$(python3 $ROOT/automation/readies/bin/platform --arch)
 
+# avoid wget warnings on macOS
+[[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8
+
 if [[ -z $PT_VERSION ]]; then
 	PT_VERSION=1.2.0
 	#PT_VERSION="latest"
@@ -33,6 +36,7 @@ if [[ $OS == linux ]]; then
 	fi
 elif [[ $OS == macosx ]]; then
 	PT_OS=macos
+	PT_ARCH=x86_64
 	PT_BUILD=cpu
 fi
 
@@ -43,7 +47,7 @@ LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_VERSION}.zip
 
 if [ ! -f $LIBTORCH_ARCHIVE ]; then
 	echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-	wget $LIBTORCH_URL
+	wget -q $LIBTORCH_URL
 fi
 
 if [[ $OS == linux ]]; then

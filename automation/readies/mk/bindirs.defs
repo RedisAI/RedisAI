@@ -1,5 +1,6 @@
 
 BINROOT=$(ROOT)/bin/$(FULL_VARIANT)
+BINROOT.release=$(ROOT)/bin/$(FULL_VARIANT.release)
 BIN_DIRS=$(sort $(patsubst %/,%,$(BINDIR) $(dir $(OBJECTS))))
 
 define mkdir_rule

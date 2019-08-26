@@ -42,7 +42,7 @@ fi
 OS=$(python3 $HERE/automation/readies/bin/platform --os)
 ARCH=$(python3 $HERE/automation/readies/bin/platform --arch)
 
-DEPS_DIR=$HERE/deps
+DEPS_DIR=$HERE/deps/$OS-$ARCH-$DEVICE
 mkdir -p ${DEPS_DIR}
 cd ${DEPS_DIR}
 
@@ -67,7 +67,7 @@ else
 	echo "dlpack is in place."
 fi
 
-#################################################################################### TENSORFLOW
+################################################################################# LIBTENSORFLOW
 
 TF_VERSION="1.14.0"
 
@@ -118,7 +118,7 @@ else
 	echo "TensorFlow is in place."
 fi
 
-####################################################################################### PYTORCH
+###################################################################################### LIBTORCH
 
 PT_VERSION="1.2.0"
 
@@ -143,6 +143,7 @@ if [[ ! -d $LIBTORCH ]]; then
 		fi
 	elif [[ $OS == macosx ]]; then
 		PT_OS=macos
+		PT_ARCH=x86_64
 		PT_BUILD=cpu
 	fi
 
