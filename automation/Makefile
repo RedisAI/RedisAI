@@ -95,9 +95,13 @@ pack_deps: pack_ramp
 
 #----------------------------------------------------------------------------------------------
 
+TEST_REPORT_DIR ?= $(PWD)
+
 test:
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then git lfs install; fi
 	$(SHOW)git lfs pull
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py \
+		--junitxml=$(TEST_REPORT_DIR)/tests_report.xml \
+		--module $(INSTALL_DIR)/redisai.so
