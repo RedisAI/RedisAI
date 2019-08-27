@@ -62,7 +62,7 @@ class Setup(OnPlatform):
         
         if self.has_command("python3"):
             self.python = "python3"
-        if self.has_command("python"):
+        elif self.has_command("python"):
             self.python = "python"
         elif self.has_command("python2"):
             self.python = "python2"
