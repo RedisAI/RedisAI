@@ -152,9 +152,11 @@ class Setup(OnPlatform):
 
     def setup_pip(self):
         get_pip = "set -e; cd /tmp; curl -s https://bootstrap.pypa.io/get-pip.py -o get-pip.py"
-        if not self.has_command("pip"):
+        if not self.has_command("pip3"):
             self.install("python3-distutils")
-            self.install("curl ca-certificates")
+            if self.os == 'linux':
+                self.install("ca-certificates")
+            self.install("curl")
             self.run(get_pip + "; " + self.python + " get-pip.py", output_on_error=True)
         ## fails on ubuntu 18:
         # if not has_command("pip3") and has_command("python3"):
