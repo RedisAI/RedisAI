@@ -42,8 +42,8 @@ TARGET=$(BINDIR)/redisai.so
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
 CMAKE_FLAGS += \
-	-DDEPS_PATH=$(realpath $(DEPS_DIR)) \
-	-DINSTALL_PATH=$(INSTALL_DIR) \
+	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
+	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
 	-DDEVICE=$(DEVICE)
 
 include $(MK)/defs
