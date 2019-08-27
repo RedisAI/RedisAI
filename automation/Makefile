@@ -43,7 +43,7 @@ BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(realpath $(DEPS_DIR)) \
-	-DINSTALL_PATH=$(realpath $(INSTALL_DIR)) \
+	-DINSTALL_PATH=$(INSTALL_DIR) \
 	-DDEVICE=$(DEVICE)
 
 include $(MK)/defs
