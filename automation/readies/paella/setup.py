@@ -59,12 +59,12 @@ class Setup(OnPlatform):
         self.dist = self.platform.dist
         self.ver = self.platform.os_ver
         
+        if self.has_command("python3"):
+            self.python = "python3"
         if self.has_command("python"):
             self.python = "python"
         elif self.has_command("python2"):
             self.python = "python2"
-        elif self.has_command("python3"):
-            self.python = "python3"
 
         if self.os == 'macosx':
             # this is required because osx pip installed are done with --user
