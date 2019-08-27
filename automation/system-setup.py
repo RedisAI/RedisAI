@@ -15,7 +15,7 @@ class RedisAISetup(paella.Setup):
         paella.Setup.__init__(self, nop)
 
     def common_first(self):
-        self.setup_downloaders()
+        self.install_downloaders()
         self.setup_pip()
         self.pip3_install("wheel")
         self.pip3_install("setuptools --upgrade")
