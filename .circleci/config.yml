@@ -5,8 +5,6 @@ commands:
     parameters:
       platform:
         type: string
-    environment:
-      DEPS: ""
     steps:
       - checkout
       - restore_cache:
@@ -61,6 +59,8 @@ jobs:
   build:
     docker:
       - image: 'redislabsmodules/rmbuilder:latest'
+        environment:
+          DEPS: ""
     steps:
       - ci_steps:
           platform: debian 
