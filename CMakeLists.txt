@@ -23,7 +23,11 @@ IF (NOT DEVICE)
 ENDIF()
 
 IF (NOT DEPS_PATH)
-    SET(DEPS_PATH ../deps)
+	IF (APPLE)
+		SET(DEPS_PATH deps/macosx-x64-${DEVICE})
+	ELSE()
+		SET(DEPS_PATH deps/linux-x64-${DEVICE})
+	ENDIF()
 ENDIF()
 
 IF (NOT INSTALL_PATH)
