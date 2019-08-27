@@ -15,8 +15,8 @@ commands:
       - run:
           name: Install dependencies
           command: |
-            sudo ./automation/readies/bin/getpy
-            sudo ./automation/system-setup.py
+            ./automation/readies/bin/getpy
+            ./automation/system-setup.py
             git clone git://github.com/antirez/redis.git --branch 5.0.5
             (cd redis && make malloc=libc -j $(nproc) && sudo make install)
             ./get_deps.sh cpu
