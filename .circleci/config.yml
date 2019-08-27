@@ -5,6 +5,8 @@ commands:
     parameters:
       platform:
         type: string
+    environment:
+      DEPS: ""
     steps:
       - checkout
       - restore_cache:
