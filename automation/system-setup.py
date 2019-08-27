@@ -15,13 +15,14 @@ class RedisAISetup(paella.Setup):
         paella.Setup.__init__(self, nop)
 
     def common_first(self):
+        self.install("curl")
         self.setup_pip()
         self.pip3_install("wheel")
         self.pip3_install("setuptools --upgrade")
         
         if self.os == 'linux':
             self.install("ca-certificates")
-        self.install("git cmake curl unzip wget patchelf awscli")
+        self.install("git cmake unzip wget patchelf awscli")
 
     def debian_compat(self):
         self.install("build-essential")
