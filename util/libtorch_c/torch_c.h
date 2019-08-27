@@ -13,10 +13,10 @@ DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims,
                                 int64_t* shape, int64_t* strides,
                                 char* data);
 
-void* torchCompileScript(const char* script, DLDeviceType device,
+void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
                          char **error, void* (*alloc)(size_t));
 
-void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device,
+void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device, int64_t device_id,
                      char **error, void* (*alloc)(size_t));
 
 void torchRunScript(void* scriptCtx, const char* fnName,
