@@ -104,7 +104,7 @@ AI.MODELSET resnet18 TORCH GPU < foo.pt
 ```
 
 ```sql
-AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pt
+AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pb
 ```
 
 ```sql
