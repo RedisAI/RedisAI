@@ -42,6 +42,9 @@ fi
 OS=$(python3 $HERE/automation/readies/bin/platform --os)
 ARCH=$(python3 $HERE/automation/readies/bin/platform --arch)
 
+# avoid wget warnings on macOS
+[[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8
+
 DEPS_DIR=$HERE/deps/$OS-$ARCH-$DEVICE
 mkdir -p ${DEPS_DIR}
 cd ${DEPS_DIR}

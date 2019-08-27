@@ -4,7 +4,7 @@
 ARG OSNICK=buster
 
 # OS=debian:buster-slim|debian:stretch-slim|ubuntu:bionic
-OS=debian:buster-slim
+ARG OS=debian:buster-slim
 
 # ARCH=x64|arm64v8|arm32v7
 ARG ARCH=x64
@@ -25,8 +25,8 @@ RUN ./automation/system-setup.py
 COPY ./get_deps.sh .
 RUN ./get_deps.sh cpu
 
-ADD ./ /redisai
-RUN make -C automation all SHOW=1
+ADD ./ /build
+RUN make -C automation build SHOW=1
 
 ARG PACK=0
 ARG TEST=0

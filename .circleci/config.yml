@@ -25,9 +25,6 @@ commands:
             - deps
           key: v1-dependencies-{{ checksum "get_deps.sh" }}
       - run:
-          name: Pull Submodules
-          command: make -C automation fetch
-      - run:
           name: Build
           command: make -C automation all SHOW=1
       - run:

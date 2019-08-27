@@ -58,7 +58,8 @@ class RedisAISetup(paella.Setup):
             self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
         if not self.has_command("ramp"):
             self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
-        self.pip3_install("-r ../test/test_requirements.txt")
+        root = os.path.join(os.path.dirname(__file__), "..")
+        self.pip3_install("-r {}/test/test_requirements.txt".format(root))
 
 #----------------------------------------------------------------------------------------------
 

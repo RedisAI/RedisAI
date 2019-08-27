@@ -57,7 +57,7 @@ include $(MK)/rules
 #---------------------------------------------------------------------------------------------- 
 
 prebuild:
-	$(SHOW)if [ ! -d $(ROOT)/deps ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
+	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
 
 $(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
@@ -66,17 +66,22 @@ $(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
 #	$(SHOW)cd $(ROOT) ;\
 #	if [ ! -e install ]; then ln -sf install-$(DEVICE) install; fi
 
+install:
+	$(SHOW)mkdir -p $(INSTALL_DIR)
+	$(SHOW)$(MAKE) -C $(BINDIR) install
+
 clean:
 ifeq ($(ALL),1)
-	$(SHOW)cd $(ROOT) ;\
-	rm -rf build install deps/dlpack deps/install-$(DEVICE) deps/*.tar.gz deps/*.zip deps/*.tgz
+	$(SHOW)if [ -d "$(BINROOT)" ]; then rm -rf $(BINROOT); fi
+	$(SHOW)if [ -d "$(INSTALL_DIR)" ]; then rm -rf $(INSTALL_DIR); fi
+	$(SHOW)rm -f $(ROOT)/install-$(DEVICE)
 else
 	$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
 #---------------------------------------------------------------------------------------------- 
 
-fetch:
+fetch deps:
 	@echo Fetching dependencies...
 	$(SHOW)VERBOSE=$(_SHOW) $(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
@@ -103,5 +108,6 @@ test:
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
 	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py \
-		--junitxml=$(TEST_REPORT_DIR)/tests_report.xml \
 		--module $(INSTALL_DIR)/redisai.so
+
+#		--junitxml=$(TEST_REPORT_DIR)/tests_report.xml
