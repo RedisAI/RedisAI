@@ -7,11 +7,11 @@ commands:
         type: string
     steps:
       - checkout
-#      - restore_cache:
-#          keys:
-#          - v1-dependencies-{{ checksum "get_deps.sh" }}
-#          # fallback to using the latest cache if no exact match is found
-#          # - v1-dependencies-
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          # fallback to using the latest cache if no exact match is found
+          # - v1-dependencies-
       - run:
           name: Install dependencies
           command: |
@@ -69,11 +69,6 @@ jobs:
     macos:
       xcode: 10.2.1
     steps:
-#      - run:
-#          name: Set up workspace
-#          command: |
-#            sudo mkdir -p /workspace
-#            sudo chown $USER /workspace
       - ci_steps:
           platform: macosx
 
@@ -112,10 +107,10 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - build-macos:
-          filters:
-            tags:
-              only: /.*/
+#      - build-macos:
+#          filters:
+#            tags:
+#              only: /.*/
       - deploy_package:
           name: deploy_branch
           package: branch

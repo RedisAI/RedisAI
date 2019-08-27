@@ -90,8 +90,9 @@ fetch deps:
 #----------------------------------------------------------------------------------------------
 
 pack:
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
 ifneq ($(PACK_DEPS),0)
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
+else
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=1 ./pack.sh
 endif
 

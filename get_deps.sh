@@ -238,19 +238,3 @@ if [[ ! -d $ONNXRUNTIME ]]; then
 else
 	echo "ONNXRuntime is in place."
 fi
-
-############################################################################# Collect libraries
-
-#if [[ ! -d install ]]; then
-#	echo "Collecting binaries..."
-#
-#	rm -rf install.x
-#	python3 $HERE/automation/collect-deps.py --into install.x
-#	mv install.x install
-#	
-#	echo "Done."
-#else
-#	echo "Binaries in place."
-#fi
-
-# echo "Done."
