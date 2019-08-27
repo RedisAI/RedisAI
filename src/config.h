@@ -7,11 +7,15 @@ typedef enum {
   RAI_BACKEND_ONNXRUNTIME,
 } RAI_Backend;
 
+// NOTE: entry in queue hash is formed by
+// device * MAX_DEVICE_ID + deviceid
+
 typedef enum {
   RAI_DEVICE_CPU = 0,
-  // TODO: multi GPU
-  RAI_DEVICE_GPU,
+  RAI_DEVICE_GPU = 1
 } RAI_Device;
+
+#define RAI_MAX_DEVICE_ID 999
 
 #define RAI_ENC_VER 302
 

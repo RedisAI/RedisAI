@@ -8,16 +8,16 @@
 #include "err.h"
 
 typedef struct RAI_LoadedBackend {
-  RAI_Model* (*model_create_with_nodes)(RAI_Backend, RAI_Device,
+  RAI_Model* (*model_create_with_nodes)(RAI_Backend, RAI_Device, int64_t,
                                         size_t, const char**, size_t, const char**,
                                         const char*, size_t, RAI_Error*);
-  RAI_Model* (*model_create)(RAI_Backend, RAI_Device,
+  RAI_Model* (*model_create)(RAI_Backend, RAI_Device, int64_t,
                              const char*, size_t, RAI_Error*);
   void (*model_free)(RAI_Model*, RAI_Error*);
   int (*model_run)(RAI_ModelRunCtx*, RAI_Error*);
   int (*model_serialize)(RAI_Model*, char**, size_t*, RAI_Error*);
 
-  RAI_Script* (*script_create)(RAI_Device, const char*, RAI_Error*);
+  RAI_Script* (*script_create)(RAI_Device, int64_t, const char*, RAI_Error*);
   void (*script_free)(RAI_Script*, RAI_Error*);
   int (*script_run)(RAI_ScriptRunCtx*, RAI_Error*);
 } RAI_LoadedBackend;
