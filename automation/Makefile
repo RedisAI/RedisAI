@@ -10,8 +10,10 @@ make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
 make fetch    # download and prepare dependant modules
 make build    # compile and link
 make clean    # remove build artifacts
+  ALL=1       # remove entire artifacts directory
 make test     # run tests
 make pack     # create installation packages
+  PACK_DEPS=0 # do not pack dependencies
 make deploy   # copy packages to S3
 make release  # release a version
 endef
@@ -87,16 +89,14 @@ fetch deps:
 
 #----------------------------------------------------------------------------------------------
 
-pack: $(BINDIR)/BINDIR pack_ramp pack_deps
+pack: $(BINDIR)/BINDIR
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
+ifneq ($(PACK_DEPS),0)
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=1 ./pack.sh
+endif
 
-$(BINDIR)/BINDIR: $(BIN_DIRS)
-	$(SHOW)echo $(BINDIR)>$(BINDIR)/BINDIR
-
-pack_ramp:
-	$(SHOW)RAMP=1 DEVICE=$(DEVICE) BINDIR=$(BINROOT) ./pack.sh
-
-pack_deps: pack_ramp
-	$(SHOW)DEPS=1 DEVICE=$(DEVICE) BINDIR=$(BINROOT) ./pack.sh
+#$(BINDIR)/BINDIR: $(BIN_DIRS)
+#	$(SHOW)echo $(BINDIR)>$(BINDIR)/BINDIR
 
 #----------------------------------------------------------------------------------------------
 
@@ -107,7 +107,4 @@ test:
 	$(SHOW)cd $(ROOT); git lfs pull
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py \
-		--module $(INSTALL_DIR)/redisai.so
-
-#		--junitxml=$(TEST_REPORT_DIR)/tests_report.xml
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so
