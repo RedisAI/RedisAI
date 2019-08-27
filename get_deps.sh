@@ -172,7 +172,7 @@ if [[ ! -d ${ORT_PREFIX} ]]; then
   mkdir -p ${ORT_PREFIX}
 
   if [ ! -e ${ORT_ARCHIVE} ]; then
-    echo "Downloading ONNXRuntime ${ORT_VERSION} ${DEVICE}"
+    echo "Downloading ONNXRuntime ${ORT_VERSION} ${ORT_BUILD}"
     wget -q https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}/${ORT_ARCHIVE}
   fi
   

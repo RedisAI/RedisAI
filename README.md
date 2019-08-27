@@ -26,6 +26,13 @@ To quickly tryout RedisAI, launch an instance using docker:
 docker run -p 6379:6379 -it --rm redisai/redisai
 ```
 
+For docker instance with GPU support, you'll have to build the docker image in a machine that has Nvidia driver and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker). Redis config is located at `/usr/lib/redis/modules/redisai.so` which can be overridden with a volume mount 
+```sh
+docker build -f Dockerfile-gpu -t redisai-gpu .
+docker run -p 6379:6379 --gpus all -it --rm redisai-gpu
+```
+
+
 ### Give it a try
 
 On the client, set the model
