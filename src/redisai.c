@@ -422,10 +422,10 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   else if (dtype.code == kDLUInt) {
     switch (dtype.bits) {
       case 8:
-        RedisModule_ReplyWithSimpleString(ctx, "INT8");
+        RedisModule_ReplyWithSimpleString(ctx, "UINT8");
         break;
       case 16:
-        RedisModule_ReplyWithSimpleString(ctx, "INT16");
+        RedisModule_ReplyWithSimpleString(ctx, "UINT16");
         break;
       default:
         RedisModule_ReplyWithError(ctx, "ERR unsupported dtype");
