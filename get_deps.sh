@@ -39,8 +39,8 @@ else
 	fi
 fi
 
-OS=$(python3 $HERE/automation/readies/bin/platform --os)
-ARCH=$(python3 $HERE/automation/readies/bin/platform --arch)
+OS=$(python3 $HERE/opt/readies/bin/platform --os)
+ARCH=$(python3 $HERE/opt/readies/bin/platform --arch)
 
 # avoid wget warnings on macOS
 [[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8

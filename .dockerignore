@@ -1,6 +1,7 @@
 /bin/
 /deps/
 /install*
+/build/
 .venv/
 venv*/
 /[0-9]*/

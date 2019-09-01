@@ -8,7 +8,7 @@ OSNICK ?= buster
 
 S3_URL=redismodules/pytorch
 
-OS:=$(shell $(ROOT)/automation/readies/bin/platform --os)
+OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
 ifeq ($(OS),macosx)
 OS:=macos
 endif

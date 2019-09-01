@@ -1,10 +1,10 @@
 
-OS:=$(shell $(ROOT)/automation/readies/bin/platform --os)
+OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
 # ifeq ($(OS),linux)
-# OS:=$(shell $(ROOT)/automation/readies/bin/platform --dist)
+# OS:=$(shell $(ROOT)/opt/readies/bin/platform --dist)
 # endif
 
-ARCH=$(shell $(ROOT)/automation/readies/bin/platform --arch)
+ARCH=$(shell $(ROOT)/opt/readies/bin/platform --arch)
 
 #----------------------------------------------------------------------------------------------
 

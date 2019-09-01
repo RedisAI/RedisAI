@@ -13,8 +13,8 @@ else
 	GPU=${GPU:-no}
 fi
 
-OS=$(python3 $ROOT/automation/readies/bin/platform --os)
-ARCH=$(python3 $ROOT/automation/readies/bin/platform --arch)
+OS=$(python3 $ROOT/opt/readies/bin/platform --os)
+ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
 
 # avoid wget warnings on macOS
 [[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8

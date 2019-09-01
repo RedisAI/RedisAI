@@ -1,7 +1,7 @@
 #include "backends/torch.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
-#include "torch_c.h"
+#include "libtorch_c/torch_c.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
   get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));

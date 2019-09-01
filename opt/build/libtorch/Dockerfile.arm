@@ -44,7 +44,7 @@ RUN set -e ;\
 	cd pytorch ;\
 	python3 setup.py install
 
-ADD ./deps/readies/ /build/deps/readies/
+ADD ./readies/ /build/deps/readies/
 ADD ./build/libtorch-arm/collect.py /build/
 
 RUN  ./collect.py

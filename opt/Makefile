@@ -78,7 +78,7 @@ ifeq ($(ALL),1)
 	$(SHOW)if [ -d "$(INSTALL_DIR)" ]; then rm -rf $(INSTALL_DIR); fi
 	$(SHOW)rm -f $(ROOT)/install-$(DEVICE)
 else
-	$(SHOW)$(MAKE) -C $(BINDIR) clean
+	-$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
 #---------------------------------------------------------------------------------------------- 

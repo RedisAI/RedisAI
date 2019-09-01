@@ -6,7 +6,7 @@
 [[ ! -z $INTO ]] && INTO=$(realpath $INTO)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../automation/readies/shibumi/functions
+. $HERE/readies/shibumi/functions
 ROOT=$(realpath $HERE/..)
 
 RAMP_PROG=ramp
@@ -106,7 +106,7 @@ if [[ -d $ROOT/.git ]]; then
 fi
 
 OSX=""
-if [[ $(./readies/bin/platform --os) == macosx ]]; then
+if [[ $($HERE/readies/bin/platform --os) == macosx ]]; then
 	# macOS: ramp is installed here
 	OSX=1
 	export PATH=$PATH:$HOME/Library/Python/2.7/bin

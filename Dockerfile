@@ -16,23 +16,23 @@ FROM ${OS} AS builder
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
-COPY ./automation/ automation/
+COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN ./automation/readies/bin/getpy
-RUN ./automation/system-setup.py
+RUN ./opt/readies/bin/getpy
+RUN ./opt/system-setup.py
 
 COPY ./get_deps.sh .
 RUN ./get_deps.sh cpu
 
 ADD ./ /build
-RUN make -C automation build SHOW=1
+RUN make -C opt build SHOW=1
 
 ARG PACK=0
 ARG TEST=0
 
-RUN if [ "$PACK" = "1" ]; then make -C automation pack; fi
-RUN if [ "$TEST" = "1" ]; then make -C automation test; fi
+RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
+RUN if [ "$TEST" = "1" ]; then make -C opt test; fi
 
 #----------------------------------------------------------------------------------------------
 # FROM redis:latest

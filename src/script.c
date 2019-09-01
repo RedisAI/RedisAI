@@ -2,7 +2,7 @@
 #include "script_struct.h"
 #include "backends.h"
 
-#include "util/alloc.h"
+#include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
 
 RedisModuleType *RedisAI_ScriptType = NULL;

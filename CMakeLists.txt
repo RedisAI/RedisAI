@@ -89,7 +89,7 @@ FIND_PACKAGE(Torch REQUIRED)
 INCLUDE_DIRECTORIES(util/libtorch_c)
 ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 
-ADD_SUBDIRECTORY(util/libtorch_c)
+ADD_SUBDIRECTORY(src/libtorch_c)
 
 #----------------------------------------------------------------------------------------------
 
