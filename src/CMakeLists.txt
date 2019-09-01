@@ -5,7 +5,7 @@ ADD_LIBRARY(redisai_obj OBJECT
     err.c
     script.c
     tensor.c
-    util/alloc.c
+    rmutil/alloc.c
     rmutil/sds.c
     rmutil/args.c
     rmutil/heap.c

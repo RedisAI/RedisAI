@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 
-#include "util/alloc.h"
+#include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "rmutil/args.h"
 #include "rmutil/khash.h"

@@ -1,0 +1,14 @@
+
+SHELL=/bin/bash
+
+ifneq ($(shell { CHECK=1 $(ROOT)/opt/readies/bin/getpy; echo $$?; }),0)
+$(error It seems prerequisites have not been installed: please run 'make setup'.)
+endif
+
+MK=$(ROOT)/opt/readies/mk
+
+MK_ALL_TARGETS:=bindirs build
+
+include $(MK)/common.defs
+include $(MK)/variant.defs
+include $(MK)/bindirs.defs

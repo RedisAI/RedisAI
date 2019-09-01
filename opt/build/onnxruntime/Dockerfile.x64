@@ -1,0 +1,36 @@
+# BUILD redisfab/onnxruntime-x64-${OS}:$(ONNXRUNTIME_VER)
+
+ARG OS=debian:buster
+
+#----------------------------------------------------------------------------------------------
+FROM ${OS}
+
+ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
+ARG ONNXRUNTIME_BRANCH=rel-0.4.0
+ARG ONNXRUNTIME_VER=0.4.0
+
+RUN apt-get -qq update
+RUN apt-get -qq install -y curl wget tar git
+RUN apt-get -qq install -y build-essential cmake
+RUN apt-get -qq install -y libcurl4-openssl-dev libssl-dev libatlas-base-dev zlib1g-dev
+
+RUN apt-get -qq install -y python3 python3-pip python3-dev
+RUN pip3 install --upgrade pip setuptools wheel
+RUN pip3 install numpy
+
+WORKDIR /build
+
+ADD ./pack.sh /build/
+ARG BUILDTYPE=MinSizeRel
+ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
+
+RUN set -e ;\
+	git clone --single-branch --branch ${ONNXRUNTIME_BRANCH} --recursive ${ONNXRUNTIME_REPO} onnxruntime ;\
+	cd onnxruntime ;\
+	git checkout "rel-${ONNXRUNTIME_VER}"
+	cd onnxruntime ;\
+	./build.sh ${BUILDARGS} --update --build ;\
+	./build.sh ${BUILDARGS} --build_shared_lib
+# RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel
+
+RUN ./pack.sh ${ONNXRUNTIME_VER}
