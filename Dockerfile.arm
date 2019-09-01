@@ -4,17 +4,18 @@
 ARG OSNICK=buster
 
 # OS=debian:buster-slim|debian:stretch-slim|ubuntu:bionic
-ARG OS=debian:buster-slim
+OS=debian:buster-slim
 
-# ARCH=x64|arm64v8|arm32v7
-ARG ARCH=x64
+# ARCH=arm64v8|arm32v7
+ARG ARCH=arm64v8
 
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis-${ARCH}-${OSNICK}:5.0.5 AS redis
-FROM ${OS} AS builder
+FROM redisfab/redis-${ARCH}-${OSNICK}-xbuild:5.0.5 AS builder
 
+RUN [ "cross-build-start" ]
+
+ADD ./ /build
 WORKDIR /build
-COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
@@ -25,8 +26,8 @@ RUN ./opt/system-setup.py
 COPY ./get_deps.sh .
 RUN ./get_deps.sh cpu
 
-ADD ./ /build
-RUN make -C opt build SHOW=1
+ADD ./ /redisai
+RUN make -C opt all SHOW=1
 
 ARG PACK=0
 ARG TEST=0
@@ -34,9 +35,12 @@ ARG TEST=0
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 RUN if [ "$TEST" = "1" ]; then make -C opt test; fi
 
+RUN [ "cross-build-end" ]
+
 #----------------------------------------------------------------------------------------------
-# FROM redis:latest
-FROM redisfab/redis-${ARCH}-${OSNICK}:5.0.5
+FROM redisfab/redis-${ARCH}-${OSNICK}-xbuild:5.0.5
+
+RUN [ "cross-build-start" ]
 
 RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
 
@@ -50,3 +54,5 @@ COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
 WORKDIR /data
 EXPOSE 6379
 CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+
+RUN [ "cross-build-end" ]

@@ -1,0 +1,5 @@
+
+.PHONY: __sep
+
+__sep:
+	@python -c "$(__SEP)"

@@ -1,127 +1,91 @@
 version: 2.1
-jobs:
-  build:
-    docker:
-      - image: circleci/python:3.7.4-buster
 
+commands:
+  ci_steps:
+    parameters:
+      platform:
+        type: string
     steps:
       - checkout
-
-      # Download and cache dependencies
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # fallback to using the latest cache if no exact match is found
           # - v1-dependencies-
-
       - run:
-          name: install dependencies
+          name: Install dependencies
           command: |
-            sudo ./automation/readies/bin/getpy
-            sudo ./automation/system-setup.py
+            sudo ./opt/readies/bin/getpy
+            sudo ./opt/system-setup.py
+            git clone git://github.com/antirez/redis.git --branch 5.0.5
+            (cd redis && make malloc=libc -j $(nproc) && sudo make install)
             ./get_deps.sh cpu
-            git clone git://github.com/antirez/redis.git --branch 5.0.3
-            (cd redis && make malloc=libc -j4 && sudo make install)
-
       - save_cache:
           paths:
             - deps
-          key: v2-dependencies-{{ checksum "get_deps.sh" }}
-
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Build
-          command: |
-            make -C automation all
-            make -C automation pack
-
+          command: make -C opt all SHOW=1
       - run:
           name: Test
-          command: make -C automation test
-
-      - run:
-          name: Persist Artifacts
           command: |
-            mkdir -p ~/workspace/build
-            cp install-cpu/$MODULE_ARTIFACT ~/workspace/
-            cp -r install-cpu/backends ~/workspace/
-            cp ramp.yml ~/workspace/
+            mkdir -p ~/workspace/tests
+            make -C opt test SHOW=1
+            cp test/logs/* ~/workspace/tests
+      - run:
+          name: Package
+          command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
       - persist_to_workspace:
           root: ~/workspace
           paths:
-            - '*.so*'
-            - '*.yml'
-            - build
-  package_branch:
-    docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
+            - 'packages/release/*.zip'
+            - 'packages/release/*.tgz'
+            - 'packages/branch/*.zip'
+            - 'packages/branch/*.tgz'
+      - store_test_results:
+          path: ~/workspace/tests
+  deploy:
+    parameters:
+      from:
+        type: string
     steps:
-      - attach_workspace:
-          at: /workspace
       - run:
-          name: Package
+          name: Deploy to S3
           command: >-
-            ramp pack -m /workspace/ramp.yml -o
-            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.$CIRCLE_BRANCH.zip
-            /workspace/$MODULE_ARTIFACT
-          environment:
-            LD_LIBRARY_PATH: /workspace
-      - persist_to_workspace:
-          root: /workspace
-          paths:
-            - build
-      - store_artifacts:
-          path: /workspace/build
-  package_release:
-    docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run:
-          name: Package
-          command: >-
-            ramp pack -m /workspace/ramp.yml -o
-            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.{semantic_version}.zip
-            /workspace/$MODULE_ARTIFACT
-          environment:
-            LD_LIBRARY_PATH: /workspace
-      - run:
-          name: Package
-          command: >-
-            ramp pack -m /workspace/ramp.yml -o
-            /workspace/build/$PACKAGE_NAME.{os}-{architecture}.latest.zip
-            /workspace/$MODULE_ARTIFACT
-          environment:
-            LD_LIBRARY_PATH: /workspace
+            aws s3 cp <<parameters.from>>/ s3://redismodules/$PACKAGE_NAME/ 
+              --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
-      - persist_to_workspace:
-          root: /workspace
-          paths:
-            - build
+jobs:
+  build:
+    docker:
+      - image: circleci/python:3.7.4-buster
+        environment:
+          DEPS: ""
+    steps:
+      - ci_steps:
+          platform: debian 
+  build-macos:
+    macos:
+      xcode: 10.2.1
+    steps:
+      - ci_steps:
+          platform: macosx
+
+  deploy_package:
+    parameters:
+      package:
+        type: string
+    docker:
+      - image: 'redislabsmodules/rmbuilder:latest'
+    steps:
+      - attach_workspace:
+          at: ~/workspace
+      - deploy:
+          from: ~/workspace/packages/<<parameters.package>>
       - store_artifacts:
-          path: /workspace/build
-  deploy_branch:
-    docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run:
-          name: Deploy to S3
-          command: >-
-            aws s3 cp /workspace/build/ s3://redismodules/$PACKAGE_NAME/ --acl
-            public-read --recursive --exclude "*" --include "*.zip"
-  deploy_release:
-    docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
-    steps:
-      - attach_workspace:
-          at: /workspace
-      - run:
-          name: Deploy to S3
-          command: >-
-            aws s3 cp /workspace/build/ s3://redismodules/$PACKAGE_NAME/ --acl
-            public-read --recursive --exclude "*" --include "*.zip"
+          path: ~/workspace/packages/<<parameters.package>>
+
   deploy_docs:
     docker:
       - image: 'redislabsmodules/rmbuilder:latest'
@@ -133,8 +97,8 @@ jobs:
       - run:
           name: Deploy Docs to S3
           command: >-
-            aws s3 cp site s3://oss.redislabs.com/$WEBSITE_FOLDER/ --acl
-            public-read --recursive
+            aws s3 cp site s3://oss.redislabs.com/$WEBSITE_FOLDER/ --acl public-read --recursive
+
 workflows:
   version: 2
   build_and_package:
@@ -143,13 +107,21 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - package_branch:
+#      - build-macos:
+#          filters:
+#            tags:
+#              only: /.*/
+      - deploy_package:
+          name: deploy_branch
+          package: branch
           requires:
             - build
           filters:
             branches:
               only: master
-      - package_release:
+      - deploy_package:
+          name: deploy_release
+          package: release
           requires:
             - build
           filters:
@@ -157,15 +129,6 @@ workflows:
               ignore: /.*/
             tags:
               only: '/^v[0-9].*/'
-      - deploy_branch:
-          requires:
-            - package_branch
-      - deploy_release:
-          filters:
-            tags:
-              only: '/^v[0-9].*/'
-          requires:
-            - package_release
       - deploy_docs:
           filters:
             branches:
