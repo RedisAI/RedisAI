@@ -13,7 +13,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
   return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t deviceid,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {
   DLDeviceType dl_device;
@@ -30,7 +30,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
   }
 
   char* error_descr = NULL;
-  void* model = torchLoadModel(modeldef, modellen, dl_device, &error_descr, RedisModule_Alloc);
+  void* model = torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
 
   if (model == NULL) {
     RAI_SetError(error, RAI_EMODELCREATE, error_descr);
@@ -43,6 +43,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device,
   ret->session = NULL;
   ret->backend = backend;
   ret->device = device;
+  ret->deviceid = deviceid;
   ret->inputs = NULL;
   ret->outputs = NULL;
   ret->refCount = 1;
@@ -107,7 +108,7 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
   return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const char *scriptdef, RAI_Error *error) {
   DLDeviceType dl_device;
   switch (device) {
     case RAI_DEVICE_CPU:
@@ -122,7 +123,7 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_
   }
 
   char* error_descr = NULL;
-  void* script = torchCompileScript(scriptdef, dl_device, &error_descr, RedisModule_Alloc);
+  void* script = torchCompileScript(scriptdef, dl_device, deviceid, &error_descr, RedisModule_Alloc);
 
   if (script == NULL) {
     RAI_SetError(error, RAI_ESCRIPTCREATE, error_descr);
@@ -134,6 +135,7 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, const char *scriptdef, RAI_
   ret->script = script;
   ret->scriptdef = RedisModule_Strdup(scriptdef);
   ret->device = device;
+  ret->deviceid = deviceid;
   ret->refCount = 1;
 
   return ret;

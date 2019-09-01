@@ -10,7 +10,7 @@
 extern RedisModuleType *RedisAI_ScriptType;
 
 int RAI_ScriptInit(RedisModuleCtx* ctx);
-RAI_Script* RAI_ScriptCreate(RAI_Device device, const char* scriptdef, RAI_Error* err);
+RAI_Script* RAI_ScriptCreate(RAI_Device device, int64_t deviceid, const char* scriptdef, RAI_Error* err);
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err);
 
 RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script, const char *fnname);

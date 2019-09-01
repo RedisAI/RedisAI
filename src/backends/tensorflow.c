@@ -160,7 +160,7 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t deviceid,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,
                              const char *modeldef, size_t modellen,
@@ -205,7 +205,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
     }
   }
 
-   TF_DeleteImportGraphDefOptions(options);
+  TF_DeleteImportGraphDefOptions(options);
   TF_DeleteBuffer(buffer);
   TF_DeleteStatus(status);
 
@@ -221,10 +221,27 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   // result = list(map(hex, serialized))
   // print(result)
 
-  // TODO: complain if device is GPU and GPU not available?
   if (device == RAI_DEVICE_CPU) {
+    // Set number of GPU to 0 with
+    // config.device_count = {'GPU': 0} 
     uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
     TF_SetConfig(sessionOptions, (void *)config, 9, status);
+  }
+  else if (device == RAI_DEVICE_GPU) {
+    if (deviceid == -1) {
+      // Set
+      // config.gpu_options.allow_growth = True
+      uint8_t config[4] = {0x32, 0x02, 0x20, 0x01};
+      TF_SetConfig(sessionOptions, (void *)config, 4, status);
+    }
+    else {
+      // Set
+      // config.gpu_options.allow_growth = True
+      // config.gpu_options.visible_device_list = '<deviceid>'
+      uint8_t config[7] = {0x32, 0x05, 0x20, 0x01, 0x2a, 0x01, 0x30};
+      config[6] += (uint8_t)deviceid;
+      TF_SetConfig(sessionOptions, (void *)config, 7, status);
+    }
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
@@ -261,6 +278,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device,
   ret->session = session;
   ret->backend = backend;
   ret->device = device;
+  ret->deviceid = deviceid;
   ret->inputs = inputs_;
   ret->outputs = outputs_;
   ret->refCount = 1;
