@@ -91,13 +91,10 @@ fetch deps:
 
 pack:
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
-else
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=1 ./pack.sh
+else
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
 endif
-
-#$(BINDIR)/BINDIR: $(BIN_DIRS)
-#	$(SHOW)echo $(BINDIR)>$(BINDIR)/BINDIR
 
 #----------------------------------------------------------------------------------------------
 
@@ -109,3 +106,8 @@ test:
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
 	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so
+
+#----------------------------------------------------------------------------------------------
+
+docker:
+	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..

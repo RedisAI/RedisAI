@@ -26,7 +26,7 @@ pack_ramp() {
 	PACKAGE=$(cat $BINDIR/PACKAGE)
 	VERSION=$(cat $BINDIR/VERSION)
 	OSARCH=$(cat $BINDIR/OSARCH)
-	$RAMP_PROG pack -m $ROOT/ramp.yml -o "build/$PRODUCT.{os}-{architecture}.{semantic_version}.zip" \
+	$RAMP_PROG pack -m $ROOT/ramp.yml -o "$BINDIR/$PRODUCT.{os}-{architecture}.{semantic_version}.zip" \
 		-c "BACKENDSPATH $REDIS_ENT_LIB_PATH/$PRODUCT-$DEVICE-$VERSION/backends" $INSTALL_DIR/$PRODUCT.so 2> /dev/null | grep '.zip' > $RAMPOUT
 	rm -f $RAMPOUT
 	export PACK_FNAME="$(basename $PACKAGE)"
@@ -68,8 +68,8 @@ pack_deps() {
 	[[ ! -z $BRANCH ]] && ln -sf $DEPS_FNAME $DEPS_STEM.${BRANCH}.tgz
 	ln -sf $DEPS_FNAME $DEPS_STEM.${GIT_VER}.tgz
 	
-	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $DEPS_FNAME $DEPS_STEM.latest.zip"
-	export DEV_ARTIFACTS="$DEV_ARTIFACTS $DEPS_STEM.${BRANCH}.zip $DEPS_STEM.${GIT_VER}.zip"
+	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $DEPS_FNAME $DEPS_STEM.latest.tgz"
+	export DEV_ARTIFACTS="$DEV_ARTIFACTS $DEPS_STEM.${BRANCH}.tgz $DEPS_STEM.${GIT_VER}.tgz"
 
 	echo "Done."
  }
@@ -124,12 +124,12 @@ if [[ ! -z $INTO ]]; then
 	mkdir -p $INTO/release $INTO/branch
 	cd $INTO/release
 	for f in $RELEASE_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f)
+		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f) $(basename $f)
 	done
 	
 	cd $INTO/branch
 	for f in $DEV_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f)
+		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f) $(basename $f)
 	done
 fi
 
