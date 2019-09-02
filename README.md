@@ -80,8 +80,8 @@ Once the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
 ```sh
-mkdir bin
-cd bin
+mkdir build
+cd build
 cmake ..
 make && make install
 cd ..
