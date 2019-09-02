@@ -121,8 +121,10 @@ workflows:
           requires:
             - build
           filters:
-            branches:
-              only: master
+            tags:
+              only: /.*/
+#            branches:
+#              only: master
       - deploy_package:
           name: deploy_release
           package: release
