@@ -30,21 +30,21 @@ commands:
       - run:
           name: Test
           command: |
-            mkdir -p ~/workspace/tests
+            mkdir -p /workspace/tests
             make -C opt test SHOW=1
-            cp test/logs/* ~/workspace/tests
+            cp test/logs/* /workspace/tests
       - run:
           name: Package
-          command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
+          command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=/workspace/packages SHOW=1
       - persist_to_workspace:
-          root: ~/workspace
+          root: /workspace
           paths:
             - 'packages/release/*.zip'
             - 'packages/release/*.tgz'
             - 'packages/branch/*.zip'
             - 'packages/branch/*.tgz'
       - store_test_results:
-          path: ~/workspace/tests
+          path: /workspace/tests
   deploy:
     parameters:
       from:
@@ -69,6 +69,11 @@ jobs:
     macos:
       xcode: 10.2.1
     steps:
+      - run:
+          name: Set up workspace
+          command: >-
+            sudo mkdir -p /workspace;
+            sudo chown $USER /workspace
       - ci_steps:
           platform: macosx
 
@@ -80,11 +85,11 @@ jobs:
       - image: 'redislabsmodules/rmbuilder:latest'
     steps:
       - attach_workspace:
-          at: ~/workspace
+          at: /workspace
       - deploy:
-          from: ~/workspace/packages/<<parameters.package>>
+          from: /workspace/packages/<<parameters.package>>
       - store_artifacts:
-          path: ~/workspace/packages/<<parameters.package>>
+          path: /workspace/packages/<<parameters.package>>
 
   deploy_docs:
     docker:
