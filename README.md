@@ -113,6 +113,7 @@ Some languages have client libraries that provide support for RedisAI's commands
 | ------- | -------- | ------- | ------ | --- |
 | JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
 | redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
+| redisai-go | Go | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-go) |
 
 ## Backend Dependancy
 
