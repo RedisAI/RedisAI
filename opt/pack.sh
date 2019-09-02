@@ -121,15 +121,15 @@ pack_ramp
 [[ $DEPS == 1 ]] && pack_deps
 
 if [[ ! -z $INTO ]]; then
-	mkdir -p $INTO/release $INTO/branch
-	cd $INTO/release
+	cd $INTO
+	mkdir -p release branch
+	
 	for f in $RELEASE_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f) $(basename $f)
+		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
 	done
 	
-	cd $INTO/branch
 	for f in $DEV_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && ln -sf $(realpath --relative-to . $BINDIR/$f) $(basename $f)
+		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f branch/
 	done
 fi
 
