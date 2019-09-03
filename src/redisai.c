@@ -1042,12 +1042,13 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
     if (item) {
       RedisAI_RunSession(item->value);
+    } 
+    else {
+      // only sleep if the last Pop was empty
+      usleep(1000);
     }
-
     // release item (note: the callback does it; verify)
     // unblock (the callback does it)
-
-    usleep(1000);
   }
 }
 
