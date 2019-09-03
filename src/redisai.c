@@ -799,6 +799,11 @@ void *RedisAI_RunSession(void *arg) {
     rinfo->status = RAI_ScriptRun(rinfo->sctx, rinfo->err);
     end = mstime();
   }
+
+  if (rinfo->client == NULL) {
+    return NULL;
+  }
+
   RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(rinfo->client);
   RedisModule_ThreadSafeContextLock(ctx);
   if (rinfo->err->code != RAI_OK) {
@@ -814,11 +819,12 @@ void *RedisAI_RunSession(void *arg) {
   return NULL;
 }
 
-//void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
-//  RedisModule_Log(ctx,"warning","Blocked client %p disconnected!", (void*)bc);
-//
-//  // TODO: clean up
-//}
+void RedisAI_FreeData(RedisModuleCtx *ctx, void *rinfo) {
+}
+
+void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
+  RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void*)bc);
+}
 
 int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argv);
@@ -1017,7 +1023,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RunQueueInfo run_queue_info = *kh_value(run_queues, key_iter);
   pthread_mutex_unlock(&global_run_queue_mutex);
 
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
+  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info.run_queue_mutex);
   queuePush(run_queue_info.run_queue, rinfo);
@@ -1173,7 +1180,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RunQueueInfo run_queue_info = *kh_value(run_queues, key_iter);
   pthread_mutex_unlock(&global_run_queue_mutex);
 
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, NULL, 0);
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
+  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info.run_queue_mutex);
   queuePush(run_queue_info.run_queue, rinfo);
