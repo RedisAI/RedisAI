@@ -1,5 +1,5 @@
 
-ROOT=../..
+ROOT=../../..
 
 VERSION ?= 1.2.0
 OSNICK ?= buster
