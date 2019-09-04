@@ -37,6 +37,6 @@ RUN set -e ;\
 	python3 setup.py install
 
 ADD ./opt/readies/ /build/readies/
-ADD ./build/libtorch-arm/collect.py /build/
+ADD ./opt/build/libtorch-arm/collect.py /build/
 
 RUN  ./collect.py

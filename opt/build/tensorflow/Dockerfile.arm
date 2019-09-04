@@ -53,8 +53,8 @@ RUN set -e; \
 	./configure ;\
 	bazel build --jobs $(eval "$X_NPROC") --config=opt //tensorflow:libtensorflow.so
 
-ADD ./readies/ /build/readies/
-ADD ./build/tensorflow/collect.py /build/
+ADD ./opt/readies/ /build/readies/
+ADD ./opt/build/tensorflow/collect.py /build/
 
 RUN  ./collect.py
 
