@@ -4,7 +4,7 @@
 ARG OSNICK=buster
 
 # OS=debian:buster-slim|debian:stretch-slim|ubuntu:bionic
-OS=debian:buster-slim
+ARG OS=debian:buster-slim
 
 # ARCH=arm64v8|arm32v7
 ARG ARCH=arm64v8
