@@ -4,7 +4,7 @@ OS:=$(shell $(READIES)/bin/platform --os)
 # OS:=$(shell $(READIES)/bin/platform --dist)
 # endif
 
-ARCH=$(shell $(READIES)/bin/bin/platform --arch)
+ARCH=$(shell $(READIES)/bin/platform --arch)
 
 #----------------------------------------------------------------------------------------------
 

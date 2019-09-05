@@ -75,6 +75,23 @@ jobs:
     steps:
       - ci_steps:
           platform: macosx
+  build-multiarch-docker:
+    machine:
+      enabled: true
+      image: ubuntu-1604:201903-01
+    steps:
+      - checkout
+      - run:
+          name: Setup Docker client experimental features
+          command: |
+            sudo ./opt/readies/bin/getdocker --just-enable-exp
+            docker version
+      - run:
+          name: Build
+          command: |
+            sudo docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make -C opt/build/docker build
+            sudo make -C opt/build/docker publish
 
   deploy_package:
     parameters:
@@ -115,6 +132,12 @@ workflows:
 #          filters:
 #            tags:
 #              only: /.*/
+      - build-multiarch-docker:
+          filters:
+            tags:
+              only: /.*/
+#            branches:
+#              only: master
       - deploy_package:
           name: deploy_branch
           package: branch
