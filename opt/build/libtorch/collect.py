@@ -8,7 +8,7 @@ import shutil
 import tarfile
 
 # this refers to deps directory inside a container
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "deps/readies"))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "readies"))
 import paella
 
 #----------------------------------------------------------------------------------------------
@@ -18,14 +18,14 @@ PYTORCH_VERSION = '1.2.0'
 parser = argparse.ArgumentParser(description='Prepare RedisAI dependant distribution packages.')
 parser.add_argument('--pytorch', default='pytorch', help='root of pytorch repository')
 parser.add_argument('--pytorch-ver', default=PYTORCH_VERSION, help='pytorch version')
-parser.add_argument('--deps', default='.', help='destination directory')
+parser.add_argument('--dest', default='dest', help='destination directory')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
 #----------------------------------------------------------------------------------------------
 
 pytorch = Path(args.pytorch).resolve()
-dest = Path(args.deps).resolve()
+dest = Path(args.dest).resolve()
 
 #----------------------------------------------------------------------------------------------
 
