@@ -28,6 +28,7 @@ class Runner:
             sys.stderr.flush()
             if not _try:
                 sys.exit(1)
+        return rc
 
     def has_command(self, cmd):
         return os.system("command -v " + cmd + " > /dev/null") == 0
@@ -74,7 +75,7 @@ class Setup(OnPlatform):
         if self.platform.is_debian_compat():
             # prevents apt-get from interactively prompting
             os.environ["DEBIAN_FRONTEND"] = 'noninteractive'
-        
+
         os.environ["PYTHONWARNINGS"] = 'ignore:DEPRECATION::pip._internal.cli.base_command'
 
     def setup(self):
@@ -136,6 +137,52 @@ class Setup(OnPlatform):
 
     def group_install(self, packs):
         self.install(packs, group=True)
+
+    #------------------------------------------------------------------------------------------
+    
+    def yum_add_repo(self, repourl, repo=""):
+        if not self.has_command("yum-config-manager"):
+            self.install("yum-utils")
+        self.run("yum-config-manager -y --add-repo {}".format(repourl))
+
+    def apt_add_repo(self, repourl, repo=""):
+        if not self.has_command("yum-config-manager"):
+            self.install("software-properties-common")
+        self.run("add-apt-repository -y {}".format(repourl))
+        self.run("apt-get -qq update")
+
+    def dnf_add_repo(self, repourl, repo=""):
+        if self.run("dnf config-manager 2>/dev/null", _try=True):
+            self.install("dnf-plugins-core")
+        self.run("dnf config-manager -y --add-repo {}".format(repourl))
+
+    def zypper_add_repo(self, repourl, repo=""):
+        pass
+
+    def pacman_add_repo(self, repourl, repo=""):
+        pass
+    
+    def brew_add_repo(self, repourl, repo=""):
+        pass
+
+    def add_repo(self, repourl, repo=""):
+        if self.os == 'linux':
+            if self.dist == 'fedora':
+                self.dnf_add_repo(repourl, repo=repo)
+            elif self.dist == 'ubuntu' or self.dist == 'debian':
+                self.apt_add_repo(repourl, repo=repo)
+            elif self.dist == 'centos' or self.dist == 'redhat':
+                self.yum_add_repo(repourl, repo=repo)
+            elif self.dist == 'suse':
+                self.zypper_add_repo(repourl, repo=repo)
+            elif self.dist == 'arch':
+                self.pacman_add_repo(repourl, repo=repo)
+            else:
+                Assert(False), "Cannot determine installer"
+        elif self.os == 'macosx':
+            self.brew_add_repo(packs, group=group, _try=_try)
+        else:
+            Assert(False), "Cannot determine installer"
 
     #------------------------------------------------------------------------------------------
 
