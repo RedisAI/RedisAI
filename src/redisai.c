@@ -1049,6 +1049,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
     if (item) {
       RedisAI_RunSession(item->value);
+      RedisModule_Free(item);
+      
     } 
     else {
       // only sleep if the last Pop was empty
