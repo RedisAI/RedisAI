@@ -29,7 +29,7 @@ docker run -p 6379:6379 -it --rm redisai/redisai
 For docker instance with GPU support, you can launch it from `tensorwerk/redisai-gpu`
 
 ```sh
-docker run -p 6379:6379 --gpus all -it --rm tensorwerk/redisai-gpu
+docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
 ```
 
 But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
