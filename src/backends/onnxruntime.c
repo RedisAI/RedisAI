@@ -364,14 +364,19 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
 
     if (ninputs != n_input_nodes)
     {
-      RAI_SetError(error, RAI_EMODELRUN, "Unexpected number of inputs for graph\n");
+
+      char msg[70];
+      sprintf(msg, "Expected %li inputs but got %li", n_input_nodes, ninputs);
+      RAI_SetError(error, RAI_EMODELRUN, msg);
       OrtReleaseAllocator(allocator);
       return 1;
     }
 
     if (noutputs != n_output_nodes)
     {
-      RAI_SetError(error, RAI_EMODELRUN, "Unexpected number of outputs for graph\n");
+      char msg[70];
+      sprintf(msg, "Expected %li outputs but got %li", n_output_nodes, noutputs);
+      RAI_SetError(error, RAI_EMODELRUN, msg);
       OrtReleaseAllocator(allocator);
       return 1;
     }
