@@ -14,7 +14,6 @@ FROM redisfab/redis-${ARCH}-${OSNICK}-xbuild:5.0.5 AS builder
 
 RUN [ "cross-build-start" ]
 
-ADD ./ /build
 WORKDIR /build
 
 COPY ./opt/ opt/
@@ -23,11 +22,13 @@ COPY ./test/test_requirements.txt test/
 RUN ./opt/readies/bin/getpy
 RUN ./opt/system-setup.py
 
+ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
-RUN ./get_deps.sh cpu
+RUN "$DEPS_ARGS" ./get_deps.sh cpu
 
-ADD ./ /redisai
-RUN make -C opt all SHOW=1
+ARG BUILD_ARGS=""
+ADD ./ /build
+RUN make -C opt all "$BUILD_ARGS" SHOW=1
 
 ARG PACK=0
 ARG TEST=0

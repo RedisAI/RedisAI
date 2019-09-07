@@ -18,6 +18,12 @@ STEM=$(REPO)/redisai-cpu
 BUILD_OPT=--rm
 # --squash
 
+FETCH_ARGS.arm64v8=WITH_ORT=0
+BUILD_ARGS.arm64v8=WITH_ORT=0
+
+FETCH_ARGS.arm32v7=WITH_ORT=0
+BUILD_ARGS.arm32v7=WITH_ORT=0
+
 #----------------------------------------------------------------------------------------------
 
 define targets # (1=OP, 2=op)
@@ -36,7 +42,10 @@ $(eval $(call targets,PUSH,push))
 
 define build_x64 # (1=arch)
 build_$(1):
-	@docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-x64 -f $(ROOT)/Dockerfile $(ROOT)
+	@docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-x64 -f $(ROOT)/Dockerfile \
+		--build-arg FETCH_ARGS="$(FETCH_ARGS.x64)" \
+		--build-arg BUILD_ARGS="$(BUILD_ARGS.x64)" \
+		$(ROOT)
 
 .PHONY: build_$(1)
 endef
@@ -44,7 +53,10 @@ endef
 define build_arm  # (1=arch)
 build_$(1):
 	@docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-$(1) -f $(ROOT)/Dockerfile.arm \
-		--build-arg ARCH=$(1) $(ROOT)
+		--build-arg ARCH=$(1) \
+		--build-arg FETCH_ARGS="$(FETCH_ARGS.$(1))" \
+		--build-arg BUILD_ARGS="$(BUILD_ARGS.$(1))" \
+		$(ROOT)
 
 .PHONY: build_$(1)
 endef
@@ -59,9 +71,9 @@ endef
 define create_manifest # (1=version)
 docker manifest create -a $(STEM)-$(OSNICK):$(1) \
 	-a $(STEM)-$(OSNICK):$(VERSION)-x64 \
-	-a $(STEM)-$(OSNICK):$(VERSION)-arm64v8
-#	-a $(STEM)-$(OSNICK):$(VERSION)-arm32v7
-# docker manifest annotate $(STEM)-$(OSNICK):$(1) $(STEM)-$(OSNICK):$(VERSION)-arm32v7 --os linux --arch arm --variant v7
+	-a $(STEM)-$(OSNICK):$(VERSION)-arm64v8 \
+	-a $(STEM)-$(OSNICK):$(VERSION)-arm32v7
+docker manifest annotate $(STEM)-$(OSNICK):$(1) $(STEM)-$(OSNICK):$(VERSION)-arm32v7 --os linux --arch arm --variant v7
 docker manifest annotate $(STEM)-$(OSNICK):$(1) $(STEM)-$(OSNICK):$(VERSION)-arm64v8 --os linux --arch arm64 --variant v8
 docker manifest push -p $(STEM)-$(OSNICK):$(1)
 endef

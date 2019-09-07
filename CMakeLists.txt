@@ -1,5 +1,20 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.0.0)
 PROJECT(RedisAI)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/cmake/modules)
+
+# Set a default build type if none was specified
+set(default_build_type "Release")
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wno-cast-function-type -Werror -O3")
+# Add -fno-omit-frame-pointer to avoid seeing incomplete stack traces
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb -fno-omit-frame-pointer")
+
+option(BUILD_TF "Build the TensorFlow backend" ON)
+option(BUILD_ORT "Build the ONNXRuntime backend" ON)
+option(BUILD_TORCH "Build the PyTorch backend" ON)
 
 #----------------------------------------------------------------------------------------------
 
@@ -43,31 +58,48 @@ GET_FILENAME_COMPONENT(installAbs
 #----------------------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
-INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
-INCLUDE_DIRECTORIES(${depsAbs}/libtorch/include)
-INCLUDE_DIRECTORIES(${depsAbs}/onnxruntime/include)
+if(BUILD_TF)
+  INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
+endif(BUILD_TF)
+if(BUILD_TORCH)
+  INCLUDE_DIRECTORIES(${depsAbs}/libtorch/include)
+endif(BUILD_TORCH)
+if(BUILD_ORT)
+  INCLUDE_DIRECTORIES(${depsAbs}/onnxruntime/include)
+endif(BUILD_ORT)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
 SET(CMAKE_C_STANDARD 11)
+ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 
 # SET(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-10.0)
 
 #----------------------------------------------------------------------------------------------
 
-FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
-             PATHS ${depsAbs}/libtensorflow/lib)
-IF (NOT TF_LIBRARIES)
-    MESSAGE(FATAL_ERROR "Could not find tensorflow")
-ENDIF()
+if(BUILD_TF)
+  FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
+              PATHS ${depsAbs}/libtensorflow/lib)
+              message(STATUS "Found TensorFlow Libraries: \"${TF_LIBRARIES}\")")
+  IF (NOT TF_LIBRARIES)
+      message(STATUS "TensorFlow Libraries are not in ${depsAbs}/libtensorflow/lib. Trying find_package method")
+      find_package(TensorFlow REQUIRED)
+      set(TF_LIBRARIES ${TensorFlow_LIBRARY})
+	  IF (NOT TF_LIBRARIES)
+        MESSAGE(FATAL_ERROR "Could not find tensorflow")
+      else()
+        message(STATUS "Found TensorFlow Libraries: \"${TF_LIBRARIES}\")")
+      endif()
+  ENDIF()
+endif(BUILD_TF)
 
 #----------------------------------------------------------------------------------------------
 
-FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
-	PATHS ${depsAbs}/onnxruntime/lib)
-IF (NOT ORT_LIBRARIES)
-    MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
-ENDIF()
+if(BUILD_ORT)
+  FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
+    PATHS ${depsAbs}/onnxruntime/lib)
+  IF (NOT ORT_LIBRARIES)
+      MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
+  ENDIF()
+endif(BUILD_ORT)
 
 #----------------------------------------------------------------------------------------------
 
@@ -82,14 +114,15 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-# Find Torch stuff and build our wrapper
-SET (Torch_DIR ${depsAbs}/libtorch/share/cmake/Torch)
-FIND_PACKAGE(Torch REQUIRED)
+if(BUILD_TORCH)
+  # Find Torch stuff and build our wrapper
+  SET (Torch_DIR ${depsAbs}/libtorch/share/cmake/Torch)
+  FIND_PACKAGE(Torch REQUIRED)
 
-INCLUDE_DIRECTORIES(util/libtorch_c)
-ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
+  INCLUDE_DIRECTORIES(util/libtorch_c)
 
-ADD_SUBDIRECTORY(src/libtorch_c)
+  ADD_SUBDIRECTORY(src/libtorch_c)
+endif(BUILD_TORCH)
 
 #----------------------------------------------------------------------------------------------
 
@@ -125,55 +158,61 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-ADD_LIBRARY(redisai_tensorflow SHARED $<TARGET_OBJECTS:redisai_tensorflow_obj>)
-TARGET_LINK_LIBRARIES(redisai_tensorflow ${TF_LIBRARIES})
-SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES PREFIX "")
-SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES SUFFIX ".so")
-IF (APPLE)
-  SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES INSTALL_RPATH "@loader_path/lib")
-ELSE ()
-  ADD_LDFLAGS(redisai_tensorflow "-Wl,--enable-new-dtags")
-  SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
-ENDIF()
-INSTALL(TARGETS redisai_tensorflow LIBRARY DESTINATION backends/redisai_tensorflow)
-INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${installAbs}/backends/redisai_tensorflow 
-	FILES_MATCHING PATTERN ${LIB_PATTERN})
+if(BUILD_TF)
+  ADD_LIBRARY(redisai_tensorflow SHARED $<TARGET_OBJECTS:redisai_tensorflow_obj>)
+  TARGET_LINK_LIBRARIES(redisai_tensorflow ${TF_LIBRARIES})
+  SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES PREFIX "")
+  SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES SUFFIX ".so")
+  IF (APPLE)
+    SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES INSTALL_RPATH "@loader_path/lib")
+  ELSE ()
+    ADD_LDFLAGS(redisai_tensorflow "-Wl,--enable-new-dtags")
+    SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+  ENDIF()
+  INSTALL(TARGETS redisai_tensorflow LIBRARY DESTINATION backends/redisai_tensorflow)
+  INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${installAbs}/backends/redisai_tensorflow 
+    FILES_MATCHING PATTERN ${LIB_PATTERN})
+ENDIF(BUILD_TF)
 
 #----------------------------------------------------------------------------------------------
 
-ADD_LIBRARY(redisai_torch SHARED $<TARGET_OBJECTS:redisai_torch_obj>)
-TARGET_LINK_LIBRARIES(redisai_torch torch_c ${TORCH_LIBRARIES})
-SET_TARGET_PROPERTIES(redisai_torch PROPERTIES PREFIX "")
-SET_TARGET_PROPERTIES(redisai_torch PROPERTIES SUFFIX ".so")
-IF (APPLE)
-  SET_TARGET_PROPERTIES(redisai_torch PROPERTIES INSTALL_RPATH "@loader_path/lib")
-ELSE ()
-  ADD_LDFLAGS(redisai_torch "-Wl,--enable-new-dtags")
-  SET_TARGET_PROPERTIES(redisai_torch PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
-ENDIF()
-INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
-INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${installAbs}/backends/redisai_torch 
-	FILES_MATCHING PATTERN ${LIB_PATTERN})
+if(BUILD_TORCH)
+  ADD_LIBRARY(redisai_torch SHARED $<TARGET_OBJECTS:redisai_torch_obj>)
+  TARGET_LINK_LIBRARIES(redisai_torch torch_c ${TORCH_LIBRARIES})
+  SET_TARGET_PROPERTIES(redisai_torch PROPERTIES PREFIX "")
+  SET_TARGET_PROPERTIES(redisai_torch PROPERTIES SUFFIX ".so")
+  IF (APPLE)
+    SET_TARGET_PROPERTIES(redisai_torch PROPERTIES INSTALL_RPATH "@loader_path/lib")
+  ELSE ()
+    ADD_LDFLAGS(redisai_torch "-Wl,--enable-new-dtags")
+    SET_TARGET_PROPERTIES(redisai_torch PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+  ENDIF()
+  INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
+  INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${installAbs}/backends/redisai_torch 
+    FILES_MATCHING PATTERN ${LIB_PATTERN})
+ENDIF(BUILD_TORCH)
 
 #----------------------------------------------------------------------------------------------
 
-IF (${DEVICE} STREQUAL "gpu")
-  ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
-ENDIF()
+if(BUILD_ORT)
+  IF (${DEVICE} STREQUAL "gpu")
+    ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
+  ENDIF()
 
-ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
-TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
-SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")
-SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES SUFFIX ".so")
-IF (APPLE)
-  SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES INSTALL_RPATH "@loader_path/lib")
-ELSE ()
-  ADD_LDFLAGS(redisai_onnxruntime "-Wl,--enable-new-dtags")
-  SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
-ENDIF()
-INSTALL(TARGETS redisai_onnxruntime LIBRARY DESTINATION backends/redisai_onnxruntime)
-INSTALL(DIRECTORY ${depsAbs}/onnxruntime/lib DESTINATION ${installAbs}/backends/redisai_onnxruntime 
-	FILES_MATCHING PATTERN ${LIB_PATTERN})
+  ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
+  TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
+  SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")
+  SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES SUFFIX ".so")
+  IF (APPLE)
+    SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES INSTALL_RPATH "@loader_path/lib")
+  ELSE ()
+    ADD_LDFLAGS(redisai_onnxruntime "-Wl,--enable-new-dtags")
+    SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+  ENDIF()
+  INSTALL(TARGETS redisai_onnxruntime LIBRARY DESTINATION backends/redisai_onnxruntime)
+  INSTALL(DIRECTORY ${depsAbs}/onnxruntime/lib DESTINATION ${installAbs}/backends/redisai_onnxruntime 
+    FILES_MATCHING PATTERN ${LIB_PATTERN})
+ENDIF(BUILD_ORT)
 
 #----------------------------------------------------------------------------------------------
 

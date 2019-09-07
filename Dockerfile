@@ -22,11 +22,13 @@ COPY ./test/test_requirements.txt test/
 RUN ./opt/readies/bin/getpy
 RUN ./opt/system-setup.py
 
+ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
-RUN ./get_deps.sh cpu
+RUN "$DEPS_ARGS" ./get_deps.sh cpu
 
+ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build SHOW=1
+RUN make -C opt all "$BUILD_ARGS" SHOW=1
 
 ARG PACK=0
 ARG TEST=0
