@@ -26,7 +26,7 @@ if(BUILD_TORCH)
 		tensor.c)
 endif()
 
-if(BUILD_OPT)
+if(BUILD_ORT)
 	ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
 		backends/onnxruntime.c
 		err.c
