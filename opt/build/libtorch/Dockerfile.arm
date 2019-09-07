@@ -28,7 +28,6 @@ RUN pip3 install numpy
 
 RUN git clone --single-branch --branch v${PT_VER} --recursive https://github.com/pytorch/pytorch.git
 
-ENV 
 ENV BUILD_PYTHON=0
 ENV USE_GLOO=1
 ENV USE_OPENCV=0
@@ -40,11 +39,13 @@ ENV NO_DISTRIBUTED=1
 ENV NO_MKLDNN=1
 ENV NO_NNPACK=1
 ENV NO_QNNPACK=1
-ENV CFLAGS="-mfpu=neon -mfloat-abi=hard"
+ENV CFLAGS_arm32v7="-mfpu=neon -mfloat-abi=hard"
 
 RUN set -e ;\
 	cd pytorch ;\
 	python3 setup.py install
+
+#		export CFLAGS=${CFLAGS_$ARCH}
 
 ADD ./opt/readies/ /build/readies/
 ADD ./opt/build/libtorch/collect.py /build/
