@@ -24,11 +24,11 @@ RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
-RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env "$DEPS_ARGS" ./get_deps.sh cpu; fi
+RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_deps.sh cpu; fi
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt all "$BUILD_ARGS" SHOW=1
+RUN make -C opt all $BUILD_ARGS SHOW=1
 
 ARG PACK=0
 ARG TEST=0
