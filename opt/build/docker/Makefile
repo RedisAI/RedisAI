@@ -21,8 +21,8 @@ BUILD_OPT=--rm
 FETCH_ARGS.arm64v8=WITH_ORT=0
 BUILD_ARGS.arm64v8=WITH_ORT=0
 
-FETCH_ARGS.arm32v7=WITH_ORT=0
-BUILD_ARGS.arm32v7=WITH_ORT=0
+FETCH_ARGS.arm32v7=WITH_ORT=0 WITH_PT=0
+BUILD_ARGS.arm32v7=WITH_ORT=0 WITH_PT=0
 
 #----------------------------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ $(eval $(call targets,PUSH,push))
 
 define build_x64 # (1=arch)
 build_$(1):
-	@docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-x64 -f $(ROOT)/Dockerfile \
+	docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-x64 -f $(ROOT)/Dockerfile \
 		--build-arg FETCH_ARGS="$(FETCH_ARGS.x64)" \
 		--build-arg BUILD_ARGS="$(BUILD_ARGS.x64)" \
 		$(ROOT)
@@ -52,7 +52,7 @@ endef
 
 define build_arm  # (1=arch)
 build_$(1):
-	@docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-$(1) -f $(ROOT)/Dockerfile.arm \
+	docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-$(1) -f $(ROOT)/Dockerfile.arm \
 		--build-arg ARCH=$(1) \
 		--build-arg FETCH_ARGS="$(FETCH_ARGS.$(1))" \
 		--build-arg BUILD_ARGS="$(BUILD_ARGS.$(1))" \
@@ -63,7 +63,7 @@ endef
 
 define push # (1=arch)
 push_$(1):
-	@docker push $(STEM)-$(OSNICK):$(VERSION)-$(1)
+	docker push $(STEM)-$(OSNICK):$(VERSION)-$(1)
 
 .PHONY: push_$(1)
 endef
