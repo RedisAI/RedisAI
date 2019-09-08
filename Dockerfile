@@ -28,7 +28,7 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt all $BUILD_ARGS SHOW=1
+RUN make -C opt build $BUILD_ARGS SHOW=1
 
 ARG PACK=0
 ARG TEST=0

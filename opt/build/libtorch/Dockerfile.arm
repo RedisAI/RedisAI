@@ -34,18 +34,16 @@ ENV USE_OPENCV=0
 ENV BUILD_TORCH=ON
 ENV BUILD_BINARY=ON
 ENV BUILD_CAFFE2_OPS=ON
+ENV BUILD_TEST=0
 ENV NO_CUDA=1
 ENV NO_DISTRIBUTED=1
 ENV NO_MKLDNN=1
 ENV NO_NNPACK=1
 ENV NO_QNNPACK=1
-ENV CFLAGS_arm32v7="-mfpu=neon -mfloat-abi=hard"
 
 RUN set -e ;\
 	cd pytorch ;\
 	python3 setup.py install
-
-#		export CFLAGS=${CFLAGS_$ARCH}
 
 ADD ./opt/readies/ /build/readies/
 ADD ./opt/build/libtorch/collect.py /build/
