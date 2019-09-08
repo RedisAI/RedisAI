@@ -132,12 +132,12 @@ workflows:
 #          filters:
 #            tags:
 #              only: /.*/
-#      - build-multiarch-docker:
-#          filters:
-#            tags:
-#              only: /.*/
-##            branches:
-##              only: master
+      - build-multiarch-docker:
+          filters:
+            tags:
+              only: /.*/
+#            branches:
+#              only: master
       - deploy_package:
           name: deploy_branch
           package: branch
