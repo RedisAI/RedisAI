@@ -117,7 +117,7 @@ if [[ $WITH_TF != 0 ]]; then
 
 		rm -rf $LIBTENSORFLOW.x
 		mkdir $LIBTENSORFLOW.x
-		tar xf $LIBTF_ARCHIVE --no-same-owner --strip-components=1 -C $LIBTENSORFLOW.x
+		tar xf $LIBTF_ARCHIVE --no-same-owner -C $LIBTENSORFLOW.x
 		mv $LIBTENSORFLOW.x $LIBTENSORFLOW
 		
 		echo "Done."
