@@ -136,14 +136,15 @@ workflows:
           filters:
             tags:
               only: /.*/
-#            branches:
-#              only: master
+            branches:
+              only: master
       - deploy_package:
           name: deploy_branch
           package: branch
           requires:
             - build
           filters:
+#             # uncomment to debug
 #            tags:
 #              only: /.*/
             branches:
