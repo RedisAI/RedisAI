@@ -208,6 +208,16 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleString* keystr;
   AC_GetRString(&ac, &keystr, 0);
 
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
+      REDISMODULE_READ|REDISMODULE_WRITE);
+  const int type = RedisModule_KeyType(key);
+  if (type != REDISMODULE_KEYTYPE_EMPTY &&
+      !(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
   // getting the datatype
   const char* typestr;
   AC_GetString(&ac, &typestr, NULL, 0); 
@@ -312,17 +322,6 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         }
       }
     }
-  }
-
-  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
-      REDISMODULE_READ|REDISMODULE_WRITE);
-  int type = RedisModule_KeyType(key);
-  if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      !(type == REDISMODULE_KEYTYPE_MODULE &&
-        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
-    RAI_TensorFree(t);
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
   RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t);
