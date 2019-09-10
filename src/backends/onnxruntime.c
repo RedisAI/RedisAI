@@ -270,6 +270,12 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t de
   if (device == RAI_DEVICE_GPU) {
     OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
   }
+#else
+  // TODO: Do dynamic device/provider check with GetExecutionProviderType or something else
+  if (device == RAI_DEVICE_GPU) {
+    RAI_SetError(error, RAI_EMODELCREATE, "GPU requested but ONNX couldn't find CUDA");
+    return NULL;
+  }
 #endif
 
   OrtSession* session;
