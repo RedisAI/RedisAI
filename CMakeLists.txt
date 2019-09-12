@@ -4,14 +4,14 @@ PROJECT(RedisAI)
 # Set a default build type if none was specified
 set(default_build_type "Release")
 
-if(NOT CMAKE_BUILD_TYPE)
+IF(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
     set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
             STRING "Choose the type of build." FORCE)
     # Set the possible values of build type for cmake-gui
     set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
             "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
-endif()
+ENDIF()
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
@@ -70,15 +70,15 @@ GET_FILENAME_COMPONENT(installAbs
 #----------------------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
-if(BUILD_TF)
+IF(BUILD_TF)
     INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
-endif(BUILD_TF)
-if(BUILD_TORCH)
+ENDIF()
+IF(BUILD_TORCH)
     INCLUDE_DIRECTORIES(${depsAbs}/libtorch/include)
-endif(BUILD_TORCH)
-if(BUILD_ORT)
+ENDIF()
+IF(BUILD_ORT)
     INCLUDE_DIRECTORIES(${depsAbs}/onnxruntime/include)
-endif(BUILD_ORT)
+ENDIF()
 
 SET(CMAKE_C_STANDARD 11)
 ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
@@ -87,25 +87,25 @@ ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_TF)
+IF(BUILD_TF)
     FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
             PATHS ${depsAbs}/libtensorflow/lib)
     MESSAGE(STATUS "Found TensorFlow Libraries: \"${TF_LIBRARIES}\")")
     IF (NOT TF_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find tensorflow in ${depsAbs}/libtensorflow/lib")
     ENDIF()
-endif(BUILD_TF)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_ORT)
+IF(BUILD_ORT)
     FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
             PATHS ${depsAbs}/onnxruntime/lib)
     MESSAGE(STATUS "Found ONNXRuntime Libraries: \"${ORT_LIBRARIES}\")")
     IF (NOT ORT_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
     ENDIF()
-endif(BUILD_ORT)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
@@ -120,7 +120,7 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_TORCH)
+IF(BUILD_TORCH)
     # Find Torch stuff and build our wrapper
     SET (Torch_DIR ${depsAbs}/libtorch/share/cmake/Torch)
     FIND_PACKAGE(Torch REQUIRED)
@@ -128,7 +128,7 @@ if(BUILD_TORCH)
     INCLUDE_DIRECTORIES(util/libtorch_c)
 
     ADD_SUBDIRECTORY(src/libtorch_c)
-endif(BUILD_TORCH)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
@@ -164,7 +164,7 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_TF)
+IF(BUILD_TF)
     ADD_LIBRARY(redisai_tensorflow SHARED $<TARGET_OBJECTS:redisai_tensorflow_obj>)
     TARGET_LINK_LIBRARIES(redisai_tensorflow ${TF_LIBRARIES})
     SET_TARGET_PROPERTIES(redisai_tensorflow PROPERTIES PREFIX "")
@@ -178,11 +178,11 @@ if(BUILD_TF)
     INSTALL(TARGETS redisai_tensorflow LIBRARY DESTINATION backends/redisai_tensorflow)
     INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${installAbs}/backends/redisai_tensorflow
             FILES_MATCHING PATTERN ${LIB_PATTERN})
-ENDIF(BUILD_TF)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_TORCH)
+IF(BUILD_TORCH)
     ADD_LIBRARY(redisai_torch SHARED $<TARGET_OBJECTS:redisai_torch_obj>)
     TARGET_LINK_LIBRARIES(redisai_torch torch_c ${TORCH_LIBRARIES})
     SET_TARGET_PROPERTIES(redisai_torch PROPERTIES PREFIX "")
@@ -196,11 +196,11 @@ if(BUILD_TORCH)
     INSTALL(TARGETS redisai_torch LIBRARY DESTINATION backends/redisai_torch)
     INSTALL(DIRECTORY ${depsAbs}/libtorch/lib DESTINATION ${installAbs}/backends/redisai_torch
             FILES_MATCHING PATTERN ${LIB_PATTERN})
-ENDIF(BUILD_TORCH)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-if(BUILD_ORT)
+IF(BUILD_ORT)
     IF (${DEVICE} STREQUAL "gpu")
         ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
     ENDIF()
@@ -218,7 +218,7 @@ if(BUILD_ORT)
     INSTALL(TARGETS redisai_onnxruntime LIBRARY DESTINATION backends/redisai_onnxruntime)
     INSTALL(DIRECTORY ${depsAbs}/onnxruntime/lib DESTINATION ${installAbs}/backends/redisai_onnxruntime
             FILES_MATCHING PATTERN ${LIB_PATTERN})
-ENDIF(BUILD_ORT)
+ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
