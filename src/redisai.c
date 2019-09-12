@@ -247,7 +247,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_WrongArity(ctx);
   }
 
-  int hasdata = !AC_IsAtEnd(&ac);
+  const int hasdata = !AC_IsAtEnd(&ac);
 
   const char* fmtstr;
   int datafmt;
@@ -263,65 +263,62 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
     }
   }
-
-  RAI_Tensor* t = RAI_TensorCreate(typestr, dims, ndims);
-  if (!t) {
+  const size_t nbytes = len * datasize;
+  size_t datalen;
+  const char *data;
+  RAI_Tensor *t = RAI_TensorCreate(typestr, dims, ndims, hasdata);
+  if (!t){
     return RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
   }
-
-  if (hasdata && datafmt == REDISAI_DATA_BLOB) {
-    size_t nbytes = len * datasize;
-    size_t datalen;
-    const char* data;
-
+  switch (datafmt){
+  case REDISAI_DATA_BLOB:
     AC_GetString(&ac, &data, &datalen, 0);
-
-    if (datafmt == REDISAI_DATA_BLOB && datalen != nbytes) {
-      RAI_TensorFree(t);
+    if (datalen != nbytes){
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
-
     RAI_TensorSetData(t, data, datalen);
-  }
-  else if (hasdata && datafmt == REDISAI_DATA_VALUES) {
-    if (argc != len + 4 + ndims) {
-      RAI_TensorFree(t);
+    break;
+  case REDISAI_DATA_VALUES:
+    if (argc != len + 4 + ndims){
       return RedisModule_WrongArity(ctx);
     }
-
     DLDataType datatype = RAI_TensorDataType(t);
 
     long i;
-    if (datatype.code == kDLFloat) {
+    if (datatype.code == kDLFloat){
       double val;
-      for (i=0; i<len; i++) {
+      for (i = 0; i < len; i++){
         int ac_ret = AC_GetDouble(&ac, &val, 0);
-        if (ac_ret != AC_OK) {
+        if (ac_ret != AC_OK){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromDouble(t, i, val);
-        if (ret == -1) {
+        if (ret == -1){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
     }
-    else {
+    else{
       long long val;
-      for (i=0; i<len; i++) {
+      for (i = 0; i < len; i++){
         int ac_ret = AC_GetLongLong(&ac, &val, 0);
-        if (ac_ret != AC_OK) {
+        if (ac_ret != AC_OK){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromLongLong(t, i, val);
-        if (ret == -1) {
+        if (ret == -1){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
     }
+    break;
+  default:
+    // default does not require tensor data setting since calloc setted it to 0
+    break;
   }
 
   RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t);
