@@ -17,8 +17,8 @@ commands:
           command: |
             ./opt/readies/bin/getpy
             ./opt/system-setup.py
-            git clone git://github.com/antirez/redis.git --branch 5.0.5
-            (cd redis && make malloc=libc -j $(nproc) && make install)
+            # git clone git://github.com/antirez/redis.git --branch 5.0.5
+            # (cd redis && make malloc=libc -j $(nproc) && make install)
             ./get_deps.sh cpu
       - save_cache:
           paths:
@@ -27,8 +27,8 @@ commands:
       - run:
           name: Set up workspace
           command: |
-            sudo mkdir -p ~/workspace
-            sudo chown `whoami` ~/workspace
+            mkdir -p ~/workspace
+            chown `whoami` ~/workspace
       - run:
           name: Build
           command: make -C opt all SHOW=1
