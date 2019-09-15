@@ -44,7 +44,7 @@ def example_multiproc_fn(env):
 def test_example_multiproc(env):
     run_test_multiproc(env, 10, lambda x: x.execute_command('set', 'x', 1))
     r = env.cmd('get', 'x')
-    env.assertEqual(r, b'1')
+    env.assertEqual(r, '1')
 
 
 def test_set_tensor(env):
@@ -52,7 +52,7 @@ def test_set_tensor(env):
     con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(values, [b'2', b'3'])
+    env.assertEqual(values, ['2', '3'])
     con.execute_command('AI.TENSORSET', 'x', 'INT32', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
@@ -109,7 +109,7 @@ def test_del_tf_model(env):
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     con.execute_command('AI.MODELDEL', 'm')
     con.assertFalse(con.execute_command('EXISTS', 'm'))
@@ -130,7 +130,7 @@ def test_run_tf_model(env):
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
@@ -227,7 +227,7 @@ def test_run_tf_model(env):
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'9', b'4', b'9'])
+    con.assertEqual(values, ['4', '9', '4', '9'])
 
     for _ in con.reloadingIterator():
         env.assertExists('m')
@@ -250,7 +250,7 @@ def test_run_torch_model(env):
     con = env
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', wrong_model_pb)
@@ -325,7 +325,7 @@ def test_run_torch_model(env):
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'6', b'4', b'6'])
+    con.assertEqual(values, ['4', '6', '4', '6'])
 
     for _ in con.reloadingIterator():
         env.assertExists('m')
@@ -352,7 +352,7 @@ def test_run_onnx_model(env):
     con = env
 
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', model_pb)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', wrong_model_pb)
@@ -450,11 +450,11 @@ def test_run_onnxml_model(env):
     con = env
 
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', 'CPU', linear_model)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     con = env
     ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', 'CPU', logreg_model)
-    con.assertEqual(ret, b'OK')
+    con.assertEqual(ret, 'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
@@ -479,7 +479,7 @@ def test_set_tensor_multiproc(env):
     con = env
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(values, [b'2', b'3'])
+    env.assertEqual(values, ['2', '3'])
 
 
 def load_mobilenet_test_data():
@@ -522,7 +522,7 @@ def test_run_mobilenet(env):
 
     dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
 
-    dtype_map = {b'FLOAT': np.float32}
+    dtype_map = {'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
     label_id = np.argmax(tensor) - 1
 
@@ -557,7 +557,7 @@ def test_run_mobilenet_multiproc(env):
 
     dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
 
-    dtype_map = {b'FLOAT': np.float32}
+    dtype_map = {'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
     label_id = np.argmax(tensor) - 1
 
@@ -609,7 +609,7 @@ def test_del_script(env):
         script = f.read()
 
     ret = env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
-    env.assertEqual(ret, b'OK')
+    env.assertEqual(ret, 'OK')
 
     ret = env.execute_command('AI.SCRIPTDEL', 'ket')
     env.assertFalse(env.execute_command('EXISTS', 'ket'))
@@ -655,7 +655,7 @@ def test_run_script(env):
 
     tensor = env.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+    env.assertEqual(values, ['4', '6', '4', '6'])
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
