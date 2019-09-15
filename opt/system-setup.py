@@ -50,6 +50,7 @@ class RedisAISetup(paella.Setup):
         if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
         self.install("git-lfs")
+        self.install("redis")
 
     def install_git_lfs_on_linux(self):
         self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
