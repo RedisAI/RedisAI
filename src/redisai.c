@@ -208,6 +208,16 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleString* keystr;
   AC_GetRString(&ac, &keystr, 0);
 
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
+      REDISMODULE_READ|REDISMODULE_WRITE);
+  const int type = RedisModule_KeyType(key);
+  if (type != REDISMODULE_KEYTYPE_EMPTY &&
+      !(type == REDISMODULE_KEYTYPE_MODULE &&
+        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+  }
+
   // getting the datatype
   const char* typestr;
   AC_GetString(&ac, &typestr, NULL, 0); 
@@ -237,7 +247,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_WrongArity(ctx);
   }
 
-  int hasdata = !AC_IsAtEnd(&ac);
+  const int hasdata = !AC_IsAtEnd(&ac);
 
   const char* fmtstr;
   int datafmt;
@@ -253,76 +263,62 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
     }
   }
-
-  RAI_Tensor* t = RAI_TensorCreate(typestr, dims, ndims);
-  if (!t) {
+  const size_t nbytes = len * datasize;
+  size_t datalen;
+  const char *data;
+  RAI_Tensor *t = RAI_TensorCreate(typestr, dims, ndims, hasdata);
+  if (!t){
     return RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
   }
-
-  if (hasdata && datafmt == REDISAI_DATA_BLOB) {
-    size_t nbytes = len * datasize;
-    size_t datalen;
-    const char* data;
-
+  switch (datafmt){
+  case REDISAI_DATA_BLOB:
     AC_GetString(&ac, &data, &datalen, 0);
-
-    if (datafmt == REDISAI_DATA_BLOB && datalen != nbytes) {
-      RAI_TensorFree(t);
+    if (datalen != nbytes){
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
-
     RAI_TensorSetData(t, data, datalen);
-  }
-  else if (hasdata && datafmt == REDISAI_DATA_VALUES) {
-    if (argc != len + 4 + ndims) {
-      RAI_TensorFree(t);
+    break;
+  case REDISAI_DATA_VALUES:
+    if (argc != len + 4 + ndims){
       return RedisModule_WrongArity(ctx);
     }
-
     DLDataType datatype = RAI_TensorDataType(t);
 
     long i;
-    if (datatype.code == kDLFloat) {
+    if (datatype.code == kDLFloat){
       double val;
-      for (i=0; i<len; i++) {
+      for (i = 0; i < len; i++){
         int ac_ret = AC_GetDouble(&ac, &val, 0);
-        if (ac_ret != AC_OK) {
+        if (ac_ret != AC_OK){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromDouble(t, i, val);
-        if (ret == -1) {
+        if (ret == -1){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
     }
-    else {
+    else{
       long long val;
-      for (i=0; i<len; i++) {
+      for (i = 0; i < len; i++){
         int ac_ret = AC_GetLongLong(&ac, &val, 0);
-        if (ac_ret != AC_OK) {
+        if (ac_ret != AC_OK){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR invalid value");
         }
         int ret = RAI_TensorSetValueFromLongLong(t, i, val);
-        if (ret == -1) {
+        if (ret == -1){
           RAI_TensorFree(t);
           return RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
         }
       }
     }
-  }
-
-  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr,
-      REDISMODULE_READ|REDISMODULE_WRITE);
-  int type = RedisModule_KeyType(key);
-  if (type != REDISMODULE_KEYTYPE_EMPTY &&
-      !(type == REDISMODULE_KEYTYPE_MODULE &&
-        RedisModule_ModuleTypeGetType(key) == RedisAI_TensorType)) {
-    RAI_TensorFree(t);
-    RedisModule_CloseKey(key);
-    return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    break;
+  default:
+    // default does not require tensor data setting since calloc setted it to 0
+    break;
   }
 
   RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t);
@@ -1049,6 +1045,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
     if (item) {
       RedisAI_RunSession(item->value);
+      RedisModule_Free(item);
+      
     } 
     else {
       // only sleep if the last Pop was empty
@@ -1545,7 +1543,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write deny-oom", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -1553,7 +1551,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write deny-oom", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -1565,11 +1563,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write getkeys-api", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write deny-oom getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write deny-oom", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -1581,7 +1579,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write getkeys-api", 4, 4, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write deny-oom getkeys-api", 4, 4, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
