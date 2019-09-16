@@ -1020,7 +1020,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   pthread_mutex_unlock(&global_run_queue_mutex);
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
-  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+  // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info.run_queue_mutex);
   queuePush(run_queue_info.run_queue, rinfo);
@@ -1179,7 +1179,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   pthread_mutex_unlock(&global_run_queue_mutex);
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
-  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+  // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info.run_queue_mutex);
   queuePush(run_queue_info.run_queue, rinfo);
