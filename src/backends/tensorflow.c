@@ -255,6 +255,29 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t dev
   TF_Status *sessionStatus = TF_NewStatus();
   TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
 
+  TF_Status *deviceListStatus = TF_NewStatus();
+  TF_DeviceList *deviceList = TF_SessionListDevices(session, deviceListStatus);
+  const int num_devices = TF_DeviceListCount(deviceList);
+  int foundNoGPU = 1;
+  for (int i = 0; i < num_devices; ++i) {
+    const char* device_type = TF_DeviceListType(deviceList, i, deviceListStatus);
+    int cmp = strcmp(device_type, "GPU");
+    if (cmp == 0) {
+      foundNoGPU = 0;
+      break;
+    }
+  }
+  if (foundNoGPU == 1 && device == RAI_DEVICE_GPU) {
+    RAI_SetError(error, RAI_EMODELCREATE, "GPU requested but TF couldn't find CUDA");
+    TF_DeleteDeviceList(deviceList);
+    TF_DeleteStatus(deviceListStatus);
+    // TODO: free other memory allocations
+    return NULL;
+  }
+  TF_DeleteDeviceList(deviceList);
+  TF_DeleteStatus(deviceListStatus);
+
+
   if (TF_GetCode(sessionStatus) != TF_OK) {
     RAI_SetError(error, RAI_EMODELCREATE, RedisModule_Strdup(TF_Message(status)));
     // TODO: free memory

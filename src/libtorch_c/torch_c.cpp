@@ -297,6 +297,10 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
   ctx->device_id = device_id;
   try {
     auto cu = torch::jit::compile(script);
+    auto aten_device_type = getATenDeviceType(device);
+    if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+      throw std::logic_error("GPU requested but Torch couldn't find CUDA");
+    }
     ctx->cu = cu;
     ctx->module = nullptr;
   }
@@ -322,7 +326,7 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     auto module = std::make_shared<torch::jit::script::Module>(torch::jit::load(graph_stream));
     auto aten_device_type = getATenDeviceType(device);
     if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
-      throw std::logic_error("GPU requested but CUDA not available");
+      throw std::logic_error("GPU requested but Torch couldn't find CUDA");
     }
     torch::Device aten_device(aten_device_type, device_id);
     module->to(aten_device);
