@@ -108,6 +108,9 @@ IF(BUILD_ORT)
     IF (NOT ORT_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
     ENDIF()
+    IF (${DEVICE} STREQUAL "gpu")
+        ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
+    ENDIF()
 ENDIF()
 
 #----------------------------------------------------------------------------------------------
@@ -204,10 +207,6 @@ ENDIF()
 #----------------------------------------------------------------------------------------------
 
 IF(BUILD_ORT)
-    IF (${DEVICE} STREQUAL "gpu")
-        ADD_DEFINITIONS(-DRAI_ONNXRUNTIME_USE_CUDA)
-    ENDIF()
-
     ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
     TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
     SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")

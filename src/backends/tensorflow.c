@@ -261,7 +261,6 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t dev
   int foundNoGPU = 1;
   for (int i = 0; i < num_devices; ++i) {
     const char* device_type = TF_DeviceListType(deviceList, i, deviceListStatus);
-    // TODO: make GPU config
     int cmp = strcmp(device_type, "GPU");
     if (cmp == 0) {
       foundNoGPU = 0;
