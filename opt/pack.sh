@@ -15,6 +15,9 @@ REDIS_ENT_LIB_PATH=/opt/redislabs/lib
 BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
+export LC_ALL=C.UTF-8
+export LANG=C.UTF-8
+
 pack_ramp() {
 	echo "Building RAMP file ..."
 	cd $ROOT

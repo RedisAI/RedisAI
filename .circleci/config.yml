@@ -96,7 +96,7 @@ jobs:
       package:
         type: string
     docker:
-      - image: 'redislabsmodules/rmbuilder:latest'
+      - image: redisfab/rmbuilder:x64-buster
     steps:
       - attach_workspace:
           at: ~/workspace
@@ -107,7 +107,7 @@ jobs:
 
   deploy_docs:
     docker:
-      - image: redislabsmodules/rmbuilder:latest
+      - image: redisfab/rmbuilder:x64-buster
     steps:
       - checkout
       - run:

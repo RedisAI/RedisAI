@@ -42,6 +42,7 @@ class RedisAISetup(paella.Setup):
         
     def fedora(self):
         self.group_install("'Development Tools'")
+        self.install("python3-venv python3-psutil python3-networkx python3-numpy")
         self.install_git_lfs_on_linux()
 
     def macosx(self):

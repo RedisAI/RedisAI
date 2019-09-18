@@ -10,6 +10,10 @@ import random
 import time
 import json
 import os
+import sys
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
+import paella
 
 
 '''
@@ -566,6 +570,9 @@ def test_run_mobilenet_multiproc(env):
     env.assertEqual(
         label, 'giant_panda'
     )
+
+    # possible workaround for side-effect test failure
+    # env.restartAndReload()
 
 
 def test_set_incorrect_script(env):
