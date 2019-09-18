@@ -544,7 +544,7 @@ def run_mobilenet(con, img, input_var, output_var):
     con.execute_command('AI.MODELRUN', 'mobilenet',
                         'INPUTS', 'input', 'OUTPUTS', 'output')
 
-    con.execute_command('DEL', 'input')
+    # con.execute_command('DEL', 'input')
 
 
 def test_run_mobilenet_multiproc(env):
@@ -571,7 +571,7 @@ def test_run_mobilenet_multiproc(env):
         label, 'giant_panda'
     )
 
-    # possible workaround for side-effect test failure
+    #@@@ possible workaround for side-effect test failure
     # env.restartAndReload()
 
 
