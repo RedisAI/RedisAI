@@ -6,8 +6,7 @@ ARG OS=debian:buster
 FROM ${OS}
 
 ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
-ARG ONNXRUNTIME_BRANCH=rel-0.4.0
-ARG ONNXRUNTIME_VER=0.4.0
+ARG ONNXRUNTIME_VER=0.5.0
 
 RUN apt-get -qq update
 RUN apt-get -qq install -y curl wget tar git
@@ -16,7 +15,8 @@ RUN apt-get -qq install -y libcurl4-openssl-dev libssl-dev libatlas-base-dev zli
 
 RUN apt-get -qq install -y python3 python3-pip python3-dev
 RUN pip3 install --upgrade pip setuptools wheel
-RUN pip3 install numpy
+# RUN pip3 install numpy
+RUN apt-get -q install -y python3-numpy
 
 WORKDIR /build
 
@@ -24,11 +24,9 @@ ADD ./pack.sh /build/
 ARG BUILDTYPE=MinSizeRel
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 
-RUN set -e ;\
-	git clone --single-branch --branch ${ONNXRUNTIME_BRANCH} --recursive ${ONNXRUNTIME_REPO} onnxruntime ;\
-	cd onnxruntime ;\
-	git checkout "rel-${ONNXRUNTIME_VER}"
-	cd onnxruntime ;\
+RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} --recursive ${ONNXRUNTIME_REPO} onnxruntime
+	
+RUN	cd onnxruntime ;\
 	./build.sh ${BUILDARGS} --update --build ;\
 	./build.sh ${BUILDARGS} --build_shared_lib
 # RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel

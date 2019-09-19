@@ -63,7 +63,7 @@ def create_tar(name, basedir, dir='.'):
             tar.add(dir, filter=reset_uid)
 
 def collect_tensorflow():
-    d_tensorflow = dest/'tensorflow'
+    d_tensorflow = dest #/'tensorflow'
     with cwd(tensorflow):
         for f in Path('tensorflow/c').glob('**/*.h'):
             copy_p(f, d_tensorflow/'include')

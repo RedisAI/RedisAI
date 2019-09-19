@@ -3,7 +3,11 @@
 set -e
 [[ $VERBOSE == 1 ]] && set -x
 
-ROOT=../..
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+
+ROOT=$HERE/../../..
+. $ROOT/opt/readies/shibumi/functions
+ROOT=$(realpath $ROOT)
 
 if [[ "$1" == "cpu" ]]; then
 	GPU=no

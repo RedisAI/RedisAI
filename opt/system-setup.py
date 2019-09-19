@@ -27,7 +27,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.install("build-essential")
-        self.install("python3-venv python3-psutil python3-networkx")
+        self.install("python3-venv python3-psutil python3-networkx python3-numpy python3-skimage")
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
@@ -42,6 +42,7 @@ class RedisAISetup(paella.Setup):
         
     def fedora(self):
         self.group_install("'Development Tools'")
+        self.install("python3-venv python3-psutil python3-networkx python3-numpy")
         self.install_git_lfs_on_linux()
 
     def macosx(self):
@@ -50,6 +51,7 @@ class RedisAISetup(paella.Setup):
         if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
         self.install("git-lfs")
+        self.install("redis")
 
     def install_git_lfs_on_linux(self):
         self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
@@ -62,6 +64,7 @@ class RedisAISetup(paella.Setup):
             self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
         root = os.path.join(os.path.dirname(__file__), "..")
         self.pip3_install("-r {}/test/test_requirements.txt".format(root))
+        # self.pip3_install("redis-py-cluster")
 
 #----------------------------------------------------------------------------------------------
 
