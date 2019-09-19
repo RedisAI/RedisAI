@@ -228,7 +228,7 @@ typedef struct RAI_ONNXBuffer {
 
 OrtEnv* env = NULL;
 
-RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
                               const char *modeldef, size_t modellen,
                               RAI_Error *error) {
 
@@ -304,6 +304,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t de
   ret->backend = backend;
   ret->device = device;
   ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
   ret->data = onnxbuffer;
 

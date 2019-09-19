@@ -560,7 +560,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Error err = {0};
 
-  model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+  model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend %s not loaded, will try loading default backend\n", bckstr);
@@ -572,7 +572,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       return ret;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+    model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
   }
 
   if (err.code != RAI_OK) {
@@ -1293,7 +1293,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
 
   RAI_Error err = {0};
-  script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
+  script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend\n");
@@ -1305,7 +1305,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return ret;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
+    script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
   }
 
   if (err.code != RAI_OK){

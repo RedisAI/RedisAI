@@ -13,7 +13,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
   return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {
   DLDeviceType dl_device;
@@ -44,6 +44,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t 
   ret->backend = backend;
   ret->device = device;
   ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->inputs = NULL;
   ret->outputs = NULL;
   ret->refCount = 1;
@@ -108,7 +109,7 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
   return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const char* devicestr, const char *scriptdef, RAI_Error *error) {
   DLDeviceType dl_device;
   switch (device) {
     case RAI_DEVICE_CPU:
@@ -136,18 +137,9 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const cha
   ret->scriptdef = RedisModule_Strdup(scriptdef);
   ret->device = device;
   ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
-  if (device == RAI_DEVICE_CPU){
-    ret->devicestr = RedisModule_Strdup("CPU");
-  }
-  else{
-    if (deviceid == -1){
-      ret->devicestr = RedisModule_Strdup("GPU");
-    }
-    else{
-      ret->devicestr = RedisModule_StringPtrLen(RedisModule_CreateStringPrintf(NULL, "GPU:%lld", deviceid), NULL);
-    }
-  }
+  
 
   return ret;
 }

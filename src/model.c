@@ -17,8 +17,9 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
   RAI_Device device = RedisModule_LoadUnsigned(io);
   int64_t deviceid = RedisModule_LoadSigned(io);
+  const char *devicestr = RedisModule_Alloc(sizeof(char*));
+  devicestr = RedisModule_LoadStringBuffer(io, NULL);
   size_t ninputs = RedisModule_LoadUnsigned(io);
-
   const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
 
   for (size_t i=0; i<ninputs; i++) {
@@ -39,7 +40,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Error err = {0};
 
-  RAI_Model *model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs,
+  RAI_Model *model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
@@ -51,7 +52,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, buffer, len, &err);
+    model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, buffer, len, &err);
   }
  
   if (err.code != RAI_OK) {
@@ -206,7 +207,7 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
   return RedisAI_ModelType != NULL;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
                            size_t ninputs, const char **inputs,
                            size_t noutputs, const char **outputs,
                            const char *modeldef, size_t modellen, RAI_Error* err) {
@@ -216,38 +217,26 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t devic
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
       return NULL;
     }
-    model = RAI_backends.tf.model_create_with_nodes(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
+    model = RAI_backends.tf.model_create_with_nodes(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_create) {
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
       return NULL;
     }
-    model = RAI_backends.torch.model_create(backend, device, deviceid, modeldef, modellen, err);
+    model = RAI_backends.torch.model_create(backend, device, deviceid, devicestr, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_ONNXRUNTIME) {
     if (!RAI_backends.onnx.model_create) {
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
       return NULL;
     }
-    model = RAI_backends.onnx.model_create(backend, device, deviceid, modeldef, modellen, err);
+    model = RAI_backends.onnx.model_create(backend, device, deviceid, devicestr, modeldef, modellen, err);
   }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
     return NULL;
   }
-  if (device == RAI_DEVICE_CPU){
-    model->devicestr = RedisModule_Strdup("CPU");
-  }
-  else{
-    if (deviceid == -1){
-      model->devicestr = RedisModule_Strdup("GPU");
-    }
-    else{
-      model->devicestr = RedisModule_StringPtrLen(RedisModule_CreateStringPrintf(NULL, "GPU:%lld", deviceid), NULL);
-    }
-  }
-
   return model;
 }
 
