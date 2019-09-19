@@ -16,7 +16,7 @@ ADD_LIBRARY(redisai_obj OBJECT
 IF(BUILD_TF)
     ADD_LIBRARY(redisai_tensorflow_obj OBJECT
             backends/tensorflow.c
-            backends.c
+            backends/util.c
             err.c
             tensor.c)
 ENDIF()
@@ -24,7 +24,7 @@ ENDIF()
 IF(BUILD_TORCH)
     ADD_LIBRARY(redisai_torch_obj OBJECT
             backends/torch.c
-            backends.c
+            backends/util.c
             err.c
             tensor.c)
 ENDIF()
@@ -32,7 +32,7 @@ ENDIF()
 IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
             backends/onnxruntime.c
-            backends.c
+            backends/util.c
             err.c
             tensor.c)
 ENDIF()

@@ -31,7 +31,6 @@ typedef struct RAI_LoadedBackends {
 RAI_LoadedBackends RAI_backends;
 char* RAI_BackendsPath;
 
-int parseDeviceStr(const char* devicestr, RAI_Device* device, int64_t* deviceid);
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 

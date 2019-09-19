@@ -1,7 +1,7 @@
 #include "backends/onnxruntime.h"
+#include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
-#include "backends.h"
 
 #include "onnxruntime_c_api.h"
 

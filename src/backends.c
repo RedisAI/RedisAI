@@ -8,27 +8,6 @@
 #include <dlfcn.h>
 #include <libgen.h>
 
-
-int parseDeviceStr(const char* devicestr, RAI_Device* device, int64_t* deviceid) {
-  if (strcasecmp(devicestr, "CPU") == 0) {
-    *device = RAI_DEVICE_CPU;
-    *deviceid = -1;
-  }
-  else if (strcasecmp(devicestr, "GPU") == 0) {
-    *device = RAI_DEVICE_GPU;
-    *deviceid = -1;
-  }
-  else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
-    *device = RAI_DEVICE_GPU;
-    sscanf(devicestr, "GPU:%lld", deviceid);
-  }
-  else {
-    return 0;
-  }
-
-  return 1;
-}
-
 RedisModuleString* RAI_GetModulePath(RedisModuleCtx *ctx) {
   Dl_info info;
   RedisModuleString* module_path = NULL;
