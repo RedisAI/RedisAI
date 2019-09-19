@@ -103,7 +103,7 @@ void freeRunQueueInfo(RunQueueInfo* info) {
   RedisModule_Free(info);
 }
 
-static Gears_dict *run_queues = NULL;
+static AI_dict *run_queues = NULL;
 
 void *RedisAI_Run_ThreadMain(void *arg);
 
@@ -117,7 +117,7 @@ size_t deviceToKey(RAI_Device device, int64_t deviceid) {
 int ensureRunQueue(char* devicestr) {
   int result = REDISMODULE_ERR;
 
-  Gears_dictEntry *entry = Gears_dictFind(run_queues, devicestr);
+  AI_dictEntry *entry = AI_dictFind(run_queues, devicestr);
   if (entry){
     result = REDISMODULE_OK;
   }
@@ -133,7 +133,7 @@ int ensureRunQueue(char* devicestr) {
       return REDISMODULE_ERR;
     }
     run_queue_info->run_thread_id = tid;
-    Gears_dictAdd(run_queues, devicestr, run_queue_info);
+    AI_dictAdd(run_queues, devicestr, run_queue_info);
     result = REDISMODULE_OK;
   }
 
@@ -992,13 +992,13 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   //  RedisModule_AbortBlock(bc);
   //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
 
-  Gears_dictEntry *entry = Gears_dictFind(run_queues, mto->devicestr);
+  AI_dictEntry *entry = AI_dictFind(run_queues, mto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
   if (!entry){
     return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
   else{
-    run_queue_info = Gears_dictGetVal(entry);
+    run_queue_info = AI_dictGetVal(entry);
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
@@ -1144,13 +1144,13 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   rinfo->sctx = sctx;
   rinfo->outkeys = outkeys;
   rinfo->err = NULL;
-  Gears_dictEntry *entry = Gears_dictFind(run_queues, sto->devicestr);
+  AI_dictEntry *entry = AI_dictFind(run_queues, sto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
   if (!entry){
     return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
   else{
-    run_queue_info = Gears_dictGetVal(entry);
+    run_queue_info = AI_dictGetVal(entry);
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
@@ -1607,7 +1607,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
   }
 
-  run_queues = Gears_dictCreate(&Gears_dictTypeHeapStrings, NULL);
+  run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
 
   if (ensureRunQueue("CPU") != REDISMODULE_OK){
     RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU" );
