@@ -1,4 +1,3 @@
-#include "util/dict.h"
 #include "redismodule.h"
 #include "tensor.h"
 #include "model.h"
@@ -12,6 +11,7 @@
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
+#include "util/dict.h"
 #include "rmutil/args.h"
 
 #define REDISAI_H_INCLUDE
