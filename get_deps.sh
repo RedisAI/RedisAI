@@ -138,6 +138,8 @@ if [[ $WITH_PT != 0 ]]; then
 	if [[ ! -d $LIBTORCH ]]; then
 		echo "Installing libtorch ..."
 
+		PT_REPACK=0
+		
 		if [[ $OS == linux ]]; then
 			PT_OS=linux
 			if [[ $GPU == no ]]; then
@@ -147,6 +149,7 @@ if [[ $WITH_PT != 0 ]]; then
 			fi
 			if [[ $ARCH == x64 ]]; then
 				PT_ARCH=x86_64
+				PT_REPACK=1
 			elif [[ $ARCH == arm64v8 ]]; then
 				PT_ARCH=arm64
 			elif [[ $ARCH == arm32v7 ]]; then
@@ -156,15 +159,21 @@ if [[ $WITH_PT != 0 ]]; then
 			PT_OS=macos
 			PT_ARCH=x86_64
 			PT_BUILD=cpu
+			PT_REPACK=1
 		fi
 
-		[[ "$PT_VERSION" == "latest" ]] && PT_BUILD=nightly/${PT_BUILD}
+		[[ $PT_VERSION == latest ]] && PT_BUILD=nightly/${PT_BUILD}
 
 		LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
-		LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 
-		[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
+		if [[ $PT_REPACK == 1 ]]; then
+			PT_VERSION=$PT_VERSION $HERE/opt/build/libtorch/repack.sh
+		else
+			LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 
+			[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
+		fi
+		
 		rm -rf $LIBTORCH.x
 		mkdir $LIBTORCH.x
 
