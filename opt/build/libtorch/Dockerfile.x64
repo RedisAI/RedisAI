@@ -3,7 +3,7 @@ ARG OS=debian:buster
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 
-ARG PT_VER=1.1.0
+ARG PT_VER=1.2.0
 
 WORKDIR /build
 
@@ -14,11 +14,7 @@ RUN pip3 install setuptools pyyaml typing
 RUN pip3 install numpy
 RUN pip3 install mkl mkl-include
 
-RUN set -e ;\
-	git clone https://github.com/pytorch/pytorch.git ;\
-	cd pytorch ;\
-	git checkout "v${PT_VER}" ;\
-	git submodule update --init --recursive
+RUN git clone --single-branch --branch v${PT_VER} --recursive https://github.com/pytorch/pytorch.git
 
 ENV BUILD_PYTHON=0
 ENV USE_GLOO=1
@@ -37,6 +33,6 @@ RUN set -e ;\
 	python3 setup.py install
 
 ADD ./opt/readies/ /build/readies/
-ADD ./opt/build/libtorch-arm/collect.py /build/
+ADD ./opt/build/libtorch/collect.py /build/
 
-RUN  ./collect.py
+RUN ./collect.py

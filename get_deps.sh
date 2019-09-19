@@ -16,6 +16,9 @@ if [[ $1 == --help || $1 == help ]]; then
 		Argument variables:
 		VERBOSE=1   Print commands
 		FORCE=1     Download even if present
+		WITH_TF=0   Skip Tensorflow
+		WITH_PT=0   Skip PyTorch
+		WITH_ORT=0  Skip OnnxRuntime
 
 	END
 	exit 0
@@ -74,100 +77,117 @@ fi
 
 TF_VERSION="1.14.0"
 
-[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
+if [[ $WITH_TF != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
 
-if [[ ! -d $LIBTENSORFLOW ]]; then
-	echo "Installing TensorFlow ..."
-	
-	if [[ $OS == linux ]]; then
-		TF_OS="linux"
-		if [[ $GPU == no ]]; then
-			TF_BUILD="cpu"
-		else
-			TF_BUILD="gpu"
-		fi
-		if [[ $ARCH == x64 ]]; then
+	if [[ ! -d $LIBTENSORFLOW ]]; then
+		echo "Installing TensorFlow ..."
+		
+		if [[ $OS == linux ]]; then
+			TF_OS="linux"
+			if [[ $GPU == no ]]; then
+				TF_BUILD="cpu"
+			else
+				TF_BUILD="gpu"
+			fi
+			if [[ $ARCH == x64 ]]; then
+				TF_VERSION=1.14.0
+				TF_ARCH=x86_64
+				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+			elif [[ $ARCH == arm64v8 ]]; then
+				TF_VERSION=1.14.0
+				TF_ARCH=arm64
+				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+			elif [[ $ARCH == arm32v7 ]]; then
+				TF_VERSION=1.14.0
+				TF_ARCH=arm
+				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+			fi
+		elif [[ $OS == macosx ]]; then
 			TF_VERSION=1.14.0
+			TF_OS=darwin
+			TF_BUILD=cpu
 			TF_ARCH=x86_64
 			LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
-		elif [[ $ARCH == arm64v8 ]]; then
-			TF_VERSION=1.14.0
-			TF_ARCH=arm64
-			LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
-		elif [[ $ARCH == arm32v7 ]]; then
-			TF_VERSION=1.14.0
-			TF_ARCH=arm
-			LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 		fi
-	elif [[ $OS == macosx ]]; then
-		TF_VERSION=1.14.0
-		TF_OS=darwin
-		TF_BUILD=cpu
-		TF_ARCH=x86_64
-		LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+
+		LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
+
+		[[ ! -f $LIBTF_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTF_ARCHIVE
+
+		rm -rf $LIBTENSORFLOW.x
+		mkdir $LIBTENSORFLOW.x
+		tar xf $LIBTF_ARCHIVE --no-same-owner -C $LIBTENSORFLOW.x
+		mv $LIBTENSORFLOW.x $LIBTENSORFLOW
+		
+		echo "Done."
+	else
+		echo "TensorFlow is in place."
 	fi
-
-	LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
-
-	[[ ! -f $LIBTF_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTF_ARCHIVE
-
-	rm -rf $LIBTENSORFLOW.x
-	mkdir $LIBTENSORFLOW.x
-	tar xf $LIBTF_ARCHIVE --no-same-owner --strip-components=1 -C $LIBTENSORFLOW.x
-	mv $LIBTENSORFLOW.x $LIBTENSORFLOW
-	
-	echo "Done."
 else
-	echo "TensorFlow is in place."
-fi
+	echo "Skipping TensorFlow."
+fi # WITH_TF
 
 ###################################################################################### LIBTORCH
 
 PT_VERSION="1.2.0"
 
-[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
+if [[ $WITH_PT != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
 
-if [[ ! -d $LIBTORCH ]]; then
-	echo "Installing libtorch ..."
+	if [[ ! -d $LIBTORCH ]]; then
+		echo "Installing libtorch ..."
 
-	if [[ $OS == linux ]]; then
-		PT_OS=linux
-		if [[ $GPU == no ]]; then
-			PT_BUILD=cpu
-		else
-			PT_BUILD=cu100
-		fi
-		if [[ $ARCH == x64 ]]; then
+		PT_REPACK=0
+		
+		if [[ $OS == linux ]]; then
+			PT_OS=linux
+			if [[ $GPU == no ]]; then
+				PT_BUILD=cpu
+			else
+				PT_BUILD=cu100
+			fi
+			if [[ $ARCH == x64 ]]; then
+				PT_ARCH=x86_64
+				PT_REPACK=1
+			elif [[ $ARCH == arm64v8 ]]; then
+				PT_ARCH=arm64
+			elif [[ $ARCH == arm32v7 ]]; then
+				PT_ARCH=arm
+			fi
+		elif [[ $OS == macosx ]]; then
+			PT_OS=macos
 			PT_ARCH=x86_64
-		elif [[ $ARCH == arm64v8 ]]; then
-			PT_ARCH=arm64
-		elif [[ $ARCH == arm32v7 ]]; then
-			PT_ARCH=arm
+			PT_BUILD=cpu
+			PT_REPACK=1
 		fi
-	elif [[ $OS == macosx ]]; then
-		PT_OS=macos
-		PT_ARCH=x86_64
-		PT_BUILD=cpu
+
+		[[ $PT_VERSION == latest ]] && PT_BUILD=nightly/${PT_BUILD}
+
+		LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
+
+		if [[ $PT_REPACK == 1 ]]; then
+			PT_VERSION=$PT_VERSION $HERE/opt/build/libtorch/repack.sh
+		else
+			LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
+
+			[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
+		fi
+		
+		rm -rf $LIBTORCH.x
+		mkdir $LIBTORCH.x
+
+		tar xf $LIBTORCH_ARCHIVE --no-same-owner -C $LIBTORCH.x
+		mv $LIBTORCH.x/libtorch $LIBTORCH
+		rmdir $LIBTORCH.x
+		
+		echo "Done."
+	else
+		echo "librotch is in place."
 	fi
-
-	[[ "$PT_VERSION" == "latest" ]] && PT_BUILD=nightly/${PT_BUILD}
-
-	LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
-	LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
-
-	[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
-
-	rm -rf $LIBTORCH.x
-	mkdir $LIBTORCH.x
-
-	tar xf $LIBTORCH_ARCHIVE --no-same-owner -C $LIBTORCH.x
-	mv $LIBTORCH.x/libtorch $LIBTORCH
-	rmdir $LIBTORCH.x
-	
-	echo "Done."
 else
-	echo "librotch is in place."
-fi
+	echo "SKipping libtorch."
+fi # WITH_PT
 
 ########################################################################################### MKL
 
@@ -196,45 +216,49 @@ fi
 
 ORT_VERSION="0.5.0"
 
-[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
+if [[ $WITH_ORT != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
 
-if [[ ! -d $ONNXRUNTIME ]]; then
-	echo "Installing ONNXRuntime ..."
+	if [[ ! -d $ONNXRUNTIME ]]; then
+		echo "Installing ONNXRuntime ..."
 
-	if [[ $OS == linux ]]; then
-		ORT_OS=linux
-		if [[ $GPU == no ]]; then
-			ORT_BUILD=""
-		else
-			ORT_BUILD="-gpu"
-		fi
-		if [[ $ARCH == x64 ]]; then
+		if [[ $OS == linux ]]; then
+			ORT_OS=linux
+			if [[ $GPU == no ]]; then
+				ORT_BUILD=""
+			else
+				ORT_BUILD="-gpu"
+			fi
+			if [[ $ARCH == x64 ]]; then
+				ORT_ARCH=x64
+				ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
+			elif [[ $ARCH == arm64v8 ]]; then
+				ORT_ARCH=arm64
+				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
+			elif [[ $ARCH == arm32v7 ]]; then
+				ORT_ARCH=arm
+				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
+			fi
+		elif [[ $OS == macosx ]]; then
+			ORT_OS=osx
 			ORT_ARCH=x64
+			ORT_BUILD=""
 			ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
-		elif [[ $ARCH == arm64v8 ]]; then
-			ORT_ARCH=arm64
-			ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
-		elif [[ $ARCH == arm32v7 ]]; then
-			ORT_ARCH=arm
-			ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 		fi
-	elif [[ $OS == macosx ]]; then
-		ORT_OS=osx
-		ORT_ARCH=x64
-		ORT_BUILD=""
-		ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
+
+		ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
+
+		[[ ! -e ${ORT_ARCHIVE} ]] && wget -q $ORT_URL_BASE/${ORT_ARCHIVE}
+
+		rm -rf $ONNXRUNTIME.x
+		mkdir $ONNXRUNTIME.x
+		tar xzf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C $ONNXRUNTIME.x
+		mv $ONNXRUNTIME.x $ONNXRUNTIME
+		
+		echo "Done."
+	else
+		echo "ONNXRuntime is in place."
 	fi
-
-	ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
-
-	[[ ! -e ${ORT_ARCHIVE} ]] && wget -q $ORT_URL_BASE/${ORT_ARCHIVE}
-
-	rm -rf $ONNXRUNTIME.x
-	mkdir $ONNXRUNTIME.x
-	tar xzf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C $ONNXRUNTIME.x
-	mv $ONNXRUNTIME.x $ONNXRUNTIME
-	
-	echo "Done."
 else
-	echo "ONNXRuntime is in place."
-fi
+	echo "Skipping ONNXRuntime."
+fi # WITH_ORT

@@ -8,12 +8,18 @@ MK_CMAKE_INSTALL:=1
 define HELP
 make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
 make fetch    # download and prepare dependant modules
+  WITH_TF=0     # SKip TensofFlow
+  WITH_PT=0     # Skip PyTorch
+  WITH_ORT=0    # SKip ONNXRuntime
 make build    # compile and link
+  WITH_TF=0     # SKip TensofFlow
+  WITH_PT=0     # Skip PyTorch
+  WITH_ORT=0    # SKip ONNXRuntime
 make clean    # remove build artifacts
-  ALL=1       # remove entire artifacts directory
+  ALL=1         # remove entire artifacts directory
 make test     # run tests
 make pack     # create installation packages
-  PACK_DEPS=0 # do not pack dependencies
+  PACK_DEPS=0   # do not pack dependencies
 make deploy   # copy packages to S3
 make release  # release a version
 endef
@@ -43,10 +49,27 @@ TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
+CMAKE_FILES += \
+	$(SRCDIR)/CMakeLists.txt \
+	$(SRCDIR)/src/CMakeLists.txt \
+	$(SRCDIR)/libtorch_c/CMakeLists.txt
+
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
 	-DDEVICE=$(DEVICE)
+
+ifeq ($(WITH_TF),0)
+CMAKE_FLAGS += -DBUILD_TF=off
+endif
+
+ifeq ($(WITH_PT),0)
+CMAKE_FLAGS += -DBUILD_TORCH=off
+endif
+
+ifeq ($(WITH_ORT),0)
+CMAKE_FLAGS += -DBUILD_ORT=off
+endif
 
 include $(MK)/defs
 
@@ -105,7 +128,8 @@ test:
 	$(SHOW)cd $(ROOT); git lfs pull
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so ;\
+	python3 -m RLTest $(TEST_ARGS) --test  double-panda.py --module $(INSTALL_DIR)/redisai.so
 
 #----------------------------------------------------------------------------------------------
 
