@@ -11,6 +11,8 @@
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
+#include "util/dict.h"
+#include "util/dict.c"
 #include "rmutil/args.h"
 
 #define REDISAI_H_INCLUDE
@@ -101,10 +103,7 @@ void freeRunQueueInfo(RunQueueInfo* info) {
   RedisModule_Free(info);
 }
 
-static RunQueueInfo **run_queues = NULL;
-
-static pthread_mutex_t global_run_queue_mutex = PTHREAD_MUTEX_INITIALIZER;
-static pthread_cond_t  global_run_queue_condition_var   = PTHREAD_COND_INITIALIZER;
+static Gears_dict *run_queues = NULL;
 
 void *RedisAI_Run_ThreadMain(void *arg);
 
@@ -114,21 +113,15 @@ size_t deviceToKey(RAI_Device device, int64_t deviceid) {
 }
 
 /* Ensure that the the run queue for the device exists.
- * If not, create it. As an example, if you ask for queue number 4,
- * all queues for devices behind it ( 0,1,2,3 ) will be created if they don't exist. */
-int ensureRunQueue(RAI_Device device, int64_t deviceid) {
+ * If not, create it. */
+int ensureRunQueue(char* devicestr) {
+  int result = REDISMODULE_ERR;
 
-  if (deviceid < -1 || deviceid > RAI_MAX_DEVICE_ID) {
-    return REDISMODULE_ERR;
+  Gears_dictEntry *entry = Gears_dictFind(run_queues, devicestr);
+  if (entry){
+    result = REDISMODULE_OK;
   }
-
-  const size_t queue_number = deviceToKey(device, deviceid);
-
-  if (queue_number<0) {
-        return REDISMODULE_ERR;
-  }
-
-  while (queue_number >= array_len(run_queues)){
+  else{
     RunQueueInfo *run_queue_info = RedisModule_Alloc(sizeof(RunQueueInfo));
     run_queue_info->run_queue = queueCreate();
     pthread_cond_init(&run_queue_info->queue_condition_var, NULL);
@@ -140,14 +133,12 @@ int ensureRunQueue(RAI_Device device, int64_t deviceid) {
       return REDISMODULE_ERR;
     }
     run_queue_info->run_thread_id = tid;
-    run_queues = array_append(run_queues, run_queue_info);
+    Gears_dictAdd(run_queues, devicestr, run_queue_info);
+    result = REDISMODULE_OK;
   }
 
-  return REDISMODULE_OK;
+  return result;
 }
-
-static pthread_mutex_t runQueueMutex = PTHREAD_MUTEX_INITIALIZER;
-static queue *runQueue;
 
 long long ustime(void) {
     struct timeval tv;
@@ -595,7 +586,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   // TODO: if backend loaded, make sure there's a queue
 
-  if (ensureRunQueue(device, deviceid)==REDISMODULE_ERR) {
+  if (ensureRunQueue(devicestr)==REDISMODULE_ERR) {
     RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
       #ifdef RAI_PRINT_BACKEND_ERRORS
@@ -1001,21 +992,21 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   //  RedisModule_AbortBlock(bc);
   //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
 
-
-  size_t queue_key = deviceToKey(mto->device, mto->deviceid);
-  pthread_mutex_lock(&global_run_queue_mutex);
-  if(queue_key >= array_len(run_queues)){
-      pthread_mutex_unlock(&global_run_queue_mutex);
-      return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
+  Gears_dictEntry *entry = Gears_dictFind(run_queues, mto->devicestr);
+  RunQueueInfo *run_queue_info = NULL;
+  if (!entry){
+    return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
-  RunQueueInfo* run_queue_info = run_queues[queue_key];
-  pthread_mutex_unlock(&global_run_queue_mutex);
+  else{
+    run_queue_info = Gears_dictGetVal(entry);
+  }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
   // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   queuePush(run_queue_info->run_queue, rinfo);
+  pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
   // RedisAI_RunSession(rinfo);
@@ -1030,22 +1021,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
   RunQueueInfo* run_queue_info = (RunQueueInfo*)arg;
 
-  while(1) {
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-  queueItem *item = queuePop(run_queue_info->run_queue);
-  pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  if (item) {
-    RedisAI_RunSession(item->value);
-    RedisModule_Free(item);
+  while (true){
+    int rc = pthread_cond_wait(&run_queue_info->queue_condition_var, &run_queue_info->run_queue_mutex);
+    queueItem *item = NULL; 
+    while ( (item = queuePop(run_queue_info->run_queue)) != NULL){
+      pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+      RedisAI_RunSession(item->value);
+      RedisModule_Free(item);
+      pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+    }
     
-  } 
-  else {
-    // only sleep if the last Pop was empty
-    usleep(1000);
-  }
-    // release item (note: the callback does it; verify)
-    // unblock (the callback does it)
   }
 }
 
@@ -1158,21 +1144,21 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   rinfo->sctx = sctx;
   rinfo->outkeys = outkeys;
   rinfo->err = NULL;
-
-    size_t queue_key = deviceToKey(sto->device, sto->deviceid);
-    pthread_mutex_lock(&global_run_queue_mutex);
-    if(queue_key >= array_len(run_queues)){
-        pthread_mutex_unlock(&global_run_queue_mutex);
-        return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
-    }
-    RunQueueInfo* run_queue_info = run_queues[queue_key];
-    pthread_mutex_unlock(&global_run_queue_mutex);
+  Gears_dictEntry *entry = Gears_dictFind(run_queues, sto->devicestr);
+  RunQueueInfo *run_queue_info = NULL;
+  if (!entry){
+    return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
+  }
+  else{
+    run_queue_info = Gears_dictGetVal(entry);
+  }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_Run_Reply, NULL, RedisAI_FreeData, 0);
   // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   queuePush(run_queue_info->run_queue, rinfo);
+  pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
   RedisModule_ReplicateVerbatim(ctx);
@@ -1331,7 +1317,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return ret;
   }
 
-  if (ensureRunQueue(device, deviceid)==REDISMODULE_ERR) {
+  if (ensureRunQueue(devicestr)==REDISMODULE_ERR) {
     RAI_ScriptFree(script, &err);
     if (err.code != RAI_OK) {
       #ifdef RAI_PRINT_BACKEND_ERRORS
@@ -1621,15 +1607,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
   }
 
-  run_queues = array_new(RunQueueInfo, 1);
-  size_t key = deviceToKey(RAI_DEVICE_CPU, -1);
+  run_queues = Gears_dictCreate(&Gears_dictTypeHeapStrings, NULL);
 
-  if (ensureRunQueue(RAI_DEVICE_CPU, -1) != REDISMODULE_OK){
-    RedisModuleString *message = RedisModule_CreateStringPrintf(ctx, "Queue not initialized for device  %d", key);
-    RedisModule_Log(ctx, "warning", RedisModule_StringPtrLen(message, NULL));
+  if (ensureRunQueue("CPU") != REDISMODULE_OK){
+    RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU" );
     return REDISMODULE_ERR;
   }
-  RedisModule_Log(ctx, "info", RedisModule_StringPtrLen(RedisModule_CreateStringPrintf(ctx, "Total number of initialized queues %d", (array_len(run_queues))), NULL));
-
+  
   return REDISMODULE_OK;
 }

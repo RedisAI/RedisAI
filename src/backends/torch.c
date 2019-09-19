@@ -137,7 +137,19 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const cha
   ret->device = device;
   ret->deviceid = deviceid;
   ret->refCount = 1;
+  if (device==RAI_DEVICE_CPU){
+ret->devicestr = RedisModule_Strdup("CPU");
+  }
+  else{
+    if (deviceid == -1 ){
+      ret->devicestr = RedisModule_Strdup("GPU");
+    }
+    else{
+      ret->devicestr = RedisModule_StringPtrLen( RedisModule_CreateStringPrintf(NULL, "GPU:%lld", deviceid), NULL);
 
+    }
+  }
+  
   return ret;
 }
 
