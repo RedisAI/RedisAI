@@ -1,4 +1,5 @@
 ADD_LIBRARY(redisai_obj OBJECT
+        util/dict.c
         redisai.c
         backends.c
         model.c

@@ -1,3 +1,4 @@
+#include "util/dict.h"
 #include "redismodule.h"
 #include "tensor.h"
 #include "model.h"
@@ -11,13 +12,12 @@
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
-#include "util/dict.h"
-#include "util/dict.c"
 #include "rmutil/args.h"
 
 #define REDISAI_H_INCLUDE
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
+
 
 typedef struct queueItem {
   struct queueItem *next;
@@ -114,7 +114,7 @@ size_t deviceToKey(RAI_Device device, int64_t deviceid) {
 
 /* Ensure that the the run queue for the device exists.
  * If not, create it. */
-int ensureRunQueue(char* devicestr) {
+int ensureRunQueue(const char* devicestr) {
   int result = REDISMODULE_ERR;
 
   AI_dictEntry *entry = AI_dictFind(run_queues, devicestr);
@@ -133,7 +133,7 @@ int ensureRunQueue(char* devicestr) {
       return REDISMODULE_ERR;
     }
     run_queue_info->run_thread_id = tid;
-    AI_dictAdd(run_queues, devicestr, run_queue_info);
+    AI_dictAdd(run_queues, (void*)devicestr, (void*)run_queue_info);
     result = REDISMODULE_OK;
   }
 
@@ -1616,3 +1616,5 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   
   return REDISMODULE_OK;
 }
+
+extern AI_dictType AI_dictTypeHeapStrings;
