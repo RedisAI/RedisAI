@@ -13,7 +13,7 @@ typedef struct RAI_Script {
   // CUDA allocator for dlpack
   RAI_Device device;
   int64_t deviceid;
-    char* devicestr;
+  char* devicestr;
   long long refCount;
 } RAI_Script;
 

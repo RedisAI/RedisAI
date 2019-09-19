@@ -236,19 +236,18 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t devic
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
     return NULL;
   }
-  if (device==RAI_DEVICE_CPU){
+  if (device == RAI_DEVICE_CPU){
     model->devicestr = RedisModule_Strdup("CPU");
   }
-  else {
-    if ( deviceid == -1 ){
-    model->devicestr = RedisModule_Strdup("GPU");
-
-    }else{
-model->devicestr = RedisModule_StringPtrLen( RedisModule_CreateStringPrintf(NULL, "GPU:%lld", deviceid), NULL);
-
+  else{
+    if (deviceid == -1){
+      model->devicestr = RedisModule_Strdup("GPU");
+    }
+    else{
+      model->devicestr = RedisModule_StringPtrLen(RedisModule_CreateStringPrintf(NULL, "GPU:%lld", deviceid), NULL);
     }
   }
-  
+
   return model;
 }
 
