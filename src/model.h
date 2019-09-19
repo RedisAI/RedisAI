@@ -10,7 +10,7 @@
 extern RedisModuleType *RedisAI_ModelType;
 
 int RAI_ModelInit(RedisModuleCtx* ctx);
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
                            size_t ninputs, const char **inputs,
                            size_t noutputs, const char **outputs,
                            const char *modeldef, size_t modellen, RAI_Error* err);

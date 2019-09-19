@@ -13,10 +13,18 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
   return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {
   DLDeviceType dl_device;
+  //TODO
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR unsupported device");
+  }
+
   switch (device) {
     case RAI_DEVICE_CPU:
       dl_device = kDLCPU;
@@ -109,8 +117,17 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
   return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const char* devicestr, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, RAI_Error *error) {
   DLDeviceType dl_device;
+  
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_ESCRIPTCONFIGURE, "ERR unsupported device");
+  }
+
+
   switch (device) {
     case RAI_DEVICE_CPU:
       dl_device = kDLCPU;

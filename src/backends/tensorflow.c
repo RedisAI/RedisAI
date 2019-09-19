@@ -160,12 +160,19 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,
                              const char *modeldef, size_t modellen,
                              RAI_Error *error) {
   TF_Graph* model = TF_NewGraph();
+
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
+  }
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 

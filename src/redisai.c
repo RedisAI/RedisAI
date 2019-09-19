@@ -160,26 +160,6 @@ enum RedisAI_DataFmt {
   REDISAI_DATA_NONE
 };
 
-int parseDeviceStr(const char* devicestr, RAI_Device* device, int64_t* deviceid) {
-  if (strcasecmp(devicestr, "CPU") == 0) {
-    *device = RAI_DEVICE_CPU;
-    *deviceid = -1;
-  }
-  else if (strcasecmp(devicestr, "GPU") == 0) {
-    *device = RAI_DEVICE_GPU;
-    *deviceid = -1;
-  }
-  else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
-    *device = RAI_DEVICE_GPU;
-    sscanf(devicestr, "GPU:%lld", deviceid);
-  }
-  else {
-    return 0;
-  }
-
-  return 1;
-}
-
 // ================================
 
 // key type dim1..dimN [BLOB data | VALUES val1..valN]
@@ -508,12 +488,6 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   const char* devicestr;
   AC_GetString(&ac, &devicestr, NULL, 0); 
 
-  RAI_Device device;
-  int64_t deviceid;
-  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
-    return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
-  }
-
   ArgsCursor optionsac;
   AC_GetSliceToOffset(&ac, &optionsac, argc-2);
 
@@ -560,7 +534,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Error err = {0};
 
-  model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+  model = RAI_ModelCreate(backend, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend %s not loaded, will try loading default backend\n", bckstr);
@@ -572,7 +546,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       return ret;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, device, deviceid, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+    model = RAI_ModelCreate(backend, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
   }
 
   if (err.code != RAI_OK) {
@@ -1280,12 +1254,6 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const char* devicestr;
   AC_GetString(&ac, &devicestr, NULL, 0); 
 
-  RAI_Device device;
-  int64_t deviceid;
-  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
-    return RedisModule_ReplyWithError(ctx, "ERR unsupported device");
-  }
-
   RAI_Script *script = NULL;
 
   size_t scriptlen;
@@ -1293,7 +1261,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
 
   RAI_Error err = {0};
-  script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
+  script = RAI_ScriptCreate( devicestr, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend\n");
@@ -1305,7 +1273,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
       return ret;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
+    script = RAI_ScriptCreate(devicestr, scriptdef, &err);
   }
 
   if (err.code != RAI_OK){

@@ -8,6 +8,27 @@
 #include <dlfcn.h>
 #include <libgen.h>
 
+
+int parseDeviceStr(const char* devicestr, RAI_Device* device, int64_t* deviceid) {
+  if (strcasecmp(devicestr, "CPU") == 0) {
+    *device = RAI_DEVICE_CPU;
+    *deviceid = -1;
+  }
+  else if (strcasecmp(devicestr, "GPU") == 0) {
+    *device = RAI_DEVICE_GPU;
+    *deviceid = -1;
+  }
+  else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
+    *device = RAI_DEVICE_GPU;
+    sscanf(devicestr, "GPU:%lld", deviceid);
+  }
+  else {
+    return 0;
+  }
+
+  return 1;
+}
+
 RedisModuleString* RAI_GetModulePath(RedisModuleCtx *ctx) {
   Dl_info info;
   RedisModuleString* module_path = NULL;
@@ -20,6 +41,7 @@ RedisModuleString* RAI_GetModulePath(RedisModuleCtx *ctx) {
 
   return module_path;
 }
+
 
 RedisModuleString* RAI_GetBackendsPath(RedisModuleCtx *ctx) {
   Dl_info info;
@@ -60,7 +82,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, RAI_Device, int64_t, const char*,
+  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, const char*,
                                      size_t, const char**, size_t, const char**,
                                      const char*, size_t, RAI_Error*))
                                      (unsigned long) dlsym(handle, "RAI_ModelCreateTF");
@@ -126,7 +148,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device,  int64_t, const char*,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateTorch");
   if (backend.model_create == NULL) {
@@ -159,7 +181,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.script_create = (RAI_Script* (*)(RAI_Device, int64_t, const char*, const char*,  RAI_Error*))
+  backend.script_create = (RAI_Script* (*)(const char*, const char*,  RAI_Error*))
                            (unsigned long) dlsym(handle, "RAI_ScriptCreateTorch");
   if (backend.script_create == NULL) {
     dlclose(handle);
@@ -215,7 +237,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device, int64_t, const char*,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateORT");
   if (backend.model_create == NULL) {

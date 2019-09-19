@@ -1,6 +1,7 @@
 #include "backends/onnxruntime.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
+#include "backends.h"
 
 #include "onnxruntime_c_api.h"
 
@@ -228,12 +229,19 @@ typedef struct RAI_ONNXBuffer {
 
 OrtEnv* env = NULL;
 
-RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
+RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
                               const char *modeldef, size_t modellen,
                               RAI_Error *error) {
 
   // TODO: take from
   // https://github.com/microsoft/onnxruntime/blob/master/csharp/test/Microsoft.ML.OnnxRuntime.EndToEndTests.Capi/C_Api_Sample.cpp
+
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
+  }
 
   OrtStatus* status = NULL;
 

@@ -8,7 +8,7 @@
 
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *));
 
-RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, RAI_Device device, int64_t deviceid, const char* devicestr,
+RAI_Model *RAI_ModelCreateORT(RAI_Backend backend,  const char* devicestr,
                               const char *modeldef, size_t modellen,
                               RAI_Error *err);
 

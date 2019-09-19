@@ -24,7 +24,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
   size_t len;
   char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
 
-  RAI_Script *script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
+  RAI_Script *script = RAI_ScriptCreate(devicestr, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
@@ -35,7 +35,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(device, deviceid, devicestr, scriptdef, &err);
+    script = RAI_ScriptCreate(devicestr, scriptdef, &err);
   }
  
   RedisModule_Free(scriptdef);
@@ -98,12 +98,12 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
   return RedisAI_ScriptType != NULL;
 }
 
-RAI_Script *RAI_ScriptCreate(RAI_Device device, int64_t deviceid, const char* devicestr, const char *scriptdef, RAI_Error* err) {
+RAI_Script *RAI_ScriptCreate( const char* devicestr, const char *scriptdef, RAI_Error* err) {
   if (!RAI_backends.torch.script_create) {
     RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
     return NULL;
   }
-  return RAI_backends.torch.script_create(device, deviceid, devicestr, scriptdef, err);
+  return RAI_backends.torch.script_create(devicestr, scriptdef, err);
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
