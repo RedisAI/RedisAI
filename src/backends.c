@@ -159,7 +159,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.script_create = (RAI_Script* (*)(RAI_Device, int64_t, const char*, const char*, const char*, RAI_Error*))
+  backend.script_create = (RAI_Script* (*)(RAI_Device, int64_t, const char*, const char*,  RAI_Error*))
                            (unsigned long) dlsym(handle, "RAI_ScriptCreateTorch");
   if (backend.script_create == NULL) {
     dlclose(handle);
