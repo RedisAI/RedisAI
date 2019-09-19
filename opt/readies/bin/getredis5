@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
 import sys
 import os
@@ -20,7 +20,7 @@ class Redis5Setup(paella.Setup):
 
     def debian_compat(self):
         # https://chilts.org/installing-redis-from-chris-leas-ppa/
-        self.run("add-apt-repository -y ppa:chris-lea/redis-server")
+        self.add_repo("ppa:chris-lea/redis-server")
         self.install("redis-server")
         # if not removed, might break apt-get update
         self.run("add-apt-repository -r -y ppa:chris-lea/redis-server")
@@ -54,4 +54,4 @@ parser = argparse.ArgumentParser(description='Set up system for build.')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
-RedisTimeSeriesSetup(nop = args.nop).setup()
+Redis5Setup(nop = args.nop).setup()

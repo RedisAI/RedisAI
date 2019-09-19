@@ -9,7 +9,11 @@ ARG ARCH=arm64v8
 #----------------------------------------------------------------------------------------------
 FROM redisfab/${ARCH}-xbuild:${OSNICK} as builder
 
-ARG PT_VER=1.1.0
+# redeclare
+ARG OSNICK
+ARG ARCH
+
+ARG PT_VER=1.2.0
 
 RUN [ "cross-build-start" ] 
 
@@ -22,11 +26,7 @@ RUN pip3 install setuptools pyyaml typing
 RUN pip3 install numpy
 # RUN pip3 install mkl mkl-include
 
-RUN set -e ;\
-	git clone https://github.com/pytorch/pytorch.git ;\
-	cd pytorch ;\
-	git checkout "v${PT_VER}" ;\
-	git submodule update --init --recursive
+RUN git clone --single-branch --branch v${PT_VER} --recursive https://github.com/pytorch/pytorch.git
 
 ENV BUILD_PYTHON=0
 ENV USE_GLOO=1
@@ -34,6 +34,7 @@ ENV USE_OPENCV=0
 ENV BUILD_TORCH=ON
 ENV BUILD_BINARY=ON
 ENV BUILD_CAFFE2_OPS=ON
+ENV BUILD_TEST=0
 ENV NO_CUDA=1
 ENV NO_DISTRIBUTED=1
 ENV NO_MKLDNN=1
@@ -45,7 +46,7 @@ RUN set -e ;\
 	python3 setup.py install
 
 ADD ./opt/readies/ /build/readies/
-ADD ./opt/build/libtorch-arm/collect.py /build/
+ADD ./opt/build/libtorch/collect.py /build/
 
 RUN  ./collect.py
 
