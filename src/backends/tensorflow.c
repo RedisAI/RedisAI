@@ -1,5 +1,6 @@
 #include "backends/tensorflow.h"
 #include "tensor.h"
+#include "backends.h"
 #include "util/arr_rm_alloc.h"
 
 #include "tensorflow/c/c_api.h"

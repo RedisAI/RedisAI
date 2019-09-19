@@ -1,4 +1,5 @@
 #include "backends/torch.h"
+#include "backends.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "libtorch_c/torch_c.h"
@@ -17,7 +18,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {
   DLDeviceType dl_device;
-  //TODO
+  
   RAI_Device device;
   int64_t deviceid;
 
