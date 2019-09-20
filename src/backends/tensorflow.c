@@ -1,4 +1,5 @@
 #include "backends/tensorflow.h"
+#include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
@@ -160,12 +161,19 @@ TF_Tensor* RAI_TFTensorFromTensor(RAI_Tensor* t){
 }
 
 
-RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,
                              const char *modeldef, size_t modellen,
                              RAI_Error *error) {
   TF_Graph* model = TF_NewGraph();
+
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
+  }
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 
@@ -301,11 +309,11 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, RAI_Device device, int64_t dev
   ret->model = model;
   ret->session = session;
   ret->backend = backend;
-  ret->device = device;
-  ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->inputs = inputs_;
   ret->outputs = outputs_;
   ret->refCount = 1;
+  
 
   return ret;
 }

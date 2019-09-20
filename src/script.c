@@ -16,12 +16,12 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Error err = {0};
 
-  RAI_Device device = RedisModule_LoadUnsigned(io);
-  int64_t deviceid = RedisModule_LoadSigned(io);
+  const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
+
   size_t len;
   char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
 
-  RAI_Script *script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
+  RAI_Script *script = RAI_ScriptCreate(devicestr, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
@@ -32,7 +32,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(device, deviceid, scriptdef, &err);
+    script = RAI_ScriptCreate(devicestr, scriptdef, &err);
   }
  
   RedisModule_Free(scriptdef);
@@ -50,25 +50,14 @@ static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
 
   size_t len = strlen(script->scriptdef) + 1;
 
-  RedisModule_SaveUnsigned(io, script->device);
-  RedisModule_SaveSigned(io, script->deviceid);
+  RedisModule_SaveStringBuffer(io, script->devicestr, strlen(script->devicestr) + 1);
   RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
 
 static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
   RAI_Script *script = (RAI_Script*)value;
 
-  char device[256] = "";
-  switch (script->device) {
-    case RAI_DEVICE_CPU:
-      strcpy(device, "CPU");
-      break;
-    case RAI_DEVICE_GPU:
-      sprintf(device, "GPU:%lld", script->deviceid);
-      break;
-  }
-
-  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "slc", key, device, script->scriptdef);
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "scc", key, script->devicestr, script->scriptdef);
 }
 
 static void RAI_Script_DTFree(void *value) {
@@ -95,12 +84,12 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
   return RedisAI_ScriptType != NULL;
 }
 
-RAI_Script *RAI_ScriptCreate(RAI_Device device, int64_t deviceid, const char *scriptdef, RAI_Error* err) {
+RAI_Script *RAI_ScriptCreate( const char* devicestr, const char *scriptdef, RAI_Error* err) {
   if (!RAI_backends.torch.script_create) {
     RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
     return NULL;
   }
-  return RAI_backends.torch.script_create(device, deviceid, scriptdef, err);
+  return RAI_backends.torch.script_create(devicestr, scriptdef, err);
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {

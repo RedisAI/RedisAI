@@ -15,8 +15,6 @@ typedef enum {
   RAI_DEVICE_GPU = 1
 } RAI_Device;
 
-#define RAI_MAX_DEVICE_ID 999
-
 #define RAI_ENC_VER 302
 
 //#define RAI_COPY_RUN_INPUT
