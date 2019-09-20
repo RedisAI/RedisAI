@@ -11,8 +11,6 @@ typedef struct RAI_Script {
   // Placement depends on the inputs, as do outputs
   // We keep it here at the moment, until we have a
   // CUDA allocator for dlpack
-  RAI_Device device;
-  int64_t deviceid;
   char* devicestr;
   long long refCount;
 } RAI_Script;

@@ -241,6 +241,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
 
   if (!parseDeviceStr(devicestr, &device, &deviceid)) {
     RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
+    return NULL;
   }
 
   OrtStatus* status = NULL;
@@ -310,8 +311,6 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   ret->model = NULL;
   ret->session = session;
   ret->backend = backend;
-  ret->device = device;
-  ret->deviceid = deviceid;
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
   ret->data = onnxbuffer;

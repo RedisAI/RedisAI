@@ -107,11 +107,6 @@ static AI_dict *run_queues = NULL;
 
 void *RedisAI_Run_ThreadMain(void *arg);
 
-size_t deviceToKey(RAI_Device device, int64_t deviceid) {
-  // allow deviceid == -1
-  return device * (RAI_MAX_DEVICE_ID + 1) + (deviceid + 1);
-}
-
 /* Ensure that the the run queue for the device exists.
  * If not, create it. */
 int ensureRunQueue(const char* devicestr) {
@@ -661,16 +656,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       break;
   }
 
-  char device[256] = "";
-  switch (mto->device) {
-    case REDISAI_DEVICE_CPU:
-      strcpy(device, "CPU");
-      break;
-    case REDISAI_DEVICE_GPU:
-      sprintf(device, "GPU:%lld", mto->deviceid);
-      break;
-  }
-  RedisModule_ReplyWithSimpleString(ctx, device);
+  RedisModule_ReplyWithSimpleString(ctx, mto->devicestr);
 
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
@@ -1196,14 +1182,7 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RAI_Script *sto = RedisModule_ModuleTypeGetValue(key);
 
   RedisModule_ReplyWithArray(ctx, 2);
-  switch (sto->device) {
-    case REDISAI_DEVICE_CPU:
-        RedisModule_ReplyWithSimpleString(ctx, "CPU");
-        break;
-    case REDISAI_DEVICE_GPU:
-        RedisModule_ReplyWithSimpleString(ctx, "GPU");
-        break;
-    }
+  RedisModule_ReplyWithSimpleString(ctx, sto->devicestr);
   RedisModule_ReplyWithSimpleString(ctx, sto->scriptdef);
 
   return REDISMODULE_OK;

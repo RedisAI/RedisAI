@@ -15,10 +15,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   // }
 
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
-  RAI_Device device = RedisModule_LoadUnsigned(io);
-  int64_t deviceid = RedisModule_LoadSigned(io);
-  const char *devicestr = RedisModule_Alloc(sizeof(char*));
-  devicestr = RedisModule_LoadStringBuffer(io, NULL);
+  const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
   size_t ninputs = RedisModule_LoadUnsigned(io);
   const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
 
@@ -89,8 +86,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   }
 
   RedisModule_SaveUnsigned(io, model->backend);
-  RedisModule_SaveUnsigned(io, model->device);
-  RedisModule_SaveSigned(io, model->deviceid);
+  RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
   RedisModule_SaveUnsigned(io, model->ninputs);
   for (size_t i=0; i<model->ninputs; i++) {
     RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
@@ -152,19 +148,9 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
       break;
   }
 
-  char device[256] = "";
-  switch (model->device) {
-    case RAI_DEVICE_CPU:
-      strcpy(device, "CPU");
-      break;
-    case RAI_DEVICE_GPU:
-      sprintf(device, "GPU:%lld", model->deviceid);
-      break;
-  }
-
-  RedisModule_EmitAOF(aof, "AI.MODELSET", "sllcvcvb",
+  RedisModule_EmitAOF(aof, "AI.MODELSET", "slccvcvb",
                       key,
-                      backend, device,
+                      backend, model->devicestr,
                       "INPUTS", inputs_, model->ninputs,
                       "OUTPUTS", outputs_, model->noutputs,
                       buffer, len);

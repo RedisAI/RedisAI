@@ -51,8 +51,6 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
   ret->model = model;
   ret->session = NULL;
   ret->backend = backend;
-  ret->device = device;
-  ret->deviceid = deviceid;
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->inputs = NULL;
   ret->outputs = NULL;
@@ -153,8 +151,6 @@ RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, 
   RAI_Script* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->script = script;
   ret->scriptdef = RedisModule_Strdup(scriptdef);
-  ret->device = device;
-  ret->deviceid = deviceid;
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
   
