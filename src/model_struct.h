@@ -11,8 +11,7 @@ typedef struct RAI_Model {
   //       another client.
   void *session;
   RAI_Backend backend;
-  RAI_Device device;
-  int64_t deviceid;
+  char* devicestr;
   char **inputs;
   size_t ninputs;
   char **outputs;

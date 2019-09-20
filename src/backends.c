@@ -21,6 +21,7 @@ RedisModuleString* RAI_GetModulePath(RedisModuleCtx *ctx) {
   return module_path;
 }
 
+
 RedisModuleString* RAI_GetBackendsPath(RedisModuleCtx *ctx) {
   Dl_info info;
   RedisModuleString* backends_path = NULL;
@@ -60,7 +61,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, RAI_Device, int64_t,
+  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, const char*,
                                      size_t, const char**, size_t, const char**,
                                      const char*, size_t, RAI_Error*))
                                      (unsigned long) dlsym(handle, "RAI_ModelCreateTF");
@@ -126,7 +127,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device, int64_t,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateTorch");
   if (backend.model_create == NULL) {
@@ -159,7 +160,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.script_create = (RAI_Script* (*)(RAI_Device, int64_t, const char*, RAI_Error*))
+  backend.script_create = (RAI_Script* (*)(const char*, const char*,  RAI_Error*))
                            (unsigned long) dlsym(handle, "RAI_ScriptCreateTorch");
   if (backend.script_create == NULL) {
     dlclose(handle);
@@ -215,7 +216,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, RAI_Device, int64_t,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateORT");
   if (backend.model_create == NULL) {

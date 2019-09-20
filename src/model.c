@@ -15,10 +15,8 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   // }
 
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
-  RAI_Device device = RedisModule_LoadUnsigned(io);
-  int64_t deviceid = RedisModule_LoadSigned(io);
+  const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
   size_t ninputs = RedisModule_LoadUnsigned(io);
-
   const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
 
   for (size_t i=0; i<ninputs; i++) {
@@ -39,7 +37,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Error err = {0};
 
-  RAI_Model *model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs,
+  RAI_Model *model = RAI_ModelCreate(backend, devicestr, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
@@ -51,7 +49,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, device, deviceid, ninputs, inputs, noutputs, outputs, buffer, len, &err);
+    model = RAI_ModelCreate(backend, devicestr, ninputs, inputs, noutputs, outputs, buffer, len, &err);
   }
  
   if (err.code != RAI_OK) {
@@ -88,8 +86,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   }
 
   RedisModule_SaveUnsigned(io, model->backend);
-  RedisModule_SaveUnsigned(io, model->device);
-  RedisModule_SaveSigned(io, model->deviceid);
+  RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
   RedisModule_SaveUnsigned(io, model->ninputs);
   for (size_t i=0; i<model->ninputs; i++) {
     RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
@@ -151,19 +148,9 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
       break;
   }
 
-  char device[256] = "";
-  switch (model->device) {
-    case RAI_DEVICE_CPU:
-      strcpy(device, "CPU");
-      break;
-    case RAI_DEVICE_GPU:
-      sprintf(device, "GPU:%lld", model->deviceid);
-      break;
-  }
-
-  RedisModule_EmitAOF(aof, "AI.MODELSET", "sllcvcvb",
+  RedisModule_EmitAOF(aof, "AI.MODELSET", "slccvcvb",
                       key,
-                      backend, device,
+                      backend, model->devicestr,
                       "INPUTS", inputs_, model->ninputs,
                       "OUTPUTS", outputs_, model->noutputs,
                       buffer, len);
@@ -206,7 +193,7 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
   return RedisAI_ModelType != NULL;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
                            size_t ninputs, const char **inputs,
                            size_t noutputs, const char **outputs,
                            const char *modeldef, size_t modellen, RAI_Error* err) {
@@ -216,27 +203,26 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, RAI_Device device, int64_t devic
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
       return NULL;
     }
-    model = RAI_backends.tf.model_create_with_nodes(backend, device, deviceid, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
+    model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_create) {
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
       return NULL;
     }
-    model = RAI_backends.torch.model_create(backend, device, deviceid, modeldef, modellen, err);
+    model = RAI_backends.torch.model_create(backend, devicestr, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_ONNXRUNTIME) {
     if (!RAI_backends.onnx.model_create) {
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
       return NULL;
     }
-    model = RAI_backends.onnx.model_create(backend, device, deviceid, modeldef, modellen, err);
+    model = RAI_backends.onnx.model_create(backend, devicestr, modeldef, modellen, err);
   }
   else {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
     return NULL;
   }
-
   return model;
 }
 

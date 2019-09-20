@@ -236,6 +236,15 @@ int AC_GetSliceUntilMatches(ArgsCursor *ac, ArgsCursor *dest, int n, const char 
 
 int AC_GetSliceToOffset(ArgsCursor *ac, ArgsCursor *dest, int offset) {
   size_t offset0 = ac->offset;
+
+  if (offset0 > offset) {
+    dest->objs = ac->objs + offset0;
+    dest->argc = 0;
+    dest->offset = 0;
+    dest->type = ac->type;
+    return 0;
+  }
+
   size_t n = offset - offset0;
 
   dest->objs = ac->objs + offset0;

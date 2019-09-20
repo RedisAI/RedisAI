@@ -1,4 +1,5 @@
 #include "backends/torch.h"
+#include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "libtorch_c/torch_c.h"
@@ -13,10 +14,18 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
   return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t deviceid,
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *error) {
   DLDeviceType dl_device;
+  
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR unsupported device");
+  }
+
   switch (device) {
     case RAI_DEVICE_CPU:
       dl_device = kDLCPU;
@@ -42,8 +51,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, RAI_Device device, int64_t 
   ret->model = model;
   ret->session = NULL;
   ret->backend = backend;
-  ret->device = device;
-  ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->inputs = NULL;
   ret->outputs = NULL;
   ret->refCount = 1;
@@ -108,8 +116,17 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
   return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, RAI_Error *error) {
   DLDeviceType dl_device;
+  
+  RAI_Device device;
+  int64_t deviceid;
+
+  if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    RAI_SetError(error, RAI_ESCRIPTCONFIGURE, "ERR unsupported device");
+  }
+
+
   switch (device) {
     case RAI_DEVICE_CPU:
       dl_device = kDLCPU;
@@ -134,9 +151,9 @@ RAI_Script *RAI_ScriptCreateTorch(RAI_Device device, int64_t deviceid, const cha
   RAI_Script* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->script = script;
   ret->scriptdef = RedisModule_Strdup(scriptdef);
-  ret->device = device;
-  ret->deviceid = deviceid;
+  ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
+  
 
   return ret;
 }
