@@ -699,7 +699,9 @@ struct RedisAI_RunInfo {
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
   int status;
+  mstime_t rtime;
   RAI_Error* err;
+
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
@@ -729,16 +731,17 @@ void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 void *RedisAI_RunSession(void *arg) {
   struct RedisAI_RunInfo *rinfo = (struct RedisAI_RunInfo*)arg;
   rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
-
+  const mstime_t start = mstime();
   if (rinfo->mctx) {
     rinfo->status = RAI_ModelRun(rinfo->mctx, rinfo->err);
   }
   else if (rinfo->sctx) {
     rinfo->status = RAI_ScriptRun(rinfo->sctx, rinfo->err);
   }
+  rinfo->rtime = mstime() - start;
 
   if (rinfo->client != NULL) {
-      RedisModule_UnblockClient(rinfo->client, rinfo);
+    RedisModule_UnblockClient(rinfo->client, rinfo);
   }
   return NULL;
 }
@@ -754,12 +757,15 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   REDISMODULE_NOT_USED(argv);
   REDISMODULE_NOT_USED(argc);
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
-
+  
   if (rinfo->status) {
-      RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
-      int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
+    RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
+    int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
+  }
+  else{
+    RedisModule_Log(ctx, "verbose", "Run took %fms", rinfo->rtime);
   }
 
   size_t num_outputs = 0;
