@@ -244,6 +244,11 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
     return NULL;
   }
 
+  if (deviceid == -1){
+    // ORT does not like device id as -1
+    deviceid = 0;
+  }
+
   OrtStatus* status = NULL;
 
   if (env == NULL) {
