@@ -15,7 +15,7 @@ typedef enum {
   RAI_DEVICE_GPU = 1
 } RAI_Device;
 
-#define RAI_ENC_VER 302
+#define RAI_ENC_VER 303
 
 //#define RAI_COPY_RUN_INPUT
 #define RAI_COPY_RUN_OUTPUT
