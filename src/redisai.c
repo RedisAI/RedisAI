@@ -98,7 +98,8 @@ typedef struct RunQueueInfo {
 static AI_dict *run_queues = NULL;
 static int perqueueThreadPoolSize = 1;
 
-void freeRunQueueInfo(RunQueueInfo* info) {
+int freeRunQueueInfo(RunQueueInfo* info) {
+  int result = REDISMODULE_OK;
   if (info->run_queue) {
     RedisModule_Free(info->run_queue);
   }
@@ -106,11 +107,15 @@ void freeRunQueueInfo(RunQueueInfo* info) {
     /* Wait for workers to exit */
     for (int i = 0; i < perqueueThreadPoolSize; i++){
       const int rtn = pthread_join(info->threads[i], NULL);
+      if (rtn != 0 ){
+          result = REDISMODULE_ERR;
+      }
     }
     /* Now free pool structure */
-    free(info->threads);
+      RedisModule_Free(info->threads);
   }
   RedisModule_Free(info);
+  return result;
 }
 
 void *RedisAI_Run_ThreadMain(void *arg);
@@ -129,9 +134,9 @@ int ensureRunQueue(const char* devicestr) {
     run_queue_info->run_queue = queueCreate();
     pthread_cond_init(&run_queue_info->queue_condition_var, NULL);
     pthread_mutex_init(&run_queue_info->run_queue_mutex, NULL);
-    run_queue_info->threads = (pthread_t *)malloc(sizeof(pthread_t) * perqueueThreadPoolSize);
+    run_queue_info->threads = (pthread_t *)RedisModule_Alloc(sizeof(pthread_t) * perqueueThreadPoolSize);
     /* create threads */
-    for (int i = 0; i != perqueueThreadPoolSize; i++){
+    for (int i = 0; i < perqueueThreadPoolSize; i++){
       if (pthread_create(&(run_queue_info->threads[i]), NULL, RedisAI_Run_ThreadMain, run_queue_info) != 0){
         freeRunQueueInfo(run_queue_info);
         return REDISMODULE_ERR;
@@ -1545,9 +1550,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
     // enable configuring the main thread to create a fixed number of worker threads up front per device.
     // by default we'll use 1
-    else if (strcasecmp(key, "PER-QUEUE-THREADS") == 0) {
+    else if (strcasecmp(key, "THREADS_PER_QUEUE") == 0) {
       ret = RedisAI_Config_QueueThreads(ctx, val);
-      const char *msg = "Setting per-queue-threads parameter to";
+      const char *msg = "Setting threads_per_queue parameter to";
       char *buffer = RedisModule_Calloc(2 + strlen(msg) + strlen(val), sizeof(*buffer));
       sprintf(buffer, "%s: %s", msg, val);
       RedisModule_Log(ctx, "verbose", buffer);
