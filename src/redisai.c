@@ -92,18 +92,26 @@ typedef struct RunQueueInfo {
   pthread_mutex_t run_queue_mutex;
   pthread_cond_t queue_condition_var;
   queue *run_queue;
-  pthread_t run_thread_id;
+  pthread_t *threads;
 } RunQueueInfo;
+
+static AI_dict *run_queues = NULL;
+static int perqueueThreadPoolSize = 1;
 
 void freeRunQueueInfo(RunQueueInfo* info) {
   if (info->run_queue) {
     RedisModule_Free(info->run_queue);
   }
-
+  if (info->threads){
+    /* Wait for workers to exit */
+    for (int i = 0; i < perqueueThreadPoolSize; i++){
+      const int rtn = pthread_join(info->threads[i], NULL);
+    }
+    /* Now free pool structure */
+    free(info->threads);
+  }
   RedisModule_Free(info);
 }
-
-static AI_dict *run_queues = NULL;
 
 void *RedisAI_Run_ThreadMain(void *arg);
 
@@ -121,13 +129,14 @@ int ensureRunQueue(const char* devicestr) {
     run_queue_info->run_queue = queueCreate();
     pthread_cond_init(&run_queue_info->queue_condition_var, NULL);
     pthread_mutex_init(&run_queue_info->run_queue_mutex, NULL);
-    pthread_t tid;
-
-    if (pthread_create(&tid, NULL, RedisAI_Run_ThreadMain, run_queue_info) != 0){
-      freeRunQueueInfo(run_queue_info);
-      return REDISMODULE_ERR;
+    run_queue_info->threads = (pthread_t *)malloc(sizeof(pthread_t) * perqueueThreadPoolSize);
+    /* create threads */
+    for (int i = 0; i != perqueueThreadPoolSize; i++){
+      if (pthread_create(&(run_queue_info->threads[i]), NULL, RedisAI_Run_ThreadMain, run_queue_info) != 0){
+        freeRunQueueInfo(run_queue_info);
+        return REDISMODULE_ERR;
+      }
     }
-    run_queue_info->run_thread_id = tid;
     AI_dictAdd(run_queues, (void*)devicestr, (void*)run_queue_info);
     result = REDISMODULE_OK;
   }
@@ -1332,6 +1341,12 @@ int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
+int RedisAI_Config_QueueThreads(RedisModuleCtx *ctx, const char *queueThreadsString) {
+  RedisModule_AutoMemory(ctx);
+  perqueueThreadPoolSize = atoi(queueThreadsString);
+  return REDISMODULE_OK;
+}
+
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
@@ -1527,6 +1542,16 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
     else if (strcasecmp(key, "ONNX") == 0) {
       ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, val);
+    }
+    // enable configuring the main thread to create a fixed number of worker threads up front per device.
+    // by default we'll use 1
+    else if (strcasecmp(key, "PER-QUEUE-THREADS") == 0) {
+      ret = RedisAI_Config_QueueThreads(ctx, val);
+      const char *msg = "Setting per-queue-threads parameter to";
+      char *buffer = RedisModule_Calloc(2 + strlen(msg) + strlen(val), sizeof(*buffer));
+      sprintf(buffer, "%s: %s", msg, val);
+      RedisModule_Log(ctx, "verbose", buffer);
+      RedisModule_Free(buffer);
     }
     else if (strcasecmp(key, "BACKENDSPATH") == 0) {
       // aleady taken care of
