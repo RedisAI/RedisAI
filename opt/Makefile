@@ -1,5 +1,5 @@
 
-ROOT:=..
+ROOT:=$(abspath ..)
 include readies/mk/main
 
 MK_CMAKE:=1

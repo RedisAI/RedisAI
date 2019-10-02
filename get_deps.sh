@@ -223,7 +223,7 @@ if [[ $WITH_PT != 0 ]]; then
 		LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
 
 		if [[ $PT_REPACK == 1 ]]; then
-			PT_VERSION=$PT_VERSION $HERE/opt/build/libtorch/repack.sh
+		  PT_VERSION=$PT_VERSION $HERE/opt/build/libtorch/repack.sh "$1"
 		else
 			LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 

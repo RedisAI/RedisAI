@@ -11,7 +11,6 @@ import os
 import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
-import paella
 
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
 TEST_TFLITE = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
@@ -19,8 +18,11 @@ TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 
 '''
-python -m RLTest --test basic_tests.py --module install/redisai.so
+python -m RLTest --test basic_tests.py --module path/to/redisai.so
 '''
+
+DEVICE = os.environ.get('DEVICE', 'CPU').upper()
+print(f"Running tests on {DEVICE}\n")
 
 
 def check_cuda():
@@ -118,7 +120,7 @@ def test_del_tf_model(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -141,13 +143,12 @@ def test_run_tf_model(env):
 
     with open(wrong_model_filename, 'rb') as f:
         wrong_model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
 
     try:
-        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+        ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                                   'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', wrong_model_pb)
     except Exception as e:
         exception = e
@@ -161,14 +162,14 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_2', 'PORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_3', 'TORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
@@ -182,41 +183,41 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_5', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_6', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
+        con.execute_command('AI.MODELSET', 'm_7', 'TF', DEVICE, model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
     except Exception as e:
         exception = e
@@ -272,11 +273,11 @@ def test_run_torch_model(env):
     with open(wrong_model_filename, 'rb') as f:
         wrong_model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
-    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    con.assertEqual(ret, b'OK')
 
     try:
-        con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', wrong_model_pb)
+        con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, wrong_model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -383,11 +384,11 @@ def test_run_onnx_model(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', model_pb)
-    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, model_pb)
+    con.assertEqual(ret, b'OK')
 
     try:
-        con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', wrong_model_pb)
+        con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, wrong_model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -490,11 +491,11 @@ def test_run_onnxml_model(env):
     with open(logreg_model_filename, 'rb') as f:
         logreg_model = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', 'CPU', linear_model)
-    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    con.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', 'CPU', logreg_model)
-    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', DEVICE, logreg_model)
+    con.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
@@ -650,7 +651,7 @@ def load_mobilenet_test_data():
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    with open(labels_filename, 'rb') as f:
+    with open(labels_filename, 'r') as f:
         labels = json.load(f)
 
     img_height, img_width = 224, 224
@@ -673,7 +674,7 @@ def test_run_mobilenet(env):
 
     model_pb, labels, img = load_mobilenet_test_data()
 
-    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'CPU',
+    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
     con.execute_command('AI.TENSORSET', 'input',
@@ -716,7 +717,7 @@ def test_run_mobilenet_multiproc(env):
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
     model_pb, labels, img = load_mobilenet_test_data()
-    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'CPU',
+    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
@@ -744,7 +745,7 @@ def test_set_incorrect_script(env):
     con = env.getConnection()
 
     try:
-        con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
+        con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'return 1')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -756,7 +757,7 @@ def test_set_incorrect_script(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTSET', 'more', 'CPU')
+        con.execute_command('AI.SCRIPTSET', 'more', DEVICE)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -774,9 +775,7 @@ def test_set_correct_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
-
-    time.sleep(0.1)
+    con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
@@ -794,11 +793,11 @@ def test_del_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTDEL', 'ket')
-    env.assertFalse(env.execute_command('EXISTS', 'ket'))
+    env.assertFalse(con.execute_command('EXISTS', 'ket'))
 
 
 def test_run_script(env):
@@ -813,7 +812,7 @@ def test_run_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)

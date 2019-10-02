@@ -1,0 +1,65 @@
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
+
+ENV DEPS "build-essential git ca-certificates curl unzip wget libgomp1 patchelf coreutils tcl libjemalloc-dev"
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+# Set up a build environment
+#   Installing DEPS, python3.6, git-lfs, cmake
+ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
+RUN set -ex;\
+    deps="$DEPS";\
+    apt-get update;\
+    apt -y upgrade;\
+    DEBIAN_FRONTEND=noninteractive apt install -y $deps;\
+    apt install -y python3-dev python3-pip;\
+    curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash;\
+    apt install -y git-lfs;\
+    mkdir /opt/cmake;\
+    sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license;\
+    ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+
+
+# Installing Redis
+WORKDIR /redis
+RUN wget http://download.redis.io/redis-stable.tar.gz;\
+    tar xzvf redis-stable.tar.gz && cd redis-stable && make && cd .. && rm redis-stable.tar.gz;\
+    mv /redis/redis-stable/src/redis-server /usr/local/bin/
+
+# Setup Redis configurations
+ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
+RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
+
+# Python dependencies
+RUN set -ex;\
+    python3 -m pip install git+https://github.com/RedisLabsModules/RLTest.git@master;\
+    python3 -m pip install git+https://github.com/RedisLabs/RAMP@master;\
+    python3 -m pip install numpy scipy scikit-image redis-py-cluster
+
+WORKDIR /redisai
+ADD ./ /redisai
+
+# Clean up for git lfs to work
+RUN git remote set-url origin https://github.com/RedisAI/RedisAI
+
+# Installing GPU dependencies
+RUN set -ex;\
+    python3 -m pip install -r /redisai/test/test_requirements.txt;\
+    mkdir -p deps;\
+    DEPS_DIRECTORY=deps bash ./get_deps.sh gpu
+
+# Build the source
+RUN set -ex;\
+    rm -rf build;\
+    mkdir -p build;\
+    cd build;\
+    cmake -DDEVICE=gpu ..;\
+    make && make install;\
+    cd ..;\
+    mkdir -p /redisai/bin/linux-x64-gpu/install;\
+    mv /redisai/install-gpu/* /redisai/bin/linux-x64-gpu/install
+
+
+
+EXPOSE 6379
+CMD ["sh", "-c", "export DEVICE=GPU && make -C opt test SHOW=1 GPU=1"]

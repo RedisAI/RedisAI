@@ -1,40 +1,37 @@
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 AS builder
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
 
-ENV DEPS "build-essential git ca-certificates curl unzip wget libgomp1 patchelf"
+ENV DEPS "git ca-certificates curl unzip wget libgomp1 patchelf coreutils tcl libjemalloc-dev"
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
-RUN apt update && apt -y upgrade
-RUN apt-get install -y libgomp1
-RUN apt-get install -y wget
-
-RUN apt install -y build-essential tcl libjemalloc-dev
-RUN wget http://download.redis.io/redis-stable.tar.gz
-RUN tar xzvf redis-stable.tar.gz && cd redis-stable && make && make install && cd .. && rm redis-stable.tar.gz
-
-# install latest cmake
-ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
-RUN mkdir /opt/cmake
-RUN sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
-RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
-RUN cmake --version
-
 # Set up a build environment
+ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
 RUN set -ex;\
     deps="$DEPS";\
     apt-get update;\
-    apt-get install -y --no-install-recommends $deps
+    apt -y upgrade;\
+    apt install -y $deps;\
+    mkdir /opt/cmake;\
+    sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license;\
+    ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+
+WORKDIR /redis
+RUN wget http://download.redis.io/redis-stable.tar.gz;\
+    tar xzvf redis-stable.tar.gz && cd redis-stable && make && cd .. && rm redis-stable.tar.gz
+
+# Configurations
+ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
+RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
+
 
 # Get the dependencies
 WORKDIR /redisai
 ADD ./ /redisai
 RUN set -ex;\
+    apt install -y python3-dev;\
     mkdir -p deps;\
     DEPS_DIRECTORY=deps bash ./get_deps.sh gpu
 
-# Configurations
-ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
-RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
 
 # Build the source
 RUN set -ex;\
@@ -46,12 +43,13 @@ RUN set -ex;\
     cd ..
 
 # Package the runner
-FROM builder
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04
 
 RUN mkdir -p /usr/lib/redis/modules/
 
 COPY --from=builder /redisai/install-gpu/ /usr/lib/redis/modules/
+COPY --from=builder /redis/redis-stable/src/redis-server /usr/local/bin/
+COPY --from=builder /usr/local/etc/redis/redis.conf /usr/local/etc/redis/
 
-WORKDIR /data
 EXPOSE 6379
-CMD ["redis-server", "/usr/local/etc/redis/redis.conf", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+CMD ["/usr/local/bin/redis-server", "/usr/local/etc/redis/redis.conf", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]

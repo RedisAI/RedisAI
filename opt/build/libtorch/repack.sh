@@ -32,7 +32,7 @@ if [[ $OS == linux ]]; then
 	if [[ $GPU == no ]]; then
 		PT_BUILD=cpu
 	else
-		PT_BUILD=cu90
+		PT_BUILD=cu100
 	fi
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
