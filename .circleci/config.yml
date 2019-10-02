@@ -114,7 +114,8 @@ jobs:
           command: |
             mkdir -p ~/workspace/tests
             docker run --gpus all -v $HOME/workspace/tests:/data/tests/logs -it --rm redisai-gpu-test
-
+      - store_test_results:
+          path: ~/workspace/tests
   deploy_package:
     parameters:
       package:
