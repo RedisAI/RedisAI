@@ -30,7 +30,6 @@ RUN set -ex;\
     ./opt/system-setup.py
 
 
-
 # Few more dependencies
 ADD ./get_deps.sh /redisai/get_deps.sh
 RUN set -ex;\
