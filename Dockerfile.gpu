@@ -1,39 +1,42 @@
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
 
-ENV DEPS "git ca-certificates curl unzip wget libgomp1 patchelf coreutils tcl libjemalloc-dev"
+ENV DEPS "git ca-certificates wget unzip cmake libgomp1 patchelf coreutils tcl libjemalloc-dev"
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
-# Set up a build environment
+# Installing Redis
+WORKDIR /redis
 ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
 RUN set -ex;\
     deps="$DEPS";\
     apt-get update;\
-    apt -y upgrade;\
     DEBIAN_FRONTEND=noninteractive apt install -y $deps;\
-    mkdir /opt/cmake;\
-    sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license;\
-    ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
-
-WORKDIR /redis
-RUN wget http://download.redis.io/redis-stable.tar.gz;\
+    wget http://download.redis.io/redis-stable.tar.gz;\
     tar xzvf redis-stable.tar.gz && cd redis-stable && make && cd .. && rm redis-stable.tar.gz
 
-# Configurations
+
+# Setup Redis configurations
 ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
 RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
 
 
-# Get the dependencies
 WORKDIR /redisai
-ADD ./ /redisai
+
+# Get the dependencies
+ADD ./opt /redisai/opt
 RUN set -ex;\
-    apt install -y python3-dev;\
+    ./opt/readies/bin/getpy
+
+
+
+ADD ./get_deps.sh /redisai/get_deps.sh
+RUN set -ex;\
     mkdir -p deps;\
     DEPS_DIRECTORY=deps bash ./get_deps.sh gpu
 
 
 # Build the source
+ADD ./ /redisai
 RUN set -ex;\
     rm -rf build;\
     mkdir -p build;\
@@ -43,7 +46,7 @@ RUN set -ex;\
     cd ..
 
 # Package the runner
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04
 
 RUN mkdir -p /usr/lib/redis/modules/
 

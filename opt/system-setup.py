@@ -27,7 +27,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.install("build-essential")
-        self.install("python3-venv python3-psutil python3-networkx python3-numpy python3-skimage")
+        self.install("python3-venv python3-psutil python3-networkx")
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
@@ -42,7 +42,7 @@ class RedisAISetup(paella.Setup):
         
     def fedora(self):
         self.group_install("'Development Tools'")
-        self.install("python3-venv python3-psutil python3-networkx python3-numpy")
+        self.install("python3-venv python3-psutil python3-networkx")
         self.install_git_lfs_on_linux()
 
     def macosx(self):
@@ -64,7 +64,6 @@ class RedisAISetup(paella.Setup):
             self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
         root = os.path.join(os.path.dirname(__file__), "..")
         self.pip3_install("-r {}/test/test_requirements.txt".format(root))
-        # self.pip3_install("redis-py-cluster")
 
 #----------------------------------------------------------------------------------------------
 
@@ -72,4 +71,4 @@ parser = argparse.ArgumentParser(description='Set up system for build.')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
-RedisAISetup(nop = args.nop).setup()
+RedisAISetup(nop=args.nop).setup()
