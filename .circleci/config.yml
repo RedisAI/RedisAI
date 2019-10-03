@@ -106,14 +106,14 @@ jobs:
     steps:
       - checkout
       - run:
-          name: Bulding Docker
+          name: Building Docker
           command: |
             docker build -f Dockerfile.gpu-test -t redisai-gpu-test .
       - run:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            docker run --gpus all -v $HOME/workspace/tests:/data/tests/logs -it --rm redisai-gpu-test
+            docker run --gpus all -v $HOME/workspace/tests:/redisai/test/logs -it --rm redisai-gpu-test
       - store_test_results:
           path: ~/workspace/tests
   deploy_package:
