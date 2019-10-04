@@ -19,6 +19,7 @@ if [[ $1 == --help || $1 == help ]]; then
 		WITH_TF=0   Skip Tensorflow
 		WITH_PT=0   Skip PyTorch
 		WITH_ORT=0  Skip OnnxRuntime
+		NOAVX=yes   Build from NoAVX TF only x64 linux cpu
 
 	END
 	exit 0
@@ -94,6 +95,9 @@ if [[ $WITH_TF != 0 ]]; then
 				TF_VERSION=1.14.0
 				TF_ARCH=x86_64
 				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+				if [[ $NOAVX == yes ]]; then
+				LIBTF_URL_BASE=https://github.com/june9666/RedisAI-noAVX/raw/master
+				fi
 			elif [[ $ARCH == arm64v8 ]]; then
 				TF_VERSION=1.14.0
 				TF_ARCH=arm64

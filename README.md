@@ -76,6 +76,11 @@ Alternatively, run the following to only fetch the CPU-only backends even on GPU
 bash get_deps.sh cpu
 ```
 
+In case you are deploying on a CPU without AVX support (Tensorflow official binaries comes with AVX build), using TF-1.14.0-x64.
+```sh
+bash get_deps.sh cpu NOAVX=yes
+```
+
 Once the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
