@@ -57,6 +57,7 @@ cd ${DEPS_DIR}
 
 DLPACK=dlpack
 LIBTENSORFLOW=libtensorflow
+LIBTFLITE=libtensorflow-lite
 LIBTORCH=libtorch
 MKL=mkl
 ONNXRUNTIME=onnxruntime
@@ -67,7 +68,7 @@ ONNXRUNTIME=onnxruntime
 
 if [[ ! -d $DLPACK ]]; then
 	echo "Cloning dlpack ..."
-    git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+	git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
 	echo "Done."
 else
 	echo "dlpack is in place."
@@ -127,6 +128,58 @@ if [[ $WITH_TF != 0 ]]; then
 else
 	echo "Skipping TensorFlow."
 fi # WITH_TF
+
+################################################################################# LIBTFLITE
+
+TFLITE_VERSION="2.0.0"
+
+if [[ $WITH_TFLITE != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $LIBTFLITE
+
+	if [[ ! -d $LIBTFLITE ]]; then
+		echo "Installing TensorFlow Lite..."
+		mkdir -p $LIBTFLITE
+		cd $LIBTFLITE
+		echo "Cloning dlpack ..."
+		git clone --depth 1 https://github.com/tensorflow/tensorflow.git --branch v${TFLITE_VERSION}
+		echo "Done."
+		bash tensorflow/tensorflow/lite/tools/make/download_dependencies.sh
+		if [[ $OS == linux ]]; then
+			# if [[ $GPU == no ]]; then
+			# 	TF_BUILD="cpu"
+			# else
+			# 	TF_BUILD="gpu"
+			# fi
+                        TARGET="linux"
+			if [[ $ARCH == x64 ]]; then
+				bash tensorflow/tensorflow/lite/tools/make/build_lib.sh
+			elif [[ $ARCH == arm64v8 ]]; then
+				bash tensorflow/tensorflow/lite/tools/make/build_aarch64_lib.sh
+			elif [[ $ARCH == arm32v7 ]]; then
+				echo "Error: arm32 not supported by TfLite"
+				exit 1
+			fi
+		elif [[ $OS == macosx ]]; then
+                        TARGET="osx"
+			bash tensorflow/tensorflow/lite/tools/make/build_lib.sh
+		fi
+
+		mkdir -p include/tensorflow/lite
+		mv tensorflow/tensorflow/lite include/tensorflow/
+		mv tensorflow/tensorflow/lite/tools/make/downloads/flatbuffers/include/flatbuffers include/
+
+		mkdir -p lib
+		cp tensorflow/tensorflow/lite/tools/make/gen/${TARGET}*/lib/libtensorflow-lite.a lib/
+
+		rm -rf tensorflow
+
+		echo "Done."
+	else
+		echo "TensorFlow Lite is in place."
+	fi
+else
+	echo "Skipping TensorFlow Lite."
+fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
