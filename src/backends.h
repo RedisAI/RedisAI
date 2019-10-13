@@ -24,6 +24,7 @@ typedef struct RAI_LoadedBackend {
 
 typedef struct RAI_LoadedBackends {
   RAI_LoadedBackend tf;
+  RAI_LoadedBackend tflite;
   RAI_LoadedBackend torch;
   RAI_LoadedBackend onnx;
 } RAI_LoadedBackends;

@@ -159,6 +159,7 @@ struct ATenDLMTensor {
 };
 
 void deleter(DLManagedTensor * arg) {
+  // TODO: we should be deleting shape and strides on arg->dl_tensor here
   delete static_cast<ATenDLMTensor*>(arg->manager_ctx);
 }
 

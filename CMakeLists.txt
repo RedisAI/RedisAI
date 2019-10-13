@@ -28,6 +28,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer")
 
 option(BUILD_TF "Build the TensorFlow backend" ON)
+option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
 option(BUILD_TORCH "Build the PyTorch backend" ON)
 
@@ -76,6 +77,9 @@ INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
 IF(BUILD_TF)
     INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
 ENDIF()
+IF(BUILD_TFLITE)
+    INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow-lite/include)
+ENDIF()
 IF(BUILD_TORCH)
     INCLUDE_DIRECTORIES(${depsAbs}/libtorch/include)
 ENDIF()
@@ -107,6 +111,20 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
+IF(BUILD_TFLITE)
+    FIND_LIBRARY(TFLITE_LIBRARIES NAMES tensorflow-lite
+            PATHS ${depsAbs}/libtensorflow-lite/lib)
+    MESSAGE(STATUS "Found TensorFlow Lite Libraries: \"${TFLITE_LIBRARIES}\")")
+    IF (NOT TFLITE_LIBRARIES)
+        MESSAGE(FATAL_ERROR "Could not find TensorFlow Lite")
+    ENDIF()
+    IF (${DEVICE} STREQUAL "gpu")
+        ADD_DEFINITIONS(-DRAI_TFLITE_USE_CUDA)
+    ENDIF()
+ENDIF()
+
+#----------------------------------------------------------------------------------------------
+
 IF(BUILD_ORT)
     FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
             PATHS ${depsAbs}/onnxruntime/lib)
@@ -128,6 +146,15 @@ IF (APPLE)
         MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
     ENDIF()
     SET(platDeps "${MKL_LIBRARIES}")
+ENDIF()
+
+#----------------------------------------------------------------------------------------------
+
+IF(BUILD_TFLITE)
+    # Find TensorFlow Lite stuff and build our wrapper
+    INCLUDE_DIRECTORIES(util/libtflite_c)
+
+    ADD_SUBDIRECTORY(src/libtflite_c)
 ENDIF()
 
 #----------------------------------------------------------------------------------------------
@@ -189,6 +216,25 @@ IF(BUILD_TF)
     ENDIF()
     INSTALL(TARGETS redisai_tensorflow LIBRARY DESTINATION backends/redisai_tensorflow)
     INSTALL(DIRECTORY ${depsAbs}/libtensorflow/lib DESTINATION ${installAbs}/backends/redisai_tensorflow
+            FILES_MATCHING PATTERN ${LIB_PATTERN})
+ENDIF()
+
+#----------------------------------------------------------------------------------------------
+
+IF(BUILD_TFLITE)
+    ADD_LIBRARY(redisai_tflite SHARED $<TARGET_OBJECTS:redisai_tflite_obj>)
+    TARGET_LINK_LIBRARIES(redisai_tflite tflite_c ${TFLITE_LIBRARIES})
+    SET_TARGET_PROPERTIES(redisai_tflite PROPERTIES PREFIX "")
+    SET_TARGET_PROPERTIES(redisai_tflite PROPERTIES SUFFIX ".so")
+    IF (APPLE)
+        SET_TARGET_PROPERTIES(redisai_tflite PROPERTIES INSTALL_RPATH "@loader_path/lib")
+        SET_TARGET_PROPERTIES(redisai_tflite PROPERTIES LINK_FLAGS "-undefined dynamic_lookup")
+    ELSE()
+        ADD_LDFLAGS(redisai_tflite "-Wl,--enable-new-dtags")
+        SET_TARGET_PROPERTIES(redisai_tflite PROPERTIES INSTALL_RPATH "\$ORIGIN/lib")
+    ENDIF()
+    INSTALL(TARGETS redisai_tflite LIBRARY DESTINATION backends/redisai_tflite)
+    INSTALL(DIRECTORY ${depsAbs}/libtensorflow-lite/lib DESTINATION ${installAbs}/backends/redisai_tflite
             FILES_MATCHING PATTERN ${LIB_PATTERN})
 ENDIF()
 

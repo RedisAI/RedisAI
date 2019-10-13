@@ -102,6 +102,71 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
   return REDISMODULE_OK;
 }
 
+int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
+  if (RAI_backends.tflite.model_run != NULL) {
+    RedisModule_Log(ctx, "warning", "Could not load TFLITE backend: backend already loaded");
+    return REDISMODULE_ERR;
+  }
+
+  void *handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+
+  if (handle == NULL) {
+    RedisModule_Log(ctx, "warning", "Could not load TFLITE backend from %s: %s", path, dlerror());
+    return REDISMODULE_ERR;
+  } 
+
+  RAI_LoadedBackend backend = {0};
+
+  int (*init_backend)(int (*)(const char *, void *));
+  init_backend = (int (*)(int (*)(const char *, void *)))
+                  (unsigned long) dlsym(handle, "RAI_InitBackendTFLite");
+  if (init_backend == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_InitBackendTFLite. TFLITE backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+  init_backend(RedisModule_GetApi);
+
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
+                          const char*, size_t, RAI_Error*))
+                         (unsigned long) dlsym(handle, "RAI_ModelCreateTFLite");
+  if (backend.model_create == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelCreateTFLite. TFLITE backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+
+  backend.model_free = (void (*)(RAI_Model*, RAI_Error*))
+                        (unsigned long) dlsym(handle, "RAI_ModelFreeTFLite");
+  if (backend.model_free == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelFreeTFLite. TFLITE backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+
+  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
+                       (unsigned long) dlsym(handle, "RAI_ModelRunTFLite");
+  if (backend.model_run == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelRunTFLite. TFLITE backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+
+  backend.model_serialize = (int (*)(RAI_Model*, char**, size_t*, RAI_Error*))
+                             (unsigned long) dlsym(handle, "RAI_ModelSerializeTFLite");
+  if (backend.model_serialize == NULL) {
+    dlclose(handle);
+    RedisModule_Log(ctx, "warning", "Backend does not export RAI_ModelSerializeTFLite. TFLITE backend not loaded from %s", path);
+    return REDISMODULE_ERR;
+  }
+
+  RAI_backends.tflite = backend;
+
+  RedisModule_Log(ctx, "notice", "TFLITE backend loaded from %s", path);
+
+  return REDISMODULE_OK;
+}
+
 int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
   if (RAI_backends.torch.model_run != NULL) {
     RedisModule_Log(ctx, "warning", "Could not load TORCH backend: backend already loaded");
@@ -271,6 +336,8 @@ int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char* path) {
   switch (backend) {
     case RAI_BACKEND_TENSORFLOW:
       return RAI_LoadBackend_TensorFlow(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+    case RAI_BACKEND_TFLITE:
+      return RAI_LoadBackend_TFLite(ctx, RedisModule_StringPtrLen(fullpath, NULL));
     case RAI_BACKEND_TORCH:
       return RAI_LoadBackend_Torch(ctx, RedisModule_StringPtrLen(fullpath, NULL));
     case RAI_BACKEND_ONNXRUNTIME:
@@ -284,6 +351,8 @@ int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend) {
   switch (backend) {
     case RAI_BACKEND_TENSORFLOW:
       return RAI_LoadBackend(ctx, backend, "redisai_tensorflow/redisai_tensorflow.so");
+    case RAI_BACKEND_TFLITE:
+      return RAI_LoadBackend(ctx, backend, "redisai_tflite/redisai_tflite.so");
     case RAI_BACKEND_TORCH:
       return RAI_LoadBackend(ctx, backend, "redisai_torch/redisai_torch.so");
     case RAI_BACKEND_ONNXRUNTIME:
