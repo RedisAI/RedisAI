@@ -164,7 +164,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 			bash tensorflow/tensorflow/lite/tools/make/build_lib.sh
 		fi
 
-		cd $LIBTFLITE
+                cd /root/project/deps/linux-x64-cpu/libtensorflow-lite
 		mkdir -p include/tensorflow/lite
 		mv tensorflow/tensorflow/lite include/tensorflow/
 		mv tensorflow/tensorflow/lite/tools/make/downloads/flatbuffers/include/* include/
