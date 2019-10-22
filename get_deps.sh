@@ -166,13 +166,11 @@ if [[ $WITH_TFLITE != 0 ]]; then
 
 		mkdir -p include/tensorflow/lite
 		mv tensorflow/tensorflow/lite/tools/make/downloads/flatbuffers/include/flatbuffers include/
-
 		mkdir -p lib
 		cp tensorflow/tensorflow/lite/tools/make/gen/${TARGET}*/lib/libtensorflow-lite.a lib/
-
 		mv tensorflow/tensorflow/lite include/tensorflow/
-
 		rm -rf tensorflow
+		cd ..
 
 		echo "Done."
 	else
