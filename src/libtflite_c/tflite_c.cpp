@@ -142,8 +142,8 @@ DLManagedTensor* toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
   DLContext ctx = getDLContext(tensor, device_id);
 
   DLTensor dl_tensor = (DLTensor){
-    .ctx = ctx,
     .data = new uint8_t[tensor->bytes],
+    .ctx = ctx,
     .ndim = output_dims->size,
     .dtype = dtype,
     .shape = new int64_t[output_dims->size],
