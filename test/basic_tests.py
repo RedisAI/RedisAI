@@ -576,11 +576,11 @@ def test_run_tflite_model(env):
 
     env.assertEqual(value, 1)
 
-    # for _ in con.reloadingIterator():
-    #     env.assertExists('m')
-    #     env.assertExists('a')
-    #     env.assertExists('b')
-    #     env.assertExists('c')
+    for _ in con.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+        env.assertExists('c')
 
 
 def test_set_tensor_multiproc(env):
