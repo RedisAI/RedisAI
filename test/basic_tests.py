@@ -499,75 +499,75 @@ def test_run_tflite_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
     con.assertEqual(ret, b'OK')
 
-    # try:
-    #     con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', 'CPU', wrong_model_pb)
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', 'CPU', wrong_model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     env.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        env.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
 
-    # try:
-    #     env.execute_command('AI.MODELSET', 'm_2', model_pb)
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_3', 'a', 'b', 'c')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_3', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'OUTPUTS')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    # try:
-    #     con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS', 'b')
-    # except Exception as e:
-    #     exception = e
-    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    try:
+        con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
 

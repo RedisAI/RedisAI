@@ -205,6 +205,7 @@ void setError(const char* what, char **error, void* (*alloc)(size_t)) {
 struct ModelContext {
   std::shared_ptr<tflite::FlatBufferModel> model;
   std::shared_ptr<tflite::Interpreter> interpreter;
+  std::string buffer;
   DLDeviceType device;
   int64_t device_id;
 };
@@ -217,11 +218,10 @@ extern "C" void tfliteBasicTest() {
 extern "C" void* tfliteLoadModel(const char* graph, size_t graphlen, DLDeviceType device, int64_t device_id,
                                  char **error, void* (*alloc)(size_t)) {
   std::string graphstr(graph, graphlen);
-  std::istringstream graph_stream(graphstr, std::ios_base::binary);
 
   std::shared_ptr<tflite::FlatBufferModel> model;
   std::unique_ptr<tflite::Interpreter> interpreter_;
-  model = tflite::FlatBufferModel::BuildFromBuffer(graph, graphlen);
+  model = tflite::FlatBufferModel::BuildFromBuffer(graphstr.c_str(), graphlen);
   if (!model) {
     setError("Failed to load model from buffer", error, alloc);
     return NULL;
@@ -255,8 +255,9 @@ extern "C" void* tfliteLoadModel(const char* graph, size_t graphlen, DLDeviceTyp
   ModelContext* ctx = new ModelContext();
   ctx->device = device;
   ctx->device_id = device_id;
-  ctx->model = model;
-  ctx->interpreter = interpreter;
+  ctx->model = std::move(model);
+  ctx->interpreter = std::move(interpreter);
+  ctx->buffer = std::move(graphstr);
 
   return ctx;
 }
