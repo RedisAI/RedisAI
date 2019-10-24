@@ -96,7 +96,7 @@ typedef struct RunQueueInfo {
 } RunQueueInfo;
 
 static AI_dict *run_queues = NULL;
-static int perqueueThreadPoolSize = 1;
+static int perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
 
 int freeRunQueueInfo(RunQueueInfo* info) {
   int result = REDISMODULE_OK;
@@ -1346,10 +1346,15 @@ int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-int RedisAI_Config_QueueThreads(RedisModuleCtx *ctx, const char *queueThreadsString) {
-  RedisModule_AutoMemory(ctx);
-  perqueueThreadPoolSize = atoi(queueThreadsString);
-  return REDISMODULE_OK;
+int RedisAI_Config_QueueThreads(RedisModuleString *queueThreadsString) {
+  int result = RedisModule_StringToLongLong(queueThreadsString, &perqueueThreadPoolSize);
+  // make sure the number of threads is a positive integer
+  // if not set the value to the default 
+  if (result == REDISMODULE_OK && perqueueThreadPoolSize < 1 ){
+    perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+    result = REDISMODULE_ERR;
+  }
+  return result;
 }
 
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -1551,12 +1556,13 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     // enable configuring the main thread to create a fixed number of worker threads up front per device.
     // by default we'll use 1
     else if (strcasecmp(key, "THREADS_PER_QUEUE") == 0) {
-      ret = RedisAI_Config_QueueThreads(ctx, val);
-      const char *msg = "Setting threads_per_queue parameter to";
-      char *buffer = RedisModule_Calloc(2 + strlen(msg) + strlen(val), sizeof(*buffer));
-      sprintf(buffer, "%s: %s", msg, val);
-      RedisModule_Log(ctx, "verbose", buffer);
-      RedisModule_Free(buffer);
+      ret = RedisAI_Config_QueueThreads(argv[2*i + 1]);
+      if (ret == REDISMODULE_OK){
+        char *buffer = RedisModule_Alloc((3 + strlen(REDISAI_INFOMSG_THREADS_PER_QUEUE) + strlen(val)) * sizeof(*buffer));
+        sprintf(buffer, "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, val);
+        RedisModule_Log(ctx, "verbose", buffer);
+        RedisModule_Free(buffer);
+      }
     }
     else if (strcasecmp(key, "BACKENDSPATH") == 0) {
       // aleady taken care of
@@ -1565,9 +1571,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     }
 
     if (ret == REDISMODULE_ERR) {
-      const char *msg = "ERR: error processing argument";
-      char* buffer = RedisModule_Calloc(10 + strlen(msg) + strlen(key) + strlen(val), sizeof(*buffer));
-      sprintf(buffer, "%s: %s %s", msg, key, val);
+      char* buffer = RedisModule_Alloc((4 + strlen(REDISAI_ERRORMSG_PROCESSING_ARG) + strlen(key) + strlen(val)) * sizeof(*buffer));
+      sprintf(buffer, "%s: %s %s", REDISAI_ERRORMSG_PROCESSING_ARG, key, val);
       RedisModule_Log(ctx, "warning", buffer);
       RedisModule_Free(buffer);
     }
