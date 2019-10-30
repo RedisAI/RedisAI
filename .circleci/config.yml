@@ -67,12 +67,12 @@ jobs:
     steps:
       - ci_steps:
           platform: debian 
-  build-macos:
-    macos:
-      xcode: 10.2.1
-    steps:
-      - ci_steps:
-          platform: macosx
+  # build-macos:
+  #   macos:
+  #     xcode: 10.2.1
+  #   steps:
+  #     - ci_steps:
+  #         platform: macosx
   build-multiarch-docker:
     machine:
       enabled: true
