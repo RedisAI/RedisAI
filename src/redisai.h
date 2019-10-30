@@ -24,6 +24,11 @@ typedef struct RAI_Error RAI_Error;
 
 #define REDISAI_DEVICE_CPU 0
 #define REDISAI_DEVICE_GPU 1
+#define REDISAI_DEFAULT_THREADS_PER_QUEUE 1
+
+#define REDISAI_ERRORMSG_PROCESSING_ARG "ERR: error processing argument"
+#define REDISAI_ERRORMSG_THREADS_PER_QUEUE "ERR: error setting THREADS_PER_QUEUE to"
+#define REDISAI_INFOMSG_THREADS_PER_QUEUE "Setting THREADS_PER_QUEUE parameter to"
 
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
 size_t MODULE_API_FUNC(RedisAI_TensorLength)(RAI_Tensor* t);
