@@ -106,6 +106,9 @@ def test_set_tensor(env):
 
 
 def test_del_tf_model(env):
+    if not TEST_PT:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
 
@@ -114,16 +117,18 @@ def test_del_tf_model(env):
 
     con = env
 
-    if TEST_TF:
-        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
-                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-        con.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    con.assertEqual(ret, b'OK')
 
-        con.execute_command('AI.MODELDEL', 'm')
-        con.assertFalse(con.execute_command('EXISTS', 'm'))
+    con.execute_command('AI.MODELDEL', 'm')
+    con.assertFalse(con.execute_command('EXISTS', 'm'))
 
 
 def test_run_tf_model(env):
+    if not TEST_PT:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
     wrong_model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
@@ -136,10 +141,9 @@ def test_run_tf_model(env):
 
     con = env
 
-    if TEST_TF:
-        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
-                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-        con.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    con.assertEqual(ret, b'OK')
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
@@ -149,80 +153,70 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_1', 'TF',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        env.execute_command('AI.MODELSET', 'm_1', 'TF',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_PT:
-            env.execute_command('AI.MODELSET', 'm_2', 'TORCH', 'CPU',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        env.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_PT:
-            env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_4', 'TF',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        env.execute_command('AI.MODELSET', 'm_4', 'TF',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
-                                'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
+        env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
+        env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
+        env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                                'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        if TEST_TF:
-            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
+        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
