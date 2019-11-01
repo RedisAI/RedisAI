@@ -15,6 +15,9 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
 import paella
 
+TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
+TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
+TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 
 '''
 python -m RLTest --test basic_tests.py --module install/redisai.so
@@ -111,12 +114,13 @@ def test_del_tf_model(env):
 
     con = env
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    if TEST_TF:
+        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        con.assertEqual(ret, b'OK')
 
-    con.execute_command('AI.MODELDEL', 'm')
-    con.assertFalse(con.execute_command('EXISTS', 'm'))
+        con.execute_command('AI.MODELDEL', 'm')
+        con.assertFalse(con.execute_command('EXISTS', 'm'))
 
 
 def test_run_tf_model(env):
@@ -132,9 +136,10 @@ def test_run_tf_model(env):
 
     con = env
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    if TEST_TF:
+        ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        con.assertEqual(ret, b'OK')
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
@@ -144,70 +149,80 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_1', 'TF',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_1', 'TF',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        if TEST_PT:
+            env.execute_command('AI.MODELSET', 'm_2', 'TORCH', 'CPU',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        if TEST_PT:
+            env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_4', 'TF',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_4', 'TF',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
-                            'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
+                                'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                            'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                                'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
+        if TEST_TF:
+            env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+                                'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -241,6 +256,9 @@ def test_run_tf_model(env):
 
 
 def test_run_torch_model(env):
+    if not TEST_PT:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
     wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
@@ -339,6 +357,9 @@ def test_run_torch_model(env):
 
 
 def test_run_onnx_model(env):
+    if not TEST_ONNX:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'mnist.onnx')
     wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
@@ -441,6 +462,9 @@ def test_run_onnx_model(env):
 
 
 def test_run_onnxml_model(env):
+    if not TEST_ONNX:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
     logreg_model_filename = os.path.join(test_data_path, 'logreg_iris.onnx')
@@ -508,6 +532,9 @@ def load_mobilenet_test_data():
 
 
 def test_run_mobilenet(env):
+    if not TEST_TF:
+        return
+
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
     con = env
@@ -548,6 +575,9 @@ def run_mobilenet(con, img, input_var, output_var):
 
 
 def test_run_mobilenet_multiproc(env):
+    if not TEST_TF:
+        return
+
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
@@ -576,6 +606,8 @@ def test_run_mobilenet_multiproc(env):
 
 
 def test_set_incorrect_script(env):
+    if not TEST_PT:
+        return
     try:
         env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
     except Exception as e:
@@ -596,6 +628,8 @@ def test_set_incorrect_script(env):
 
 
 def test_set_correct_script(env):
+    if not TEST_PT:
+        return
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
@@ -609,6 +643,8 @@ def test_set_correct_script(env):
 
 
 def test_del_script(env):
+    if not TEST_PT:
+        return
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
@@ -623,6 +659,8 @@ def test_del_script(env):
 
 
 def test_run_script(env):
+    if not TEST_PT:
+        return
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 

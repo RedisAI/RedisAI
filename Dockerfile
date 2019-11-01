@@ -34,7 +34,7 @@ ARG PACK=0
 ARG TEST=0
 
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
-RUN if [ "$TEST" = "1" ]; then make -C opt test; fi
+RUN if [ "$TEST" = "1" ]; then make -C opt test $BUILD_ARGS; fi
 
 #----------------------------------------------------------------------------------------------
 # FROM redis:latest
