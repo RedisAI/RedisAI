@@ -35,8 +35,10 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
 void RAI_ClearError(RAI_Error *err) {
   if (err->detail) {
     RedisModule_Free(err->detail);
-    RedisModule_Free(err->detail_oneline);
     err->detail = NULL;
+  }
+  if (err->detail_oneline) {
+    RedisModule_Free(err->detail_oneline);
     err->detail_oneline = NULL;
   }
   err->code = RAI_OK;

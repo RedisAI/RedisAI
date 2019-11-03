@@ -9,7 +9,7 @@
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *));
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
                                 const char *modeldef, size_t modellen,
                                 RAI_Error *err);
 

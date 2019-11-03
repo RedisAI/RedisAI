@@ -8,7 +8,7 @@
 
 RedisModuleType *RedisAI_TensorType = NULL;
 
-static DLDataType Tensor_GetDataType(const char* typestr){
+DLDataType RAI_TensorDataTypeFromString(const char* typestr){
   if (strcasecmp(typestr, "FLOAT") == 0){
     return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1};
   }
@@ -223,8 +223,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx){
   return RedisAI_TensorType != NULL;
 }
 
-RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims, int hasdata) {
-  DLDataType dtype = Tensor_GetDataType(dataTypeStr);
+RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, int ndims, int hasdata) {
   const size_t dtypeSize = Tensor_DataTypeSize(dtype);
   if ( dtypeSize == 0){
     return NULL;
@@ -279,6 +278,11 @@ RAI_Tensor* RAI_TensorCreate(const char* dataTypeStr, long long* dims, int ndims
   return ret;
 }
 
+RAI_Tensor* RAI_TensorCreate(const char* dataType, long long* dims, int ndims, int hasdata) {
+  DLDataType dtype = RAI_TensorDataTypeFromString(dataType);
+  return RAI_TensorCreateWithDLDataType(dtype, dims, ndims, hasdata);
+}
+
 #if 0
 void RAI_TensorMoveFrom(RAI_Tensor* dst, RAI_Tensor* src) {
   if (--dst->refCount <= 0){
@@ -295,6 +299,76 @@ void RAI_TensorMoveFrom(RAI_Tensor* dst, RAI_Tensor* src) {
   dst->refCount = 1;
 }
 #endif
+
+RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n) {
+
+  if (n == 0) {
+    return NULL;
+  }
+
+  long long total_batch_size = 0;
+  long long batch_sizes[n];
+  long long batch_offsets[n];
+
+  long long ndims = RAI_TensorNumDims(ts[0]);
+  long long dims[ndims];
+
+  // TODO check that all tensors have compatible dims
+
+  for (long long i=0; i<n; i++) {
+    batch_sizes[i] = RAI_TensorDim(ts[i], 0);
+    total_batch_size += batch_sizes[i];
+  }
+
+  batch_offsets[0] = 0;
+  for (long long i=1; i<n; i++) {
+    batch_offsets[i] = batch_sizes[i-1];
+  }
+
+  long long sample_size = 0;
+
+  for (long long i=1; i<ndims; i++) {
+    dims[i] = RAI_TensorDim(ts[0], i);
+    sample_size *= dims[i];
+  }
+  dims[0] = total_batch_size;
+
+  long long dtype_size = RAI_TensorDataSize(ts[0]);
+
+  DLDataType dtype = RAI_TensorDataType(ts[0]);
+
+  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, 1);
+
+  for (long long i=0; i<n; i++) {
+    memcpy(RAI_TensorData(ret) + batch_offsets[i] * sample_size * dtype_size, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
+  }
+
+  return ret;
+}
+
+RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, long long len) {
+
+  long long ndims = RAI_TensorNumDims(t);
+  long long dims[ndims];
+
+  long long dtype_size = RAI_TensorDataSize(t);
+  long long sample_size = 1;
+
+  for (long long i=1; i<ndims; i++) {
+    dims[i] = RAI_TensorDim(t, i);
+    sample_size *= dims[i];
+  }
+
+  dims[0] = len;
+
+  DLDataType dtype = RAI_TensorDataType(t);
+
+  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, 1);
+
+  memcpy(RAI_TensorData(ret), RAI_TensorData(t) + offset * sample_size * dtype_size, len * sample_size * dtype_size);
+
+  return ret;
+}
 
 // Beware: this will take ownership of dltensor
 RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
@@ -332,8 +406,16 @@ size_t RAI_TensorLength(RAI_Tensor* t) {
   return len;
 }
 
-size_t RAI_TensorGetDataSize(const char* dataTypeStr) {
-  DLDataType dtype = Tensor_GetDataType(dataTypeStr);
+size_t RAI_TensorDataSize(RAI_Tensor* t) {
+  return Tensor_DataTypeSize(RAI_TensorDataType(t));
+}
+
+size_t RAI_TensorDataSizeFromString(const char* dataTypeStr) {
+  DLDataType dtype = RAI_TensorDataTypeFromString(dataTypeStr);
+  return Tensor_DataTypeSize(dtype);
+}
+
+size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype) {
   return Tensor_DataTypeSize(dtype);
 }
 
