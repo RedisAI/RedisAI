@@ -365,6 +365,47 @@ def test_run_tf_model_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
+def test_run_tf_model_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+
 def test_tensorflow_modelinfo(env):
     if not TEST_TF:
         env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)

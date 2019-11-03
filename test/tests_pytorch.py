@@ -117,6 +117,46 @@ def test_pytorch_modelrun(env):
         env.assertEqual(tensor2, tensor)
 
 
+def test_pytorch_modelrun_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+
 def test_pytorch_modelinfo(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)

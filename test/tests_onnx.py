@@ -124,6 +124,51 @@ def test_onnx_modelrun_mnist(env):
         env.assertEqual(tensor2, tensor)
 
 
+def test_onnx_modelrun_mnist_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_batched.onnx')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
+                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+
+    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+
 def test_onnx_modelrun_iris(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)

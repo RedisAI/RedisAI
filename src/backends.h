@@ -8,10 +8,10 @@
 #include "err.h"
 
 typedef struct RAI_LoadedBackend {
-  RAI_Model* (*model_create_with_nodes)(RAI_Backend, const char*,
+  RAI_Model* (*model_create_with_nodes)(RAI_Backend, const char*, RAI_ModelOpts,
                                         size_t, const char**, size_t, const char**,
                                         const char*, size_t, RAI_Error*);
-  RAI_Model* (*model_create)(RAI_Backend, const char*,
+  RAI_Model* (*model_create)(RAI_Backend, const char*, RAI_ModelOpts,
                              const char*, size_t, RAI_Error*);
   void (*model_free)(RAI_Model*, RAI_Error*);
   int (*model_run)(RAI_ModelRunCtx*, RAI_Error*);
