@@ -81,7 +81,7 @@ jobs:
       - checkout
       - run:
           name: Checkout LFS
-          commnad: |
+          command: |
             git lfs install
             git lfs pull
       - run:
