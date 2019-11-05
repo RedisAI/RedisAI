@@ -1,4 +1,4 @@
-# BUILD redisfab/tensorflow-${ARCH}:$(TF_VER)
+# BUILD redisfab/libtensorflow-cpu-$(OSNICK)-${ARCH}:$(TF_VER)
 
 # stretch|bionic|buster
 ARG OSNICK=buster
@@ -11,14 +11,12 @@ FROM redisfab/${ARCH}-jdk-xbuild:${OSNICK}
 
 RUN [ "cross-build-start" ]
 
-# arm32v7|arm64v8
-ARG ARCH1=arm64v8
+ARG ARCH
 
 ARG TF_BRANCH=r1.14
 ARG TF_VER=1.14.0
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV X_NPROC "cat /proc/cpuinfo|grep processor|wc -l"
 ENV TF_IGNORE_MAX_BAZEL_VERSION=1
 
 WORKDIR /build
@@ -27,7 +25,7 @@ RUN apt-get -qq update
 RUN apt-get -q install -y git build-essential python3 python3-dev python3-pip wget
 
 RUN set -e ;\
-	wget -q -O /usr/local/bin/bazel https://s3.amazonaws.com/redismodules/bazel/bazel-0.24.1.${ARCH1} ;\
+	wget -q -O /usr/local/bin/bazel https://s3.amazonaws.com/redismodules/bazel/bazel-0.24.1.${ARCH} ;\
 	chmod +x /usr/local/bin/bazel
 
 RUN pip3 install wheel setuptools
@@ -48,10 +46,10 @@ RUN set -e ;\
 	cd tensorflow ;\
 	patch -p1 -i ../tf-1.14.0-arm64v8.patch
 
-RUN set -e; \
+RUN set -e ;\
 	cd tensorflow ;\
 	./configure ;\
-	bazel build --jobs $(eval "$X_NPROC") --config=opt //tensorflow:libtensorflow.so
+	bazel build --jobs $(ncpus) --config=opt //tensorflow:libtensorflow.so
 
 ADD ./opt/readies/ /build/readies/
 ADD ./opt/build/tensorflow/collect.py /build/
