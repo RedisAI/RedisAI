@@ -80,6 +80,11 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Checkout LFS
+          commnad: |
+            git lfs install
+            git lfs pull
+      - run:
           name: Setup Docker client experimental features
           command: |
             sudo ./opt/readies/bin/getdocker --just-enable-exp

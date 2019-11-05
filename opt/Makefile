@@ -124,8 +124,10 @@ endif
 TEST_REPORT_DIR ?= $(PWD)
 
 test:
+ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
+endif
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
 	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so ;\
