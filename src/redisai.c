@@ -96,7 +96,7 @@ typedef struct RunQueueInfo {
 } RunQueueInfo;
 
 static AI_dict *run_queues = NULL;
-static int perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+static long long perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
 
 int freeRunQueueInfo(RunQueueInfo* info) {
   int result = REDISMODULE_OK;

@@ -10,7 +10,7 @@ ARG ARCH=arm64v8
 FROM redisfab/${ARCH}-xbuild:${OSNICK} as builder
 
 ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
-ARG ONNXRUNTIME_VER=0.5.0
+ARG ONNXRUNTIME_VER=1.0.0
 ARG ARCH_FLAG="--arm64"
 
 RUN [ "cross-build-start" ]
