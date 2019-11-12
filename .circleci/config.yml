@@ -114,12 +114,16 @@ jobs:
 
   deploy_docs:
     docker:
-      - image: redislabsmodules/rmbuilder:latest
+      - image: redisfab/rmbuilder:x64-buster
     steps:
       - checkout
       - run:
           name: Build Docs
-          command: mkdocs build
+          command: |
+            pip uninstall -y mkdocs mkdocs-material
+            pip install git+https://github.com/rafie/mkdocs.git@rafi-gtag1
+            pip install git+https://github.com/rafie/mkdocs-material.git@rafi-gtag1
+            mkdocs build
       - run:
           name: Deploy Docs to S3
           command: |
