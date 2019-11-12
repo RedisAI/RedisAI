@@ -120,9 +120,8 @@ jobs:
       - run:
           name: Build Docs
           command: |
-            pip uninstall -y mkdocs mkdocs-material
-            pip install git+https://github.com/rafie/mkdocs.git@rafi-gtag1
-            pip install git+https://github.com/rafie/mkdocs-material.git@rafi-gtag1
+            pip2 uninstall -y mkdocs mkdocs-material mkdocs-extensions
+            pip2 install mkdocs==1.0.4 mkdocs-material==3.3.0 mkdocs-extensions==0.1.2
             mkdocs build
       - run:
           name: Deploy Docs to S3
