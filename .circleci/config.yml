@@ -80,6 +80,13 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Checkout LFS
+          command: |
+            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sudo apt-get install -y git-lfs
+            git lfs install
+            git lfs pull
+      - run:
           name: Setup Docker client experimental features
           command: |
             sudo ./opt/readies/bin/getdocker --just-enable-exp
@@ -107,7 +114,7 @@ jobs:
 
   deploy_docs:
     docker:
-      - image: redisfab/rmbuilder:x64-buster
+      - image: redislabsmodules/rmbuilder:latest
     steps:
       - checkout
       - run:
@@ -130,12 +137,12 @@ workflows:
       #     filters:
       #       tags:
       #         only: /.*/
-      - build-multiarch-docker:
-          filters:
-            tags:
-              only: /.*/
-            branches:
-              only: master
+      #- build-multiarch-docker:
+      #    filters:
+      #      tags:
+      #        only: /.*/
+      #      branches:
+      #        only: master
       - deploy_package:
           name: deploy_branch
           package: branch
