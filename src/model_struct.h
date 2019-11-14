@@ -17,6 +17,8 @@ typedef struct RAI_Model {
   char **outputs;
   size_t noutputs;
   long long refCount;
+  long long backend_calls;
+  long long backend_microseconds;
   void* data;
 } RAI_Model;
 
