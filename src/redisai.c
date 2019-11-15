@@ -713,9 +713,8 @@ struct RedisAI_RunInfo {
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
   int status;
-  long long duration_microseconds;
+  long long duration_us;
   RAI_Error* err;
-
 };
 
 void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
@@ -752,7 +751,7 @@ void *RedisAI_RunSession(void *arg) {
   else if (rinfo->sctx) {
     rinfo->status = RAI_ScriptRun(rinfo->sctx, rinfo->err);
   }
-  rinfo->duration_microseconds = ustime()-start;
+  rinfo->duration_us = ustime()-start;
 
   if (rinfo->client != NULL) {
     RedisModule_UnblockClient(rinfo->client, rinfo);
@@ -782,12 +781,12 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   size_t num_outputs = 0;
   if (rinfo->mctx) {
     (rinfo->mctx->model->backend_calls)++;
-    (rinfo->mctx->model->backend_microseconds)+=rinfo->duration_microseconds;
+    (rinfo->mctx->model->backend_us) += rinfo->duration_us;
     num_outputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
   }
   else if (rinfo->sctx) {
     (rinfo->sctx->script->backend_calls)++;
-    (rinfo->sctx->script->backend_microseconds)+=rinfo->duration_microseconds;
+    (rinfo->sctx->script->backend_us) += rinfo->duration_us;
     num_outputs = RAI_ScriptRunCtxNumOutputs(rinfo->sctx);
   }
   for (size_t i=0; i<num_outputs; ++i) {
