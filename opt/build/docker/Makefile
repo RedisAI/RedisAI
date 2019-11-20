@@ -24,6 +24,9 @@ BUILD_ARGS.arm64v8=WITH_ORT=0 WITH_PT=0
 FETCH_ARGS.arm32v7=WITH_ORT=0 WITH_PT=0
 BUILD_ARGS.arm32v7=WITH_ORT=0 WITH_PT=0
 
+PACK ?= 1
+TEST ?= 1
+
 #----------------------------------------------------------------------------------------------
 
 define targets # (1=OP, 2=op)
@@ -45,6 +48,8 @@ build_$(1):
 	docker build $(BUILD_OPT) -t $(STEM)-$(OSNICK):$(VERSION)-x64 -f $(ROOT)/Dockerfile \
 		--build-arg DEPS_ARGS="$(FETCH_ARGS.x64)" \
 		--build-arg BUILD_ARGS="$(BUILD_ARGS.x64)" \
+		--build-arg PACK="$(PACK)" \
+		--build-arg TEST="$(TEST)" \
 		$(ROOT)
 
 .PHONY: build_$(1)
@@ -56,6 +61,8 @@ build_$(1):
 		--build-arg ARCH=$(1) \
 		--build-arg DEPS_ARGS="$(FETCH_ARGS.$(1))" \
 		--build-arg BUILD_ARGS="$(BUILD_ARGS.$(1))" \
+		--build-arg PACK="$(PACK)" \
+		--build-arg TEST="$(TEST)" \
 		$(ROOT)
 
 .PHONY: build_$(1)
@@ -108,4 +115,4 @@ else
 	@curl -s -X "GET" https://cloud.docker.com/v2/repositories/$(STEM)-$(OSNICK)/tags/ | jq
 endif
 
-.PHONY: build public show
+.PHONY: build publish show

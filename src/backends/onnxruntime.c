@@ -79,16 +79,17 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
 
 OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t, RAI_Error *error) {
   // TODO: create outside and pass?
-  OrtAllocatorInfo* allocator_info;
+  const OrtApi* ort = OrtGetApiBase()->GetApi(1);
+  OrtMemoryInfo* memory_info;
   OrtStatus* status;
-  status = OrtCreateCpuAllocatorInfo(OrtArenaAllocator, OrtMemTypeDefault, &allocator_info);
+  status = ort->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory_info);
   if (status != NULL) {
     goto error;
   }
 
   OrtValue* out;
-  status = OrtCreateTensorWithDataAsOrtValue(
-    allocator_info,
+  status = ort->CreateTensorWithDataAsOrtValue(
+    memory_info,
     t->tensor.dl_tensor.data,
     RAI_TensorByteSize(t),
     t->tensor.dl_tensor.shape,
@@ -97,29 +98,30 @@ OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t, RAI_Error *error) {
     &out);
 
   if (status != NULL) {
-    OrtReleaseAllocatorInfo(allocator_info);
+    ort->ReleaseMemoryInfo(memory_info);
     goto error;
   }
 
-  OrtReleaseAllocatorInfo(allocator_info);
+  ort->ReleaseMemoryInfo(memory_info);
 
   return out;
 
 error:
-  RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
-  OrtReleaseStatus(status);
+  RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+  ort->ReleaseStatus(status);
   return NULL;
 }
 
 RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
   OrtStatus* status = NULL;
+  const OrtApi* ort = OrtGetApiBase()->GetApi(1);
 
   RAI_Tensor* ret = NULL;
   int64_t *shape = NULL;
   int64_t *strides = NULL;
  
   int is_tensor;
-  status = OrtIsTensor(v, &is_tensor);
+  status = ort->IsTensor(v, &is_tensor);
   if (status != NULL) goto error;
 
   if (!is_tensor) {
@@ -136,20 +138,20 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
   };
 
   OrtTensorTypeAndShapeInfo* info;
-  status = OrtGetTensorTypeAndShape(v, &info);
+  status = ort->GetTensorTypeAndShape(v, &info);
   if (status != NULL) goto error;
 
   {
     size_t ndims;
-    status = OrtGetDimensionsCount(info, &ndims);
+    status = ort->GetDimensionsCount(info, &ndims);
     if (status != NULL) goto error;
 
     int64_t dims[ndims];
-    status = OrtGetDimensions(info, dims, ndims);
+    status = ort->GetDimensions(info, dims, ndims);
     if (status != NULL) goto error;
 
     enum ONNXTensorElementDataType ort_dtype;
-    status = OrtGetTensorElementType(info, &ort_dtype);
+    status = ort->GetTensorElementType(info, &ort_dtype);
     if (status != NULL) goto error;
 
     shape = RedisModule_Calloc(ndims, sizeof(*shape));
@@ -167,12 +169,12 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
     DLDataType dtype = RAI_GetDLDataTypeFromORT(ort_dtype);
 #ifdef RAI_COPY_RUN_OUTPUT
     char *ort_data;
-    status = OrtGetTensorMutableData(v, (void **)&ort_data);
+    status = ort->GetTensorMutableData(v, (void **)&ort_data);
     if (status != NULL) {
       goto error;
     }
     size_t elem_count;
-    status = OrtGetTensorShapeElementCount(info, &elem_count);
+    status = ort->GetTensorShapeElementCount(info, &elem_count);
     if (status != NULL) {
       goto error;
     }
@@ -182,7 +184,7 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
     memcpy(data, ort_data, len);
 #endif
 
-    OrtReleaseTensorTypeAndShapeInfo(info);
+    ort->ReleaseTensorTypeAndShapeInfo(info);
 
     // TODO: use manager_ctx to ensure ORT tensor doesn't get deallocated
     // This applies to outputs
@@ -208,8 +210,8 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, RAI_Error *error) {
   }
 
 error:
-  RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
-  OrtReleaseStatus(status);
+  RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+  ort->ReleaseStatus(status);
   if (shape != NULL) {
     RedisModule_Free(shape);
   }
@@ -236,6 +238,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   // TODO: take from
   // https://github.com/microsoft/onnxruntime/blob/master/csharp/test/Microsoft.ML.OnnxRuntime.EndToEndTests.Capi/C_Api_Sample.cpp
 
+  const OrtApi* ort = OrtGetApiBase()->GetApi(1);
+
   RAI_Device device;
   int64_t deviceid;
 
@@ -252,7 +256,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   OrtStatus* status = NULL;
 
   if (env == NULL) {
-    status = OrtCreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
+    status = ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
   }
 
   if (status != NULL || env == NULL) {
@@ -261,20 +265,20 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
 
   // TODO: probably these options could be configured at the AI.CONFIG level
   OrtSessionOptions* session_options;
-  status = OrtCreateSessionOptions(&session_options);
+  status = ort->CreateSessionOptions(&session_options);
   if (status != NULL) {
     goto error;
   }
 
-  status = OrtSetSessionThreadPoolSize(session_options, 1);
+  // status = ort->SetSessionThreadPoolSize(session_options, 1);
   if (status != NULL) {
-    OrtReleaseSessionOptions(session_options);
+    ort->ReleaseSessionOptions(session_options);
     goto error;
   }
 
-  status = OrtSetSessionGraphOptimizationLevel(session_options, 1);
+  status = ort->SetSessionGraphOptimizationLevel(session_options, 1);
   if (status != NULL) {
-    OrtReleaseSessionOptions(session_options);
+    ort->ReleaseSessionOptions(session_options);
     goto error;
   }
 
@@ -282,7 +286,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   // e.g. given the name, in ONNXRuntime
 #if RAI_ONNXRUNTIME_USE_CUDA
   if (device == RAI_DEVICE_GPU) {
-    OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
+    ort->SessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
   }
 #else
   // TODO: Do dynamic device/provider check with GetExecutionProviderType or something else
@@ -294,9 +298,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
 
   OrtSession* session;
 
-  status = OrtCreateSessionFromArray(env, modeldef, modellen, session_options, &session);
+  status = ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session);
 
-  OrtReleaseSessionOptions(session_options);
+  ort->ReleaseSessionOptions(session_options);
 
   if (status != NULL) {
     goto error;
@@ -323,12 +327,14 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   return ret;
 
 error:
-  RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
-  OrtReleaseStatus(status);
+  RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+  ort->ReleaseStatus(status);
   return NULL;
 }
 
 void RAI_ModelFreeORT(RAI_Model* model, RAI_Error* error) {
+  const OrtApi* ort = OrtGetApiBase()->GetApi(1);
+
   RedisModule_Free(((RAI_ONNXBuffer*)(model->data))->data);
   RedisModule_Free(model->data);
   RedisModule_Free(model->devicestr);
@@ -340,6 +346,8 @@ void RAI_ModelFreeORT(RAI_Model* model, RAI_Error* error) {
 
 int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
 {
+  const OrtApi* ort = OrtGetApiBase()->GetApi(1);
+
   OrtSession *session = mctx->model->session;
 
   if (session == NULL) {
@@ -350,25 +358,23 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
   OrtStatus *status = NULL;
 
   OrtAllocator *allocator;
-  status = OrtCreateDefaultAllocator(&allocator);
+  status = ort->GetAllocatorWithDefaultOptions(&allocator);
   if (status != NULL)
   {
     goto error;
   }
 
   size_t n_input_nodes;
-  status = OrtSessionGetInputCount(session, &n_input_nodes);
+  status = ort->SessionGetInputCount(session, &n_input_nodes);
   if (status != NULL)
   {
-    OrtReleaseAllocator(allocator);
     goto error;
   }
 
   size_t n_output_nodes;
-  status = OrtSessionGetOutputCount(session, &n_output_nodes);
+  status = ort->SessionGetOutputCount(session, &n_output_nodes);
   if (status != NULL)
   {
-    OrtReleaseAllocator(allocator);
     goto error;
   }
 
@@ -388,7 +394,6 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
       char msg[70];
       sprintf(msg, "Expected %li inputs but got %li", n_input_nodes, ninputs);
       RAI_SetError(error, RAI_EMODELRUN, msg);
-      OrtReleaseAllocator(allocator);
       return 1;
     }
 
@@ -397,17 +402,15 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
       char msg[70];
       sprintf(msg, "Expected %li outputs but got %li", n_output_nodes, noutputs);
       RAI_SetError(error, RAI_EMODELRUN, msg);
-      OrtReleaseAllocator(allocator);
       return 1;
     }
 
     for (size_t i = 0; i < n_input_nodes; i++)
     {
       char *input_name;
-      status = OrtSessionGetInputName(session, i, allocator, &input_name);
+      status = ort->SessionGetInputName(session, i, allocator, &input_name);
       if (status != NULL)
       {
-        OrtReleaseAllocator(allocator);
         goto error;
       }
 
@@ -416,8 +419,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
       inputs[i] = RAI_OrtValueFromTensor(mctx->inputs[i].tensor, error);
       if (error->code != RAI_OK)
       {
-        OrtReleaseStatus(status);
-        OrtReleaseAllocator(allocator);
+        ort->ReleaseStatus(status);
         return 1;
       }
 
@@ -444,10 +446,9 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     for (size_t i = 0; i < n_output_nodes; i++)
     {
       char *output_name;
-      status = OrtSessionGetOutputName(session, i, allocator, &output_name);
+      status = ort->SessionGetOutputName(session, i, allocator, &output_name);
       if (status != NULL)
       {
-        OrtReleaseAllocator(allocator);
         goto error;
       }
 
@@ -460,12 +461,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     //                _In_ const char* const* input_names, _In_ const OrtValue* const* input, size_t input_len,
     //                _In_ const char* const* output_names, size_t output_names_len, _Out_ OrtValue** output);
     OrtRunOptions *run_options = NULL;
-    status = OrtRun(session, run_options, input_names, (const OrtValue *const *)inputs,
-                    n_input_nodes, output_names, n_output_nodes, outputs);
+    status = ort->Run(session, run_options, input_names, (const OrtValue *const *)inputs,
+                     n_input_nodes, output_names, n_output_nodes, outputs);
 
     if (status)
     {
-      OrtReleaseAllocator(allocator);
       goto error;
     }
 
@@ -474,8 +474,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
       RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], error);
       if (error->code != RAI_OK)
       {
-        OrtReleaseStatus(status);
-        OrtReleaseAllocator(allocator);
+        ort->ReleaseStatus(status);
         return 1;
       }
       if (output_tensor)
@@ -487,22 +486,20 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
       {
         printf("ERR: non-tensor output from ONNX models, ignoring (currently unsupported).\n");
       }
-      OrtReleaseValue(outputs[i]);
+      ort->ReleaseValue(outputs[i]);
     }
 
     for (size_t i = 0; i < n_input_nodes; i++)
     {
-      OrtReleaseValue(inputs[i]);
+      ort->ReleaseValue(inputs[i]);
     }
-
-    OrtReleaseAllocator(allocator);
 
     return 0;
   }
 
 error:
-  RAI_SetError(error, RAI_EMODELRUN, OrtGetErrorMessage(status));
-  OrtReleaseStatus(status);
+  RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
+  ort->ReleaseStatus(status);
   return 1;
 }
 
