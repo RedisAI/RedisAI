@@ -67,7 +67,7 @@ CMAKE_FLAGS += -DBUILD_TF=off
 endif
 
 ifeq ($(WITH_TFLITE),0)
-CMAKE_FLAGS += -DBUILD_ORT=off
+CMAKE_FLAGS += -DBUILD_TFLITE=off
 endif
 
 ifeq ($(WITH_PT),0)
