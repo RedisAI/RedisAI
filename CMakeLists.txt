@@ -28,7 +28,7 @@ set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer")
 
 option(BUILD_TF "Build the TensorFlow backend" ON)
-option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
+option(BUILD_TFLITE "Build the TensorFlow Lite backend" OFF) # Temporarily disabled
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
 option(BUILD_TORCH "Build the PyTorch backend" ON)
 

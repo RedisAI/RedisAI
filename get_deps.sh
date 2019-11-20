@@ -14,15 +14,19 @@ if [[ $1 == --help || $1 == help ]]; then
 		get_deps.sh [cpu|gpu] [--help|help]
 		
 		Argument variables:
-		VERBOSE=1   Print commands
-		FORCE=1     Download even if present
-		WITH_TF=0   Skip Tensorflow
-		WITH_PT=0   Skip PyTorch
-		WITH_ORT=0  Skip OnnxRuntime
+		VERBOSE=1       Print commands
+		FORCE=1         Download even if present
+		WITH_TF=0       Skip Tensorflow
+		WITH_TFLITE=0   Skip Tensorflow
+		WITH_PT=0       Skip PyTorch
+		WITH_ORT=0      Skip OnnxRuntime
 
 	END
 	exit 0
 fi
+
+# Temporarily disable TFLITE
+WITH_TFLITE=0
 
 set -e
 [[ $VERBOSE == 1 ]] && set -x
