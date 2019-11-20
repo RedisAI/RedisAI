@@ -2,6 +2,9 @@
 ROOT:=..
 include readies/mk/main
 
+# temporarily disabled
+export WITH_TFLITE=0
+
 MK_CMAKE:=1
 MK_CMAKE_INSTALL:=1
 
@@ -61,6 +64,10 @@ CMAKE_FLAGS += \
 
 ifeq ($(WITH_TF),0)
 CMAKE_FLAGS += -DBUILD_TF=off
+endif
+
+ifeq ($(WITH_TFLITE),0)
+CMAKE_FLAGS += -DBUILD_ORT=off
 endif
 
 ifeq ($(WITH_PT),0)

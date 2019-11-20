@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
 import paella
 
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
+TEST_TF = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
 TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 
@@ -495,6 +496,9 @@ def test_run_onnxml_model(env):
 
 
 def test_run_tflite_model(env):
+    if not TEST_TFLITE:
+        return
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
     wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
