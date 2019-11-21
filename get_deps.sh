@@ -25,9 +25,6 @@ if [[ $1 == --help || $1 == help ]]; then
 	exit 0
 fi
 
-# Temporarily disable TFLITE
-WITH_TFLITE=0
-
 set -e
 [[ $VERBOSE == 1 ]] && set -x
 
@@ -141,41 +138,39 @@ if [[ $WITH_TFLITE != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTFLITE
 
 	if [[ ! -d $LIBTFLITE ]]; then
-		echo "Installing TensorFlow Lite..."
-		mkdir -p $LIBTFLITE
-		cd $LIBTFLITE
-		echo "Cloning dlpack ..."
-		git clone --depth 1 https://github.com/tensorflow/tensorflow.git --branch v${TFLITE_VERSION}
-		echo "Done."
-		bash tensorflow/tensorflow/lite/tools/make/download_dependencies.sh
+		echo "Installing TensorFlow Lite ..."
+		
 		if [[ $OS == linux ]]; then
+			TFLITE_OS="linux"
 			# if [[ $GPU == no ]]; then
-			# 	TF_BUILD="cpu"
+			# 	TFLITE_BUILD="cpu"
 			# else
-			# 	TF_BUILD="gpu"
+			# 	TFLITE_BUILD="gpu"
 			# fi
-                        TARGET="linux"
+
+			LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			if [[ $ARCH == x64 ]]; then
-				bash tensorflow/tensorflow/lite/tools/make/build_lib.sh
+				TFLITE_ARCH=x86_64
 			elif [[ $ARCH == arm64v8 ]]; then
-				bash tensorflow/tensorflow/lite/tools/make/build_aarch64_lib.sh
+				TFLITE_ARCH=arm64
 			elif [[ $ARCH == arm32v7 ]]; then
-				echo "Error: arm32 not supported by TfLite"
-				exit 1
+				TFLITE_ARCH=arm
 			fi
 		elif [[ $OS == macosx ]]; then
-                        TARGET="osx"
-			bash tensorflow/tensorflow/lite/tools/make/build_lib.sh
+			TFLITE_OS=darwin
+			# TFLITE_BUILD=cpu
+			TFLITE_ARCH=x86_64
 		fi
 
-		mkdir -p include/tensorflow/lite
-		mv tensorflow/tensorflow/lite/tools/make/downloads/flatbuffers/include/flatbuffers include/
-		mkdir -p lib
-		cp tensorflow/tensorflow/lite/tools/make/gen/${TARGET}*/lib/libtensorflow-lite.a lib/
-		mv tensorflow/tensorflow/lite include/tensorflow/
-		rm -rf tensorflow
-		cd ..
+		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 
+		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
+
+		rm -rf $LIBTFLITE.x
+		mkdir $LIBTFLITE.x
+		tar xf $LIBTFLITE_ARCHIVE --no-same-owner -C $LIBTFLITE.x
+		mv $LIBTFLITE.x $LIBTFLITE
+		
 		echo "Done."
 	else
 		echo "TensorFlow Lite is in place."
