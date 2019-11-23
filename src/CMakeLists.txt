@@ -21,6 +21,14 @@ IF(BUILD_TF)
             tensor.c)
 ENDIF()
 
+IF(BUILD_TFLITE)
+    ADD_LIBRARY(redisai_tflite_obj OBJECT
+            backends/tflite.c
+            backends/util.c
+            err.c
+            tensor.c)
+ENDIF()
+
 IF(BUILD_TORCH)
     ADD_LIBRARY(redisai_torch_obj OBJECT
             backends/torch.c

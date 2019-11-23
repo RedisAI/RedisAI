@@ -484,6 +484,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (strcasecmp(bckstr, "TF") == 0) {
     backend = RAI_BACKEND_TENSORFLOW;
   }
+  else if (strcasecmp(bckstr, "TFLITE") == 0) {
+    backend = RAI_BACKEND_TFLITE;
+  }
   else if (strcasecmp(bckstr, "TORCH") == 0) {
     backend = RAI_BACKEND_TORCH;
   }
@@ -661,6 +664,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   switch (mto->backend) {
     case REDISAI_BACKEND_TENSORFLOW:
       RedisModule_ReplyWithSimpleString(ctx, "TF");
+      break;
+    case REDISAI_BACKEND_TFLITE:
+      RedisModule_ReplyWithSimpleString(ctx, "TFLITE");
       break;
     case REDISAI_BACKEND_TORCH:
       RedisModule_ReplyWithSimpleString(ctx, "TORCH");
@@ -1318,6 +1324,9 @@ int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, in
   if (strcasecmp(backend, "TF") == 0) {
     ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, path);
   }
+  else if (strcasecmp(backend, "TFLITE") == 0) {
+    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, path);
+  }
   else if (strcasecmp(backend, "TORCH") == 0) {
     ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, path);
   }
@@ -1546,6 +1555,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     int ret = REDISMODULE_OK;
     if (strcasecmp(key, "TF") == 0) {
       ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, val);
+    }
+    else if (strcasecmp(key, "TFLITE") == 0) {
+      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, val);
     }
     else if (strcasecmp(key, "TORCH") == 0) {
       ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, val);

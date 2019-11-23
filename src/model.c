@@ -140,6 +140,9 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     case RAI_BACKEND_TENSORFLOW:
       strcpy(backend, "TF");
       break;
+    case RAI_BACKEND_TFLITE:
+      strcpy(backend, "TFLITE");
+      break;
     case RAI_BACKEND_TORCH:
       strcpy(backend, "TORCH");
       break;
@@ -205,6 +208,13 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
     }
     model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
+  else if (backend == RAI_BACKEND_TFLITE) {
+    if (!RAI_backends.tflite.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+      return NULL;
+    }
+    model = RAI_backends.tflite.model_create(backend, devicestr, modeldef, modellen, err);
+  }
   else if (backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_create) {
       RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
@@ -237,6 +247,13 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
       return;
     }
     RAI_backends.tf.model_free(model, err);
+  }
+  else if (model->backend == RAI_BACKEND_TFLITE) {
+    if (!RAI_backends.tflite.model_free) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+      return;
+    }
+    RAI_backends.tflite.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_free) {
@@ -333,6 +350,13 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
       }
       ret = RAI_backends.tf.model_run(mctx, err);
       break;
+    case RAI_BACKEND_TFLITE:
+      if (!RAI_backends.tflite.model_run) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+        return REDISMODULE_ERR;
+      }
+      ret = RAI_backends.tflite.model_run(mctx, err);
+      break;
     case RAI_BACKEND_TORCH:
       if (!RAI_backends.torch.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
@@ -370,6 +394,13 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
         return REDISMODULE_ERR;
       }
       ret = RAI_backends.tf.model_serialize(model, buffer, len, err);
+      break;
+    case RAI_BACKEND_TFLITE:
+      if (!RAI_backends.tflite.model_serialize) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+        return REDISMODULE_ERR;
+      }
+      ret = RAI_backends.tflite.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_TORCH:
       if (!RAI_backends.torch.model_serialize) {

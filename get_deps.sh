@@ -14,11 +14,12 @@ if [[ $1 == --help || $1 == help ]]; then
 		get_deps.sh [cpu|gpu] [--help|help]
 		
 		Argument variables:
-		VERBOSE=1   Print commands
-		FORCE=1     Download even if present
-		WITH_TF=0   Skip Tensorflow
-		WITH_PT=0   Skip PyTorch
-		WITH_ORT=0  Skip OnnxRuntime
+		VERBOSE=1       Print commands
+		FORCE=1         Download even if present
+		WITH_TF=0       Skip Tensorflow
+		WITH_TFLITE=0   Skip Tensorflow
+		WITH_PT=0       Skip PyTorch
+		WITH_ORT=0      Skip OnnxRuntime
 
 	END
 	exit 0
@@ -57,6 +58,7 @@ cd ${DEPS_DIR}
 
 DLPACK=dlpack
 LIBTENSORFLOW=libtensorflow
+LIBTFLITE=libtensorflow-lite
 LIBTORCH=libtorch
 MKL=mkl
 ONNXRUNTIME=onnxruntime
@@ -67,7 +69,7 @@ ONNXRUNTIME=onnxruntime
 
 if [[ ! -d $DLPACK ]]; then
 	echo "Cloning dlpack ..."
-    git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+	git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
 	echo "Done."
 else
 	echo "dlpack is in place."
@@ -127,6 +129,55 @@ if [[ $WITH_TF != 0 ]]; then
 else
 	echo "Skipping TensorFlow."
 fi # WITH_TF
+
+################################################################################# LIBTFLITE
+
+TFLITE_VERSION="2.0.0"
+
+if [[ $WITH_TFLITE != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $LIBTFLITE
+
+	if [[ ! -d $LIBTFLITE ]]; then
+		echo "Installing TensorFlow Lite ..."
+		
+		if [[ $OS == linux ]]; then
+			TFLITE_OS="linux"
+			# if [[ $GPU == no ]]; then
+			# 	TFLITE_BUILD="cpu"
+			# else
+			# 	TFLITE_BUILD="gpu"
+			# fi
+
+			LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+			if [[ $ARCH == x64 ]]; then
+				TFLITE_ARCH=x86_64
+			elif [[ $ARCH == arm64v8 ]]; then
+				TFLITE_ARCH=arm64
+			elif [[ $ARCH == arm32v7 ]]; then
+				TFLITE_ARCH=arm
+			fi
+		elif [[ $OS == macosx ]]; then
+			TFLITE_OS=darwin
+			# TFLITE_BUILD=cpu
+			TFLITE_ARCH=x86_64
+		fi
+
+		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
+
+		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
+
+		rm -rf $LIBTFLITE.x
+		mkdir $LIBTFLITE.x
+		tar xf $LIBTFLITE_ARCHIVE --no-same-owner -C $LIBTFLITE.x
+		mv $LIBTFLITE.x $LIBTFLITE
+		
+		echo "Done."
+	else
+		echo "TensorFlow Lite is in place."
+	fi
+else
+	echo "Skipping TensorFlow Lite."
+fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
