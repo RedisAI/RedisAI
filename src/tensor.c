@@ -357,7 +357,7 @@ size_t RAI_TensorGetDataSize(const char* dataTypeStr) {
 
 void RAI_TensorFree(RAI_Tensor* t){
   if (--t->refCount <= 0){
-    if (t->tensor.manager_ctx && t->tensor.deleter) {
+    if (t->tensor.deleter) {
       t->tensor.deleter(&t->tensor);
     }
     else {

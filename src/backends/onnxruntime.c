@@ -337,6 +337,7 @@ void RAI_ModelFreeORT(RAI_Model* model, RAI_Error* error) {
 
   RedisModule_Free(((RAI_ONNXBuffer*)(model->data))->data);
   RedisModule_Free(model->data);
+  RedisModule_Free(model->devicestr);
   ort->ReleaseSession(model->session);
 
   model->model = NULL;

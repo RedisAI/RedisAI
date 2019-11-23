@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
 import paella
 
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
+TEST_TFLITE = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
 TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 
@@ -492,6 +493,116 @@ def test_run_onnxml_model(env):
     for _ in con.reloadingIterator():
         env.assertExists('linear')
         env.assertExists('logreg')
+
+
+def test_run_tflite_model(env):
+    if not TEST_TFLITE:
+        return
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(model_filename, 'rb') as f:
+        model_pb2 = f.read()
+
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    con = env
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
+    con.assertEqual(ret, b'OK')
+
+    # try:
+    #     con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', 'CPU', wrong_model_pb)
+    # except Exception as e:
+    #     exception = e
+    # env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
+
+    try:
+        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
+
+    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    value = tensor[-1][0]
+
+    env.assertEqual(value, 1)
+
+    for _ in con.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+        env.assertExists('c')
 
 
 def test_set_tensor_multiproc(env):

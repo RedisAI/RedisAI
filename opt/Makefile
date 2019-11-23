@@ -2,19 +2,16 @@
 ROOT:=..
 include readies/mk/main
 
+# temporarily disabled
+# export WITH_TFLITE=0
+
 MK_CMAKE:=1
 MK_CMAKE_INSTALL:=1
 
 define HELP
 make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
 make fetch    # download and prepare dependant modules
-  WITH_TF=0     # SKip TensofFlow
-  WITH_PT=0     # Skip PyTorch
-  WITH_ORT=0    # SKip ONNXRuntime
 make build    # compile and link
-  WITH_TF=0     # SKip TensofFlow
-  WITH_PT=0     # Skip PyTorch
-  WITH_ORT=0    # SKip ONNXRuntime
 make clean    # remove build artifacts
   ALL=1         # remove entire artifacts directory
 make test     # run tests
@@ -22,6 +19,12 @@ make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
 make deploy   # copy packages to S3
 make release  # release a version
+
+fetch and build options:
+  WITH_TF=0     # SKip TensofFlow
+  WITH_TFLITE=0 # SKip TensofFlowLite
+  WITH_PT=0     # Skip PyTorch
+  WITH_ORT=0    # SKip ONNXRuntime
 endef
 
 #---------------------------------------------------------------------------------------------- 
@@ -61,6 +64,10 @@ CMAKE_FLAGS += \
 
 ifeq ($(WITH_TF),0)
 CMAKE_FLAGS += -DBUILD_TF=off
+endif
+
+ifeq ($(WITH_TFLITE),0)
+CMAKE_FLAGS += -DBUILD_TFLITE=off
 endif
 
 ifeq ($(WITH_PT),0)
