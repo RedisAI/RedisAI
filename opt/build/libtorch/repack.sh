@@ -70,5 +70,5 @@ if [[ $OS == linux ]]; then
 fi
 
 unzip -q -o $LIBTORCH_ZIP
-tar czf libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz libtorch.repack/
-rm -rf libtorch.repack/ $LIBTORCH_ZIP
+tar czf libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz libtorch/
+rm -rf libtorch/ $LIBTORCH_ZIP
