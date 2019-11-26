@@ -16,6 +16,7 @@ if [[ $1 == --help || $1 == help ]]; then
 		Argument variables:
 		VERBOSE=1       Print commands
 		FORCE=1         Download even if present
+		WITH_DLPACK=0   Skip dlpack
 		WITH_TF=0       Skip Tensorflow
 		WITH_TFLITE=0   Skip Tensorflow
 		WITH_PT=0       Skip PyTorch
@@ -65,14 +66,18 @@ ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
 
-[[ $FORCE == 1 ]] && rm -rf $DLPACK
+if [[ $WITH_DLPACK != 0 ]]; then
+	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
-if [[ ! -d $DLPACK ]]; then
-	echo "Cloning dlpack ..."
-	git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
-	echo "Done."
+	if [[ ! -d $DLPACK ]]; then
+		echo "Cloning dlpack ..."
+		git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+		echo "Done."
+	else
+		echo "dlpack is in place."
+	fi
 else
-	echo "dlpack is in place."
+	echo "Skipping dlpack."
 fi
 
 ################################################################################# LIBTENSORFLOW
@@ -181,7 +186,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.2.0"
+PT_VERSION="1.3.1"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
