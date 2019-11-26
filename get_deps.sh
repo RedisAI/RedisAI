@@ -181,7 +181,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.3.0"
+PT_VERSION="1.2.0"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
