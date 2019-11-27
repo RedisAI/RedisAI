@@ -120,13 +120,13 @@ Some languages have client libraries that provide support for RedisAI's commands
 RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
 
 
-| RedisAI | PyTorch | TensorFlow | ONNXRuntime   |
-|:--------|:-------:|:----------:|:-------------:|
-| 0.1.0   | 1.0.1     | 1.12.0     | None          |
-| 0.2.1   | 1.0.1     | 1.12.0     | None          |
-| 0.3.1   | 1.1.0     | 1.12.0     | 0.4.0         |
-| 0.4.0   | 1.2.0     | 1.14.0     | 0.5.0         |
-| master  | 1.3.1     | 1.14.0     | 1.0.0         |
+| RedisAI | PyTorch | TensorFlow | TFLite | ONNXRuntime   |
+|:--------|:-------:|:----------:|:------:|:-------------:|
+| 0.1.0   | 1.0.1   | 1.12.0     | None   | None          |
+| 0.2.1   | 1.0.1   | 1.12.0     | None   | None          |
+| 0.3.1   | 1.1.0   | 1.12.0     | None   | 0.4.0         |
+| 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
+| master  | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
 
 
 ## Documentation
