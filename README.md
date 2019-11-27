@@ -117,7 +117,7 @@ Some languages have client libraries that provide support for RedisAI's commands
 
 ## Backend Dependancy
 
-RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow) and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
+RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), TensorFlow Lite, and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
 
 
 | RedisAI | PyTorch | TensorFlow | TFLite | ONNXRuntime   |
