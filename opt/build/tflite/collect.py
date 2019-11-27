@@ -32,8 +32,10 @@ dest = Path(args.dest).resolve()
 platform = paella.Platform()
 
 tf_os = platform.os
+tf_os_internal = tf_os
 if tf_os == 'macosx':
     tf_os = 'darwin'
+    tf_os_internal = 'osx'
 
 tf_arch = platform.arch
 if tf_arch == 'x64':
@@ -68,7 +70,7 @@ def collect_tflite():
             with cwd('downloads/flatbuffers/include'):
                 for f in Path('.').glob('**/*.h'):
                     copy_p(f, d_tensorflow/'include')
-            with cwd(f'gen/linux_{tf_arch}/lib'):
+            with cwd(f'gen/{tf_os_internal}_{tf_arch}/lib'):
                 for f in Path('.').glob('*.a'):
                     copy_p(f, d_tensorflow/'lib')
     create_tar(dest/f'libtensorflowlite-{tf_os}-{tf_arch}-{tf_ver}.tar.gz', dest)

@@ -11,7 +11,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
-		get_deps.sh [cpu|gpu] [--help|help]
+		[ARGVARS...] get_deps.sh [cpu|gpu] [--help|help]
 		
 		Argument variables:
 		VERBOSE=1       Print commands
@@ -145,6 +145,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 	if [[ ! -d $LIBTFLITE ]]; then
 		echo "Installing TensorFlow Lite ..."
 		
+		LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 		if [[ $OS == linux ]]; then
 			TFLITE_OS="linux"
 			# if [[ $GPU == no ]]; then
@@ -153,7 +154,6 @@ if [[ $WITH_TFLITE != 0 ]]; then
 			# 	TFLITE_BUILD="gpu"
 			# fi
 
-			LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			if [[ $ARCH == x64 ]]; then
 				TFLITE_ARCH=x86_64
 			elif [[ $ARCH == arm64v8 ]]; then

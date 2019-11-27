@@ -21,5 +21,9 @@ ADD ./opt/build/tflite/build /build/
 ADD ./opt/readies/ /build/readies/
 ADD ./opt/build/tflite/collect.py /build/
 
-RUN ./build
+RUN set -e ;\
+	cd tensorflow/tensorflow/lite/tools/make ;\
+	./download_dependencies.sh ;\
+	./build_lib.sh
+
 RUN ./collect.py --version ${FTLITE_VER} --dest /build/dest
