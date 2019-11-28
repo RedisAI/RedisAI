@@ -1,0 +1,12 @@
+#!/bin/bash
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+cd $HERE
+
+set -e
+mkdir -p macos
+cd macos
+cp ../collect.py .
+ln -s ../../../readies/
+git clone --single-branch --branch v${VERSION} --depth 1 https://github.com/tensorflow/tensorflow.git
+./collect.py --version $VERSION --dest dest
