@@ -406,7 +406,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   else {
     RedisModule_ReplyWithError(ctx, "ERR unsupported dtype");
   }
-  RedisModule_Free(dtypestr);
 
   RedisModule_ReplyWithArray(ctx, ndims);
   for (long long i=0; i<ndims; i++) {
