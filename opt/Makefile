@@ -2,9 +2,6 @@
 ROOT:=..
 include readies/mk/main
 
-# temporarily disabled
-# export WITH_TFLITE=0
-
 MK_CMAKE:=1
 MK_CMAKE_INSTALL:=1
 

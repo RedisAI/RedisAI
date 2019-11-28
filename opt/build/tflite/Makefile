@@ -1,7 +1,7 @@
 
 ROOT=../../..
 
-VERSION ?= 2.0.0
+export VERSION ?= 2.0.0
 OSNICK ?= buster
 
 #----------------------------------------------------------------------------------------------
@@ -9,10 +9,17 @@ OSNICK ?= buster
 S3_URL=redismodules/tensorflow
 
 OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
-ifeq ($(OS),macosx)
-OS:=macos
+
+ifeq ($(OS),linux)
+OS.publish:=$(OS)
+ARCH.publish:=$(ARCH)
+
+else ifeq ($(OS),macosx)
+OS.publish:=darwin
+ARCH.publish:=x86_64
 endif
-STEM=libtensorflowlite-$(OS)
+
+STEM=libtensorflowlite-$(OS.publish)
 
 DOCKER_OS.bionic=ubuntu:bionic
 DOCKER_OS.stretch=debian:stretch-slim
@@ -20,6 +27,8 @@ DOCKER_OS.buster=debian:buster-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
  
 #----------------------------------------------------------------------------------------------
+
+ifeq ($(OS),linux)
 
 define targets # (1=OP, 2=op)
 $(1)_TARGETS :=
@@ -29,6 +38,14 @@ $(1)_TARGETS += $(if $(findstring $(ARM8),1),$(2)_arm64v8)
 
 $(1)_TARGETS += $$(if $$(strip $$($(1)_TARGETS)),,$(2)_x64 $(2)_arm32v7 $(2)_arm64v8)
 endef
+
+else ifeq ($(OS),macosx)
+
+define targets # (1=OP, 2=op)
+$(1)_TARGETS := $(2)_x64
+endef
+
+endif
 
 $(eval $(call targets,BUILD,build))
 $(eval $(call targets,PUBLISH,publish))
@@ -95,12 +112,6 @@ $(error Please run 'aws configure' and provide it with access credentials)
 endif
 endif
 
-else ifeq ($(OS),macosx)
-
-build: ;
-
-endif # macosx
-
 publish: $(PUBLISH_TARGETS)
 
 $(eval $(call publish_x64,x64,x86_64))
@@ -109,5 +120,20 @@ $(eval $(call publish_arm,arm32v7,arm))
 
 help:
 	@echo "make [build|publish] [X64=1|ARM7=1|ARM8=1]"
+
+else ifeq ($(OS),macosx)
+
+build:
+	@VERSION=$(VERSION) ./build.macos
+	@mv macos/dest/$(STEM)-$(ARCH.publish)-$(VERSION).tar.gz .
+
+publish: $(PUBLISH_TARGETS)
+
+$(eval $(call publish_x64,x64,x86_64))
+
+help:
+	@echo "make [build|publish]"
+
+endif # macosx
 
 .PHONY: all build publish help
