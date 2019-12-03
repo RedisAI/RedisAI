@@ -17,8 +17,9 @@ commands:
           command: |
             ./opt/readies/bin/getpy
             ./opt/system-setup.py
-            # git clone git://github.com/antirez/redis.git --branch 5.0.5
-            # (cd redis && make malloc=libc -j $(nproc) && make install)
+            git clone git://github.com/antirez/redis.git --branch 5.0.7
+            (cd redis && make malloc=libc -j $(nproc) && make install)
+            redis-server --version
             ./get_deps.sh cpu
       - save_cache:
           paths:
@@ -66,13 +67,15 @@ jobs:
       - image: redisfab/rmbuilder:x64-buster
     steps:
       - ci_steps:
-          platform: debian 
+          platform: debian
+
   # build-macos:
   #   macos:
   #     xcode: 10.2.1
   #   steps:
   #     - ci_steps:
   #         platform: macosx
+
   build-multiarch-docker:
     machine:
       enabled: true
