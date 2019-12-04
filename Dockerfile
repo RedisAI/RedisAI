@@ -1,5 +1,7 @@
 # BUILD redisfab/redisai-cpu-${OSNICK}:M.m.b-${ARCH}
 
+ARG REDIS_VER=5.0.7
+
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
 
@@ -10,7 +12,7 @@ ARG OS=debian:buster-slim
 ARG ARCH=x64
 
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis-${ARCH}-${OSNICK}:5.0.5 AS redis
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
 FROM ${OS} AS builder
 
 WORKDIR /build
@@ -38,7 +40,7 @@ RUN if [ "$TEST" = "1" ]; then make -C opt test $BUILD_ARGS NO_LFS=1; fi
 
 #----------------------------------------------------------------------------------------------
 # FROM redis:latest
-FROM redisfab/redis-${ARCH}-${OSNICK}:5.0.5
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK}
 
 RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
 
