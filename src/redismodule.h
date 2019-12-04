@@ -87,7 +87,24 @@
 #define REDISMODULE_CTX_FLAGS_OOM_WARNING (1<<11)
 /* The command was sent over the replication link. */
 #define REDISMODULE_CTX_FLAGS_REPLICATED (1<<12)
-
+/* Redis is currently loading either from AOF or RDB. */
+#define REDISMODULE_CTX_FLAGS_LOADING (1<<13)
+/* The replica has no link with its master, note that
+ * there is the inverse flag as well:
+ *
+ *  REDISMODULE_CTX_FLAGS_REPLICA_IS_ONLINE
+ *
+ * The two flags are exclusive, one or the other can be set. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_STALE (1<<14)
+/* The replica is trying to connect with the master.
+ * (REPL_STATE_CONNECT and REPL_STATE_CONNECTING states) */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_CONNECTING (1<<15)
+/* THe replica is receiving an RDB file from its master. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_TRANSFERRING (1<<16)
+/* The replica is online, receiving updates from its master. */
+#define REDISMODULE_CTX_FLAGS_REPLICA_IS_ONLINE (1<<17)
+/* There is currently some background process active. */
+#define REDISMODULE_CTX_FLAGS_ACTIVE_CHILD (1<<18)
 
 #define REDISMODULE_NOTIFY_GENERIC (1<<2)     /* g */
 #define REDISMODULE_NOTIFY_STRING (1<<3)      /* $ */
@@ -126,11 +143,20 @@
 
 #define REDISMODULE_NOT_USED(V) ((void) V)
 
+/* Bit flags for aux_save_triggers and the aux_load and aux_save callbacks */
+#define REDISMODULE_AUX_BEFORE_RDB (1<<0)
+#define REDISMODULE_AUX_AFTER_RDB (1<<1)
+
 /* This type represents a timer handle, and is returned when a timer is
  * registered and used in order to invalidate a timer. It's just a 64 bit
  * number, because this is how each timer is represented inside the radix tree
  * of timers that are going to expire, sorted by expire time. */
 typedef uint64_t RedisModuleTimerID;
+
+/* CommandFilter Flags */
+
+/* Do filter RedisModule_Call() commands initiated by module itself. */
+#define REDISMODULE_CMDFILTER_NOSELF    (1<<0)
 
 /* ------------------------- End of common defines ------------------------ */
 
@@ -150,20 +176,25 @@ typedef struct RedisModuleBlockedClient RedisModuleBlockedClient;
 typedef struct RedisModuleClusterInfo RedisModuleClusterInfo;
 typedef struct RedisModuleDict RedisModuleDict;
 typedef struct RedisModuleDictIter RedisModuleDictIter;
+typedef struct RedisModuleCommandFilterCtx RedisModuleCommandFilterCtx;
+typedef struct RedisModuleCommandFilter RedisModuleCommandFilter;
 
 typedef int (*RedisModuleCmdFunc)(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 typedef void (*RedisModuleDisconnectFunc)(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 typedef int (*RedisModuleNotificationFunc)(RedisModuleCtx *ctx, int type, const char *event, RedisModuleString *key);
 typedef void *(*RedisModuleTypeLoadFunc)(RedisModuleIO *rdb, int encver);
 typedef void (*RedisModuleTypeSaveFunc)(RedisModuleIO *rdb, void *value);
+typedef int (*RedisModuleTypeAuxLoadFunc)(RedisModuleIO *rdb, int encver, int when);
+typedef void (*RedisModuleTypeAuxSaveFunc)(RedisModuleIO *rdb, int when);
 typedef void (*RedisModuleTypeRewriteFunc)(RedisModuleIO *aof, RedisModuleString *key, void *value);
 typedef size_t (*RedisModuleTypeMemUsageFunc)(const void *value);
 typedef void (*RedisModuleTypeDigestFunc)(RedisModuleDigest *digest, void *value);
 typedef void (*RedisModuleTypeFreeFunc)(void *value);
 typedef void (*RedisModuleClusterMessageReceiver)(RedisModuleCtx *ctx, const char *sender_id, uint8_t type, const unsigned char *payload, uint32_t len);
 typedef void (*RedisModuleTimerProc)(RedisModuleCtx *ctx, void *data);
+typedef void (*RedisModuleCommandFilterFunc) (RedisModuleCommandFilterCtx *filter);
 
-#define REDISMODULE_TYPE_METHOD_VERSION 1
+#define REDISMODULE_TYPE_METHOD_VERSION 2
 typedef struct RedisModuleTypeMethods {
     uint64_t version;
     RedisModuleTypeLoadFunc rdb_load;
@@ -172,6 +203,9 @@ typedef struct RedisModuleTypeMethods {
     RedisModuleTypeMemUsageFunc mem_usage;
     RedisModuleTypeDigestFunc digest;
     RedisModuleTypeFreeFunc free;
+    RedisModuleTypeAuxLoadFunc aux_load;
+    RedisModuleTypeAuxSaveFunc aux_save;
+    int aux_save_triggers;
 } RedisModuleTypeMethods;
 
 #define REDISMODULE_GET_API(name) \
@@ -217,6 +251,7 @@ int REDISMODULE_API_FUNC(RedisModule_ReplyWithSimpleString)(RedisModuleCtx *ctx,
 int REDISMODULE_API_FUNC(RedisModule_ReplyWithArray)(RedisModuleCtx *ctx, long len);
 void REDISMODULE_API_FUNC(RedisModule_ReplySetArrayLength)(RedisModuleCtx *ctx, long len);
 int REDISMODULE_API_FUNC(RedisModule_ReplyWithStringBuffer)(RedisModuleCtx *ctx, const char *buf, size_t len);
+int REDISMODULE_API_FUNC(RedisModule_ReplyWithCString)(RedisModuleCtx *ctx, const char *buf);
 int REDISMODULE_API_FUNC(RedisModule_ReplyWithString)(RedisModuleCtx *ctx, RedisModuleString *str);
 int REDISMODULE_API_FUNC(RedisModule_ReplyWithNull)(RedisModuleCtx *ctx);
 int REDISMODULE_API_FUNC(RedisModule_ReplyWithDouble)(RedisModuleCtx *ctx, double d);
@@ -278,6 +313,7 @@ int REDISMODULE_API_FUNC(RedisModule_StringAppendBuffer)(RedisModuleCtx *ctx, Re
 void REDISMODULE_API_FUNC(RedisModule_RetainString)(RedisModuleCtx *ctx, RedisModuleString *str);
 int REDISMODULE_API_FUNC(RedisModule_StringCompare)(RedisModuleString *a, RedisModuleString *b);
 RedisModuleCtx *REDISMODULE_API_FUNC(RedisModule_GetContextFromIO)(RedisModuleIO *io);
+const RedisModuleString *REDISMODULE_API_FUNC(RedisModule_GetKeyNameFromIO)(RedisModuleIO *io);
 long long REDISMODULE_API_FUNC(RedisModule_Milliseconds)(void);
 void REDISMODULE_API_FUNC(RedisModule_DigestAddStringBuffer)(RedisModuleDigest *md, unsigned char *ele, size_t len);
 void REDISMODULE_API_FUNC(RedisModule_DigestAddLongLong)(RedisModuleDigest *md, long long ele);
@@ -337,6 +373,13 @@ void REDISMODULE_API_FUNC(RedisModule_SetDisconnectCallback)(RedisModuleBlockedC
 void REDISMODULE_API_FUNC(RedisModule_SetClusterFlags)(RedisModuleCtx *ctx, uint64_t flags);
 int REDISMODULE_API_FUNC(RedisModule_ExportSharedAPI)(RedisModuleCtx *ctx, const char *apiname, void *func);
 void *REDISMODULE_API_FUNC(RedisModule_GetSharedAPI)(RedisModuleCtx *ctx, const char *apiname);
+RedisModuleCommandFilter *REDISMODULE_API_FUNC(RedisModule_RegisterCommandFilter)(RedisModuleCtx *ctx, RedisModuleCommandFilterFunc cb, int flags);
+int REDISMODULE_API_FUNC(RedisModule_UnregisterCommandFilter)(RedisModuleCtx *ctx, RedisModuleCommandFilter *filter);
+int REDISMODULE_API_FUNC(RedisModule_CommandFilterArgsCount)(RedisModuleCommandFilterCtx *fctx);
+const RedisModuleString *REDISMODULE_API_FUNC(RedisModule_CommandFilterArgGet)(RedisModuleCommandFilterCtx *fctx, int pos);
+int REDISMODULE_API_FUNC(RedisModule_CommandFilterArgInsert)(RedisModuleCommandFilterCtx *fctx, int pos, RedisModuleString *arg);
+int REDISMODULE_API_FUNC(RedisModule_CommandFilterArgReplace)(RedisModuleCommandFilterCtx *fctx, int pos, RedisModuleString *arg);
+int REDISMODULE_API_FUNC(RedisModule_CommandFilterArgDelete)(RedisModuleCommandFilterCtx *fctx, int pos);
 #endif
 
 /* This is included inline inside each Redis module. */
@@ -359,6 +402,7 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(ReplyWithArray);
     REDISMODULE_GET_API(ReplySetArrayLength);
     REDISMODULE_GET_API(ReplyWithStringBuffer);
+    REDISMODULE_GET_API(ReplyWithCString);
     REDISMODULE_GET_API(ReplyWithString);
     REDISMODULE_GET_API(ReplyWithNull);
     REDISMODULE_GET_API(ReplyWithCallReply);
@@ -442,6 +486,7 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(RetainString);
     REDISMODULE_GET_API(StringCompare);
     REDISMODULE_GET_API(GetContextFromIO);
+    REDISMODULE_GET_API(GetKeyNameFromIO);
     REDISMODULE_GET_API(Milliseconds);
     REDISMODULE_GET_API(DigestAddStringBuffer);
     REDISMODULE_GET_API(DigestAddLongLong);
@@ -499,6 +544,13 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(SetClusterFlags);
     REDISMODULE_GET_API(ExportSharedAPI);
     REDISMODULE_GET_API(GetSharedAPI);
+    REDISMODULE_GET_API(RegisterCommandFilter);
+    REDISMODULE_GET_API(UnregisterCommandFilter);
+    REDISMODULE_GET_API(CommandFilterArgsCount);
+    REDISMODULE_GET_API(CommandFilterArgGet);
+    REDISMODULE_GET_API(CommandFilterArgInsert);
+    REDISMODULE_GET_API(CommandFilterArgReplace);
+    REDISMODULE_GET_API(CommandFilterArgDelete);
 #endif
 
     if (RedisModule_IsModuleNameBusy && RedisModule_IsModuleNameBusy(name)) return REDISMODULE_ERR;
