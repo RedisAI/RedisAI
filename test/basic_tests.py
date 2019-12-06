@@ -102,6 +102,8 @@ def test_set_tensor(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
+    time.sleep(0.1)
+
     for _ in con.reloadingIterator():
         env.assertExists('x')
 
@@ -243,6 +245,12 @@ def test_run_tf_model(env):
     values = tensor[-1]
     con.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        time.sleep(0.1)
+        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        con.assertEqual(tensor2, tensor)
+
     for _ in con.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
@@ -343,6 +351,12 @@ def test_run_torch_model(env):
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     con.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        time.sleep(0.1)
+        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        con.assertEqual(tensor2, tensor)
 
     for _ in con.reloadingIterator():
         env.assertExists('m')
@@ -450,6 +464,12 @@ def test_run_onnx_model(env):
 
     env.assertEqual(argmax, 1)
 
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        time.sleep(0.1)
+        tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
+        con.assertEqual(tensor2, tensor)
+
     for _ in con.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
@@ -489,6 +509,14 @@ def test_run_onnxml_model(env):
 
     env.assertEqual(float(linear_out[2][0]), -0.090524077415466309)
     env.assertEqual(logreg_out[2][0], 0)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        time.sleep(0.1)
+        linear_out2 = con2.execute_command('AI.TENSORGET', 'linear_out', 'VALUES')
+        logreg_out2 = con2.execute_command('AI.TENSORGET', 'logreg_out', 'VALUES')
+        env.assertEqual(linear_out, linear_out2)
+        env.assertEqual(logreg_out, logreg_out2)
 
     for _ in con.reloadingIterator():
         env.assertExists('linear')
@@ -743,6 +771,8 @@ def test_set_correct_script(env):
 
     env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
 
+    time.sleep(0.1)
+
     for _ in env.reloadingIterator():
         env.assertExists('ket')
 
@@ -806,6 +836,14 @@ def test_run_script(env):
     tensor = env.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    time.sleep(0.1)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        time.sleep(0.1)
+        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(tensor2, tensor)
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
