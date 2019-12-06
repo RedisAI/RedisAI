@@ -14,6 +14,7 @@ capabilities:
     - eviction_expiry
     - failover_migrate
     - persistence_rdb
+    - persistence_aof
     - clustering
 exclude_commands:
     - ai.modelset
