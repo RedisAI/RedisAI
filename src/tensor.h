@@ -14,6 +14,7 @@ RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor);
 size_t RAI_TensorLength(RAI_Tensor* t);
 size_t RAI_TensorGetDataSize(const char* dataTypeStr);
 DLDataType RAI_TensorDataType(RAI_Tensor* t);
+void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr);
 void RAI_TensorFree(RAI_Tensor* t);
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len);
 int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val);

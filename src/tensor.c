@@ -46,14 +46,18 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
   return dtype.bits / 8;
 }
 
-static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
   *dtypestr = RedisModule_Calloc(8, sizeof(char));
   if (dtype.code == kDLFloat) {
     if (dtype.bits == 32) {
-      strcpy(*dtypestr, "FLOAT32");
+      strcpy(*dtypestr, "FLOAT");
     }
     else if (dtype.bits == 64) {
-      strcpy(*dtypestr, "FLOAT64");
+      strcpy(*dtypestr, "DOUBLE");
+    }
+    else {
+      RedisModule_Free(*dtypestr);
+      *dtypestr = NULL;
     }
   }
   else if (dtype.code == kDLInt) {
@@ -69,6 +73,10 @@ static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
     else if (dtype.bits == 64) {
       strcpy(*dtypestr, "INT64");
     }
+    else {
+      RedisModule_Free(*dtypestr);
+      *dtypestr = NULL;
+    }
   }
   else if (dtype.code == kDLUInt) {
     if (dtype.bits == 8) {
@@ -76,6 +84,10 @@ static void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
     }
     else if (dtype.bits == 16) {
       strcpy(*dtypestr, "UINT16");
+    }
+    else {
+      RedisModule_Free(*dtypestr);
+      *dtypestr = NULL;
     }
   }
 }
@@ -175,51 +187,21 @@ static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, vo
   RAI_Tensor *tensor = (RAI_Tensor*)value;
 
   char *dtypestr = NULL;
-
   Tensor_DataTypeStr(RAI_TensorDataType(tensor), &dtypestr);
 
-  int64_t* shape = tensor->tensor.dl_tensor.shape;
-  char* data = RAI_TensorData(tensor);
-  size_t size = RAI_TensorByteSize(tensor);
+  char *data = RAI_TensorData(tensor);
+  long long size = RAI_TensorByteSize(tensor);
 
-  // We switch over the dimensions of the tensor up to 7
-  // The reason is that we don't have a way to pass a vector of long long to RedisModule_EmitAOF,
-  // there's no format for it. Vector of strings is supported (format 'v').
-  // This might change in the future, but it needs to change in redis/src/module.c
+  long long ndims = RAI_TensorNumDims(tensor);
 
-  switch (RAI_TensorNumDims(tensor)) {
-    case 1:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_1(shape), "BLOB", data, size);
-      break;
-    case 2:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_2(shape), "BLOB", data, size);
-      break;
-    case 3:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_3(shape), "BLOB", data, size);
-      break;
-    case 4:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_4(shape), "BLOB", data, size);
-      break;
-    case 5:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_5(shape), "BLOB", data, size);
-      break;
-    case 6:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "slllllllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_6(shape), "BLOB", data, size);
-      break;
-    case 7:
-      RedisModule_EmitAOF(aof, "AI.TENSORSET", "sllllllllcb",
-                          key, dtypestr, RAI_SPLICE_SHAPE_7(shape), "BLOB", data, size);
-      break;
-    default:
-      printf("ERR: AOF serialization supports tensors of dimension up to 7\n");
+  RedisModuleString* dims[ndims];
+
+  for (long long i=0; i<ndims; i++) {
+    dims[i] = RedisModule_CreateStringFromLongLong(RedisModule_GetContextFromIO(aof), RAI_TensorDim(tensor, i));
   }
 
+  RedisModule_EmitAOF(aof, "AI.TENSORSET", "scvcb", key, dtypestr, dims, ndims, "BLOB", data, size);
+ 
   RedisModule_Free(dtypestr);
 }
 
