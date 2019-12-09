@@ -134,8 +134,11 @@ ifneq ($(NO_LFS),1)
 endif
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so ;\
 	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	python3 -m RLTest $(TEST_ARGS) --test  double-panda.py --module $(INSTALL_DIR)/redisai.so
+	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-aof 
+        # Commented until the MacOS CI is available
+	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
 
 #----------------------------------------------------------------------------------------------
 

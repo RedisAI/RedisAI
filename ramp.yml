@@ -3,10 +3,10 @@ author: Orobix and RedisLabs
 email: luca.antiga@orobix.com
 description: Serving tensors and executing deep learning graphs
 homepage: https://oss.redislabs.com/redisai/
-license: GNU Affero General Public License v3.0
+license: Redis Source Available License v1.0
 command_line_args: ""
 min_redis_version: "5.0.7"
-min_redis_pack_version: "5.4"
+min_redis_pack_version: "5.4.11"
 capabilities:
     - types
     - no_multi_key
@@ -14,6 +14,7 @@ capabilities:
     - eviction_expiry
     - failover_migrate
     - persistence_rdb
+    - persistence_aof
     - clustering
 exclude_commands:
     - ai.modelset
