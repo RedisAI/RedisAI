@@ -1,5 +1,3 @@
-from RLTest import Env
-
 from multiprocessing import Pool, Process
 import redis
 
@@ -23,12 +21,6 @@ TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") !=
 '''
 python -m RLTest --test basic_tests.py --module install/redisai.so
 '''
-
-
-test_config = {
-  'useAof': True,
-  'useSlaves': True
-}
 
 
 def check_cuda():
@@ -62,7 +54,6 @@ def test_example_multiproc(env):
 
 
 def test_set_tensor(env):
-    env = Env(**test_config)
     con = env.getConnection()
     con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
@@ -119,7 +110,6 @@ def test_del_tf_model(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -140,7 +130,6 @@ def test_run_tf_model(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -271,7 +260,6 @@ def test_run_torch_model(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -379,7 +367,6 @@ def test_run_onnx_model(env):
     if not TEST_ONNX:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -491,7 +478,6 @@ def test_run_onnxml_model(env):
     if not TEST_ONNX:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -538,7 +524,6 @@ def test_run_tflite_model(env):
     if not TEST_TFLITE:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -681,7 +666,6 @@ def test_run_mobilenet(env):
     if not TEST_TF:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     input_var = 'input'
@@ -726,7 +710,6 @@ def test_run_mobilenet_multiproc(env):
     if not TEST_TF:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     input_var = 'input'
@@ -783,7 +766,6 @@ def test_set_correct_script(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -804,7 +786,6 @@ def test_del_script(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -824,7 +805,6 @@ def test_run_script(env):
     if not TEST_PT:
         return
 
-    env = Env(**test_config)
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
