@@ -1,5 +1,3 @@
-from RLTest import Env
-
 from multiprocessing import Pool, Process
 import redis
 
@@ -33,8 +31,8 @@ def run_test_multiproc(env, n_procs, fn, args=tuple()):
     procs = []
 
     def tmpfn():
-        e = env.getConnection()
-        fn(e, *args)
+        con = env.getConnection()
+        fn(con, *args)
         return 1
 
     for _ in range(n_procs):
@@ -56,7 +54,7 @@ def test_example_multiproc(env):
 
 
 def test_set_tensor(env):
-    con = env
+    con = env.getConnection()
     con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
@@ -67,44 +65,44 @@ def test_set_tensor(env):
     env.assertEqual(values, [2, 3])
 
     try:
-        env.execute_command('AI.TENSORSET', 1)
+        con.execute_command('AI.TENSORSET', 1)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.TENSORSET', 'y', 'FLOAT')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     time.sleep(0.1)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('x')
 
 
@@ -112,25 +110,27 @@ def test_del_tf_model(env):
     if not TEST_PT:
         return
 
+    con = env.getConnection()
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.MODELDEL', 'm')
-    con.assertFalse(con.execute_command('EXISTS', 'm'))
+    env.assertFalse(env.execute_command('EXISTS', 'm'))
 
 
 def test_run_tf_model(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
@@ -142,11 +142,9 @@ def test_run_tf_model(env):
     with open(wrong_model_filename, 'rb') as f:
         wrong_model_pb = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
@@ -156,82 +154,82 @@ def test_run_tf_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_1', 'TF',
+        con.execute_command('AI.MODELSET', 'm_1', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_2', 'PORCH', 'CPU',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_3', 'TORCH', 'CPU',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_4', 'TF',
+        con.execute_command('AI.MODELSET', 'm_4', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_5', 'TF', 'CPU',
                             'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_6', 'TF', 'CPU',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
+        con.execute_command('AI.MODELSET', 'm_7', 'TF', 'CPU', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
                             'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', 'CPU',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -243,15 +241,15 @@ def test_run_tf_model(env):
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'9', b'4', b'9'])
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        con.assertEqual(tensor2, tensor)
+        env.assertEqual(tensor2, tensor)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
         env.assertExists('b')
@@ -261,6 +259,8 @@ def test_run_tf_model(env):
 def test_run_torch_model(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
@@ -272,10 +272,8 @@ def test_run_torch_model(env):
     with open(wrong_model_filename, 'rb') as f:
         wrong_model_pb = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU', wrong_model_pb)
@@ -284,19 +282,19 @@ def test_run_torch_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_1', 'TORCH', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1', 'TORCH', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'b', 'OUTPUTS')
@@ -350,15 +348,15 @@ def test_run_torch_model(env):
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
-    con.assertEqual(values, [b'4', b'6', b'4', b'6'])
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        con.assertEqual(tensor2, tensor)
+        env.assertEqual(tensor2, tensor)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
         env.assertExists('b')
@@ -368,6 +366,8 @@ def test_run_torch_model(env):
 def test_run_onnx_model(env):
     if not TEST_ONNX:
         return
+
+    con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'mnist.onnx')
@@ -383,10 +383,8 @@ def test_run_onnx_model(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU', wrong_model_pb)
@@ -395,13 +393,13 @@ def test_run_onnx_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_1', 'ONNX', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1', 'ONNX', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -468,9 +466,9 @@ def test_run_onnx_model(env):
         con2 = env.getSlaveConnection()
         time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
-        con.assertEqual(tensor2, tensor)
+        env.assertEqual(tensor2, tensor)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
         env.assertExists('b')
@@ -479,6 +477,8 @@ def test_run_onnx_model(env):
 def test_run_onnxml_model(env):
     if not TEST_ONNX:
         return
+
+    con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
@@ -490,14 +490,11 @@ def test_run_onnxml_model(env):
     with open(logreg_model_filename, 'rb') as f:
         logreg_model = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', 'CPU', linear_model)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
-    con = env
     ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', 'CPU', logreg_model)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
@@ -518,7 +515,7 @@ def test_run_onnxml_model(env):
         env.assertEqual(linear_out, linear_out2)
         env.assertEqual(logreg_out, logreg_out2)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('linear')
         env.assertExists('logreg')
 
@@ -526,6 +523,8 @@ def test_run_onnxml_model(env):
 def test_run_tflite_model(env):
     if not TEST_TFLITE:
         return
+
+    con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
@@ -544,10 +543,8 @@ def test_run_tflite_model(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    con = env
-
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     # try:
     #     con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', 'CPU', wrong_model_pb)
@@ -556,7 +553,7 @@ def test_run_tflite_model(env):
     # env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -564,7 +561,7 @@ def test_run_tflite_model(env):
     ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
 
     try:
-        env.execute_command('AI.MODELSET', 'm_2', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2', model_pb)
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -626,7 +623,7 @@ def test_run_tflite_model(env):
 
     env.assertEqual(value, 1)
 
-    for _ in con.reloadingIterator():
+    for _ in env.reloadingIterator():
         env.assertExists('m')
         env.assertExists('a')
         env.assertExists('b')
@@ -635,9 +632,10 @@ def test_run_tflite_model(env):
 
 def test_set_tensor_multiproc(env):
     run_test_multiproc(env, 10,
-        lambda con: con.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
+        lambda env: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
 
-    con = env
+    con = env.getConnection()
+
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'2', b'3'])
@@ -668,9 +666,10 @@ def test_run_mobilenet(env):
     if not TEST_TF:
         return
 
+    con = env.getConnection()
+
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
-    con = env
 
     model_pb, labels, img = load_mobilenet_test_data()
 
@@ -704,17 +703,17 @@ def run_mobilenet(con, img, input_var, output_var):
     con.execute_command('AI.MODELRUN', 'mobilenet',
                         'INPUTS', 'input', 'OUTPUTS', 'output')
 
-    # con.execute_command('DEL', 'input')
+    # env.execute_command('DEL', 'input')
 
 
 def test_run_mobilenet_multiproc(env):
     if not TEST_TF:
         return
 
+    con = env.getConnection()
+
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
-
-    con = env
 
     model_pb, labels, img = load_mobilenet_test_data()
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', 'CPU',
@@ -741,20 +740,23 @@ def test_run_mobilenet_multiproc(env):
 def test_set_incorrect_script(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
+
     try:
-        env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
+        con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', 'return 1')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.SCRIPTSET', 'nope')
+        con.execute_command('AI.SCRIPTSET', 'nope')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.SCRIPTSET', 'more', 'CPU')
+        con.execute_command('AI.SCRIPTSET', 'more', 'CPU')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -763,13 +765,16 @@ def test_set_incorrect_script(env):
 def test_set_correct_script(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
 
     time.sleep(0.1)
 
@@ -780,60 +785,66 @@ def test_set_correct_script(env):
 def test_del_script(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
     env.assertEqual(ret, b'OK')
 
-    ret = env.execute_command('AI.SCRIPTDEL', 'ket')
+    ret = con.execute_command('AI.SCRIPTDEL', 'ket')
     env.assertFalse(env.execute_command('EXISTS', 'ket'))
 
 
 def test_run_script(env):
     if not TEST_PT:
         return
+
+    con = env.getConnection()
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    env.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
+    con.execute_command('AI.SCRIPTSET', 'ket', 'CPU', script)
 
-    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     try:
-        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.SCRIPTRUN', 'ket', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    env.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
-    tensor = env.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
