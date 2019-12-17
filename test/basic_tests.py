@@ -276,7 +276,7 @@ def test_run_torch_model(env):
         wrong_model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, wrong_model_pb)
@@ -387,7 +387,7 @@ def test_run_onnx_model(env):
         sample_raw = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, model_pb)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, wrong_model_pb)
@@ -494,10 +494,10 @@ def test_run_onnxml_model(env):
         logreg_model = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', DEVICE, logreg_model)
-    con.assertEqual(ret, b'OK')
+    env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
