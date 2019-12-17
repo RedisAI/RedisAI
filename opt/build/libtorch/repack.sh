@@ -16,7 +16,6 @@ elif [[ "$1" == "gpu" ]]; then
 else
 	GPU=${GPU:-no}
 fi
-
 OS=$(python3 $ROOT/opt/readies/bin/platform --os)
 ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
 
@@ -32,7 +31,7 @@ if [[ $OS == linux ]]; then
 	if [[ $GPU == no ]]; then
 		PT_BUILD=cpu
 	else
-		PT_BUILD=cu100
+		PT_BUILD=cu101
 	fi
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
@@ -51,7 +50,11 @@ if [[ $OS == linux ]]; then
 	elif [[ $PT_VERSION == latest ]]; then
 		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-latest.zip
 	else
-		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-${PT_VERSION}%2Bcpu.zip
+	  if [[ $GPU == no ]]; then
+		  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2Bcpu.zip
+	  else
+		  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}.zip
+	  fi
 	fi
 elif [[ $OS == macosx ]]; then
 	LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_VERSION}.zip
@@ -62,6 +65,7 @@ fi
 LIBTORCH_ZIP=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.zip
 if [ ! -f $LIBTORCH_ARCHIVE ]; then
 	echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
+  echo $LIBTORCH_URL
 	wget -q -O $LIBTORCH_ZIP $LIBTORCH_URL
 fi
 

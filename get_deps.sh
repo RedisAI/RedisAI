@@ -169,7 +169,8 @@ if [[ $WITH_TFLITE != 0 ]]; then
 
 		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 
-		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
+		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
+		echo $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
 
 		rm -rf $LIBTFLITE.x
 		mkdir $LIBTFLITE.x
@@ -195,13 +196,13 @@ if [[ $WITH_PT != 0 ]]; then
 		echo "Installing libtorch ..."
 
 		PT_REPACK=0
-		
+
 		if [[ $OS == linux ]]; then
 			PT_OS=linux
 			if [[ $GPU == no ]]; then
 				PT_BUILD=cpu
 			else
-				PT_BUILD=cu100
+				PT_BUILD=cu101
 			fi
 			if [[ $ARCH == x64 ]]; then
 				PT_ARCH=x86_64

@@ -101,7 +101,7 @@ jobs:
   build-gpu:
     machine:
       docker_layer_caching: true
-      resource_class: gpu.nvidia.medium
+      resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
       - checkout
