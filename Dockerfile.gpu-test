@@ -37,4 +37,6 @@ ARG TEST=0
 
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 
-CMD ["bash", "-c", "TEST= make -C opt test GPU=1 NO_LFS=1 SHOW=1"]
+RUN git remote set-url origin https://github.com/RedisAI/RedisAI 
+
+CMD ["bash", "-c", "TEST= make -C opt test GPU=1 SHOW=1"]
