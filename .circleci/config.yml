@@ -109,9 +109,16 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Checkout LFS
+          command: |
+            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+            sudo apt-get install -y git-lfs
+            git lfs install
+            git lfs pull
+      - run:
           name: Build
           command: |
-            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test
+            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test .
       - run:
           name: Test
           command: |
