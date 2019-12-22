@@ -286,7 +286,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr,
   // e.g. given the name, in ONNXRuntime
 #if RAI_ONNXRUNTIME_USE_CUDA
   if (device == RAI_DEVICE_GPU) {
-    ort->SessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
+    OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
   }
 #else
   // TODO: Do dynamic device/provider check with GetExecutionProviderType or something else

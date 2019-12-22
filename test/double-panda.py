@@ -38,7 +38,7 @@ def load_mobilenet_test_data():
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    with open(labels_filename, 'rb') as f:
+    with open(labels_filename, 'r') as f:
         labels = json.load(f)
 
     img_height, img_width = 224, 224

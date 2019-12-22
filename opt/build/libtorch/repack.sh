@@ -10,11 +10,11 @@ ROOT=$HERE/../../..
 ROOT=$(realpath $ROOT)
 
 if [[ "$1" == "cpu" ]]; then
-	GPU=no
+	GPU=0
 elif [[ "$1" == "gpu" ]]; then
-	GPU=yes
+	GPU=1
 else
-	GPU=${GPU:-no}
+	GPU=${GPU:-0}
 fi
 
 OS=$(python3 $ROOT/opt/readies/bin/platform --os)
@@ -29,10 +29,10 @@ fi
 
 if [[ $OS == linux ]]; then
 	PT_OS=shared-with-deps
-	if [[ $GPU == no ]]; then
+	if [[ $GPU != 1 ]]; then
 		PT_BUILD=cpu
 	else
-		PT_BUILD=cu90
+		PT_BUILD=cu101
 	fi
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
@@ -51,7 +51,11 @@ if [[ $OS == linux ]]; then
 	elif [[ $PT_VERSION == latest ]]; then
 		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-latest.zip
 	else
-		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-${PT_VERSION}%2Bcpu.zip
+		if [[ $GPU != 1 ]]; then
+			LIBTORCH_ARCHIVE=libtorch-shared-with-deps-${PT_VERSION}%2Bcpu.zip
+		else
+			LIBTORCH_ARCHIVE=libtorch-shared-with-deps-${PT_VERSION}.zip
+		fi
 	fi
 elif [[ $OS == macosx ]]; then
 	LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_VERSION}.zip

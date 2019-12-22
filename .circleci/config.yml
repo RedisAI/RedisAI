@@ -101,6 +101,25 @@ jobs:
             make -C opt/build/docker build
             sudo make -C opt/build/docker publish
 
+  build-gpu:
+    machine:
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-10.1:201909-23
+    steps:
+      - checkout
+      - run:
+          name: Build
+          command: |
+            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test
+      - run:
+          name: Test
+          command: |
+            mkdir -p ~/workspace/tests
+            docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
+      - store_test_results:
+          path: ~/workspace/tests
+
   deploy_package:
     parameters:
       package:
@@ -143,9 +162,13 @@ workflows:
       #- build-multiarch-docker:
       #    filters:
       #      tags:
-      #        only: /.*/
+      #        only: /^v[0-9].*/ 
       #      branches:
-      #        only: master
+      #        ignore: /.*/
+      - build-gpu:
+          filters:
+            tags:
+              only: /.*/
       - deploy_package:
           name: deploy_branch
           package: branch

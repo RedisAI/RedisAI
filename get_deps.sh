@@ -30,13 +30,13 @@ set -e
 [[ $VERBOSE == 1 ]] && set -x
 
 if [[ "$1" == "cpu" ]]; then
-	GPU=no
+	GPU=0
 	DEVICE=cpu
 elif [[ "$1" == "gpu" ]]; then
-	GPU=yes
+	GPU=1
 	DEVICE=gpu
 else
-	GPU=${GPU:-no}
+	GPU=${GPU:-0}
 	if [[ $GPU == 1 ]]; then
 		DEVICE=gpu
 	else
@@ -92,7 +92,7 @@ if [[ $WITH_TF != 0 ]]; then
 		
 		if [[ $OS == linux ]]; then
 			TF_OS="linux"
-			if [[ $GPU == no ]]; then
+			if [[ $GPU != 1 ]]; then
 				TF_BUILD="cpu"
 			else
 				TF_BUILD="gpu"
@@ -148,7 +148,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 		LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 		if [[ $OS == linux ]]; then
 			TFLITE_OS="linux"
-			# if [[ $GPU == no ]]; then
+			# if [[ $GPU != 1 ]]; then
 			# 	TFLITE_BUILD="cpu"
 			# else
 			# 	TFLITE_BUILD="gpu"
@@ -198,10 +198,10 @@ if [[ $WITH_PT != 0 ]]; then
 		
 		if [[ $OS == linux ]]; then
 			PT_OS=linux
-			if [[ $GPU == no ]]; then
+			if [[ $GPU != 1 ]]; then
 				PT_BUILD=cpu
 			else
-				PT_BUILD=cu100
+				PT_BUILD=cu101
 			fi
 			if [[ $ARCH == x64 ]]; then
 				PT_ARCH=x86_64
@@ -223,7 +223,7 @@ if [[ $WITH_PT != 0 ]]; then
 		LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
 
 		if [[ $PT_REPACK == 1 ]]; then
-			PT_VERSION=$PT_VERSION $HERE/opt/build/libtorch/repack.sh
+			PT_VERSION=$PT_VERSION GPU=$GPU $HERE/opt/build/libtorch/repack.sh
 		else
 			LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 
@@ -280,7 +280,7 @@ if [[ $WITH_ORT != 0 ]]; then
 
 		if [[ $OS == linux ]]; then
 			ORT_OS=linux
-			if [[ $GPU == no ]]; then
+			if [[ $GPU != 1 ]]; then
 				ORT_BUILD=""
 			else
 				ORT_BUILD="-gpu"

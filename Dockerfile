@@ -1,4 +1,4 @@
-# BUILD redisfab/redisai-cpu-${OSNICK}:M.m.b-${ARCH}
+# BUILD redisfab/redisai-cpu-${OSNICK}:${VERSION}-${ARCH}
 
 ARG REDIS_VER=5.0.7
 

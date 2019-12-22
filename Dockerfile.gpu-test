@@ -1,0 +1,40 @@
+# BUILD redisfab/redisai-gpu:${VERSION}-${ARCH}-${OSNICK}-test
+
+ARG REDIS_VER=5.0.7
+
+# OSNICK=bionic|centos7|centos6
+ARG OSNICK=bionic
+
+# ARCH=x64|arm64v8|arm32v7
+ARG ARCH=x64
+
+#----------------------------------------------------------------------------------------------
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
+
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+WORKDIR /build
+COPY --from=redis /usr/local/ /usr/local/
+
+COPY ./opt/ opt/
+COPY ./test/test_requirements.txt test/
+
+RUN ./opt/readies/bin/getpy
+RUN ./opt/system-setup.py
+
+ARG DEPS_ARGS=""
+COPY ./get_deps.sh .
+RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_deps.sh gpu; fi
+
+ARG BUILD_ARGS=""
+ADD ./ /build
+RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+
+ARG PACK=0
+ARG TEST=0
+
+RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
+
+CMD ["bash", "-c", "TEST= make -C opt test GPU=1 NO_LFS=1 SHOW=1"]
