@@ -132,7 +132,9 @@ endif
 
 TEST_REPORT_DIR ?= $(PWD)
 
-TEST ?= basic_tests.py
+ifeq ($(TEST),)
+TEST=basic_tests.py
+endif
 
 test:
 ifneq ($(NO_LFS),1)
