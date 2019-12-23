@@ -32,11 +32,10 @@ ARG BUILD_ARGS=""
 ADD ./ /build
 RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
-ARG PACK=0
-ARG TEST=0
+ARG PACK=1
 
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI 
 
-CMD ["bash", "-c", "TEST= make -C opt test GPU=1 SHOW=1"]
+CMD ["bash", "-c", "make -C opt test GPU=1 SHOW=1"]
