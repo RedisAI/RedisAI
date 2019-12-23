@@ -27,7 +27,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.install("build-essential")
-        self.install("python3-venv python3-psutil python3-networkx python3-numpy python3-skimage")
+        self.install("python3-venv python3-psutil python3-networkx python3-numpy") # python3-skimage
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
