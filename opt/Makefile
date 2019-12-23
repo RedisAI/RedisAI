@@ -132,6 +132,8 @@ endif
 
 TEST_REPORT_DIR ?= $(PWD)
 
+TEST ?= basic_tests.py
+
 test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
@@ -140,9 +142,9 @@ endif
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
 	export DEVICE=$(DEVICE) ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-aof 
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof 
 	# Commented until the MacOS CI is available
 	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
 
