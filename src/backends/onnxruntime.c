@@ -1,3 +1,4 @@
+#include <cuda_provider_factory.h>
 #include "backends/onnxruntime.h"
 #include "backends/util.h"
 #include "tensor.h"
