@@ -1,56 +1,41 @@
+# BUILD redisfab/redisai-gpu:${VERSION}-${ARCH}-${OSNICK}-test
+
+ARG REDIS_VER=5.0.7
+
+# OSNICK=bionic|centos7|centos6
+ARG OSNICK=bionic
+
+# ARCH=x64|arm64v8|arm32v7
+ARG ARCH=x64
+
+#----------------------------------------------------------------------------------------------
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
 
-ENV DEPS "git ca-certificates wget libgomp1 unzip patchelf coreutils tcl libjemalloc-dev"
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
+WORKDIR /build
+COPY --from=redis /usr/local/ /usr/local/
 
-# Installing Redis
-WORKDIR /redis
-RUN set -ex;\
-    apt-get update;\
-    deps="$DEPS";\
-    DEBIAN_FRONTEND=noninteractive apt install -y $deps;\
-    wget http://download.redis.io/redis-stable.tar.gz;\
-    tar xzvf redis-stable.tar.gz && cd redis-stable && make && cd .. && rm redis-stable.tar.gz;\
-    mv /redis/redis-stable/src/redis-server /usr/local/bin/
+COPY ./opt/ opt/
+COPY ./test/test_requirements.txt test/
 
-# Setup Redis configurations
-ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
-RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
+RUN ./opt/readies/bin/getpy
+RUN ./opt/system-setup.py
 
+ARG DEPS_ARGS=""
+COPY ./get_deps.sh .
+RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_deps.sh gpu; fi
 
-WORKDIR /redisai
+ARG BUILD_ARGS=""
+ADD ./ /build
+RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
-# System and test dependencies
-ADD ./opt /redisai/opt
-ADD ./test/test_requirements.txt /redisai/test/test_requirements.txt
-RUN set -ex;\
-    ./opt/readies/bin/getpy;\
-    ./opt/system-setup.py
+ARG PACK=1
 
+RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
 
-# Few more dependencies
-ADD ./get_deps.sh /redisai/get_deps.sh
-RUN set -ex;\
-    mkdir -p deps;\
-    DEPS_DIRECTORY=deps bash ./get_deps.sh gpu
-
-# Build the source
-ADD ./ /redisai
-RUN set -ex;\
-    rm -rf build;\
-    mkdir -p build;\
-    cd build;\
-    cmake -DDEVICE=gpu ..;\
-    make && make install;\
-    cd ..;\
-    mkdir -p /redisai/bin/linux-x64-gpu/install;\
-    mv /redisai/install-gpu/* /redisai/bin/linux-x64-gpu/install
-
-# Clean up for git lfs to work
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI
 
-
-EXPOSE 6379
-CMD ["sh", "-c", "export DEVICE=GPU && make -C opt test SHOW=1 GPU=1"]
+CMD ["bash", "-c", "make -C opt test GPU=1 SHOW=1"]

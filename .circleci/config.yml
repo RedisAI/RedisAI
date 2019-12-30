@@ -100,20 +100,28 @@ jobs:
             sudo make -C opt/build/docker publish
   build-gpu:
     machine:
+      enabled: true
       docker_layer_caching: true
       resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
       - checkout
+#      - run:
+#          name: Checkout LFS
+#          command: |
+#            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
+#            sudo apt-get install -y git-lfs
+#            git lfs install
+#            git lfs pull
       - run:
-          name: Building Docker
+          name: Build
           command: |
-            docker build -f Dockerfile.gpu-test -t redisai-gpu-test .
+            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test .
       - run:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            docker run --gpus all -v $HOME/workspace/tests:/redisai/test/logs -it --rm redisai-gpu-test
+            docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
       - store_test_results:
           path: ~/workspace/tests
   deploy_package:
@@ -158,19 +166,13 @@ workflows:
       #- build-multiarch-docker:
       #    filters:
       #      tags:
-      #        only: /.*/
+      #        only: /^v[0-9].*/ 
       #      branches:
-      #        only: master
+      #        ignore: /.*/
       - build-gpu:
           filters:
             tags:
               only: /.*/
-      - build-multiarch-docker:
-          filters:
-            tags:
-              only: /.*/
-            branches:
-              only: master
       - deploy_package:
           name: deploy_branch
           package: branch

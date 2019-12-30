@@ -19,7 +19,7 @@ class RedisAISetup(paella.Setup):
         self.setup_pip()
         self.pip3_install("wheel")
         self.pip3_install("setuptools --upgrade")
-        
+
         if self.os == 'linux':
             self.install("ca-certificates")
         self.install("git cmake unzip wget patchelf awscli")
@@ -27,7 +27,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.install("build-essential")
-        self.install("python3-venv python3-psutil python3-networkx")
+        self.install("python3-venv python3-psutil python3-networkx python3-numpy") # python3-skimage
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
@@ -39,7 +39,7 @@ class RedisAISetup(paella.Setup):
         self.install("python36-psutil")
 
         self.install_git_lfs_on_linux()
-        
+
     def fedora(self):
         self.group_install("'Development Tools'")
         self.install("python3-venv python3-psutil python3-networkx")
@@ -56,7 +56,7 @@ class RedisAISetup(paella.Setup):
     def install_git_lfs_on_linux(self):
         self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
         self.install("git-lfs")
-    
+
     def common_last(self):
         if not self.has_command("RLTest"):
             self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
