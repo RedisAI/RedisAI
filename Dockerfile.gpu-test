@@ -34,7 +34,7 @@ RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK=1
 
-RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
+RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI 
 
