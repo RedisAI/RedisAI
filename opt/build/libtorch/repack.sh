@@ -16,6 +16,7 @@ elif [[ "$1" == "gpu" ]]; then
 else
 	GPU=${GPU:-0}
 fi
+
 OS=$(python3 $ROOT/opt/readies/bin/platform --os)
 ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
 
@@ -65,7 +66,6 @@ fi
 LIBTORCH_ZIP=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.zip
 if [ ! -f $LIBTORCH_ARCHIVE ]; then
 	echo "Downloading libtorch ${PT_VERSION} ${PT_BUILD}"
-  echo $LIBTORCH_URL
 	wget -q -O $LIBTORCH_ZIP $LIBTORCH_URL
 fi
 

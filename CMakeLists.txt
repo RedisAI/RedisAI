@@ -97,7 +97,7 @@ ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
 IF(BUILD_TF)
     FIND_LIBRARY(TF_LIBRARIES NAMES tensorflow
         PATHS ${depsAbs}/libtensorflow/lib)
-	MESSAGE(STATUS "Found TensorFlow Libraries: \"${TF_LIBRARIES}\")")
+    MESSAGE(STATUS "Found TensorFlow Libraries: \"${TF_LIBRARIES}\")")
     IF (NOT TF_LIBRARIES)
         MESSAGE(WARNING "Could not find TensorFlow in ${depsAbs}/libtensorflow/lib. Trying find_package method")
         FIND_PACKAGE(TensorFlow REQUIRED)
@@ -113,11 +113,11 @@ ENDIF()
 #----------------------------------------------------------------------------------------------
 
 IF(BUILD_TFLITE)
-	FIND_LIBRARY(TFLITE_LIBRARIES_1 NAMES tensorflow-lite
-		PATHS ${depsAbs}/libtensorflow-lite/lib)
-	FIND_LIBRARY(TFLITE_LIBRARIES_2 NAMES benchmark-lib.a
-		PATHS ${depsAbs}/libtensorflow-lite/lib)
-	SET(TFLITE_LIBRARIES ${TFLITE_LIBRARIES_1} ${TFLITE_LIBRARIES_2})
+    FIND_LIBRARY(TFLITE_LIBRARIES_1 NAMES tensorflow-lite
+            PATHS ${depsAbs}/libtensorflow-lite/lib)
+    FIND_LIBRARY(TFLITE_LIBRARIES_2 NAMES benchmark-lib.a
+            PATHS ${depsAbs}/libtensorflow-lite/lib)
+    SET(TFLITE_LIBRARIES ${TFLITE_LIBRARIES_1} ${TFLITE_LIBRARIES_2})
     MESSAGE(STATUS "Found TensorFlow Lite Libraries: \"${TFLITE_LIBRARIES}\")")
     IF (NOT TFLITE_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find TensorFlow Lite")

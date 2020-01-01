@@ -170,7 +170,6 @@ if [[ $WITH_TFLITE != 0 ]]; then
 		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 
 		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
-		echo $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
 
 		rm -rf $LIBTFLITE.x
 		mkdir $LIBTFLITE.x
