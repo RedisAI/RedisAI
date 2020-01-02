@@ -57,7 +57,7 @@ class Platform:
                 distname = 'suse'
             elif distname.startswith('amzn'):
                 distname = 'amzn'
-                os.nick = 'amzn' + str(os_release.version())
+                self.osnick = 'amzn' + str(os_release.version())
             else:
                 if strict:
                     assert(False), "Cannot determine distribution"
