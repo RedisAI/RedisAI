@@ -36,7 +36,7 @@ class RedisAISetup(paella.Setup):
 
         if not self.dist == "amzn":
             self.install("epel-release")
-        else
+        else:
             self.run("amazon-linux-extras install epel")
         self.install("python36 python36-pip")
         self.install("python36-psutil")
