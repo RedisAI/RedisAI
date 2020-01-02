@@ -55,6 +55,9 @@ class Platform:
                 distname = 'redhat'
             elif distname.startswith('suse'):
                 distname = 'suse'
+            elif distname.startswith('amzn'):
+                distname = 'amzn'
+                os.nick = 'amzn' + str(os_release.version())
             else:
                 if strict:
                     assert(False), "Cannot determine distribution"
@@ -94,7 +97,7 @@ class Platform:
         return self.dist == 'debian' or self.dist == 'ubuntu'
 
     def is_redhat_compat(self):
-        return self.dist == 'redhat' or self.dist == 'centos'
+        return self.dist == 'redhat' or self.dist == 'centos' or self.dist == 'amzn'
 
     def is_container(self):
         with open('/proc/1/cgroups', 'r') as conf:
@@ -144,6 +147,8 @@ class OnPlatform:
                     self.suse()
                 elif dist == 'arch':
                     self.arch()
+                elif dist == 'amzn':
+                    self.amzn()
                 else:
                     assert(False), "Cannot determine installer"
             elif os == 'macosx':
@@ -200,4 +205,7 @@ class OnPlatform:
         pass
 
     def freebsd(self):
+        pass
+
+    def amzn(self):
         pass

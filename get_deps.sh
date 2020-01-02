@@ -120,7 +120,7 @@ if [[ $WITH_TF != 0 ]]; then
 
 		LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
 
-		[[ ! -f $LIBTF_ARCHIVE || $FORCE == 1 ]] && wget --quiet $LIBTF_URL_BASE/$LIBTF_ARCHIVE
+		[[ ! -f $LIBTF_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTF_URL_BASE/$LIBTF_ARCHIVE
 
 		rm -rf $LIBTENSORFLOW.x
 		mkdir $LIBTENSORFLOW.x
@@ -169,7 +169,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 
 		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 
-		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
+		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
 
 		rm -rf $LIBTFLITE.x
 		mkdir $LIBTFLITE.x
