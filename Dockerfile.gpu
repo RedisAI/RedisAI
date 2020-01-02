@@ -1,57 +1,57 @@
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu16.04 AS builder
+# BUILD redisfab/redisai-gpu:${VERSION}-${ARCH}-${OSNICK}
 
-ENV DEPS "build-essential git ca-certificates curl unzip wget libgomp1 patchelf"
+ARG REDIS_VER=5.0.7
+
+# OSNICK=bionic|centos7|centos6
+ARG OSNICK=bionic
+
+# ARCH=x64|arm64v8|arm32v7
+ARG ARCH=x64
+
+#----------------------------------------------------------------------------------------------
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
+
+# ENV DEPS "git ca-certificates wget unzip cmake libgomp1 patchelf coreutils tcl libjemalloc-dev"
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
-RUN apt update && apt -y upgrade
-RUN apt-get install -y libgomp1
-RUN apt-get install -y wget
+WORKDIR /build
+COPY --from=redis /usr/local/ /usr/local/
 
-RUN apt install -y build-essential tcl libjemalloc-dev
-RUN wget http://download.redis.io/redis-stable.tar.gz
-RUN tar xzvf redis-stable.tar.gz && cd redis-stable && make && make install && cd .. && rm redis-stable.tar.gz
+COPY ./opt/ opt/
+COPY ./test/test_requirements.txt test/
 
-# install latest cmake
-ADD https://cmake.org/files/v3.12/cmake-3.12.4-Linux-x86_64.sh /cmake-3.12.4-Linux-x86_64.sh
-RUN mkdir /opt/cmake
-RUN sh /cmake-3.12.4-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
-RUN ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
-RUN cmake --version
+RUN ./opt/readies/bin/getpy
+RUN ./opt/system-setup.py
 
-# Set up a build environment
-RUN set -ex;\
-    deps="$DEPS";\
-    apt-get update;\
-    apt-get install -y --no-install-recommends $deps
+ARG DEPS_ARGS=""
+COPY ./get_deps.sh .
+RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_deps.sh gpu; fi
 
-# Get the dependencies
-WORKDIR /redisai
-ADD ./ /redisai
-RUN set -ex;\
-    mkdir -p deps;\
-    DEPS_DIRECTORY=deps bash ./get_deps.sh gpu
+ARG BUILD_ARGS=""
+ADD ./ /build
+RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
-# Configurations
-ADD http://download.redis.io/redis-stable/redis.conf /usr/local/etc/redis/redis.conf
-RUN sed -i 's/bind 127.0.0.1/bind 0.0.0.0/g' /usr/local/etc/redis/redis.conf
+ARG PACK=0
+ARG TEST=0
 
-# Build the source
-RUN set -ex;\
-    rm -rf build;\
-    mkdir -p build;\
-    cd build;\
-    cmake -DDEVICE=gpu ..;\
-    make && make install;\
-    cd ..
+RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
+RUN if [ "$TEST" = "1" ]; then TEST="" make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1; fi
 
-# Package the runner
-FROM builder
+#----------------------------------------------------------------------------------------------
+FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
 
-RUN mkdir -p /usr/lib/redis/modules/
+RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
 
-COPY --from=builder /redisai/install-gpu/ /usr/lib/redis/modules/
+ENV REDIS_MODULES /usr/lib/redis/modules
+RUN mkdir -p $REDIS_MODULES/
+
+COPY --from=redis /usr/local/ /usr/local/
+COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+# COPY --from=builder /usr/local/etc/redis/redis.conf /usr/local/etc/redis/
 
 WORKDIR /data
 EXPOSE 6379
-CMD ["redis-server", "/usr/local/etc/redis/redis.conf", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+# CMD ["/usr/local/bin/redis-server", "/usr/local/etc/redis/redis.conf", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+CMD ["/usr/local/bin/redis-server", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]

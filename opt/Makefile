@@ -22,6 +22,11 @@ fetch and build options:
   WITH_TFLITE=0 # SKip TensofFlowLite
   WITH_PT=0     # Skip PyTorch
   WITH_ORT=0    # SKip ONNXRuntime
+
+device selection options (fetch, build, and test):
+  CPU=1         # build for CPU
+  GPU=1         # build for GPU
+  CUDA=1        # build for GPU
 endef
 
 #---------------------------------------------------------------------------------------------- 
@@ -127,6 +132,10 @@ endif
 
 TEST_REPORT_DIR ?= $(PWD)
 
+ifeq ($(TEST),)
+TEST=basic_tests.py
+endif
+
 test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
@@ -134,10 +143,11 @@ ifneq ($(NO_LFS),1)
 endif
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	python3 -m RLTest $(TEST_ARGS) --test basic_tests.py --module $(INSTALL_DIR)/redisai.so --use-aof 
-        # Commented until the MacOS CI is available
+	export DEVICE=$(DEVICE) ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof 
+	# Commented until the MacOS CI is available
 	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
 
 #----------------------------------------------------------------------------------------------
