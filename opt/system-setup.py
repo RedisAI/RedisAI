@@ -34,7 +34,10 @@ class RedisAISetup(paella.Setup):
         self.group_install("'Development Tools'")
         self.install("redhat-lsb-core")
 
-        self.install("epel-release")
+        if not self.dist == "amzn":
+            self.install("epel-release")
+        else
+            self.run("amazon-linux-extras install epel")
         self.install("python36 python36-pip")
         self.install("python36-psutil")
 
