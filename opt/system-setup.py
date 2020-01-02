@@ -39,7 +39,7 @@ class RedisAISetup(paella.Setup):
             self.install("python36 python36-pip")
             self.install("python36-psutil")
         else:
-            self.run("amazon-linux-extras install epel")
+            self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3 python3-devel")
             self.pip_install("psutil")
 

@@ -187,7 +187,7 @@ class Setup(OnPlatform):
         pip_user = ''
         if self.os == 'macosx':
             pip_user = '--user '
-        self.run("pip install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
+        self.run(self.python + " -m pip install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
 
     def pip3_install(self, cmd, _try=False):
         pip_user = ''
