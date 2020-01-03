@@ -210,7 +210,7 @@ class Setup(OnPlatform):
 
     def install_git_lfs_on_linux(self, _try=False):
         self.run("set -e; wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.9.2/git-lfs-linux-amd64-v2.9.2.tar.gz -O /tmp/git-lfs.tar.gz")
-        self.run("cd /tmp; tar xzf git-lfs.tar.gz; ./install.sh; git lfs install")
+        self.run("cd /tmp; tar xzf git-lfs.tar.gz; ./install.sh")
 
 #        cmd = "curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.{}.sh | bash"
 #        if self.platform.is_redhat_compat():
