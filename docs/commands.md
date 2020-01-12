@@ -129,6 +129,13 @@ If needed, input tensors are copied to the device specified in `AI.MODELSET` bef
 AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
 ```
 
+!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
+        
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
+---
+
+
+
 ## AI.SCRIPTSET
 
 Set a script.
@@ -204,6 +211,11 @@ If needed, input tensors are copied to the device specified in `AI.SCRIPTSET` be
 ```sql
 AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
 ```
+
+!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
+        
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
+---
 
 ## AI.CONFIG LOADBACKEND
 
