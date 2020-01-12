@@ -31,6 +31,11 @@ Optional args:
 AI.TENSORSET foo FLOAT 2 2 VALUES 1 2 3 4
 ```
 
+!!! warning "Overhead of `AI.TENSORSET` with the optional arg VALUES"
+        
+    It is possible to set a tensor by specifying each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of parsing each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
+---
+
 ## AI.TENSORGET
 
 Get a tensor.
@@ -51,6 +56,11 @@ Get binary data for tensor at `foo`. Meta data is also returned.
 ```sql
 AI.TENSORGET foo BLOB
 ```
+
+!!! warning "Overhead of `AI.TENSORGET` with the optional arg VALUES"
+        
+    It is possible to receive a tensor as a list of each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of replying each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
+---
 
 ## AI.MODELSET
 
