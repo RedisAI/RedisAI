@@ -218,10 +218,12 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
   }
 
   if (ctx->module) {
+    torch::NoGradGuard guard;
     torch::jit::script::Method method = ctx->module->get_method(fnName);
     method.run(stack);
   }
   else {
+    torch::NoGradGuard guard;
     torch::jit::Function& fn = ctx->cu->get_function(fnName);
     fn.run(stack);
   }
