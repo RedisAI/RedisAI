@@ -12,6 +12,7 @@ parser = argparse.ArgumentParser(description='Report platform characteristics.')
 parser.add_argument('--os', action="store_true", help='Operating system')
 parser.add_argument('--version', action="store_true", help='OS/Distribution version')
 parser.add_argument('--dist', action="store_true", help='Linux distribution (if applicable)')
+parser.add_argument('--osnick', action="store_true", help='OS/distribution/version is a single word')
 parser.add_argument('--arch', action="store_true", help='CPU Architecture')
 parser.add_argument('--kernel', action="store_true", help='Kernel version (if applicable)')
 parser.add_argument('--glibc', action="store_true", help='GLIBC version (if applicable)')
@@ -26,6 +27,8 @@ except:
 ret = ""
 if args.os:
 	ret += " " + platform.os
+if args.osnick:
+	ret += " " + platform.osnick
 if args.dist:
 	ret += " " + platform.dist
 if args.version:
@@ -41,5 +44,9 @@ if ret == "":
     dist = platform.dist
     if dist != "":
         os = dist + " " + os
-    ret = os + " " + platform.os_ver + " " + platform.arch
+    if platform.osnick != "":
+        nick = " (" + platform.osnick + ")"
+    else:
+        nick = ""
+    ret = os + " " + platform.os_ver + nick + " " + platform.arch
 print(ret.strip())

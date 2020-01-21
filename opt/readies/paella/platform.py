@@ -24,7 +24,10 @@ class Platform:
             return self.defs["VERSION_ID"]
 
         def osnick(self):
-            return self.defs["VERSION_CODENAME"]
+            try:
+                return self.defs["VERSION_CODENAME"]
+            except:
+                return ""
 
     #------------------------------------------------------------------------------------------
 
@@ -42,6 +45,9 @@ class Platform:
                     os_release = Platform.OSRelease()
                     distname = os_release.distname()
                     self.os_ver = self.full_os_ver = os_release.version()
+                    self.osnick = os_release.osnick()
+                    if self.osnick == "":
+                        self.osnick = distname + str(self.os_ver)
                 except:
                     if strict:
                         assert(False), "Cannot determine distribution"
@@ -69,6 +75,7 @@ class Platform:
             self.full_os_ver = mac_ver[0] # e.g. 10.14, but also 10.5.8
             self.os_ver = '.'.join(self.full_os_ver.split('.')[:2]) # major.minor
             # self.arch = mac_ver[2] # e.g. x64_64
+            self.osnick = self.os + str(self.full_os_ver.split('.')[1])
         elif self.os == 'windows':
             self.dist = self.os
             self.os_ver = platform.release()

@@ -58,10 +58,6 @@ class RedisAISetup(paella.Setup):
         self.install("git-lfs")
         self.install("redis")
 
-    def install_git_lfs_on_linux(self):
-        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
-        self.install("git-lfs")
-
     def common_last(self):
         if not self.has_command("RLTest"):
             self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
