@@ -839,6 +839,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
       rstats->devicestr = RedisModule_Strdup(rinfo->mctx->model->devicestr);
     }
     else {
+      rstats->backend = RAI_BACKEND_TORCH;
       rstats->devicestr = RedisModule_Strdup(rinfo->sctx->script->devicestr);
     }
 
@@ -856,9 +857,6 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisAI_FreeRunInfo(ctx, rinfo);
     return ret;
   }
-
-  rstats->duration_us += rinfo->duration_us;
-  rstats->calls += 1;
 
   size_t num_outputs = 0;
   if (rinfo->mctx) {
@@ -879,6 +877,8 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
           RedisModule_ModuleTypeGetType(outkey) == RedisAI_TensorType)) {
       RedisModule_CloseKey(outkey);
       RedisAI_FreeRunInfo(ctx, rinfo);
+      rstats->calls += 1;
+      rstats->nerrors += 1;
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     RAI_Tensor *t = NULL;
@@ -901,7 +901,12 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
   }
 
-  rstats->samples += batch_size;
+  rstats->duration_us += rinfo->duration_us;
+  rstats->calls += 1;
+
+  if (rinfo->mctx) {
+    rstats->samples += batch_size;
+  }
 
   // FIXME This crashes Redis, we need to investigate.
   //RedisModule_CloseKey(rinfo->modelkey);
