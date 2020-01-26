@@ -180,31 +180,31 @@ workflows:
 #          filters:
 #            tags:
 #              only: /.*/
-      - deploy_package:
-          name: deploy_branch
-          package: branch
-          requires:
-            - build
-          filters:
-#             # uncomment to debug
+#      - deploy_package:
+#          name: deploy_branch
+#          package: branch
+#          requires:
+#            - build
+#          filters:
+##             # uncomment to debug
+##            tags:
+##              only: /.*/
+#            branches:
+#              only: master
+#      - deploy_package:
+#          name: deploy_release
+#          package: release
+#          requires:
+#            - build
+#          filters:
+#            branches:
+#              ignore: /.*/
 #            tags:
-#              only: /.*/
-            branches:
-              only: master
-      - deploy_package:
-          name: deploy_release
-          package: release
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: '/^v[0-9].*/'
-      - deploy_docs:
-          filters:
-            branches:
-              only: master
+#              only: '/^v[0-9].*/'
+#      - deploy_docs:
+#          filters:
+#            branches:
+#              only: master
 
   nightly:
     triggers:
