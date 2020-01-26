@@ -2,8 +2,11 @@
 from contextlib import contextmanager
 import os
 import os.path
-import urllib.request
 import tempfile
+try:
+    from urllib2 import urlopen
+except:
+    from urllib.request import urlopen
 
 #----------------------------------------------------------------------------------------------
 
@@ -38,7 +41,10 @@ def wget(url, dest="", tempdir=False):
             dest = tempfilepath()
         elif tempdir:
             dest = os.path.join('/tmp', dest)
-    urllib.request.urlretrieve(url, dest)
+    ufile = urlopen(url)
+    data = ufile.read()
+    with open(dest, "wb") as file:
+        file.write(data)
     return os.path.abspath(dest)
 
 #----------------------------------------------------------------------------------------------
@@ -59,3 +65,6 @@ def mkdir_p(dir):
         os.makedirs(dir, exist_ok=True)
 
 #----------------------------------------------------------------------------------------------
+
+def relpath(dir, rel):
+    return os.path.abspath(os.path.join(dir, rel))

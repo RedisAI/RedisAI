@@ -113,6 +113,9 @@ class Setup(OnPlatform):
         for pack in packs.split():
             self.run("brew list {} &>/dev/null || brew install {}".format(pack, pack), output_on_error=True, _try=_try)
 
+    def pkg_install(self, packs, group=False, _try=False):
+        self.run("pkg install -q -y " + packs, output_on_error=True, _try=_try)
+
     def install(self, packs, group=False, _try=False):
         if self.os == 'linux':
             if self.dist == 'fedora': # also include centos 8
@@ -129,6 +132,8 @@ class Setup(OnPlatform):
                 Assert(False), "Cannot determine installer"
         elif self.os == 'macosx':
             self.brew_install(packs, group=group, _try=_try)
+        elif self.os == 'freebsd':
+            self.pkg_install(packs, group=group, _try=_try)
         else:
             Assert(False), "Cannot determine installer"
 
@@ -219,3 +224,13 @@ class Setup(OnPlatform):
 #        elif self.platform.is_debian_compat():
 #            self.run(cmd.format('deb'), _try=_try)
 #        self.install("git-lfs", _try=_try)
+
+    def install_gnu_utils(self, _try=False):
+        self.install("make findutils gnu-sed")
+        for x in ['make', 'find', 'sed']:
+            p = "/usr/local/bin/{}".format(x)
+            if not os.path.exists(p):
+                self.run("ln -sf /usr/local/bin/g{} {}".format(x, p))
+            else:
+                eprint("Warning: {} exists - not replaced".format(p))
+
