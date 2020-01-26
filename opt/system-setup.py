@@ -55,6 +55,7 @@ class RedisAISetup(paella.Setup):
         out, _ = p.communicate()
         if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
+        self.run("brew reinstall python3") # ssl issues
         self.install_gnu_utils()
         self.install("git-lfs")
         self.install("redis")
