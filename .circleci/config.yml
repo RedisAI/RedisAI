@@ -155,10 +155,10 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
+#      - build:
+#          filters:
+#            tags:
+#              only: /.*/
 #      - build-macos:
 #          filters:
 #            branches:
@@ -176,10 +176,10 @@ workflows:
       #        only: /^v[0-9].*/ 
       #      branches:
       #        ignore: /.*/
-      - build-gpu:
-          filters:
-            tags:
-              only: /.*/
+#      - build-gpu:
+#          filters:
+#            tags:
+#              only: /.*/
       - deploy_package:
           name: deploy_branch
           package: branch
