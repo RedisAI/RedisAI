@@ -227,8 +227,8 @@ class Setup(OnPlatform):
 #        self.install("git-lfs", _try=_try)
 
     def install_gnu_utils(self, _try=False):
-        self.install("make findutils gnu-sed")
-        for x in ['make', 'find', 'sed']:
+        self.install("make findutils gnu-sed gnu-tar")
+        for x in ['make', 'find', 'sed', 'tar']:
             p = "/usr/local/bin/{}".format(x)
             if not os.path.exists(p):
                 self.run("ln -sf /usr/local/bin/g{} {}".format(x, p))

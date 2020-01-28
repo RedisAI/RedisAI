@@ -77,6 +77,26 @@ class Platform:
             self.os_ver = '.'.join(self.full_os_ver.split('.')[:2]) # major.minor
             # self.arch = mac_ver[2] # e.g. x64_64
             self.osnick = self.os + str(self.full_os_ver.split('.')[1])
+            nicks = {
+                "10.15": "catalina",
+                "10.14": "mojave",
+                "10.13": "highsierra",
+                "10.12": "sierra",
+                "10.11": "elcapitan",
+                "10.10": "yosemite",
+                "10.9": "mavericks",
+                "10.8": "mountainlion",
+                "10.7": "lion",
+                "10.6": "snowleopard",
+                "10.5": "leopard",
+                "10.4": "tiger",
+                "10.3": "panther",
+                "10.2": "jaguar",
+                "10.1": "puma",
+                "10.0": "cheetah"
+            }
+            if self.os_ver in nicks:
+                self.osnick = nicks[self.os_ver]
         elif self.os == 'windows':
             self.dist = self.os
             self.os_ver = platform.release()

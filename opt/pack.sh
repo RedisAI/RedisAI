@@ -1,5 +1,8 @@
 #!/bin/bash
 
+[[ $IGNERR == 1 ]] || set -e
+[[ $VERBOSE == 1 ]] && set -x
+
 [[ -z $DEVICE ]] && { echo DEVICE undefined; exit 1; }
 [[ -z $BINDIR ]] && { echo BINDIR undefined; exit 1; }
 [[ -z $INSTALL_DIR ]] && { echo INSTALL_DIR undefined; exit 1; }
@@ -77,9 +80,6 @@ pack_deps() {
 	echo "Done."
  }
 
-set -e
-[[ $VERBOSE == 1 ]] && set -x
-
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
 		pack.sh [cpu|gpu] [--help|help]
@@ -106,13 +106,6 @@ if [[ -d $ROOT/.git ]]; then
 	GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+")
 	GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
-fi
-
-OSX=""
-if [[ $($HERE/readies/bin/platform --os) == macosx ]]; then
-	# macOS: ramp is installed here
-	OSX=1
-	export PATH=$PATH:$HOME/Library/Python/2.7/bin
 fi
 
 if ! command -v redis-server > /dev/null; then
