@@ -147,7 +147,7 @@ endif
 	cd $(ROOT)/test ;\
 	DEVICE=$(DEVICE) ;\
 	{ \
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
 	printf "\nTests with --use-slaved:\n\n" ;\
 	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
 	printf "\nTests with --use-aof:\n\n" ;\
