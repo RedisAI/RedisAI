@@ -162,55 +162,48 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-#      - build:
-#          filters:
-#            tags:
-#              only: /.*/
-#      - build-macos:
-#          filters:
-#            branches:
-#              ignore: /.*/
-#            tags:
-#              only: /^v[0-9].*/
+      - build:
+          filters:
+            tags:
+              only: /.*/
       - build-macos:
           filters:
             branches:
-              only: /.*/
+              ignore: /.*/
+            tags:
+              only: /^v[0-9].*/
       #- build-multiarch-docker:
       #    filters:
       #      tags:
       #        only: /^v[0-9].*/ 
       #      branches:
       #        ignore: /.*/
-#      - build-gpu:
-#          filters:
-#            tags:
-#              only: /.*/
-#      - deploy_package:
-#          name: deploy_branch
-#          package: branch
-#          requires:
-#            - build
-#          filters:
-##             # uncomment to debug
-##            tags:
-##              only: /.*/
-#            branches:
-#              only: master
-#      - deploy_package:
-#          name: deploy_release
-#          package: release
-#          requires:
-#            - build
-#          filters:
-#            branches:
-#              ignore: /.*/
-#            tags:
-#              only: '/^v[0-9].*/'
-#      - deploy_docs:
-#          filters:
-#            branches:
-#              only: master
+      - build-gpu:
+          filters:
+            tags:
+              only: /.*/
+      - deploy_package:
+          name: deploy_branch
+          package: branch
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - deploy_package:
+          name: deploy_release
+          package: release
+          requires:
+            - build
+          filters:
+            branches:
+              ignore: /.*/
+            tags:
+              only: '/^v[0-9].*/'
+      - deploy_docs:
+          filters:
+            branches:
+              only: master
 
   nightly:
     triggers:

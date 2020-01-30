@@ -12,6 +12,8 @@ make build    # compile and link
 make clean    # remove build artifacts
   ALL=1         # remove entire artifacts directory
 make test     # run tests
+  TEST=test       # run only test `test` with Redis output
+  TEST_ARGS=args  # add extra RLTest `args`
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
   INTO=dir      # place artifacts in `dir`
@@ -136,25 +138,37 @@ TEST_REPORT_DIR ?= $(PWD)
 
 ifeq ($(TEST),)
 TEST=basic_tests.py
+PYDEBUG=
+else
+TEST_ARGS += -s
+PYDEBUG=1
 endif
+
+TEST_PREFIX=set -e; cd $(ROOT)/test
+TEST_CMD=\
+	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+
+GEN ?= 1
+SLAVES ?= 1
+AOF ?= 1
 
 test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
-	$(SHOW)set -e ;\
-	cd $(ROOT)/test ;\
-	DEVICE=$(DEVICE) ;\
-	{ \
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
-	printf "\nTests with --use-slaved:\n\n" ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	printf "\nTests with --use-aof:\n\n" ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof ;\
-	}
-	# Commented until the MacOS CI is available
-	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
+ifeq ($(GEN),1)
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
+endif
+ifeq ($(AOF),1)
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
+	$(TEST_CMD) --use-aof
+endif
+ifeq ($(SLAVES),1)
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
+	$(TEST_CMD) --use-slaves
+endif
 
 #----------------------------------------------------------------------------------------------
 
