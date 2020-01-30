@@ -32,10 +32,7 @@ commands:
             chown `whoami` ~/workspace
       - run:
           name: Build
-          command: |
-            make -C opt all SHOW=1
-            # make -C opt pack SHOW=1
-            make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
+          command: make -C opt all SHOW=1
       - run:
           name: Test
           command: |

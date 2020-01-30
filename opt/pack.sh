@@ -142,7 +142,7 @@ pack_ramp
 if [[ ! -z $INTO ]]; then
 	mkdir -p $INTO
 	cd $INTO
-	mkdir release branch
+	mkdir -p release branch
 	
 	for f in $RELEASE_ARTIFACTS; do
 		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
