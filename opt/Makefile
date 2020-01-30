@@ -14,6 +14,8 @@ make clean    # remove build artifacts
 make test     # run tests
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
+  INTO=dir      # place artifacts in `dir`
+  BRANCH=name   # use `name` as branch name
 make deploy   # copy packages to S3
 make release  # release a version
 
@@ -123,9 +125,9 @@ fetch deps:
 
 pack:
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=1 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=0 ./pack.sh
 endif
 
 #----------------------------------------------------------------------------------------------
@@ -143,10 +145,14 @@ ifneq ($(NO_LFS),1)
 endif
 	$(SHOW)set -e ;\
 	cd $(ROOT)/test ;\
-	export DEVICE=$(DEVICE) ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
+	DEVICE=$(DEVICE) ;\
+	{ \
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+	printf "\nTests with --use-slaved:\n\n" ;\
 	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof 
+	printf "\nTests with --use-aof:\n\n" ;\
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof ;\
+	}
 	# Commented until the MacOS CI is available
 	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
 
