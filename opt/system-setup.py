@@ -56,10 +56,10 @@ class RedisAISetup(paella.Setup):
         if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
 
-         # workaround for ssl issue, needed in CircleCI
-        if os.environ.get('MACOS_PYTHON_SSL_FIX') == '1':
-            self.run("brew unlink python@2")
-            self.run("brew reinstall python3")
+        # workaround for ssl issue, needed in CircleCI
+        #if os.environ.get('MACOS_PYTHON_SSL_FIX') == '1':
+        #    self.run("brew unlink python@2")
+        #    self.run("brew reinstall python3")
 
         self.install_gnu_utils()
         self.install("git-lfs")
