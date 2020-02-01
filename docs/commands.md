@@ -268,8 +268,46 @@ The command can be called on a key until that key is removed using `MODELDEL` or
 
 ```sql
 AI.INFO amodel
+
+>  1) KEY
+>  2) "amodel"
+>  3) TYPE
+>  4) MODEL
+>  5) BACKEND
+>  6) TORCH
+>  7) DEVICE
+>  8) CPU
+>  9) DURATION
+> 10) (integer) 6511
+> 11) SAMPLES
+> 12) (integer) 2
+> 13) CALLS
+> 14) (integer) 1
+> 15) ERRORS
+> 16) (integer) 0
 ```
 
 ```sql
 AI.INFO amodel RESETSTAT
+
+> OK
+
+AI.INFO amodel
+
+>  1) KEY
+>  2) "amodel"
+>  3) TYPE
+>  4) MODEL
+>  5) BACKEND
+>  6) TORCH
+>  7) DEVICE
+>  8) CPU
+>  9) DURATION
+> 10) (integer) 0
+> 11) SAMPLES
+> 12) (integer) 0
+> 13) CALLS
+> 14) (integer) 0
+> 15) ERRORS
+> 16) (integer) 0
 ```
