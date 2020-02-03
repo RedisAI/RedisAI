@@ -16,7 +16,7 @@ commands:
           name: Install dependencies
           command: |
             ./opt/readies/bin/getpy
-            ./opt/system-setup.py
+            BREW_NO_UPDATE=1 ./opt/system-setup.py
             git clone git://github.com/antirez/redis.git --branch 5.0.7
             (cd redis && make malloc=libc -j $(nproc) && make install)
             redis-server --version
@@ -72,6 +72,10 @@ jobs:
     macos:
       xcode: 10.2.1
     steps:
+      - run:
+          name: Fix macOS Python installation
+          command: |
+            brew reinstall -f python2
       - ci_steps:
           platform: macosx
   build-multiarch-docker:
@@ -162,7 +166,6 @@ workflows:
       - build-macos:
           filters:
             branches:
-              # only: /.*/
               ignore: /.*/
             tags:
               only: /^v[0-9].*/
@@ -182,9 +185,6 @@ workflows:
           requires:
             - build
           filters:
-#             # uncomment to debug
-#            tags:
-#              only: /.*/
             branches:
               only: master
       - deploy_package:

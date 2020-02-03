@@ -26,7 +26,7 @@ Global = global_injector()
 
 #----------------------------------------------------------------------------------------------
 
-Global.bb = bb
+Global.BB = bb
 Global.eprint = eprint
 Global.fatal = fatal
 Global.cwd = cwd

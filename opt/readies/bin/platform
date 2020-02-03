@@ -49,4 +49,5 @@ if ret == "":
     else:
         nick = ""
     ret = os + " " + platform.os_ver + nick + " " + platform.arch
-print(ret.strip())
+if ret.strip() != "":
+	print(ret.strip())
