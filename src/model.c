@@ -135,25 +135,11 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
-  char backend[256] = "";
-  switch (model->backend) {
-    case RAI_BACKEND_TENSORFLOW:
-      strcpy(backend, "TF");
-      break;
-    case RAI_BACKEND_TFLITE:
-      strcpy(backend, "TFLITE");
-      break;
-    case RAI_BACKEND_TORCH:
-      strcpy(backend, "TORCH");
-      break;
-    case RAI_BACKEND_ONNXRUNTIME:
-      strcpy(backend, "ONNX");
-      break;
-  }
+  const char* backendstr = RAI_BackendName(model->backend);
 
   RedisModule_EmitAOF(aof, "AI.MODELSET", "slccvcvb",
                       key,
-                      backend, model->devicestr,
+                      backendstr, model->devicestr,
                       "INPUTS", inputs_, model->ninputs,
                       "OUTPUTS", outputs_, model->noutputs,
                       buffer, len);

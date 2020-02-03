@@ -2,8 +2,6 @@
 
 ## AI.CONFIG LOADBACKEND
 
-### AI.CONFIG LOADBACKEND Example
-
 Load a DL/ML backend.
 
 By default, RedisAI starts with the ability to set and get tensor data, but setting and running models and scritps requires a computing backend to be loaded. This command allows to dynamically load a backend by specifying the backend identifier and the path to the backend library. Currently, once loaded, a backend cannot be unloaded, and there can be at most one backend per identifier loaded.
@@ -15,6 +13,8 @@ AI.CONFIG LOADBACKEND <backend_identifier> <location_of_backend_library>
 * allowed backend identifiers are: TF (TensorFlow), TORCH (PyTorch), ONNX (ONNXRuntime).
 
 It is possible to specify backends at the command-line when starting `redis-server`, see example below.
+
+### AI.CONFIG LOADBACKEND Example
 
 > Load the TORCH backend
 
@@ -233,4 +233,81 @@ If needed, input tensors are copied to the device specified in `AI.SCRIPTSET` be
 
 ```sql
 AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
+```
+
+## AI.INFO
+
+Return information about runs of a `MODEL` or a `SCRIPT`.
+
+At each `MODELRUN` or `SCRIPTRUN`, RedisAI will collect statistcs specific for each `MODEL` or `SCRIPT`,
+specific for the node (hence nodes in a cluster will have to be queried individually for their info).
+The following information is collected:
+
+- `KEY`: the key being run
+- `TYPE`: either `MODEL` or `SCRIPT`
+- `BACKEND`: the type of backend (always `TORCH` for `SCRIPT`)
+- `DEVICE`: the device where the run has been executed
+- `DURATION`: cumulative duration in microseconds
+- `SAMPLES`: cumulative number of samples obtained from the 0-th (batch) dimension (for `MODEL` only)
+- `CALLS`: number of calls
+- `ERRORS`: number of errors generated after the run has been submitted (i.e. excluding errors generated during parsing of the command)
+
+```sql
+AI.INFO <model_or_script_key>
+```
+
+Statistcs are accumulated until the same command with an extra `RESETSTAT` argument is called. This resets the statistics relative to the model or script.
+
+```sql
+AI.INFO <model_or_script_key> RESETSTAT
+```
+
+The command can be called on a key until that key is removed using `MODELDEL` or `SCRIPTDEL`.
+
+### AI.INFO Example
+
+```sql
+AI.INFO amodel
+
+>  1) KEY
+>  2) "amodel"
+>  3) TYPE
+>  4) MODEL
+>  5) BACKEND
+>  6) TORCH
+>  7) DEVICE
+>  8) CPU
+>  9) DURATION
+> 10) (integer) 6511
+> 11) SAMPLES
+> 12) (integer) 2
+> 13) CALLS
+> 14) (integer) 1
+> 15) ERRORS
+> 16) (integer) 0
+```
+
+```sql
+AI.INFO amodel RESETSTAT
+
+> OK
+
+AI.INFO amodel
+
+>  1) KEY
+>  2) "amodel"
+>  3) TYPE
+>  4) MODEL
+>  5) BACKEND
+>  6) TORCH
+>  7) DEVICE
+>  8) CPU
+>  9) DURATION
+> 10) (integer) 0
+> 11) SAMPLES
+> 12) (integer) 0
+> 13) CALLS
+> 14) (integer) 0
+> 15) ERRORS
+> 16) (integer) 0
 ```
