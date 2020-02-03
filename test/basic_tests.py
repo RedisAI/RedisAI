@@ -31,6 +31,11 @@ def check_cuda():
     return os.system('which nvcc')
 
 
+def info_to_dict(info):
+    info = [el.decode('ascii') if type(el) is bytes else el for el in info]
+    return dict(zip(info[::2], info[1::2]))
+
+
 def run_test_multiproc(env, n_procs, fn, args=tuple()):
     procs = []
 
@@ -241,6 +246,39 @@ def test_run_tf_model(env):
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    info = con.execute_command('AI.INFO', 'm')
+    info_dict_0 = info_to_dict(info)
+
+    env.assertEqual(info_dict_0['KEY'], 'm')
+    env.assertEqual(info_dict_0['TYPE'], 'MODEL')
+    env.assertEqual(info_dict_0['BACKEND'], 'TF')
+    env.assertTrue(info_dict_0['DURATION'] > 0)
+    env.assertEqual(info_dict_0['SAMPLES'], 2)
+    env.assertEqual(info_dict_0['CALLS'], 1)
+    env.assertEqual(info_dict_0['ERRORS'], 0)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    info = con.execute_command('AI.INFO', 'm')
+    info_dict_1 = info_to_dict(info)
+
+    env.assertTrue(info_dict_1['DURATION'] > info_dict_0['DURATION'])
+    env.assertEqual(info_dict_1['SAMPLES'], 4)
+    env.assertEqual(info_dict_1['CALLS'], 2)
+    env.assertEqual(info_dict_1['ERRORS'], 0)
+
+    ret = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    info = con.execute_command('AI.INFO', 'm')
+    info_dict_2 = info_to_dict(info)
+
+    env.assertTrue(info_dict_2['DURATION'] < info_dict_1['DURATION'])
+    env.assertEqual(info_dict_2['SAMPLES'], 2)
+    env.assertEqual(info_dict_2['CALLS'], 1)
+    env.assertEqual(info_dict_2['ERRORS'], 0)
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
@@ -844,6 +882,40 @@ def test_run_script(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    info = con.execute_command('AI.INFO', 'ket')
+    info_dict_0 = info_to_dict(info)
+
+    env.assertEqual(info_dict_0['KEY'], 'ket')
+    env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
+    env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
+    env.assertTrue(info_dict_0['DURATION'] > 0)
+    env.assertEqual(info_dict_0['SAMPLES'], -1)
+    env.assertEqual(info_dict_0['CALLS'], 4)
+    env.assertEqual(info_dict_0['ERRORS'], 3)
+
+    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    info = con.execute_command('AI.INFO', 'ket')
+    info_dict_1 = info_to_dict(info)
+
+    env.assertTrue(info_dict_1['DURATION'] > info_dict_0['DURATION'])
+    env.assertEqual(info_dict_1['SAMPLES'], -1)
+    env.assertEqual(info_dict_1['CALLS'], 5)
+    env.assertEqual(info_dict_1['ERRORS'], 3)
+
+    ret = con.execute_command('AI.INFO', 'ket', 'RESETSTAT')
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    info = con.execute_command('AI.INFO', 'ket')
+    info_dict_2 = info_to_dict(info)
+
+    env.assertTrue(info_dict_2['DURATION'] < info_dict_1['DURATION'])
+    env.assertEqual(info_dict_2['SAMPLES'], -1)
+    env.assertEqual(info_dict_2['CALLS'], 1)
+    env.assertEqual(info_dict_2['ERRORS'], 0)
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
