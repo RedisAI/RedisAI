@@ -17,17 +17,17 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
   const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
 
-  size_t batchsize = RedisModule_LoadUnsigned(io);
-  size_t minbatchsize = RedisModule_LoadUnsigned(io);
+  const size_t batchsize = RedisModule_LoadUnsigned(io);
+  const size_t minbatchsize = RedisModule_LoadUnsigned(io);
 
-  size_t ninputs = RedisModule_LoadUnsigned(io);
+  const size_t ninputs = RedisModule_LoadUnsigned(io);
   const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
 
   for (size_t i=0; i<ninputs; i++) {
     inputs[i] = RedisModule_LoadStringBuffer(io, NULL);
   }
 
-  size_t noutputs = RedisModule_LoadUnsigned(io);
+  const size_t noutputs = RedisModule_LoadUnsigned(io);
 
   const char **outputs = RedisModule_Alloc(ninputs * sizeof(char*));
 

@@ -90,8 +90,8 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     return 1;
   }
 
-  size_t ninputs = array_len(mctx->batches[0].inputs);
-  size_t noutputs = array_len(mctx->batches[0].outputs);
+  const size_t ninputs = array_len(mctx->batches[0].inputs);
+  const size_t noutputs = array_len(mctx->batches[0].outputs);
 
   RAI_Tensor* inputs[ninputs];
 

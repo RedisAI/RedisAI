@@ -78,40 +78,6 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
-// OrtValue* RAI_OrtValueFromTensor(RAI_Tensor* t, RAI_Error *error) {
-//   const OrtApi* ort = OrtGetApiBase()->GetApi(1);
-//   OrtMemoryInfo* memory_info;
-//   OrtStatus* status;
-//   status = ort->CreateCpuMemoryInfo(OrtArenaAllocator, OrtMemTypeDefault, &memory_info);
-//   if (status != NULL) {
-//     goto error;
-//   }
-// 
-//   OrtValue* out;
-//   status = OrtCreateTensorWithDataAsOrtValue(
-//     allocator_info,
-//     t->tensor.dl_tensor.data,
-//     RAI_TensorByteSize(t),
-//     t->tensor.dl_tensor.shape,
-//     t->tensor.dl_tensor.ndim,
-//     RAI_GetOrtDataTypeFromDL(t->tensor.dl_tensor.dtype),
-//     &out);
-// 
-//   if (status != NULL) {
-//     OrtReleaseAllocatorInfo(allocator_info);
-//     goto error;
-//   }
-// 
-//   OrtReleaseAllocatorInfo(allocator_info);
-// 
-//   return out;
-// 
-// error:
-//   RAI_SetError(error, RAI_EMODELCREATE, OrtGetErrorMessage(status));
-//   OrtReleaseStatus(status);
-//   return NULL;
-// }
-
 OrtValue* RAI_OrtValueFromTensors(RAI_Tensor** ts, size_t count, RAI_Error *error) {
   OrtStatus* status = NULL;
   const OrtApi* ort = OrtGetApiBase()->GetApi(1);
@@ -140,7 +106,7 @@ OrtValue* RAI_OrtValueFromTensors(RAI_Tensor** ts, size_t count, RAI_Error *erro
 
   RAI_Tensor* t0 = ts[0];
 
-  int ndim = t0->tensor.dl_tensor.ndim;
+  const int ndim = t0->tensor.dl_tensor.ndim;
   int64_t batched_shape[ndim];
 
   for (size_t i=0; i<ndim; i++) {
@@ -267,11 +233,11 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, size_
       goto error;
     }
 
-    size_t len = dtype.bits * elem_count;
+    const size_t len = dtype.bits * elem_count;
 
-    size_t total_bytesize = len * sizeof(char);
-    size_t sample_bytesize = total_bytesize / total_batch_size;
-    size_t batch_bytesize = sample_bytesize * batch_size;
+    const size_t total_bytesize = len * sizeof(char);
+    const size_t sample_bytesize = total_bytesize / total_batch_size;
+    const size_t batch_bytesize = sample_bytesize * batch_size;
 
     char *data = RedisModule_Calloc(batch_bytesize, sizeof(*data));
     memcpy(data, ort_data + batch_offset, batch_bytesize);
@@ -489,8 +455,8 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     OrtValue *inputs[n_input_nodes];
     OrtValue *outputs[n_output_nodes];
 
-    size_t ninputs = array_len(mctx->batches[0].inputs);
-    size_t noutputs = array_len(mctx->batches[0].outputs);
+    const size_t ninputs = array_len(mctx->batches[0].inputs);
+    const size_t noutputs = array_len(mctx->batches[0].outputs);
 
     if (ninputs != n_input_nodes) {
       char msg[70];

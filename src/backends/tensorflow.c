@@ -86,9 +86,9 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
       .device_id = 0
   };
 
-  size_t ndims = TF_NumDims(tensor);
+  const size_t ndims = TF_NumDims(tensor);
 
-  int64_t total_batch_size = TF_Dim(tensor, 0);
+  const int64_t total_batch_size = TF_Dim(tensor, 0);
 
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
@@ -101,7 +101,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
     strides[i] *= strides[i+1] * shape[i+1];
   }
 
-  size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
+  const size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
 
   // FIXME: In TF, RunSession allocates memory for output tensors
   // This means that we either memcpy the tensor data and let
@@ -109,7 +109,7 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
   // allocated memory, which might not be optimal down the road
   // Note: on YOLO this has no impact on perf
 #ifdef RAI_COPY_RUN_OUTPUT
-  size_t len = sample_bytesize * batch_size;
+  const size_t len = sample_bytesize * batch_size;
   char* data = RedisModule_Calloc(len, sizeof(*data));
   memcpy(data, TF_TensorData(tensor) + sample_bytesize * batch_offset, len);
 #endif
@@ -181,7 +181,7 @@ TF_Tensor* RAI_TFTensorFromTensors(RAI_Tensor** ts, size_t count){
 
   RAI_Tensor* t0 = ts[0];
 
-  int ndim = t0->tensor.dl_tensor.ndim;
+  const int ndim = t0->tensor.dl_tensor.ndim;
   int64_t batched_shape[ndim];
 
   for (size_t i=0; i<ndim; i++) {

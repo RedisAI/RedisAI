@@ -310,7 +310,7 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n)
   long long batch_sizes[n];
   long long batch_offsets[n];
 
-  long long ndims = RAI_TensorNumDims(ts[0]);
+  const long long ndims = RAI_TensorNumDims(ts[0]);
   long long dims[ndims];
 
   // TODO check that all tensors have compatible dims
@@ -333,7 +333,7 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n)
   }
   dims[0] = total_batch_size;
 
-  long long dtype_size = RAI_TensorDataSize(ts[0]);
+  const long long dtype_size = RAI_TensorDataSize(ts[0]);
 
   DLDataType dtype = RAI_TensorDataType(ts[0]);
 
@@ -348,10 +348,10 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n)
 
 RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, long long len) {
 
-  long long ndims = RAI_TensorNumDims(t);
+  const long long ndims = RAI_TensorNumDims(t);
   long long dims[ndims];
 
-  long long dtype_size = RAI_TensorDataSize(t);
+  const long long dtype_size = RAI_TensorDataSize(t);
   long long sample_size = 1;
 
   for (long long i=1; i<ndims; i++) {
