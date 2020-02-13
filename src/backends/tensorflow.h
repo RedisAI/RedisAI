@@ -8,7 +8,7 @@
 
 int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *));
 
-RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr,
+RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
                              size_t ninputs, const char **inputs,
                              size_t noutputs, const char **outputs,
                              const char *modeldef, size_t modellen,
