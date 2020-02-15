@@ -442,7 +442,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     }
     batch_offsets[0] = 0;
     for (size_t b=1; b<nbatches; ++b) {
-      batch_offsets[b] = batch_sizes[b-1];
+      batch_offsets[b] = batch_offsets[b-1] + batch_sizes[b-1];
     }
   }
 

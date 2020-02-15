@@ -109,7 +109,7 @@ OrtValue* RAI_OrtValueFromTensors(RAI_Tensor** ts, size_t count, RAI_Error *erro
   const int ndim = t0->tensor.dl_tensor.ndim;
   int64_t batched_shape[ndim];
 
-  for (size_t i=0; i<ndim; i++) {
+  for (size_t i=1; i<ndim; i++) {
     batched_shape[i] = t0->tensor.dl_tensor.shape[i];
   }
 
@@ -134,8 +134,10 @@ OrtValue* RAI_OrtValueFromTensors(RAI_Tensor** ts, size_t count, RAI_Error *erro
       goto error;
     }
 
+    size_t offset = 0;
     for (size_t i=0; i<count; i++) {
-      memcpy(ort_data, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
+      memcpy(ort_data + offset, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
+      offset += RAI_TensorByteSize(ts[i]);
     }
   }
   else {
@@ -233,14 +235,14 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, size_
       goto error;
     }
 
-    const size_t len = dtype.bits * elem_count;
+    const size_t len = dtype.bits * elem_count / 8;
 
     const size_t total_bytesize = len * sizeof(char);
     const size_t sample_bytesize = total_bytesize / total_batch_size;
     const size_t batch_bytesize = sample_bytesize * batch_size;
 
     char *data = RedisModule_Calloc(batch_bytesize, sizeof(*data));
-    memcpy(data, ort_data + batch_offset, batch_bytesize);
+    memcpy(data, ort_data + batch_offset * sample_bytesize, batch_bytesize);
 #endif
 
     ort->ReleaseTensorTypeAndShapeInfo(info);
@@ -424,7 +426,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     }
     batch_offsets[0] = 0;
     for (size_t b=1; b<nbatches; ++b) {
-      batch_offsets[b] = batch_sizes[b-1];
+      batch_offsets[b] = batch_offsets[b-1] + batch_sizes[b-1];
     }
   }
 

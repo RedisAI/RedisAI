@@ -100,9 +100,9 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   size_t batch_sizes[nbatches];
   size_t batch_offsets[nbatches];
+  size_t total_batch_size = 0;
 
   if (nbatches > 1) {
-    size_t total_batch_size = 0;
     if (array_len(mctx->batches[0].inputs) > 0) {
       for (size_t b=0; b<nbatches; ++b) {
         batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
@@ -110,7 +110,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
       }
       batch_offsets[0] = 0;
       for (size_t b=1; b<nbatches; ++b) {
-        batch_offsets[b] = batch_sizes[b-1];
+        batch_offsets[b] = batch_offsets[b-1] + batch_sizes[b-1];
       }
     }
  
@@ -153,6 +153,11 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
       return 1;
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
+    if (nbatches > 1 && RAI_TensorDim(output_tensor, 0) != total_batch_size) {
+      RAI_TensorFree(output_tensor);
+      RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected batch size.");
+      return 1;
+    }
     if (nbatches > 1) {
       for (size_t b=0; b<nbatches; b++) {
         mctx->batches[b].outputs[i].tensor = RAI_TensorCreateBySlicingTensor(output_tensor, batch_offsets[b], batch_sizes[b]);
