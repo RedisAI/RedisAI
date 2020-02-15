@@ -334,6 +334,10 @@ def test_run_tf_model_autobatch(env):
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
 
 def test_run_torch_model(env):
     if not TEST_PT:
@@ -474,6 +478,10 @@ def test_run_torch_model_autobatch(env):
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
@@ -622,6 +630,12 @@ def test_run_onnx_model_autobatch(env):
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
 
     tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
     values = tensor[-1]
     argmax = max(range(len(values)), key=lambda i: values[i])
 
@@ -817,6 +831,11 @@ def test_run_tflite_model_autobatch(env):
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'b2')
 
     tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    value = tensor[-1][0]
+
+    env.assertEqual(value, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
     value = tensor[-1][0]
 
     env.assertEqual(value, 1)
