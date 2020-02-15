@@ -9,7 +9,6 @@ import time
 import json
 import os
 import sys
-import threading
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../opt/readies"))
 import paella
@@ -298,43 +297,6 @@ def test_run_tf_model(env):
         env.assertExists('c')
 
 
-def test_run_tf_model_autobatch(env):
-    if not TEST_PT:
-        return
-
-    con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-
-    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-
-    def run():
-        con = env.getConnection()
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
-
-    t = threading.Thread(target=run)
-    t.start()
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
-    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
-
-
 def test_run_torch_model(env):
     if not TEST_PT:
         return
@@ -440,42 +402,6 @@ def test_run_torch_model(env):
         env.assertExists('a')
         env.assertExists('b')
         env.assertExists('c')
-
-
-def test_run_torch_model_autobatch(env):
-    if not TEST_PT:
-        return
-
-    con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, model_pb)
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-
-    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-
-    def run():
-        con = env.getConnection()
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
-
-    t = threading.Thread(target=run)
-    t.start()
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
-    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
 
 def test_run_onnx_model(env):
@@ -587,45 +513,6 @@ def test_run_onnx_model(env):
         env.assertExists('m')
         env.assertExists('a')
         env.assertExists('b')
-
-
-def test_run_onnx_model_autobatch(env):
-    if not TEST_PT:
-        return
-
-    con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mnist_batched.onnx')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
-                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-    con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-
-    def run():
-        con = env.getConnection()
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd')
-
-    t = threading.Thread(target=run)
-    t.start()
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
-
-    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
-    values = tensor[-1]
-    argmax = max(range(len(values)), key=lambda i: values[i])
-
-    env.assertEqual(argmax, 1)
 
 
 def test_run_onnxml_model(env):
@@ -782,44 +669,6 @@ def test_run_tflite_model(env):
         env.assertExists('a')
         env.assertExists('b')
         env.assertExists('c')
-
-
-def test_run_tflite_model_autobatch(env):
-    if not TEST_PT:
-        return
-
-    con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU',
-                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-    con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-
-    def run():
-        con = env.getConnection()
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd', 'd2')
-
-    t = threading.Thread(target=run)
-    t.start()
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'b2')
-
-    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
-    value = tensor[-1][0]
-
-    env.assertEqual(value, 1)
 
 
 def test_set_tensor_multiproc(env):

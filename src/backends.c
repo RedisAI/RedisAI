@@ -74,7 +74,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, const char*, RAI_ModelOpts,
+  backend.model_create_with_nodes = (RAI_Model* (*)(RAI_Backend, const char*,
                                      size_t, const char**, size_t, const char**,
                                      const char*, size_t, RAI_Error*))
                                      (unsigned long) dlsym(handle, "RAI_ModelCreateTF");
@@ -140,7 +140,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*, RAI_ModelOpts,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateTFLite");
   if (backend.model_create == NULL) {
@@ -205,7 +205,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*, RAI_ModelOpts,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateTorch");
   if (backend.model_create == NULL) {
@@ -294,7 +294,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
   }
   init_backend(RedisModule_GetApi);
 
-  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*, RAI_ModelOpts,
+  backend.model_create = (RAI_Model* (*)(RAI_Backend, const char*,
                           const char*, size_t, RAI_Error*))
                          (unsigned long) dlsym(handle, "RAI_ModelCreateORT");
   if (backend.model_create == NULL) {
