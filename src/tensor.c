@@ -322,10 +322,10 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n)
 
   batch_offsets[0] = 0;
   for (long long i=1; i<n; i++) {
-    batch_offsets[i] = batch_sizes[i-1];
+    batch_offsets[i] = batch_offsets[i-1] + batch_sizes[i-1];
   }
 
-  long long sample_size = 0;
+  long long sample_size = 1;
 
   for (long long i=1; i<ndims; i++) {
     dims[i] = RAI_TensorDim(ts[0], i);
