@@ -19,7 +19,7 @@ typedef struct RAI_TfLiteBuffer {
   size_t len;
 } RAI_TfLiteBuffer;
 
-RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
+RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr,
                                  const char *modeldef, size_t modellen,
                                  RAI_Error *error) {
   DLDeviceType dl_device;
@@ -67,7 +67,6 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
   ret->inputs = NULL;
   ret->outputs = NULL;
   ret->refCount = 1;
-  ret->opts = opts;
   ret->data = tflitebuffer;
 
   return ret;
@@ -84,61 +83,23 @@ void RAI_ModelFreeTFLite(RAI_Model* model, RAI_Error *error) {
 
 int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
-  const size_t nbatches = array_len(mctx->batches);
-  if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
-    return 1;
-  }
+  size_t ninputs = array_len(mctx->inputs);
+  size_t noutputs = array_len(mctx->outputs);
 
-  const size_t ninputs = array_len(mctx->batches[0].inputs);
-  const size_t noutputs = array_len(mctx->batches[0].outputs);
+  DLManagedTensor* inputs[ninputs];
+  DLManagedTensor* outputs[noutputs];
 
-  RAI_Tensor* inputs[ninputs];
-
-  DLManagedTensor* inputs_dl[ninputs];
-  DLManagedTensor* outputs_dl[noutputs];
-
-  size_t batch_sizes[nbatches];
-  size_t batch_offsets[nbatches];
-
-  if (nbatches > 1) {
-    size_t total_batch_size = 0;
-    if (array_len(mctx->batches[0].inputs) > 0) {
-      for (size_t b=0; b<nbatches; ++b) {
-        batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
-        total_batch_size += batch_sizes[b];
-      }
-      batch_offsets[0] = 0;
-      for (size_t b=1; b<nbatches; ++b) {
-        batch_offsets[b] = batch_sizes[b-1];
-      }
-    }
- 
-    for (size_t i=0 ; i<ninputs; ++i) {
-      RAI_Tensor* batch[nbatches];
-
-      for (size_t b=0; b<nbatches; b++) {
-        batch[b] = mctx->batches[b].inputs[i].tensor;
-      }
-
-      inputs[i] = RAI_TensorCreateByConcatenatingTensors(batch, nbatches);
-      inputs_dl[i] = &inputs[i]->tensor;
-    }
-  }
-  else {
-    for (size_t i=0 ; i<ninputs; ++i) {
-      inputs[i] = RAI_TensorGetShallowCopy(mctx->batches[0].inputs[i].tensor);
-      inputs_dl[i] = &inputs[i]->tensor;
-    }
+  for (size_t i=0 ; i<ninputs; ++i) {
+    inputs[i] = &mctx->inputs[i].tensor->tensor;
   }
 
   for (size_t i=0 ; i<noutputs; ++i) {
-    outputs_dl[i] = NULL;
+    outputs[i] = mctx->outputs[i].tensor ? &mctx->outputs[i].tensor->tensor : NULL;
   }
 
   char* error_descr = NULL;
   tfliteRunModel(mctx->model->model,
-                 ninputs, inputs_dl, noutputs, outputs_dl,
+                 ninputs, inputs, noutputs, outputs,
                  &error_descr, RedisModule_Alloc);
 
   if (error_descr != NULL) {
@@ -147,25 +108,14 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     return 1;
   }
 
-  for(size_t i=0 ; i<noutputs; ++i) {
-    if (outputs_dl[i] == NULL) {
+  for(size_t i=0 ; i<array_len(mctx->outputs) ; ++i) {
+    if (outputs[i] == NULL) {
       RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected number of outputs.");
       return 1;
     }
-    RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
-    if (nbatches > 1) {
-      for (size_t b=0; b<nbatches; b++) {
-        mctx->batches[b].outputs[i].tensor = RAI_TensorCreateBySlicingTensor(output_tensor, batch_offsets[b], batch_sizes[b]);
-      }
-    }
-    else {
-      mctx->batches[0].outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-    }
+    RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+    mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
     RAI_TensorFree(output_tensor);
-  }
-
-  for (size_t i=0 ; i<ninputs; ++i) {
-    RAI_TensorFree(inputs[i]);
   }
 
   return 0;
