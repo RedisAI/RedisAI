@@ -667,6 +667,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   unsigned long long batchsize = 0;
   if (AC_AdvanceIfMatch(&ac, "BATCHSIZE")) {
+    if (backend == RAI_BACKEND_TFLITE) {
+      return RedisModule_ReplyWithError(ctx, "Auto-batching not supported by the TFLITE backend.");
+    }
     if (AC_GetUnsignedLongLong(&ac, &batchsize, 0) != AC_OK) {
       return RedisModule_ReplyWithError(ctx, "Invalid argument for BATCHSIZE.");
     }
@@ -674,6 +677,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   unsigned long long minbatchsize = 0;
   if (AC_AdvanceIfMatch(&ac, "MINBATCHSIZE")) {
+    if (batchsize == 0) {
+      return RedisModule_ReplyWithError(ctx, "MINBATCHSIZE specified without BATCHSIZE.");
+    }
     if (AC_GetUnsignedLongLong(&ac, &minbatchsize, 0) != AC_OK) {
       return RedisModule_ReplyWithError(ctx, "Invalid argument for MINBATCHSIZE");
     }
