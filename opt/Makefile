@@ -14,6 +14,7 @@ make clean    # remove build artifacts
 make test     # run tests
   TEST=test       # run only test `test` with Redis output
   TEST_ARGS=args  # add extra RLTest `args`
+  TEST_COVERAGE=off # add coverage
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
   INTO=dir      # place artifacts in `dir`
@@ -63,9 +64,15 @@ CMAKE_FILES += \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
+WITH_COVERAGE=off
+ifeq ($(TEST_COVERAGE),on)
+WITH_COVERAGE=on
+endif
+
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
+	-DENABLE_CODECOVERAGE=$(WITH_COVERAGE) \
 	-DDEVICE=$(DEVICE)
 
 ifeq ($(WITH_TF),0)

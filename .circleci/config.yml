@@ -37,8 +37,15 @@ commands:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1
+            make -C opt test SHOW=1 WITH_COVERAGE=on
             cp test/logs/* ~/workspace/tests
+      - run:
+          name: Coverage
+          command: |
+            mkdir -p ~/workspace/tests
+            cd build 
+            make test ARGS="-V"
+            make coverage
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
