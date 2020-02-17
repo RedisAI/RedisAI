@@ -69,6 +69,8 @@ def test_set_tensor(env):
     values = tensor[-1]
     env.assertEqual(values, [b'2', b'3'])
     con.execute_command('AI.TENSORSET', 'x', 'INT32', 2, 'VALUES', 2, 3)
+    con.execute_command('wait', '1', '0')
+
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [2, 3])
@@ -244,6 +246,7 @@ def test_run_tf_model(env):
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('wait', '1', '0')
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
@@ -538,6 +541,8 @@ def test_run_onnxml_model(env):
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
+    con.execute_command('wait', '1', '0')
+
 
     con.execute_command('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out')
     con.execute_command('AI.MODELRUN', 'logreg', 'INPUTS', 'features', 'OUTPUTS', 'logreg_out', 'logreg_probs')
@@ -608,6 +613,7 @@ def test_run_tflite_model(env):
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('wait', '1', '0')
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'OUTPUTS')
@@ -676,6 +682,7 @@ def test_set_tensor_multiproc(env):
         lambda env: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
 
     con = env.getConnection()
+    con.execute_command('wait', '1', '0')
 
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
@@ -720,6 +727,7 @@ def test_run_mobilenet(env):
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
+    
 
     con.execute_command('AI.MODELRUN', 'mobilenet',
                         'INPUTS', 'input', 'OUTPUTS', 'output')
@@ -815,7 +823,9 @@ def test_set_correct_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('wait', '1', '0')
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
@@ -835,8 +845,12 @@ def test_del_script(env):
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
     env.assertEqual(ret, b'OK')
+    con.execute_command('wait', '1', '0')
+
 
     ret = con.execute_command('AI.SCRIPTDEL', 'ket')
+    con.execute_command('wait', '1', '0')
+
     env.assertFalse(con.execute_command('EXISTS', 'ket'))
 
 
@@ -856,6 +870,7 @@ def test_run_script(env):
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('wait', '1', '0')
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
