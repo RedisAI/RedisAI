@@ -42,7 +42,7 @@ commands:
       - run:
           name: Coverage
           command: |
-            mkdir -p ~/workspace/build
+            mkdir -p build
             cd build 
             cmake -DENABLE_CODECOVERAGE=on ..
             make
