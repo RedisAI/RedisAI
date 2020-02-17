@@ -42,8 +42,10 @@ commands:
       - run:
           name: Coverage
           command: |
-            mkdir -p ~/workspace/tests
+            mkdir -p ~/workspace/build
             cd build 
+            cmake -DENABLE_CODECOVERAGE=on ..
+            make
             make test ARGS="-V"
             make coverage
       - run:
