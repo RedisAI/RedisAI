@@ -210,3 +210,7 @@ CALLGRIND_ARGS=\
 
 callgrind: $(TARGET)
 	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+
+
+run: $(TARGET)
+	$(SHOW)redis-server --protected-mode no --save "" --appendonly no --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)

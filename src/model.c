@@ -369,11 +369,8 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t id, size_t
   return mctx->batches[id].outputs[index].tensor;
 }
 
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
-  const size_t nbatches = array_len(mctx->batches);
-  for (size_t b=0; b<nbatches; ++b) {
-    const RAI_ModelCtxBatch batch = mctx->batches[b];
-    if (batch.inputs){
+void RAI_ModelCtxBatch_Free(const RAI_ModelCtxBatch batch){
+  if (batch.inputs){
       const size_t ninputs = array_len(batch.inputs);
       for (size_t i=0; i<ninputs; ++i) {
         const RAI_ModelCtxParam ctxparam = batch.inputs[i];
@@ -393,6 +390,13 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
       }
       array_free(batch.outputs);
     }
+}
+
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
+  const size_t nbatches = array_len(mctx->batches);
+  for (size_t b=0; b<nbatches; ++b) {
+    const RAI_ModelCtxBatch batch = mctx->batches[b];
+    RAI_ModelCtxBatch_Free(batch);
   }
 
   RAI_Error err = {0};
