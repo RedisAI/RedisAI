@@ -494,9 +494,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   for(size_t i=0; i<noutputs; ++i) {
     for (size_t b=0; b<nbatches; b++) {
-      RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
-      mctx->batches[b].outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-      RAI_TensorFree(output_tensor);
+      mctx->batches[b].outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
     }
     TF_DeleteTensor(outputTensorsValues[i]);
   }

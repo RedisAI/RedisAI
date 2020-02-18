@@ -370,18 +370,29 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t id, size_t
 }
 
 void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
-  for (size_t b=0; b<array_len(mctx->batches); ++b) {
-    for (size_t i=0; i<array_len(mctx->batches[b].inputs); ++i) {
-      RAI_TensorFree(mctx->batches[b].inputs[i].tensor);
-    }
-    array_free(mctx->batches[b].inputs);
-
-    for (size_t i = 0 ; i < array_len(mctx->batches[b].outputs) ; ++i) {
-      if (mctx->batches[b].outputs[i].tensor) {
-        RAI_TensorFree(mctx->batches[b].outputs[i].tensor);
+  const size_t nbatches = array_len(mctx->batches);
+  for (size_t b=0; b<nbatches; ++b) {
+    const RAI_ModelCtxBatch batch = mctx->batches[b];
+    if (batch.inputs){
+      const size_t ninputs = array_len(batch.inputs);
+      for (size_t i=0; i<ninputs; ++i) {
+        const RAI_ModelCtxParam ctxparam = batch.inputs[i];
+        if (ctxparam.tensor) {
+          RAI_TensorFree(ctxparam.tensor);
+        }
       }
+      array_free(batch.inputs);
     }
-    array_free(mctx->batches[b].outputs);
+    if (batch.outputs){
+      const size_t noutputs = array_len(batch.outputs);
+      for (size_t i = 0 ; i < noutputs; ++i) {
+        const RAI_ModelCtxParam ctxparam = batch.outputs[i];
+        if (ctxparam.tensor) {
+          RAI_TensorFree(ctxparam.tensor);
+        }
+      }
+      array_free(batch.outputs);
+    }
   }
 
   RAI_Error err = {0};

@@ -420,7 +420,8 @@ size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype) {
 }
 
 void RAI_TensorFree(RAI_Tensor* t){
-  if (--t->refCount <= 0){
+  t->refCount--;
+  if (t->refCount <= 0){
     if (t->tensor.deleter) {
       t->tensor.deleter(&t->tensor);
     }
