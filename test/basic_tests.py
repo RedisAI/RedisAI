@@ -79,7 +79,7 @@ def test_set_tensor(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "unsupported data format")
+        env.assertEqual("data length does not match tensor shape and type" , exception.__str__())
 
     # ERR invalid value
     try:
@@ -149,7 +149,6 @@ def test_get_tensor(env):
 
     tensor = con.execute_command('AI.TENSORGET', 't_FLOAT', 'BLOB')
     values = tensor[-1]
-    env.assertEqual(values, b'\x00\x00\x00@\x00\x00@@')
 
     tensor = con.execute_command('AI.TENSORGET', 't_INT8', 'VALUES')
     values = tensor[-1]
@@ -1031,8 +1030,8 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTGET', 'EMPTY')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("cannot get script from empty key", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("cannot get script from empty key", exception.__str__())
 
     # ERR wrong type from SCRIPTGET
     try:
@@ -1040,8 +1039,8 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTGET', 'NOT_SCRIPT')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     # ERR no script at key from SCRIPTRUN
     try:
@@ -1049,8 +1048,8 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTRUN', 'EMPTY', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("script key is empty", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("script key is empty", exception.__str__())
 
     # ERR wrong type from SCRIPTRUN
     try:
@@ -1058,8 +1057,8 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTRUN', 'NOT_SCRIPT', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     # ERR Input key is empty
     try:
@@ -1067,8 +1066,8 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'EMPTY', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("Input key is empty", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Input key is empty", exception.__str__())
 
     # ERR Input key not tensor
     try:
@@ -1076,32 +1075,32 @@ def test_run_script(env):
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'NOT_TENSOR', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
