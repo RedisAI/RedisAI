@@ -37,7 +37,7 @@ commands:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1 WITH_COVERAGE=on
+            make -C opt test SHOW=1 VERBOSE=1 WITH_COVERAGE=on
             cp test/logs/* ~/workspace/tests
       - run:
           name: Coverage

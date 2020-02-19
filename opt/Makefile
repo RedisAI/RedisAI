@@ -15,6 +15,7 @@ make test     # run tests
   TEST=test       # run only test `test` with Redis output
   TEST_ARGS=args  # add extra RLTest `args`
   TEST_COVERAGE=off # add coverage
+  VERBOSE=1   # verbose tests output
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
   INTO=dir      # place artifacts in `dir`
@@ -143,7 +144,7 @@ endif
 
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
-	TEST_ARGS += -v
+TEST_ARGS += -v
 endif
 ifeq ($(TEST),)
 TEST=basic_tests.py
