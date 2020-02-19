@@ -38,7 +38,7 @@ commands:
           command: |
             mkdir -p ~/workspace/tests
             make -C opt test SHOW=1 VERBOSE=1
-            cp test/logs/* ~/workspace/ests
+            cp test/logs/* ~/workspace/tests
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
