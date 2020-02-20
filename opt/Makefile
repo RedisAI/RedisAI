@@ -14,6 +14,7 @@ make clean    # remove build artifacts
 make test     # run tests
   TEST=test       # run only test `test` with Redis output
   TEST_ARGS=args  # add extra RLTest `args`
+  TEST_COVERAGE=off # add coverage
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
   INTO=dir      # place artifacts in `dir`
@@ -53,7 +54,7 @@ BINDIR=$(BINROOT)/src
 # INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
-
+REDIS_VALGRID_SUPRESS=./redis_valgrind.sup 
 TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
@@ -63,9 +64,15 @@ CMAKE_FILES += \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
+WITH_COVERAGE=off
+ifeq ($(TEST_COVERAGE),on)
+WITH_COVERAGE=on
+endif
+
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
+	-DENABLE_CODECOVERAGE=$(WITH_COVERAGE) \
 	-DDEVICE=$(DEVICE)
 
 ifeq ($(WITH_TF),0)
@@ -174,3 +181,32 @@ endif
 
 docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+
+#----------------------------------------------------------------------------------------------
+# Currently only testing for leaks using TF
+MODULE_ARGS=\
+	BACKENDSPATH  $(realpath $(BINDIR)) \
+	TF redisai_tensorflow.so 
+
+VALGRIND_ARGS=\
+	--leak-check=full \
+	--show-reachable=no \
+	--show-possibly-lost=no \
+	--leak-check=full \
+	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
+	-v redis-server --protected-mode no --save "" --appendonly no
+
+valgrind: $(TARGET)
+	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+
+CALLGRIND_ARGS=\
+	--tool=callgrind \
+	--dump-instr=yes \
+	--simulate-cache=no \
+	--collect-jumps=no \
+	--collect-atstart=yes \
+	--instr-atstart=yes \
+	-v redis-server --protected-mode no --save "" --appendonly no
+
+callgrind: $(TARGET)
+	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
