@@ -154,7 +154,6 @@ RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, 
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
   
-
   return ret;
 }
 
@@ -162,6 +161,7 @@ void RAI_ScriptFreeTorch(RAI_Script* script, RAI_Error* error) {
 
   torchDeallocContext(script->script);
   RedisModule_Free(script->scriptdef);
+  RedisModule_Free(script->devicestr);
   RedisModule_Free(script);
 }
 
