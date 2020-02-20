@@ -1182,16 +1182,19 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int type = RedisModule_KeyType(argkey);
     if (type == REDISMODULE_KEYTYPE_EMPTY) {
       RedisModule_CloseKey(argkey);
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Input key is empty");
     }
     if (!(type == REDISMODULE_KEYTYPE_MODULE &&
           RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
       RedisModule_CloseKey(argkey);
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
     RedisModule_CloseKey(argkey);
     if (!RAI_ScriptRunCtxAddInput(sctx, t)) {
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Input key not found.");
     }
   }
@@ -1199,6 +1202,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   outkeys = RedisModule_Calloc(noutputs, sizeof(RedisModuleString*));
   for (size_t i=0; i<noutputs; i++) {
     if (!RAI_ScriptRunCtxAddOutput(sctx)) {
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Output key not found.");
     }
     RedisModule_RetainString(ctx, outputs[i]);
@@ -1215,6 +1219,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AI_dictEntry *entry = AI_dictFind(run_queues, sto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
   if (!entry){
+    RAI_ScriptRunCtxFree(sctx);
     return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
   else{
