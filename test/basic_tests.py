@@ -79,7 +79,7 @@ def test_set_tensor(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "ERR invalid argument found in tensor shape")
+        env.assertEqual(exception.__str__(), "invalid argument found in tensor shape")
 
     # ERR invalid value
     try:
