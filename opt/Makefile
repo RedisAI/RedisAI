@@ -142,42 +142,44 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
+TEST_CMD=DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
+
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
 endif
 ifeq ($(TEST),)
-TEST=basic_tests.py
+TEST=tests_common.py tests_pytorch.py tests_onnx.py tests_tflite.py tests_tensorflow.py
 PYDEBUG=
 else
 TEST_ARGS += -s
 PYDEBUG=1
 endif
 
-TEST_PREFIX=set -e; cd $(ROOT)/test
-TEST_CMD=\
-	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
-
 GEN ?= 1
 SLAVES ?= 1
 AOF ?= 1
 
-test:
+TEST_PREFIX=set -e; cd $(ROOT)/test
+
+
+test: $(TEST)
+
+$(TEST):
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
 ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD) --test $@
 endif
 ifeq ($(AOF),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof
+	$(TEST_CMD) --use-aof --test $@
 endif
 ifeq ($(SLAVES),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves
+	$(TEST_CMD) --use-slaves --test $@
 endif
 
 #----------------------------------------------------------------------------------------------
