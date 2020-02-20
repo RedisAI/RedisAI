@@ -314,7 +314,6 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr,
   ret->outputs = outputs_;
   ret->refCount = 1;
   
-
   return ret;
 }
 
@@ -337,6 +336,8 @@ void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
 
   TF_DeleteGraph(model->model);
   model->model = NULL;
+
+  RedisModule_Free(model->devicestr);
 
   if (model->inputs) {
     size_t ninputs = array_len(model->inputs);
