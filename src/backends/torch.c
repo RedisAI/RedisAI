@@ -162,6 +162,9 @@ void RAI_ScriptFreeTorch(RAI_Script* script, RAI_Error* error) {
 
   torchDeallocContext(script->script);
   RedisModule_Free(script->scriptdef);
+  if(script->devicestr){
+    RedisModule_Free(script->devicestr);
+  }
   RedisModule_Free(script);
 }
 

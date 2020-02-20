@@ -29,7 +29,7 @@ commands:
           name: Set up workspace
           command: |
             mkdir -p ~/workspace
-            chown `whoami` ~/workspace
+            chown `whoami` ~/workspace\
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -70,13 +70,54 @@ commands:
           name: Deploy to S3
           command: |
             aws s3 cp <<parameters.from>>/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
-
+  ci_valgrind_steps:
+    parameters:
+      platform:
+        type: string
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getpy
+            BREW_NO_UPDATE=1 ./opt/system-setup.py
+            git clone git://github.com/antirez/redis.git --branch 5.0.7
+            (cd redis && make malloc=libc -j $(nproc) && make install)
+            redis-server --version
+            ./get_deps.sh cpu
+      - save_cache:
+          paths:
+            - deps
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+      - run:
+          name: Set up workspace
+          command: |
+            mkdir -p ~/workspace
+            chown `whoami` ~/workspace\
+      - run:
+          name: Install Valgrind
+          command: sudo apt-get install valgrind -y
+      - run:
+          name: Build
+          command: make -C opt all SHOW=1
+      - run:
+          name: Test
+          command: |
+            mkdir -p ~/workspace/tests
+            make -C opt test SHOW=1 VERBOSE=1 VALGRIND=1 WITH_COVERAGE=on
+            cp test/logs/* ~/workspace/tests  
 jobs:
   build:
     docker:
       - image: redisfab/rmbuilder:x64-buster
     steps:
       - ci_steps:
+          platform: debian
+  build-valgrind:
+    docker:
+      - image: redisfab/rmbuilder:x64-buster
+    steps:
+      - ci_valgrind_steps:
           platform: debian
   build-macos:
     macos:
@@ -173,6 +214,10 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - build-valgrind:
+          filters:
+            tags:
+              only: /.*/
       - build-macos:
           filters:
             branches:
@@ -221,4 +266,5 @@ workflows:
                only:
                  - master
     jobs:
+      - build-valgrind
       - build-macos

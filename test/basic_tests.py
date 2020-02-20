@@ -135,10 +135,15 @@ def test_set_tensor(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    time.sleep(0.1)
+    if env.useSlaves:
+        # When WAIT returns, all the previous write commands 
+        # sent in the context of the current connection are 
+        # guaranteed to be received by the number of replicas returned by WAIT.
+        wait_reply = con.execute_command('WAIT', '1', '1000')
+        env.assertEqual(1, wait_reply)
 
-    for _ in env.reloadingIterator():
-        env.assertExists('x')
+    # for _ in env.reloadingIterator():
+    #     env.assertExists('x')
 
 
 def test_get_tensor(env):
@@ -415,8 +420,12 @@ def test_run_tf_model(env):
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     if env.useSlaves:
+        # When WAIT returns, all the previous write commands 
+        # sent in the context of the current connection are 
+        # guaranteed to be received by the number of replicas returned by WAIT.
+        wait_reply = con.execute_command('WAIT', '1', '1000')
+        env.assertEqual(1, wait_reply)
         con2 = env.getSlaveConnection()
-        time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
         env.assertEqual(tensor2, tensor)
 
@@ -530,8 +539,12 @@ def test_run_torch_model(env):
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     if env.useSlaves:
+        # When WAIT returns, all the previous write commands 
+        # sent in the context of the current connection are 
+        # guaranteed to be received by the number of replicas returned by WAIT.
+        wait_reply = con.execute_command('WAIT', '1', '1000')
+        env.assertEqual(1, wait_reply)
         con2 = env.getSlaveConnection()
-        time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
         env.assertEqual(tensor2, tensor)
 
@@ -648,8 +661,12 @@ def test_run_onnx_model(env):
     env.assertEqual(argmax, 1)
 
     if env.useSlaves:
+        # When WAIT returns, all the previous write commands 
+        # sent in the context of the current connection are 
+        # guaranteed to be received by the number of replicas returned by WAIT.
+        wait_reply = con.execute_command('WAIT', '1', '1000')
+        env.assertEqual(1, wait_reply)
         con2 = env.getSlaveConnection()
-        time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
         env.assertEqual(tensor2, tensor)
 
@@ -695,7 +712,6 @@ def test_run_onnxml_model(env):
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        time.sleep(0.1)
         linear_out2 = con2.execute_command('AI.TENSORGET', 'linear_out', 'VALUES')
         logreg_out2 = con2.execute_command('AI.TENSORGET', 'logreg_out', 'VALUES')
         env.assertEqual(linear_out, linear_out2)
@@ -1144,11 +1160,13 @@ def test_run_script(env):
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
-    time.sleep(0.1)
-
     if env.useSlaves:
+        # When WAIT returns, all the previous write commands 
+        # sent in the context of the current connection are 
+        # guaranteed to be received by the number of replicas returned by WAIT.
+        wait_reply = con.execute_command('WAIT', '1', '1000')
+        env.assertEqual(1, wait_reply)
         con2 = env.getSlaveConnection()
-        time.sleep(0.1)
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
         env.assertEqual(tensor2, tensor)
 

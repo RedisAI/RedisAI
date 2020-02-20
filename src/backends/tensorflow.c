@@ -353,7 +353,9 @@ void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
     }
     array_free(model->outputs);
   }
-
+  if(model->devicestr){
+    RedisModule_Free(model->devicestr);
+  }
   TF_DeleteStatus(status);
 }
 
