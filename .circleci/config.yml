@@ -102,7 +102,8 @@ commands:
           command: |
             mkdir -p ~/workspace/tests
             make -C opt test SHOW=1 VERBOSE=1 VALGRIND=1 WITH_COVERAGE=on
-            cp test/logs/* ~/workspace/tests  
+            cp test/logs/* ~/workspace/tests 
+          timeout: 1800 
 jobs:
   build:
     docker:
