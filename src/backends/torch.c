@@ -24,6 +24,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
 
   if (!parseDeviceStr(devicestr, &device, &deviceid)) {
     RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR unsupported device");
+    return NULL;
   }
 
   switch (device) {
