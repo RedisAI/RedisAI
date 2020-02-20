@@ -144,6 +144,10 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
                       "OUTPUTS", outputs_, model->noutputs,
                       buffer, len);
 
+  if (buffer) {
+    RedisModule_Free(buffer);
+  }
+
   for (size_t i=0; i<model->ninputs; i++) {
     RedisModule_FreeString(ctx, inputs_[i]);
   }
