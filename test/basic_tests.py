@@ -73,46 +73,112 @@ def test_set_tensor(env):
     values = tensor[-1]
     env.assertEqual(values, [2, 3])
 
+    # ERR unsupported data format
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'unsupported', 2, 3)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("data length does not match tensor shape and type" , exception.__str__())
+
+    # ERR invalid value
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'FLOAT', 2, 'VALUES', 2, 'A')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
+    # ERR invalid value
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'VALUES', 2, 'A')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
     try:
         con.execute_command('AI.TENSORSET', 1)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     time.sleep(0.1)
 
     for _ in env.reloadingIterator():
         env.assertExists('x')
+
+
+def test_get_tensor(env):
+    con = env.getConnection()
+    con.execute_command('AI.TENSORSET', 't_FLOAT', 'FLOAT', 2, 'VALUES', 2, 3)
+    con.execute_command('AI.TENSORSET', 't_INT8', 'INT8', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 't_INT16', 'INT8', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 't_INT32', 'INT8', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 't_INT64', 'INT8', 2, 'VALUES', 1, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 't_FLOAT', 'BLOB')
+    values = tensor[-1]
+
+    tensor = con.execute_command('AI.TENSORGET', 't_INT8', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [1,1])
+
+    tensor = con.execute_command('AI.TENSORGET', 't_INT16', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values,[1,1])
+
+    tensor = con.execute_command('AI.TENSORGET', 't_INT32', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values,[1,1])
+
+
+    tensor = con.execute_command('AI.TENSORGET', 't_INT64', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [1,1])
+
+
+    tensor = con.execute_command('AI.TENSORGET', 't_INT32', 'META')
+    values = tensor[-1]
+    env.assertEqual(values, [2])
+    
+    # ERR unsupported data format
+    try:
+        con.execute_command('AI.TENSORGET', 't_FLOAT', 'unsupported')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual(exception.__str__(), "unsupported data format")
 
 
 def test_del_tf_model(env):
@@ -134,6 +200,23 @@ def test_del_tf_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     env.assertFalse(env.execute_command('EXISTS', 'm'))
 
+    # ERR no model at key
+    try:
+        con.execute_command('AI.MODELDEL', 'm')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("no model at key",exception.__str__())
+
+    # ERR wrong type
+    try:
+        con.execute_command('SET', 'NOT_MODEL', 'BAR')
+        con.execute_command('AI.MODELDEL', 'NOT_MODEL')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
+
 
 def test_run_tf_model(env):
     if not TEST_PT:
@@ -153,6 +236,40 @@ def test_run_tf_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 3)
+    # TODO: enable me
+    # env.assertEqual(ret[0], b'TF')
+    # env.assertEqual(ret[1], b'CPU')
+
+    # ERR WrongArity
+    try:
+        con.execute_command('AI.MODELGET')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("wrong number of arguments for 'AI.MODELGET' command", exception.__str__() )
+
+    # ERR WRONGTYPE
+    con.execute_command('SET', 'NOT_MODEL', 'BAR')
+    try:
+        con.execute_command('AI.MODELGET', 'NOT_MODEL')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+    # cleanup
+    con.execute_command('DEL', 'NOT_MODEL')
+
+    # ERR cannot get model from empty key
+    con.execute_command('DEL', 'DONT_EXIST')
+    try:
+        con.execute_command('AI.MODELGET', 'DONT_EXIST')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("cannot get model from empty key", exception.__str__())
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
@@ -230,6 +347,15 @@ def test_run_tf_model(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
+    # ERR Invalid GraphDef
+    try:
+        con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
+                            'INPUTS', 'a', 'b', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "Invalid GraphDef")
+
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
@@ -241,6 +367,8 @@ def test_run_tf_model(env):
     except Exception as e:
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -296,6 +424,9 @@ def test_run_tf_model(env):
         env.assertExists('b')
         env.assertExists('c')
 
+    con.execute_command('AI.MODELDEL', 'm')
+    env.assertFalse(env.execute_command('EXISTS', 'm'))
+
 
 def test_run_torch_model(env):
     if not TEST_PT:
@@ -315,6 +446,11 @@ def test_run_torch_model(env):
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
     env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    # TODO: enable me
+    # env.assertEqual(ret[0], b'TORCH')
+    # env.assertEqual(ret[1], b'CPU')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, wrong_model_pb)
@@ -426,6 +562,12 @@ def test_run_onnx_model(env):
 
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, model_pb)
     env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 3)
+    # TODO: enable me
+    # env.assertEqual(ret[0], b'ONNX')
+    # env.assertEqual(ret[1], b'CPU')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, wrong_model_pb)
@@ -586,6 +728,12 @@ def test_run_tflite_model(env):
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
     env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 3)
+    # TODO: enable me
+    # env.assertEqual(ret[0], b'TFLITE')
+    # env.assertEqual(ret[1], b'CPU')
 
     # try:
     #     con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', 'CPU', wrong_model_pb)
@@ -777,8 +925,7 @@ def test_run_mobilenet_multiproc(env):
     #@@@ possible workaround for side-effect test failure
     # env.restartAndReload()
 
-
-def test_set_incorrect_script(env):
+def test_set_script(env):
     if not TEST_PT:
         return
 
@@ -802,13 +949,6 @@ def test_set_incorrect_script(env):
         exception = e
     env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-
-def test_set_correct_script(env):
-    if not TEST_PT:
-        return
-
-    con = env.getConnection()
-
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
@@ -819,6 +959,8 @@ def test_set_correct_script(env):
 
     for _ in env.reloadingIterator():
         env.assertExists('ket')
+
+
 
 
 def test_del_script(env):
@@ -839,6 +981,24 @@ def test_del_script(env):
     ret = con.execute_command('AI.SCRIPTDEL', 'ket')
     env.assertFalse(con.execute_command('EXISTS', 'ket'))
 
+    # ERR no script at key from SCRIPTDEL
+    try:
+        con.execute_command('DEL', 'EMPTY')
+        con.execute_command('AI.SCRIPTDEL', 'EMPTY')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("no script at key", exception.__str__())
+
+    # ERR wrong type from SCRIPTDEL
+    try:
+        con.execute_command('SET', 'NOT_SCRIPT', 'BAR')
+        con.execute_command('AI.SCRIPTDEL', 'NOT_SCRIPT')
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+
 
 def test_run_script(env):
     if not TEST_PT:
@@ -852,34 +1012,96 @@ def test_run_script(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    env.assertEqual(ret, b'OK')
 
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    # TODO: enable me ( this is hanging CI )
+    # ret = con.execute_command('AI.SCRIPTGET', 'ket')
+    # TODO: enable me
+    # env.assertEqual([b'CPU',script],ret)
+
+    # ERR no script at key from SCRIPTGET
+    try:
+        con.execute_command('DEL', 'EMPTY')
+        con.execute_command('AI.SCRIPTGET', 'EMPTY')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("cannot get script from empty key", exception.__str__())
+
+    # ERR wrong type from SCRIPTGET
+    try:
+        con.execute_command('SET', 'NOT_SCRIPT', 'BAR')
+        con.execute_command('AI.SCRIPTGET', 'NOT_SCRIPT')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+
+    # ERR no script at key from SCRIPTRUN
+    try:
+        con.execute_command('DEL', 'EMPTY')
+        con.execute_command('AI.SCRIPTRUN', 'EMPTY', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("script key is empty", exception.__str__())
+
+    # ERR wrong type from SCRIPTRUN
+    try:
+        con.execute_command('SET', 'NOT_SCRIPT', 'BAR')
+        con.execute_command('AI.SCRIPTRUN', 'NOT_SCRIPT', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+
+    # ERR Input key is empty
+    try:
+        con.execute_command('DEL', 'EMPTY')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'EMPTY', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Input key is empty", exception.__str__())
+
+    # ERR Input key not tensor
+    try:
+        con.execute_command('SET', 'NOT_TENSOR', 'BAR')
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'NOT_TENSOR', 'b', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'b', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
 
