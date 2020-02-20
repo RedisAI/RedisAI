@@ -214,7 +214,13 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   size_t len = 1;
   long long *dims = RedisModule_PoolAlloc(ctx, ndims * sizeof(long long));
   for (size_t i=0; i<ndims; i++) {
-    AC_GetLongLong(&dac, dims+i, 0);
+    int ret = AC_GetLongLong(&dac, dims+i, 0);
+    if (ret != AC_OK) {
+      return RedisModule_ReplyWithError(ctx, "ERR invalid argument found in tensor shape");
+    }
+    if (dims[i] < 0) {
+      return RedisModule_ReplyWithError(ctx, "ERR negative value found in tensor shape");
+    }
     len *= dims[i];
   }
 
