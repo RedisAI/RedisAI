@@ -141,7 +141,7 @@ else
 endif
 
 #----------------------------------------------------------------------------------------------
-
+TEST_ARGS += --check-exitcode 
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
