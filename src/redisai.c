@@ -751,6 +751,8 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
+  RedisModule_Free(buffer);
+
   return REDISMODULE_OK;
 }
 
