@@ -251,12 +251,14 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   case REDISAI_DATA_BLOB:
     AC_GetString(&ac, &data, &datalen, 0);
     if (datalen != nbytes){
+      RAI_TensorFree(t);
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
     RAI_TensorSetData(t, data, datalen);
     break;
   case REDISAI_DATA_VALUES:
     if (argc != len + 4 + ndims){
+      RAI_TensorFree(t);
       return RedisModule_WrongArity(ctx);
     }
     DLDataType datatype = RAI_TensorDataType(t);
