@@ -95,9 +95,6 @@ commands:
             mkdir -p ~/workspace
             chown `whoami` ~/workspace\
       - run:
-          name: Install Valgrind
-          command: sudo apt-get install valgrind -y
-      - run:
           name: Build
           command: make -C opt all SHOW=1
       - run:
