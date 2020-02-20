@@ -227,7 +227,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const int hasdata = !AC_IsAtEnd(&ac);
 
   const char* fmtstr;
-  int datafmt;
+  int datafmt = REDISAI_DATA_NONE;
   if (hasdata) {
     AC_GetString(&ac, &fmtstr, NULL, 0);
     if (strcasecmp(fmtstr, "BLOB") == 0) {
@@ -251,12 +251,14 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   case REDISAI_DATA_BLOB:
     AC_GetString(&ac, &data, &datalen, 0);
     if (datalen != nbytes){
+      RAI_TensorFree(t);
       return RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
     }
     RAI_TensorSetData(t, data, datalen);
     break;
   case REDISAI_DATA_VALUES:
     if (argc != len + 4 + ndims){
+      RAI_TensorFree(t);
       return RedisModule_WrongArity(ctx);
     }
     DLDataType datatype = RAI_TensorDataType(t);
@@ -749,6 +751,8 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
 
+  RedisModule_Free(buffer);
+
   return REDISMODULE_OK;
 }
 
@@ -816,6 +820,10 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
 
   RedisModule_Replicate(ctx, "AI.TENSORSET", "scvcb", key, dtypestr,
                         dims, ndims, "BLOB", data, size);
+
+  // for (long long i=0; i<ndims; i++) {
+  //   RedisModule_Free(dims[i]);
+  // }
 
   RedisModule_Free(dtypestr);
 }
@@ -1174,16 +1182,19 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int type = RedisModule_KeyType(argkey);
     if (type == REDISMODULE_KEYTYPE_EMPTY) {
       RedisModule_CloseKey(argkey);
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Input key is empty");
     }
     if (!(type == REDISMODULE_KEYTYPE_MODULE &&
           RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
       RedisModule_CloseKey(argkey);
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
     RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
     RedisModule_CloseKey(argkey);
     if (!RAI_ScriptRunCtxAddInput(sctx, t)) {
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Input key not found.");
     }
   }
@@ -1191,6 +1202,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   outkeys = RedisModule_Calloc(noutputs, sizeof(RedisModuleString*));
   for (size_t i=0; i<noutputs; i++) {
     if (!RAI_ScriptRunCtxAddOutput(sctx)) {
+      RAI_ScriptRunCtxFree(sctx);
       return RedisModule_ReplyWithError(ctx, "Output key not found.");
     }
     RedisModule_RetainString(ctx, outputs[i]);
@@ -1207,6 +1219,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AI_dictEntry *entry = AI_dictFind(run_queues, sto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
   if (!entry){
+    RAI_ScriptRunCtxFree(sctx);
     return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
   }
   else{
