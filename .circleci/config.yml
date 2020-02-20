@@ -99,11 +99,11 @@ commands:
           command: make -C opt all SHOW=1
       - run:
           name: Test for Leaks
-          command: "|
+          command: |
             mkdir -p ~/workspace/tests
             make -C opt test SHOW=1 GEN=0 SLAVES=0 AOF=0 VERBOSE=1 VALGRIND=1
-            cp test/logs/* ~/workspace/tests"
-              timeout: 1800 
+            cp test/logs/* ~/workspace/tests
+          no_output_timeout: 30m
 jobs:
   build:
     docker:
