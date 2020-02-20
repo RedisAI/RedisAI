@@ -227,7 +227,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const int hasdata = !AC_IsAtEnd(&ac);
 
   const char* fmtstr;
-  int datafmt;
+  int datafmt = REDISAI_DATA_NONE;
   if (hasdata) {
     AC_GetString(&ac, &fmtstr, NULL, 0);
     if (strcasecmp(fmtstr, "BLOB") == 0) {
