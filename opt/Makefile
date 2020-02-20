@@ -163,7 +163,6 @@ VALGRIND_TEST_CMD=\
 	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
 	python3 -m RLTest --no-output-catch --use-valgrind --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS)) $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
 
-
 GEN ?= 1
 SLAVES ?= 1
 AOF ?= 1

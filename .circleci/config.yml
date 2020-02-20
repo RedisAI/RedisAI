@@ -98,12 +98,12 @@ commands:
           name: Build
           command: make -C opt all SHOW=1
       - run:
-          name: Test
-          command: |
+          name: Test for Leaks
+          command: "|
             mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1 VERBOSE=1 VALGRIND=1 WITH_COVERAGE=on
-            cp test/logs/* ~/workspace/tests 
-          timeout: 1800 
+            make -C opt test SHOW=1 GEN=0 SLAVES=0 AOF=0 VERBOSE=1 VALGRIND=1
+            cp test/logs/* ~/workspace/tests"
+              timeout: 1800 
 jobs:
   build:
     docker:
