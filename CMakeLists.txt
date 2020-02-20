@@ -31,6 +31,7 @@ option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
 option(BUILD_TORCH "Build the PyTorch backend" ON)
+OPTION(ENABLE_CODECOVERAGE "Enable code coverage testing support" OFF)
 
 #----------------------------------------------------------------------------------------------
 
@@ -71,6 +72,23 @@ GET_FILENAME_COMPONENT(depsAbs
 GET_FILENAME_COMPONENT(installAbs
         "${INSTALL_PATH}" REALPATH BASE_DIR ${CMAKE_SOURCE_DIR})
 
+if(ENABLE_CODECOVERAGE)
+    message(STATUS "Forcing build type to Debug to run coverage.")
+    set(CMAKE_BUILD_TYPE "Debug" CACHE STRING "Choose the type of build." FORCE)
+    include(UseCodeCoverage)
+    find_package(PythonInterp 3 REQUIRED)
+    enable_testing()
+    set( ENV{DEVICE} "CPU" )
+    file(GLOB TEST_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/test/tests_*.py
+    )
+    foreach(file ${TEST_FILES})
+        message(STATUS "Creating tests ${file}.")
+        add_test(NAME ${file}_single_master COMMAND ${PYTHON_EXECUTABLE} -m RLTest --check-exitcode --test ${file} -v --module redisai.so --module-args "BACKENDSPATH ${CMAKE_CURRENT_SOURCE_DIR}/build TORCH redisai_torch.so TF redisai_tensorflow.so ONNX redisai_onnxruntime.so TFLITE redisai_tflite.so" WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH} )
+        add_test(NAME ${file}_aof COMMAND ${PYTHON_EXECUTABLE} -m RLTest --check-exitcode --test ${file} -v --module redisai.so --module-args "BACKENDSPATH ${CMAKE_CURRENT_SOURCE_DIR}/build TORCH redisai_torch.so TF redisai_tensorflow.so ONNX redisai_onnxruntime.so TFLITE redisai_tflite.so" --use-aof WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH} )
+        add_test(NAME ${file}_use_slaves COMMAND ${PYTHON_EXECUTABLE} -m RLTest --check-exitcode --test ${file} -v --module redisai.so --module-args "BACKENDSPATH ${CMAKE_CURRENT_SOURCE_DIR}/build TORCH redisai_torch.so TF redisai_tensorflow.so ONNX redisai_onnxruntime.so TFLITE redisai_tflite.so" --use-slaves WORKING_DIRECTORY ${EXECUTABLE_OUTPUT_PATH} )
+  endforeach()
+ENDIF()
 #----------------------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)

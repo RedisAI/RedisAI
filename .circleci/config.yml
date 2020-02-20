@@ -37,8 +37,18 @@ commands:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1 VERBOSE=1
+            make -C opt test SHOW=1 VERBOSE=1 WITH_COVERAGE=on
             cp test/logs/* ~/workspace/tests
+      - run:
+          name: Coverage
+          command: |
+            mkdir -p build
+            cd build 
+            cmake -DENABLE_CODECOVERAGE=on ..
+            make
+            make test ARGS="-V"
+            make coverage
+            bash <(curl -s https://codecov.io/bash) -f coverage.info -X gcov -x gcov-7 || echo "Codecov did not collect coverage reports"
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
@@ -60,7 +70,6 @@ commands:
           name: Deploy to S3
           command: |
             aws s3 cp <<parameters.from>>/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
-
 jobs:
   build:
     docker:

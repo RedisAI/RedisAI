@@ -22,7 +22,7 @@ class RedisAISetup(paella.Setup):
 
         if self.os == 'linux':
             self.install("ca-certificates")
-        self.install("git cmake unzip wget patchelf awscli")
+        self.install("git cmake unzip wget patchelf awscli valgrind")
         self.install("coreutils") # for realpath
 
     def debian_compat(self):

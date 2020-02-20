@@ -1,4 +1,26 @@
 {
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
+   obj:*/libtensorflow.so.*
+}
+
+{
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
+   obj:*/libonnxruntime.so.*
+}
+
+{
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
+   obj:*/libtorch.so.*
+}
+
+
+{
    <lzf_unitialized_hash_table>
    Memcheck:Cond
    fun:lzf_compress

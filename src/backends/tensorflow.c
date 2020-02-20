@@ -354,7 +354,6 @@ void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
     }
     array_free(model->outputs);
   }
-
   TF_DeleteStatus(status);
 }
 
