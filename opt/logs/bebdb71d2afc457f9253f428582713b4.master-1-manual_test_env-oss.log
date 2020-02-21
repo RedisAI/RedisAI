@@ -1,7 +1,0 @@
-10258:C 17 Feb 2020 14:39:28.003 # oO0OoO0OoO0Oo Redis is starting oO0OoO0OoO0Oo
-10258:C 17 Feb 2020 14:39:28.003 # Redis version=999.999.999, bits=64, commit=9ecbfc3b, modified=0, pid=10258, just started
-10258:C 17 Feb 2020 14:39:28.003 # Configuration loaded
-10258:M 17 Feb 2020 14:39:28.004 # You requested maxclients of 10000 requiring at least 10032 max file descriptors.
-10258:M 17 Feb 2020 14:39:28.004 # Server can't set maximum open files to 10032 because of OS error: Operation not permitted.
-10258:M 17 Feb 2020 14:39:28.004 # Current maximum open files is 4096. maxclients has been reduced to 4064 to compensate for low ulimit. If you need higher maxclients increase 'ulimit -n'.
-10258:M 17 Feb 2020 14:39:28.004 # Could not create server TCP listening socket *:6379: bind: Address already in use
