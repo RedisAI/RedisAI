@@ -81,7 +81,7 @@ def test_run_mobilenet_multiproc(env):
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
     ensureSlaveSynced(con, env)
-    
+
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
 
     ensureSlaveSynced(con, env)
@@ -104,6 +104,7 @@ def test_run_mobilenet_multiproc(env):
         env.assertEqual(dtype, slave_dtype)
         env.assertEqual(shape, slave_shape)
         env.assertEqual(data, slave_data)
+
 
 def test_del_tf_model(env):
     if not TEST_TF:
@@ -332,6 +333,7 @@ def test_run_tf_model(env):
         con2 = env.getSlaveConnection()
         env.assertFalse(con2.execute_command('EXISTS', 'm'))
 
+
 def test_tensorflow_modelinfo(env):
     if not TEST_TF:
         return
@@ -357,7 +359,7 @@ def test_tensorflow_modelinfo(env):
     ensureSlaveSynced(con, env)
 
     previous_duration = 0
-    for call in range(1,10):
+    for call in range(1, 10):
         ret = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
@@ -369,18 +371,18 @@ def test_tensorflow_modelinfo(env):
         env.assertEqual(info_dict_0['TYPE'], 'MODEL')
         env.assertEqual(info_dict_0['BACKEND'], 'TF')
         env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration )
-        env.assertEqual(info_dict_0['SAMPLES'], 2*call)
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
+        env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
         env.assertEqual(info_dict_0['CALLS'], call)
         env.assertEqual(info_dict_0['ERRORS'], 0)
 
         previous_duration = info_dict_0['DURATION']
 
-    res = con.execute_command('AI.INFO', 'm', 'RESETSTAT' )
+    res = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
     env.assertEqual(res, b'OK')
-    info = con.execute_command('AI.INFO', 'm' )
+    info = con.execute_command('AI.INFO', 'm')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'] ,0)
+    env.assertEqual(info_dict_0['DURATION'], 0)
     env.assertEqual(info_dict_0['SAMPLES'], 0)
     env.assertEqual(info_dict_0['CALLS'], 0)
     env.assertEqual(info_dict_0['ERRORS'], 0)

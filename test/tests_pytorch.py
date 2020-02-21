@@ -6,6 +6,7 @@ from includes import *
 python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
+
 def test_pytorch_modelrun(env):
     if not TEST_PT:
         return
@@ -166,6 +167,7 @@ def test_pytorch_modelinfo(env):
     env.assertEqual(info_dict_0['SAMPLES'], 0)
     env.assertEqual(info_dict_0['CALLS'], 0)
     env.assertEqual(info_dict_0['ERRORS'], 0)
+
 
 def test_pytorch_scriptset(env):
     if not TEST_PT:
@@ -391,7 +393,6 @@ def test_pytorch_scriptrun(env):
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
         env.assertEqual(tensor2, tensor)
-
 
 
 def test_pytorch_scriptinfo(env):

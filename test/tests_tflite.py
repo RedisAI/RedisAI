@@ -6,6 +6,7 @@ from includes import *
 python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 '''
 
+
 def test_run_tflite_model(env):
     if not TEST_TFLITE:
         return
@@ -115,7 +116,7 @@ def test_run_tflite_model(env):
 
     env.assertEqual(value, 1)
 
-    
+
 def test_tflite_modelinfo(env):
     if not TEST_TFLITE:
         return
@@ -140,7 +141,7 @@ def test_tflite_modelinfo(env):
     ensureSlaveSynced(con, env)
 
     previous_duration = 0
-    for call in range(1,10):
+    for call in range(1, 10):
         ret = con.execute_command('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
@@ -152,18 +153,45 @@ def test_tflite_modelinfo(env):
         env.assertEqual(info_dict_0['TYPE'], 'MODEL')
         env.assertEqual(info_dict_0['BACKEND'], 'TFLITE')
         env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration )
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
         env.assertEqual(info_dict_0['SAMPLES'], call)
         env.assertEqual(info_dict_0['CALLS'], call)
         env.assertEqual(info_dict_0['ERRORS'], 0)
 
         previous_duration = info_dict_0['DURATION']
 
-    res = con.execute_command('AI.INFO', 'mnist', 'RESETSTAT' )
+    res = con.execute_command('AI.INFO', 'mnist', 'RESETSTAT')
     env.assertEqual(res, b'OK')
-    info = con.execute_command('AI.INFO', 'mnist' )
+    info = con.execute_command('AI.INFO', 'mnist')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'] ,0)
+    env.assertEqual(info_dict_0['DURATION'], 0)
     env.assertEqual(info_dict_0['SAMPLES'], 0)
     env.assertEqual(info_dict_0['CALLS'], 0)
     env.assertEqual(info_dict_0['ERRORS'], 0)
+
+
+def test_tflite_modelrun_disconnect(env):
+    if not TEST_TFLITE:
+        return
+
+    red = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = red.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = red.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(red, env)
+
+    ret = send_and_disconnect(('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c'), red)
+    env.assertEqual(ret, None)

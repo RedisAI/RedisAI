@@ -32,12 +32,24 @@ def ensureSlaveSynced(con, env):
         env.assertTrue(wait_reply >= 1)
 
 
+# Ensures command is sent and forced disconnect
+# after without waiting for the reply to be parsed
+# Usefull for checking behaviour of commands
+# that are run with background threads
+def send_and_disconnect(cmd, red):
+    pool = red.connection_pool
+    con = pool.get_connection(cmd[0])
+    ret = con.send_command(*cmd)
+    con.disconnect()
+    return ret
+
+
 def check_cuda():
     return os.system('which nvcc')
 
 
 def info_to_dict(info):
-    info = [el.decode('ascii') if type(el) is bytes else el for el in info]
+    info = [el.decode('utf-8') if type(el) is bytes else el for el in info]
     return dict(zip(info[::2], info[1::2]))
 
 
