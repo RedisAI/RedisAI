@@ -219,3 +219,31 @@ def test_onnx_modelinfo(env):
     env.assertEqual(info_dict_0['SAMPLES'], 0)
     env.assertEqual(info_dict_0['CALLS'], 0)
     env.assertEqual(info_dict_0['ERRORS'], 0)
+
+
+def test_onnx_modelrun_disconnect(env):
+    if not TEST_ONNX:
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        linear_model = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_master = con.execute_command('AI.MODELGET', 'linear')
+    con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
+
+    ensureSlaveSynced(con, env)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear')
+        env.assertEqual(len(model_serialized_master), len(model_serialized_slave))
+
+    ret = send_and_disconnect(('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out'), con)
+    env.assertEqual(ret, None)
