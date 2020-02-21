@@ -6,7 +6,6 @@ from includes import *
 python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 '''
 
-
 def test_run_tflite_model(env):
     if not TEST_TFLITE:
         return
