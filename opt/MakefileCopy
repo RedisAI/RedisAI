@@ -14,8 +14,8 @@ make clean    # remove build artifacts
 make test     # run tests
   TEST=test       # run only test `test` with Redis output
   TEST_ARGS=args  # add extra RLTest `args`
-  VERBOSE=1   # verbose tests output
   TEST_COVERAGE=off # add coverage
+  VERBOSE=1   # verbose tests output
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
   INTO=dir      # place artifacts in `dir`
@@ -55,7 +55,7 @@ BINDIR=$(BINROOT)/src
 # INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
-REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
+REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup 
 TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
@@ -141,52 +141,54 @@ else
 endif
 
 #----------------------------------------------------------------------------------------------
-# TODO: --errors-for-leak-kinds=definite
-VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
-
-TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-fail-on-errors=False --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
-
-
+TEST_ARGS += --check-exitcode 
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
 endif
 ifeq ($(TEST),)
-TEST=tests_common.py tests_pytorch.py tests_onnx.py tests_tflite.py tests_tensorflow.py
+TEST=basic_tests.py
 PYDEBUG=
 else
 TEST_ARGS += -s
 PYDEBUG=1
 endif
 
+
+VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no --smc-check=all --errors-for-leak-kinds=definite"
+
+TEST_PREFIX=set -e; cd $(ROOT)/test
+TEST_CMD=\
+	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+
+VALGRIND_TEST_CMD=\
+	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
+	python3 -m RLTest --no-output-catch --vg-verbose --use-valgrind --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS)) $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+
 GEN ?= 1
 SLAVES ?= 1
 AOF ?= 1
 
-TEST_PREFIX=set -e; cd $(ROOT)/test
-
-test: $(TEST)
-
-$(TEST):
+test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
 ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD) --test $@
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
 endif
 ifeq ($(AOF),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof --test $@
+	$(TEST_CMD) --use-aof
 endif
 ifeq ($(SLAVES),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves --test $@
+	$(TEST_CMD) --use-slaves
 endif
 ifeq ($(VALGRIND),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
-	$(VALGRIND_TEST_CMD) --test $@
+	$(VALGRIND_TEST_CMD)
 endif
 
 #----------------------------------------------------------------------------------------------
@@ -200,9 +202,7 @@ MODULE_ARGS=\
 	BACKENDSPATH  $(realpath $(BINDIR)) \
 	TF redisai_tensorflow.so 
 
-VALGRIND_ARGS=\
-	$(VALGRIND_OPTIONS) \
-	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
+VALGRIND_ARGS += --suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
 	-v redis-server --protected-mode no --save "" --appendonly no
 
 valgrind: $(TARGET)
@@ -219,3 +219,7 @@ CALLGRIND_ARGS=\
 
 callgrind: $(TARGET)
 	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+
+
+run: $(TARGET)
+	$(SHOW)redis-server --protected-mode no --save "" --appendonly no --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)

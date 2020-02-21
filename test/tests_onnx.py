@@ -1,5 +1,7 @@
-import redis
+import sys
 
+import redis
+import inspect
 from includes import *
 
 '''
@@ -9,6 +11,7 @@ python -m RLTest --test tests_onnx.py --module path/to/redisai.so
 
 def test_onnx_modelrun_mnist(env):
     if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -124,6 +127,7 @@ def test_onnx_modelrun_mnist(env):
 
 def test_onnx_modelrun_iris(env):
     if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -169,6 +173,7 @@ def test_onnx_modelrun_iris(env):
 
 def test_onnx_modelinfo(env):
     if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -223,6 +228,7 @@ def test_onnx_modelinfo(env):
 
 def test_onnx_modelrun_disconnect(env):
     if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()

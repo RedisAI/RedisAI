@@ -9,6 +9,7 @@ python -m RLTest --test tests_tensorflow.py --module path/to/redisai.so
 
 def test_run_mobilenet(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -70,6 +71,7 @@ def test_run_mobilenet(env):
 
 def test_run_mobilenet_multiproc(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -108,6 +110,7 @@ def test_run_mobilenet_multiproc(env):
 
 def test_del_tf_model(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -152,6 +155,7 @@ def test_del_tf_model(env):
 
 def test_run_tf_model(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -336,6 +340,7 @@ def test_run_tf_model(env):
 
 def test_tensorflow_modelinfo(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -389,6 +394,7 @@ def test_tensorflow_modelinfo(env):
 
 def test_tensorflow_modelrun_disconnect(env):
     if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     red = env.getConnection()

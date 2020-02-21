@@ -9,6 +9,7 @@ python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 
 def test_run_tflite_model(env):
     if not TEST_TFLITE:
+        env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -119,6 +120,7 @@ def test_run_tflite_model(env):
 
 def test_tflite_modelinfo(env):
     if not TEST_TFLITE:
+        env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -172,6 +174,7 @@ def test_tflite_modelinfo(env):
 
 def test_tflite_modelrun_disconnect(env):
     if not TEST_TFLITE:
+        env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     red = env.getConnection()

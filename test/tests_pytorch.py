@@ -9,6 +9,7 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 
 def test_pytorch_modelrun(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -118,6 +119,7 @@ def test_pytorch_modelrun(env):
 
 def test_pytorch_modelinfo(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -171,6 +173,7 @@ def test_pytorch_modelinfo(env):
 
 def test_pytorch_scriptset(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -216,6 +219,7 @@ def test_pytorch_scriptset(env):
 
 def test_pytorch_scriptdel(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -263,6 +267,7 @@ def test_pytorch_scriptdel(env):
 
 def test_pytorch_scriptrun(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -397,6 +402,7 @@ def test_pytorch_scriptrun(env):
 
 def test_pytorch_scriptinfo(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -449,6 +455,7 @@ def test_pytorch_scriptinfo(env):
 
 def test_pytorch_scriptrun_disconnect(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -475,6 +482,7 @@ def test_pytorch_scriptrun_disconnect(env):
 
 def test_pytorch_modelrun_disconnect(env):
     if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
