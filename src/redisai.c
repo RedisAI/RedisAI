@@ -799,6 +799,8 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisAI_FreeRunStats(ctx, rstats);
   }
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
@@ -1343,6 +1345,8 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     AI_dictDelete(run_stats, key_cstr);
     RedisAI_FreeRunStats(ctx, rstats);
   }
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
