@@ -29,7 +29,7 @@ def test_run_mobilenet(env):
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         slave_mobilenet_model_serialized = con2.execute_command('AI.MODELGET', 'mobilenet')
-        env.assertEqual(mobilenet_model_serialized, slave_mobilenet_model_serialized)
+        env.assertEqual(len(mobilenet_model_serialized), len(slave_mobilenet_model_serialized))
 
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -106,7 +106,7 @@ def test_run_mobilenet_multiproc(env):
         env.assertEqual(data, slave_data)
 
 def test_del_tf_model(env):
-    if not TEST_PT:
+    if not TEST_TF:
         return
 
     con = env.getConnection()
@@ -150,7 +150,7 @@ def test_del_tf_model(env):
 
 
 def test_run_tf_model(env):
-    if not TEST_PT:
+    if not TEST_TF:
         return
 
     con = env.getConnection()
@@ -307,44 +307,6 @@ def test_run_tf_model(env):
 
     ensureSlaveSynced(con, env)
 
-    info = con.execute_command('AI.INFO', 'm')
-    info_dict_0 = info_to_dict(info)
-
-    env.assertEqual(info_dict_0['KEY'], 'm')
-    env.assertEqual(info_dict_0['TYPE'], 'MODEL')
-    env.assertEqual(info_dict_0['BACKEND'], 'TF')
-    env.assertTrue(info_dict_0['DURATION'] > 0)
-    env.assertEqual(info_dict_0['SAMPLES'], 2)
-    env.assertEqual(info_dict_0['CALLS'], 1)
-    env.assertEqual(info_dict_0['ERRORS'], 0)
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'm')
-    info_dict_1 = info_to_dict(info)
-
-    env.assertTrue(info_dict_1['DURATION'] > info_dict_0['DURATION'])
-    env.assertEqual(info_dict_1['SAMPLES'], 4)
-    env.assertEqual(info_dict_1['CALLS'], 2)
-    env.assertEqual(info_dict_1['ERRORS'], 0)
-
-    ret = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'm')
-    info_dict_2 = info_to_dict(info)
-
-    env.assertTrue(info_dict_2['DURATION'] < info_dict_1['DURATION'])
-    env.assertEqual(info_dict_2['SAMPLES'], 2)
-    env.assertEqual(info_dict_2['CALLS'], 1)
-    env.assertEqual(info_dict_2['ERRORS'], 0)
-
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
@@ -369,3 +331,56 @@ def test_run_tf_model(env):
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         env.assertFalse(con2.execute_command('EXISTS', 'm'))
+
+def test_tensorflow_modelinfo(env):
+    if not TEST_TF:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    previous_duration = 0
+    for call in range(1,10):
+        ret = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        env.assertEqual(ret, b'OK')
+        ensureSlaveSynced(con, env)
+
+        info = con.execute_command('AI.INFO', 'm')
+        info_dict_0 = info_to_dict(info)
+
+        env.assertEqual(info_dict_0['KEY'], 'm')
+        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
+        env.assertEqual(info_dict_0['BACKEND'], 'TF')
+        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration )
+        env.assertEqual(info_dict_0['SAMPLES'], 2*call)
+        env.assertEqual(info_dict_0['CALLS'], call)
+        env.assertEqual(info_dict_0['ERRORS'], 0)
+
+        previous_duration = info_dict_0['DURATION']
+
+    res = con.execute_command('AI.INFO', 'm', 'RESETSTAT' )
+    env.assertEqual(res, b'OK')
+    info = con.execute_command('AI.INFO', 'm' )
+    info_dict_0 = info_to_dict(info)
+    env.assertEqual(info_dict_0['DURATION'] ,0)
+    env.assertEqual(info_dict_0['SAMPLES'], 0)
+    env.assertEqual(info_dict_0['CALLS'], 0)
+    env.assertEqual(info_dict_0['ERRORS'], 0)

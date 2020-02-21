@@ -166,3 +166,55 @@ def test_run_onnxml_model(env):
         env.assertEqual(linear_out, linear_out2)
         env.assertEqual(logreg_out, logreg_out2)
 
+def test_onnx_modelinfo(env):
+    if not TEST_ONNX:
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        linear_model = f.read()
+
+
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_master = con.execute_command('AI.MODELGET', 'linear')
+    con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
+
+    ensureSlaveSynced(con, env)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear')
+        env.assertEqual(len(model_serialized_master), len(model_serialized_slave))
+    previous_duration = 0
+    for call in range(1,10):
+        con.execute_command('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out')
+        ensureSlaveSynced(con, env)
+
+        info = con.execute_command('AI.INFO', 'linear')
+        info_dict_0 = info_to_dict(info)
+
+        env.assertEqual(info_dict_0['KEY'], 'linear')
+        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
+        env.assertEqual(info_dict_0['BACKEND'], 'ONNX')
+        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration )
+        env.assertEqual(info_dict_0['SAMPLES'], call)
+        env.assertEqual(info_dict_0['CALLS'], call)
+        env.assertEqual(info_dict_0['ERRORS'], 0)
+
+        previous_duration = info_dict_0['DURATION']
+
+    res = con.execute_command('AI.INFO', 'linear', 'RESETSTAT' )
+    env.assertEqual(res, b'OK')
+    info = con.execute_command('AI.INFO', 'linear' )
+    info_dict_0 = info_to_dict(info)
+    env.assertEqual(info_dict_0['DURATION'] ,0)
+    env.assertEqual(info_dict_0['SAMPLES'], 0)
+    env.assertEqual(info_dict_0['CALLS'], 0)
+    env.assertEqual(info_dict_0['ERRORS'], 0)
+

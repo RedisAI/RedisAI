@@ -6,7 +6,7 @@ from includes import *
 python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
-def test_run_torch_model(env):
+def test_pytorch_modelrun(env):
     if not TEST_PT:
         return
 
@@ -115,7 +115,59 @@ def test_run_torch_model(env):
         env.assertEqual(tensor2, tensor)
 
 
-def test_set_script(env):
+def test_pytorch_modelinfo(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ret = env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    previous_duration = 0
+    for call in range(1, 10):
+        ret = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        env.assertEqual(ret, b'OK')
+        ensureSlaveSynced(con, env)
+
+        info = con.execute_command('AI.INFO', 'm')
+        info_dict_0 = info_to_dict(info)
+
+        env.assertEqual(info_dict_0['KEY'], 'm')
+        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
+        env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
+        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
+        env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
+        env.assertEqual(info_dict_0['CALLS'], call)
+        env.assertEqual(info_dict_0['ERRORS'], 0)
+
+        previous_duration = info_dict_0['DURATION']
+
+    res = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
+    env.assertEqual(res, b'OK')
+    info = con.execute_command('AI.INFO', 'm')
+    info_dict_0 = info_to_dict(info)
+    env.assertEqual(info_dict_0['DURATION'], 0)
+    env.assertEqual(info_dict_0['SAMPLES'], 0)
+    env.assertEqual(info_dict_0['CALLS'], 0)
+    env.assertEqual(info_dict_0['ERRORS'], 0)
+
+def test_pytorch_scriptset(env):
     if not TEST_PT:
         return
 
@@ -159,7 +211,7 @@ def test_set_script(env):
         env.assertEqual(ret, script_slave)
 
 
-def test_del_script(env):
+def test_pytorch_scriptdel(env):
     if not TEST_PT:
         return
 
@@ -183,14 +235,18 @@ def test_del_script(env):
 
     env.assertFalse(con.execute_command('EXISTS', 'ket'))
 
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        env.assertFalse(con2.execute_command('EXISTS', 'ket'))
+
     # ERR no script at key from SCRIPTDEL
     try:
         con.execute_command('DEL', 'EMPTY')
         con.execute_command('AI.SCRIPTDEL', 'EMPTY')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("no script at key", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("no script at key", exception.__str__())
 
     # ERR wrong type from SCRIPTDEL
     try:
@@ -198,11 +254,11 @@ def test_del_script(env):
         con.execute_command('AI.SCRIPTDEL', 'NOT_SCRIPT')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
 
-def test_run_script(env):
+def test_pytorch_scriptrun(env):
     if not TEST_PT:
         return
 
@@ -224,10 +280,13 @@ def test_run_script(env):
 
     ensureSlaveSynced(con, env)
 
-    # TODO: enable me ( this is hanging CI )
-    # ret = con.execute_command('AI.SCRIPTGET', 'ket')
-    # TODO: enable me
-    # env.assertEqual([b'CPU',script],ret)
+    master_scriptget_result = con.execute_command('AI.SCRIPTGET', 'ket')
+    env.assertEqual([b'CPU',script],master_scriptget_result)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_scriptget_result = con2.execute_command('AI.SCRIPTGET', 'ket')
+        env.assertEqual(master_scriptget_result, slave_scriptget_result)
 
     # ERR no script at key from SCRIPTGET
     try:
@@ -322,33 +381,6 @@ def test_run_script(env):
     env.assertEqual(info_dict_0['CALLS'], 4)
     env.assertEqual(info_dict_0['ERRORS'], 3)
 
-    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'ket')
-    info_dict_1 = info_to_dict(info)
-
-    env.assertTrue(info_dict_1['DURATION'] > info_dict_0['DURATION'])
-    env.assertEqual(info_dict_1['SAMPLES'], -1)
-    env.assertEqual(info_dict_1['CALLS'], 5)
-    env.assertEqual(info_dict_1['ERRORS'], 3)
-
-    ret = con.execute_command('AI.INFO', 'ket', 'RESETSTAT')
-    env.assertEqual(ret, b'OK')
-
-    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'ket')
-    info_dict_2 = info_to_dict(info)
-
-    env.assertTrue(info_dict_2['DURATION'] < info_dict_1['DURATION'])
-    env.assertEqual(info_dict_2['SAMPLES'], -1)
-    env.assertEqual(info_dict_2['CALLS'], 1)
-    env.assertEqual(info_dict_2['ERRORS'], 0)
-
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
@@ -357,3 +389,56 @@ def test_run_script(env):
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
         env.assertEqual(tensor2, tensor)
+
+
+
+def test_pytorch_scriptinfo(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    script_filename = os.path.join(test_data_path, 'script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket_script', DEVICE, script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    previous_duration = 0
+    for call in range(1, 10):
+        ret = con.execute_command('AI.SCRIPTRUN', 'ket_script', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        env.assertEqual(ret, b'OK')
+        ensureSlaveSynced(con, env)
+
+        info = con.execute_command('AI.INFO', 'ket_script')
+        info_dict_0 = info_to_dict(info)
+
+        env.assertEqual(info_dict_0['KEY'], 'ket_script')
+        env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
+        env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
+        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
+        env.assertEqual(info_dict_0['SAMPLES'], -1)
+        env.assertEqual(info_dict_0['CALLS'], call)
+        env.assertEqual(info_dict_0['ERRORS'], 0)
+
+        previous_duration = info_dict_0['DURATION']
+
+    res = con.execute_command('AI.INFO', 'ket_script', 'RESETSTAT')
+    env.assertEqual(res, b'OK')
+    info = con.execute_command('AI.INFO', 'ket_script')
+    info_dict_0 = info_to_dict(info)
+    env.assertEqual(info_dict_0['DURATION'], 0)
+    env.assertEqual(info_dict_0['SAMPLES'], -1)
+    env.assertEqual(info_dict_0['CALLS'], 0)
+    env.assertEqual(info_dict_0['ERRORS'], 0)
