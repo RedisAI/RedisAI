@@ -3,7 +3,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --test tests_common.py --module path/to/redisai.so
+python -m RLTest --test tests_tensorflow.py --module path/to/redisai.so
 '''
 
 
@@ -21,11 +21,29 @@ def test_run_mobilenet(env):
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
+    ensureSlaveSynced(con, env)
+
+    mobilenet_model_serialized = con.execute_command('AI.MODELGET', 'mobilenet')
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_mobilenet_model_serialized = con2.execute_command('AI.MODELGET', 'mobilenet')
+        env.assertEqual(mobilenet_model_serialized, slave_mobilenet_model_serialized)
+
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
     ensureSlaveSynced(con, env)
+    input_tensor_meta = con.execute_command('AI.TENSORGET', 'input', 'META')
+    env.assertEqual([b'FLOAT', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_tensor_meta = con2.execute_command('AI.TENSORGET', 'input', 'META')
+        env.assertEqual(input_tensor_meta, slave_tensor_meta)
 
     con.execute_command('AI.MODELRUN', 'mobilenet',
                         'INPUTS', 'input', 'OUTPUTS', 'output')
@@ -41,6 +59,13 @@ def test_run_mobilenet(env):
     _, label = labels[str(label_id)]
 
     env.assertEqual(label, 'giant_panda')
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_dtype, slave_shape, slave_data = con2.execute_command('AI.TENSORGET', 'output', 'BLOB')
+        env.assertEqual(dtype, slave_dtype)
+        env.assertEqual(shape, slave_shape)
+        env.assertEqual(data, slave_data)
 
 
 def test_run_mobilenet_multiproc(env):
@@ -73,6 +98,13 @@ def test_run_mobilenet_multiproc(env):
         label, 'giant_panda'
     )
 
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_dtype, slave_shape, slave_data = con2.execute_command('AI.TENSORGET', 'output', 'BLOB')
+        env.assertEqual(dtype, slave_dtype)
+        env.assertEqual(shape, slave_shape)
+        env.assertEqual(data, slave_data)
+
 def test_del_tf_model(env):
     if not TEST_PT:
         return
@@ -94,13 +126,18 @@ def test_del_tf_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     env.assertFalse(env.execute_command('EXISTS', 'm'))
 
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        env.assertFalse(con2.execute_command('EXISTS', 'm'))
+
     # ERR no model at key
     try:
         con.execute_command('AI.MODELDEL', 'm')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("no model at key", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("no model at key", exception.__str__())
 
     # ERR wrong type
     try:
@@ -108,8 +145,8 @@ def test_del_tf_model(env):
         con.execute_command('AI.MODELDEL', 'NOT_MODEL')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
 
 def test_run_tf_model(env):
@@ -144,8 +181,8 @@ def test_run_tf_model(env):
         con.execute_command('AI.MODELGET')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("wrong number of arguments for 'AI.MODELGET' command", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.MODELGET' command", exception.__str__())
 
     # ERR WRONGTYPE
     con.execute_command('SET', 'NOT_MODEL', 'BAR')
@@ -153,8 +190,8 @@ def test_run_tf_model(env):
         con.execute_command('AI.MODELGET', 'NOT_MODEL')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
     # cleanup
     con.execute_command('DEL', 'NOT_MODEL')
 
@@ -164,84 +201,84 @@ def test_run_tf_model(env):
         con.execute_command('AI.MODELGET', 'DONT_EXIST')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual("cannot get model from empty key", exception.__str__())
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("cannot get model from empty key", exception.__str__())
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                                   'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', wrong_model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_1', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', 'PORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_3', 'TORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_4', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_5', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_6', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_7', 'TF', DEVICE, model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul_')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     # ERR Invalid GraphDef
     try:
@@ -256,13 +293,13 @@ def test_run_tf_model(env):
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -312,7 +349,6 @@ def test_run_tf_model(env):
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    ensureSlaveSynced(con, env)
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
@@ -328,3 +364,8 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     env.assertFalse(env.execute_command('EXISTS', 'm'))
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        env.assertFalse(con2.execute_command('EXISTS', 'm'))

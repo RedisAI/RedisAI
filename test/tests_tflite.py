@@ -3,7 +3,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --test tests_common.py --module path/to/redisai.so
+python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 '''
 
 
@@ -45,65 +45,67 @@ def test_run_tflite_model(env):
         con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
+    ensureSlaveSynced(con, env)
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ensureSlaveSynced(con, env)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'a', 'b', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
 

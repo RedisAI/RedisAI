@@ -97,9 +97,6 @@ def test_set_tensor(env):
 
     ensureSlaveSynced(con, env)
 
-    # test barrier
-    ensureSlaveSynced(con, env)
-
 
 def test_get_tensor(env):
     con = env.getConnection()
@@ -137,8 +134,8 @@ def test_get_tensor(env):
         con.execute_command('AI.TENSORGET', 't_FLOAT', 'unsupported')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    env.assertEqual(exception.__str__(), "unsupported data format")
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "unsupported data format")
 
 
 def test_run_onnx_model(env):
@@ -176,19 +173,19 @@ def test_run_onnx_model(env):
         con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, wrong_model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_1', 'ONNX', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
@@ -196,49 +193,49 @@ def test_run_onnx_model(env):
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_3', 'a', 'b', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'OUTPUTS', 'b')
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
 
@@ -250,14 +247,10 @@ def test_run_onnx_model(env):
 
     env.assertEqual(argmax, 1)
 
-    ensureSlaveSynced(con, env)
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
         env.assertEqual(tensor2, tensor)
-
-    # test barrier
-    ensureSlaveSynced(con, env)
 
 
 def test_run_onnxml_model(env):
@@ -304,14 +297,12 @@ def test_run_onnxml_model(env):
         env.assertEqual(linear_out, linear_out2)
         env.assertEqual(logreg_out, logreg_out2)
 
-    # test barrier
-    ensureSlaveSynced(con, env)
-
 
 def test_set_tensor_multiproc(env):
     run_test_multiproc(env, 10,
                        lambda env: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
     con = env.getConnection()
+    ensureSlaveSynced(con, env)
     tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'2', b'3'])
