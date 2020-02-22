@@ -24,13 +24,22 @@ VALGRIND = os.environ.get("VALGRIND") == "1"
 print(f"Running tests on {DEVICE}\n")
 
 
-def ensureSlaveSynced(con, env):
+def ensureSlaveSynced(con, env, timeout_ms=5000):
     if env.useSlaves:
         # When WAIT returns, all the previous write commands
         # sent in the context of the current connection are
         # guaranteed to be received by the number of replicas returned by WAIT.
-        wait_reply = con.execute_command('WAIT', '1', '1000')
-        env.assertTrue(wait_reply >= 1)
+        wait_reply = con.execute_command('WAIT', '1', timeout_ms)
+        number_replicas = 0
+        try:
+            number_replicas = int(wait_reply)
+        # does not contain anything convertible to int
+        except ValueError as verr:
+            pass
+        # Exception occurred while converting to int
+        except Exception as ex:
+            pass
+        env.assertTrue(number_replicas >= 1)
 
 
 # Ensures command is sent and forced disconnect

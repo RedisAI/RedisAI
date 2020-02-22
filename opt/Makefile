@@ -143,7 +143,6 @@ endif
 #----------------------------------------------------------------------------------------------
 # TODO: --errors-for-leak-kinds=definite
 VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
-
 TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
 VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
 
