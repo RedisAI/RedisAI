@@ -74,6 +74,10 @@ def test_run_mobilenet_multiproc(env):
         env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
+    if VALGRIND:
+        env.debugPrint("skipping {} since VALGRIND=1".format(sys._getframe().f_code.co_name), force=True)
+        return
+
     con = env.getConnection()
 
     input_var = 'input'
