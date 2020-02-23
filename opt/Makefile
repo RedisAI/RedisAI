@@ -12,8 +12,14 @@ make build    # compile and link
 make clean    # remove build artifacts
   ALL=1         # remove entire artifacts directory
 make test     # run tests
+  TEST=test       # run only test `test` with Redis output
+  TEST_ARGS=args  # add extra RLTest `args`
+  VERBOSE=1   # verbose tests output
+  TEST_COVERAGE=off # add coverage
 make pack     # create installation packages
   PACK_DEPS=0   # do not pack dependencies
+  INTO=dir      # place artifacts in `dir`
+  BRANCH=name   # use `name` as branch name
 make deploy   # copy packages to S3
 make release  # release a version
 
@@ -49,7 +55,7 @@ BINDIR=$(BINROOT)/src
 # INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
-
+REDIS_VALGRID_SUPRESS=./redis_valgrind.sup 
 TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
@@ -59,9 +65,15 @@ CMAKE_FILES += \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
+WITH_COVERAGE=off
+ifeq ($(TEST_COVERAGE),on)
+WITH_COVERAGE=on
+endif
+
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
+	-DENABLE_CODECOVERAGE=$(WITH_COVERAGE) \
 	-DDEVICE=$(DEVICE)
 
 ifeq ($(WITH_TF),0)
@@ -123,34 +135,81 @@ fetch deps:
 
 pack:
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=1 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) DEPS=0 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=0 ./pack.sh
 endif
 
 #----------------------------------------------------------------------------------------------
 
 TEST_REPORT_DIR ?= $(PWD)
-
+ifeq ($(VERBOSE),1)
+TEST_ARGS += -v
+endif
 ifeq ($(TEST),)
 TEST=basic_tests.py
+PYDEBUG=
+else
+TEST_ARGS += -s
+PYDEBUG=1
 endif
+
+TEST_PREFIX=set -e; cd $(ROOT)/test
+TEST_CMD=\
+	DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) \
+	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so
+
+GEN ?= 1
+SLAVES ?= 1
+AOF ?= 1
 
 test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
-	$(SHOW)set -e ;\
-	cd $(ROOT)/test ;\
-	export DEVICE=$(DEVICE) ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-slaves ;\
-	python3 -m RLTest $(TEST_ARGS) --test $(TEST) --module $(INSTALL_DIR)/redisai.so --use-aof 
-	# Commented until the MacOS CI is available
-	# python3 -m RLTest $(TEST_ARGS) --test double-panda.py --module $(INSTALL_DIR)/redisai.so
+ifeq ($(GEN),1)
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
+endif
+ifeq ($(AOF),1)
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
+	$(TEST_CMD) --use-aof
+endif
+ifeq ($(SLAVES),1)
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
+	$(TEST_CMD) --use-slaves
+endif
 
 #----------------------------------------------------------------------------------------------
 
 docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+
+#----------------------------------------------------------------------------------------------
+# Currently only testing for leaks using TF
+MODULE_ARGS=\
+	BACKENDSPATH  $(realpath $(BINDIR)) \
+	TF redisai_tensorflow.so 
+
+VALGRIND_ARGS=\
+	--leak-check=full \
+	--show-reachable=no \
+	--show-possibly-lost=no \
+	--leak-check=full \
+	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
+	-v redis-server --protected-mode no --save "" --appendonly no
+
+valgrind: $(TARGET)
+	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+
+CALLGRIND_ARGS=\
+	--tool=callgrind \
+	--dump-instr=yes \
+	--simulate-cache=no \
+	--collect-jumps=no \
+	--collect-atstart=yes \
+	--instr-atstart=yes \
+	-v redis-server --protected-mode no --save "" --appendonly no
+
+callgrind: $(TARGET)
+	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)

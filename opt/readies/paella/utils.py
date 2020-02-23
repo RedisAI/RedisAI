@@ -1,11 +1,12 @@
 
 import sys
-from subprocess import Popen, PIPE
+import inspect
+import os.path
 
 if (sys.version_info > (3, 0)):
 	from .utils3 import *
 else:
 	from .utils2 import *
 
-def sh(cmd):
-    return " ".join(Popen(cmd.split(), stdout=PIPE).communicate()[0].split("\n"))
+def current_filepath():
+    return os.path.abspath(inspect.getfile(inspect.currentframe().f_back))

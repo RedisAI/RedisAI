@@ -21,7 +21,6 @@ RedisModuleString* RAI_GetModulePath(RedisModuleCtx *ctx) {
   return module_path;
 }
 
-
 RedisModuleString* RAI_GetBackendsPath(RedisModuleCtx *ctx) {
   Dl_info info;
   RedisModuleString* backends_path = NULL;
@@ -34,6 +33,20 @@ RedisModuleString* RAI_GetBackendsPath(RedisModuleCtx *ctx) {
   }
 
   return backends_path;
+}
+
+const char* RAI_BackendName(int backend) {
+  switch (backend) {
+    case RAI_BACKEND_TENSORFLOW:
+      return "TF";
+    case RAI_BACKEND_TFLITE:
+      return "TFLITE";
+    case RAI_BACKEND_TORCH:
+      return "TORCH";
+    case RAI_BACKEND_ONNXRUNTIME:
+      return "ONNX";
+  }
+  return NULL;
 }
 
 int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {

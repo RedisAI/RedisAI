@@ -34,9 +34,14 @@ class RedisAISetup(paella.Setup):
         self.group_install("'Development Tools'")
         self.install("redhat-lsb-core")
 
-        self.install("epel-release")
-        self.install("python36 python36-pip")
-        self.install("python36-psutil")
+        if not self.dist == "amzn":
+            self.install("epel-release")
+            self.install("python36 python36-pip")
+            self.install("python36-psutil")
+        else:
+            self.run("amazon-linux-extras install epel", output_on_error=True)
+            self.install("python3 python3-devel")
+            self.pip_install("psutil")
 
         self.install_git_lfs_on_linux()
 
@@ -50,12 +55,15 @@ class RedisAISetup(paella.Setup):
         out, _ = p.communicate()
         if out.splitlines() == []:
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
+
+        # workaround for ssl issue, needed in CircleCI
+        #if os.environ.get('MACOS_PYTHON_SSL_FIX') == '1':
+        #    self.run("brew unlink python@2")
+        #    self.run("brew reinstall python3")
+
+        self.install_gnu_utils()
         self.install("git-lfs")
         self.install("redis")
-
-    def install_git_lfs_on_linux(self):
-        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
-        self.install("git-lfs")
 
     def common_last(self):
         if not self.has_command("RLTest"):

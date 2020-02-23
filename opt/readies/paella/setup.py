@@ -47,7 +47,8 @@ class RepoRefresh(OnPlatform):
         self.runner.run("apt-get -qq update -y")
 
     def macosx(self):
-        self.runner.run("brew update || true")
+        if os.environ.get('BREW_NO_UPDATE') != '1':
+            self.runner.run("brew update || true")
 
 #----------------------------------------------------------------------------------------------
 
@@ -61,16 +62,13 @@ class Setup(OnPlatform):
         self.dist = self.platform.dist
         self.ver = self.platform.os_ver
 
-        if self.has_command("python3"):
-            self.python = "python3"
-        elif self.has_command("python"):
-            self.python = "python"
-        elif self.has_command("python2"):
-            self.python = "python2"
+        self.python = sys.executable
 
         if self.os == 'macosx':
             # this is required because osx pip installed are done with --user
-            os.environ["PATH"] = os.environ["PATH"] + ':' + '$HOME/Library/Python/2.7/bin'
+            os.environ["PATH"] = os.environ["PATH"] + ':' + os.environ["HOME"] + '/Library/Python/2.7/bin'
+            # this prevents brew updating before each install
+            os.environ["HOMEBREW_NO_AUTO_UPDATE"] = "1"
 
         if self.platform.is_debian_compat():
             # prevents apt-get from interactively prompting
@@ -116,13 +114,16 @@ class Setup(OnPlatform):
         for pack in packs.split():
             self.run("brew list {} &>/dev/null || brew install {}".format(pack, pack), output_on_error=True, _try=_try)
 
+    def pkg_install(self, packs, group=False, _try=False):
+        self.run("pkg install -q -y " + packs, output_on_error=True, _try=_try)
+
     def install(self, packs, group=False, _try=False):
         if self.os == 'linux':
-            if self.dist == 'fedora':
+            if self.dist == 'fedora': # also include centos 8
                 self.dnf_install(packs, group=group, _try=_try)
-            elif self.dist == 'ubuntu' or self.dist == 'debian':
+            elif self.platform.is_debian_compat():
                 self.apt_install(packs, group=group, _try=_try)
-            elif self.dist == 'centos' or self.dist == 'redhat':
+            elif self.platform.is_redhat_compat():
                 self.yum_install(packs, group=group, _try=_try)
             elif self.dist == 'suse':
                 self.zypper_install(packs, group=group, _try=_try)
@@ -132,51 +133,53 @@ class Setup(OnPlatform):
                 Assert(False), "Cannot determine installer"
         elif self.os == 'macosx':
             self.brew_install(packs, group=group, _try=_try)
+        elif self.os == 'freebsd':
+            self.pkg_install(packs, group=group, _try=_try)
         else:
             Assert(False), "Cannot determine installer"
 
-    def group_install(self, packs):
-        self.install(packs, group=True)
+    def group_install(self, packs, _try=False):
+        self.install(packs, group=True, _try=_try)
 
     #------------------------------------------------------------------------------------------
 
-    def yum_add_repo(self, repourl, repo=""):
+    def yum_add_repo(self, repourl, repo="", _try=False):
         if not self.has_command("yum-config-manager"):
             self.install("yum-utils")
-        self.run("yum-config-manager -y --add-repo {}".format(repourl))
+        self.run("yum-config-manager -y --add-repo {}".format(repourl), _try=_try)
 
-    def apt_add_repo(self, repourl, repo=""):
+    def apt_add_repo(self, repourl, repo="", _try=False):
         if not self.has_command("yum-config-manager"):
             self.install("software-properties-common")
-        self.run("add-apt-repository -y {}".format(repourl))
-        self.run("apt-get -qq update")
+        self.run("add-apt-repository -y {}".format(repourl), _try=_try)
+        self.run("apt-get -qq update", _try=_try)
 
-    def dnf_add_repo(self, repourl, repo=""):
+    def dnf_add_repo(self, repourl, repo="", _try=False):
         if self.run("dnf config-manager 2>/dev/null", _try=True):
-            self.install("dnf-plugins-core")
-        self.run("dnf config-manager -y --add-repo {}".format(repourl))
+            self.install("dnf-plugins-core", _try=_try)
+        self.run("dnf config-manager -y --add-repo {}".format(repourl), _try=_try)
 
-    def zypper_add_repo(self, repourl, repo=""):
+    def zypper_add_repo(self, repourl, repo="", _try=False):
         pass
 
-    def pacman_add_repo(self, repourl, repo=""):
+    def pacman_add_repo(self, repourl, repo="", _try=False):
         pass
 
-    def brew_add_repo(self, repourl, repo=""):
+    def brew_add_repo(self, repourl, repo="", _try=False):
         pass
 
-    def add_repo(self, repourl, repo=""):
+    def add_repo(self, repourl, repo="", _try=False):
         if self.os == 'linux':
             if self.dist == 'fedora':
-                self.dnf_add_repo(repourl, repo=repo)
+                self.dnf_add_repo(repourl, repo=repo, _try=_try)
             elif self.dist == 'ubuntu' or self.dist == 'debian':
-                self.apt_add_repo(repourl, repo=repo)
+                self.apt_add_repo(repourl, repo=repo, _try=_try)
             elif self.dist == 'centos' or self.dist == 'redhat':
-                self.yum_add_repo(repourl, repo=repo)
+                self.yum_add_repo(repourl, repo=repo, _try=_try)
             elif self.dist == 'suse':
-                self.zypper_add_repo(repourl, repo=repo)
+                self.zypper_add_repo(repourl, repo=repo, _try=_try)
             elif self.dist == 'arch':
-                self.pacman_add_repo(repourl, repo=repo)
+                self.pacman_add_repo(repourl, repo=repo, _try=_try)
             else:
                 Assert(False), "Cannot determine installer"
         elif self.os == 'macosx':
@@ -190,26 +193,45 @@ class Setup(OnPlatform):
         pip_user = ''
         if self.os == 'macosx':
             pip_user = '--user '
-        self.run("pip install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
+        self.run(self.python + " -m pip install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
 
     def pip3_install(self, cmd, _try=False):
         pip_user = ''
         if self.os == 'macosx':
             pip_user = '--user '
-        self.run("pip3 install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
+        self.run(self.python + " -m pip install --disable-pip-version-check " + pip_user + cmd, output_on_error=True, _try=_try)
 
-    def setup_pip(self):
+    def setup_pip(self, _try=False):
         get_pip = "set -e; wget -q https://bootstrap.pypa.io/get-pip.py -O /tmp/get-pip.py"
-        if not self.has_command("pip3"):
-            self.install("python3-distutils", _try=True)
+        if self.run(self.python + " -m pip --version", _try=True, output_on_error=False) != 0:
+            if sys.version_info.major == 3:
+                self.install("python3-distutils")
             self.install_downloaders()
-            self.run(get_pip + "; " + self.python + " /tmp/get-pip.py", output_on_error=True)
+            pip_user = ' --user' if self.os == 'macosx' else ''
+            self.run(get_pip + "; " + self.python + " /tmp/get-pip.py" + pip_user + " 'pip==19.3.1'", output_on_error=True, _try=_try)
 
-    def install_downloaders(self):
+    def install_downloaders(self, _try=False):
         if self.os == 'linux':
-            self.install("ca-certificates")
-        self.install("curl wget")
+            self.install("ca-certificates", _try=_try)
+        self.install("curl wget", _try=_try)
 
-    def install_git_lfs_on_linux(self):
-        self.run("curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | bash")
-        self.install("git-lfs")
+    def install_git_lfs_on_linux(self, _try=False):
+        self.run("set -e; wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.9.2/git-lfs-linux-amd64-v2.9.2.tar.gz -O /tmp/git-lfs.tar.gz")
+        self.run("cd /tmp; tar xzf git-lfs.tar.gz; ./install.sh")
+
+#        cmd = "curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.{}.sh | bash"
+#        if self.platform.is_redhat_compat():
+#            self.run(cmd.format('rpm'), _try=_try)
+#        elif self.platform.is_debian_compat():
+#            self.run(cmd.format('deb'), _try=_try)
+#        self.install("git-lfs", _try=_try)
+
+    def install_gnu_utils(self, _try=False):
+        self.install("make findutils gnu-sed gnu-tar")
+        for x in ['make', 'find', 'sed', 'tar']:
+            p = "/usr/local/bin/{}".format(x)
+            if not os.path.exists(p):
+                self.run("ln -sf /usr/local/bin/g{} {}".format(x, p))
+            else:
+                eprint("Warning: {} exists - not replaced".format(p))
+
