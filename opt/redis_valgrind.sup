@@ -19,6 +19,12 @@
    obj:*/libtorch.so.*
 }
 
+{
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
+   obj:*/libtorch.so*
+}
 
 {
    <lzf_unitialized_hash_table>

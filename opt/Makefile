@@ -55,7 +55,7 @@ BINDIR=$(BINROOT)/src
 # INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
-REDIS_VALGRID_SUPRESS=./redis_valgrind.sup 
+REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
 TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
@@ -149,10 +149,10 @@ ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
 endif
 ifeq ($(TEST),)
-TEST=tests_common.py tests_pytorch.py tests_onnx.py tests_tflite.py tests_tensorflow.py
+TEST=
 PYDEBUG=
 else
-TEST_ARGS += -s
+TEST_ARGS += -s --test $(TEST)
 PYDEBUG=1
 endif
 
@@ -161,11 +161,12 @@ SLAVES ?= 1
 AOF ?= 1
 
 TEST_PREFIX=set -e; cd $(ROOT)/test
+# TODO: --errors-for-leak-kinds=definite
+VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
+TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
+VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
 
-
-test: $(TEST)
-
-$(TEST):
+test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
@@ -181,6 +182,10 @@ ifeq ($(SLAVES),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
 	$(TEST_CMD) --use-slaves --test $@
 endif
+ifeq ($(VALGRIND),1)
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
+	$(VALGRIND_TEST_CMD) 
+endif
 
 #----------------------------------------------------------------------------------------------
 
@@ -194,10 +199,7 @@ MODULE_ARGS=\
 	TF redisai_tensorflow.so 
 
 VALGRIND_ARGS=\
-	--leak-check=full \
-	--show-reachable=no \
-	--show-possibly-lost=no \
-	--leak-check=full \
+	$(VALGRIND_OPTIONS) \
 	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
 	-v redis-server --protected-mode no --save "" --appendonly no
 

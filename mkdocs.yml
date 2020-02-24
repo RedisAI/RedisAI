@@ -27,6 +27,7 @@ pages:
     - 'Quickstart': index.md
     - 'Commands': commands.md
     - 'Backend': dataandbackend.md
+    - 'Configuration': configuring.md
 
 markdown_extensions:
   - admonition

@@ -688,6 +688,8 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return REDISMODULE_OK;
 }
 
@@ -797,6 +799,8 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisAI_FreeRunStats(ctx, rstats);
   }
 
+  RedisModule_ReplicateVerbatim(ctx);
+
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
@@ -827,9 +831,9 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
   RedisModule_Replicate(ctx, "AI.TENSORSET", "scvcb", key, dtypestr,
                         dims, ndims, "BLOB", data, size);
 
-  // for (long long i=0; i<ndims; i++) {
-  //   RedisModule_Free(dims[i]);
-  // }
+  for (long long i=0; i<ndims; i++) {
+    RedisModule_FreeString(ctx,dims[i]);
+  }
 
   RedisModule_Free(dtypestr);
 }
@@ -1341,6 +1345,8 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     AI_dictDelete(run_stats, key_cstr);
     RedisAI_FreeRunStats(ctx, rstats);
   }
+
+  RedisModule_ReplicateVerbatim(ctx);
 
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }

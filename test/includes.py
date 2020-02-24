@@ -19,17 +19,39 @@ TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
 TEST_TFLITE = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
 TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
-DEVICE = os.environ.get('DEVICE', 'CPU').upper()
+DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
+VALGRIND = os.environ.get("VALGRIND") == "1"
 print(f"Running tests on {DEVICE}\n")
 
 
-def ensureSlaveSynced(con, env):
+def ensureSlaveSynced(con, env, timeout_ms=5000):
     if env.useSlaves:
         # When WAIT returns, all the previous write commands
         # sent in the context of the current connection are
         # guaranteed to be received by the number of replicas returned by WAIT.
-        wait_reply = con.execute_command('WAIT', '1', '1000')
-        env.assertTrue(wait_reply >= 1)
+        wait_reply = con.execute_command('WAIT', '1', timeout_ms)
+        number_replicas = 0
+        try:
+            number_replicas = int(wait_reply)
+        # does not contain anything convertible to int
+        except ValueError as verr:
+            pass
+        # Exception occurred while converting to int
+        except Exception as ex:
+            pass
+        env.assertTrue(number_replicas >= 1)
+
+
+# Ensures command is sent and forced disconnect
+# after without waiting for the reply to be parsed
+# Usefull for checking behaviour of commands
+# that are run with background threads
+def send_and_disconnect(cmd, red):
+    pool = red.connection_pool
+    con = pool.get_connection(cmd[0])
+    ret = con.send_command(*cmd)
+    con.disconnect()
+    return ret
 
 
 def check_cuda():
@@ -37,7 +59,7 @@ def check_cuda():
 
 
 def info_to_dict(info):
-    info = [el.decode('ascii') if type(el) is bytes else el for el in info]
+    info = [el.decode('utf-8') if type(el) is bytes else el for el in info]
     return dict(zip(info[::2], info[1::2]))
 
 
