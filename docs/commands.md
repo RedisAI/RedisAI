@@ -1,35 +1,5 @@
 # RedisAI Commands
 
-## AI.CONFIG LOADBACKEND
-
-Load a DL/ML backend.
-
-By default, RedisAI starts with the ability to set and get tensor data, but setting and running models and scritps requires a computing backend to be loaded. This command allows to dynamically load a backend by specifying the backend identifier and the path to the backend library. Currently, once loaded, a backend cannot be unloaded, and there can be at most one backend per identifier loaded.
-
-```sql
-AI.CONFIG LOADBACKEND <backend_identifier> <location_of_backend_library>
-```
-
-* allowed backend identifiers are: TF (TensorFlow), TORCH (PyTorch), ONNX (ONNXRuntime).
-
-It is possible to specify backends at the command-line when starting `redis-server`, see example below.
-
-### AI.CONFIG LOADBACKEND Example
-
-> Load the TORCH backend
-
-```sql
-AI.CONFIG LOADBACKEND TORCH install/backend/redisai_torch/redisai_torch.so
-```
-
-> Load the TORCH backend at the command-line
-
-```bash
-redis-server --loadmodule install/redisai.so TORCH install/backend/redisai_torch/redisai_torch.so
-```
-
-This replaces the need for loading a backend using AI.CONFIG LOADBACKEND
-
 ## AI.TENSORSET
 
 Set a tensor.
