@@ -1,35 +1,5 @@
 # RedisAI Commands
 
-## AI.CONFIG LOADBACKEND
-
-Load a DL/ML backend.
-
-By default, RedisAI starts with the ability to set and get tensor data, but setting and running models and scritps requires a computing backend to be loaded. This command allows to dynamically load a backend by specifying the backend identifier and the path to the backend library. Currently, once loaded, a backend cannot be unloaded, and there can be at most one backend per identifier loaded.
-
-```sql
-AI.CONFIG LOADBACKEND <backend_identifier> <location_of_backend_library>
-```
-
-* allowed backend identifiers are: TF (TensorFlow), TORCH (PyTorch), ONNX (ONNXRuntime).
-
-It is possible to specify backends at the command-line when starting `redis-server`, see example below.
-
-### AI.CONFIG LOADBACKEND Example
-
-> Load the TORCH backend
-
-```sql
-AI.CONFIG LOADBACKEND TORCH install/backend/redisai_torch/redisai_torch.so
-```
-
-> Load the TORCH backend at the command-line
-
-```bash
-redis-server --loadmodule install/redisai.so TORCH install/backend/redisai_torch/redisai_torch.so
-```
-
-This replaces the need for loading a backend using AI.CONFIG LOADBACKEND
-
 ## AI.TENSORSET
 
 Set a tensor.
@@ -61,6 +31,11 @@ Optional args:
 AI.TENSORSET foo FLOAT 2 2 VALUES 1 2 3 4
 ```
 
+!!! warning "Overhead of `AI.TENSORSET` with the optional arg VALUES"
+        
+    It is possible to set a tensor by specifying each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of parsing each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
+---
+
 ## AI.TENSORGET
 
 Get a tensor.
@@ -81,6 +56,11 @@ Get binary data for tensor at `foo`. Meta data is also returned.
 ```sql
 AI.TENSORGET foo BLOB
 ```
+
+!!! warning "Overhead of `AI.TENSORGET` with the optional arg VALUES"
+        
+    It is possible to receive a tensor as a list of each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of replying each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
+---
 
 ## AI.MODELSET
 
@@ -159,6 +139,13 @@ If needed, input tensors are copied to the device specified in `AI.MODELSET` bef
 AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
 ```
 
+!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
+        
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
+---
+
+
+
 ## AI.SCRIPTSET
 
 Set a script.
@@ -234,6 +221,11 @@ If needed, input tensors are copied to the device specified in `AI.SCRIPTSET` be
 ```sql
 AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
 ```
+
+!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
+        
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
+---
 
 ## AI.INFO
 
