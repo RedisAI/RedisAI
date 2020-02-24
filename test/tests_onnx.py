@@ -1,7 +1,6 @@
 import sys
 
 import redis
-import inspect
 from includes import *
 
 '''

@@ -166,13 +166,10 @@ def test_run_tf_model(env):
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
-    wrong_model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    with open(wrong_model_filename, 'rb') as f:
-        wrong_model_pb = f.read()
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
@@ -185,7 +182,64 @@ def test_run_tf_model(env):
     # env.assertEqual(ret[0], b'TF')
     # env.assertEqual(ret[1], b'CPU')
 
-    # ERR WrongArity
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    ensureSlaveSynced(con, env)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    ensureSlaveSynced(con, env)
+
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(tensor2, tensor)
+
+    for _ in env.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('a')
+        env.assertExists('b')
+        env.assertExists('c')
+
+    con.execute_command('AI.MODELDEL', 'm')
+    ensureSlaveSynced(con, env)
+
+    env.assertFalse(env.execute_command('EXISTS', 'm'))
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        env.assertFalse(con2.execute_command('EXISTS', 'm'))
+
+
+def test_run_tf_model_errors(env):
+    if not TEST_TF:
+        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+    wrong_model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
     try:
         con.execute_command('AI.MODELGET')
     except Exception as e:
@@ -310,37 +364,6 @@ def test_run_tf_model(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
-    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
-
-    if env.useSlaves:
-        con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        env.assertEqual(tensor2, tensor)
-
-    for _ in env.reloadingIterator():
-        env.assertExists('m')
-        env.assertExists('a')
-        env.assertExists('b')
-        env.assertExists('c')
-
-    con.execute_command('AI.MODELDEL', 'm')
-    ensureSlaveSynced(con, env)
-
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
-
-    ensureSlaveSynced(con, env)
-    if env.useSlaves:
-        con2 = env.getSlaveConnection()
-        env.assertFalse(con2.execute_command('EXISTS', 'm'))
-
 
 def test_tensorflow_modelinfo(env):
     if not TEST_TF:
@@ -395,6 +418,7 @@ def test_tensorflow_modelinfo(env):
     env.assertEqual(info_dict_0['SAMPLES'], 0)
     env.assertEqual(info_dict_0['CALLS'], 0)
     env.assertEqual(info_dict_0['ERRORS'], 0)
+
 
 def test_tensorflow_modelrun_disconnect(env):
     if not TEST_TF:

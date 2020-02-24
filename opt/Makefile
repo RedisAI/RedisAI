@@ -141,21 +141,16 @@ else
 endif
 
 #----------------------------------------------------------------------------------------------
-# TODO: --errors-for-leak-kinds=definite
-VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
-TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
-
 
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
 endif
 ifeq ($(TEST),)
-TEST=tests_common.py tests_pytorch.py tests_onnx.py tests_tflite.py tests_tensorflow.py
+TEST=
 PYDEBUG=
 else
-TEST_ARGS += -s
+TEST_ARGS += -s --test $(TEST)
 PYDEBUG=1
 endif
 
@@ -164,28 +159,30 @@ SLAVES ?= 1
 AOF ?= 1
 
 TEST_PREFIX=set -e; cd $(ROOT)/test
+# TODO: --errors-for-leak-kinds=definite
+VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
+TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
+VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
 
-test: $(TEST)
-
-$(TEST):
+test:
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
 ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD) --test $@
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
 endif
 ifeq ($(AOF),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof --test $@
+	$(TEST_CMD) --use-aof
 endif
 ifeq ($(SLAVES),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves --test $@
+	$(TEST_CMD) --use-slaves
 endif
 ifeq ($(VALGRIND),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
-	$(VALGRIND_TEST_CMD) --test $@
+	$(VALGRIND_TEST_CMD) 
 endif
 
 #----------------------------------------------------------------------------------------------

@@ -461,7 +461,7 @@ def test_pytorch_scriptrun_disconnect(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    if DEVICE=="GPU":
+    if DEVICE == "GPU":
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
@@ -492,10 +492,10 @@ def test_pytorch_modelrun_disconnect(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    if DEVICE=="GPU":
+    if DEVICE == "GPU":
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
-        
+
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
