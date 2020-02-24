@@ -6,7 +6,7 @@ RedisAI supports both run-time configuration options and others that should be s
 
 In general, passing configuration options is done by appending arguments after the `--loadmodule` argument in the command line, `loadmodule` configuration directive in a Redis config file, or the `MODULE LOAD` command. 
 
-The module dynamic library `redisai.so` can be located in any path, provided that we specify the full path. The additional arguments are options passed to the module. Currently the supported options are:
+The module dynamic library `redisai.so` can be located in any path, provided that we specify the full path or a path relative to where the `redis-server` command is issued. The additional arguments are options passed to the module. Currently the supported options are:
 
 - `BACKENDSPATH`: specify the default backends path used when loading a dynamic backend library.
 - `TORCH`: specify the location of the PyTorch backend library, and dynamically load it. The location can be given in two ways, absolute or relative to the `<BACKENDSPATH>`. Using this option replaces the need for loading the PyTorch backend on runtime.
@@ -105,17 +105,17 @@ By default, RedisAI starts with the ability to set and get tensor data, but sett
 This command allows to dynamically load a backend by specifying the backend identifier and the path to the backend library. Currently, once loaded, a backend cannot be unloaded, and there can be at most one backend per identifier loaded.
 
 
-if you don't specify a backend on load time, RedisAI will look into the default location lazily, when a model of a given backend is loaded.
+If you don't specify a backend on load time, RedisAI will look into the default location lazily, when a model of a given backend is loaded.
 
-The default location is the `<BACKENDSPATH>/backends` directory.  The location of the backend library can be given in two ways, absolute or relative.
-If relative, it is relative to `<BACKENDSPATH>`.
-From there, RedisAI will look for:
-- ONNXRuntime dynamic library at: `redisai_onnxruntime/redisai_onnxruntime.so`
-- TensorFlow dynamic library at: `redisai_tensorflow/redisai_tensorflow.so`
-- TensorFlow Lite dynamic library at: `redisai_tflite/redisai_tflite.so`
-- PyTorch dynamic library at: `redisai_torch/redisai_torch.so`
+The default location relative to the `<BACKENDSPATH>` directory. If unspecified, by default RedisAI will look for:
+- ONNXRuntime dynamic library at: `<BACKENDSPATH>/redisai_onnxruntime/redisai_onnxruntime.so`
+- TensorFlow dynamic library at: `<BACKENDSPATH>/redisai_tensorflow/redisai_tensorflow.so`
+- TensorFlow Lite dynamic library at: `<BACKENDSPATH>/redisai_tflite/redisai_tflite.so`
+- PyTorch dynamic library at: `<BACKENDSPATH>/redisai_torch/redisai_torch.so`
 
 Any library dependency will be resolved automatically, and the mentioned directories are portable on all platforms.
+
+If relative, it is relative to `<BACKENDSPATH>`.
 
 
 #### AI.CONFIG LOADBACKEND Examples
