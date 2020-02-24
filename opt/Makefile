@@ -142,8 +142,6 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
-TEST_CMD=DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
@@ -172,15 +170,15 @@ ifneq ($(NO_LFS),1)
 	$(SHOW)cd $(ROOT); git lfs pull
 endif
 ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD) --test $@
+	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
 endif
 ifeq ($(AOF),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof --test $@
+	$(TEST_CMD) --use-aof
 endif
 ifeq ($(SLAVES),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves --test $@
+	$(TEST_CMD) --use-slaves
 endif
 ifeq ($(VALGRIND),1)
 	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
