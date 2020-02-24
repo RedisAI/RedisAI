@@ -831,9 +831,9 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
   RedisModule_Replicate(ctx, "AI.TENSORSET", "scvcb", key, dtypestr,
                         dims, ndims, "BLOB", data, size);
 
-  // for (long long i=0; i<ndims; i++) {
-  //   RedisModule_Free(dims[i]);
-  // }
+  for (long long i=0; i<ndims; i++) {
+    RedisModule_FreeString(ctx,dims[i]);
+  }
 
   RedisModule_Free(dtypestr);
 }
