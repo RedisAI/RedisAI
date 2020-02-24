@@ -126,6 +126,7 @@ jobs:
           command: |
             mkdir -p ~/workspace/tests
             docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
+          no_output_timeout: 30m
       - store_test_results:
           path: ~/workspace/tests
   deploy_package:

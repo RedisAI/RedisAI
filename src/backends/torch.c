@@ -61,6 +61,9 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr,
 }
 
 void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
+  if(model->devicestr){
+    RedisModule_Free(model->devicestr);
+  }
   torchDeallocContext(model->model);
 }
 
