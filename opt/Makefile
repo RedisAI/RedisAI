@@ -10,22 +10,24 @@ MK_CUSTOM_CLEAN:=1
 #---------------------------------------------------------------------------------------------- 
 
 define HELP
-make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
-make fetch    # download and prepare dependant modules
-make build    # compile and link
-make clean    # remove build artifacts
-  ALL=1         # remove entire artifacts directory
-make test     # run tests
-  TEST=test       # run only test `test` with Redis output
-  TEST_ARGS=args  # add extra RLTest `args`
-  VERBOSE=1   # verbose tests output
-  TEST_COVERAGE=off # add coverage
-make pack     # create installation packages
-  PACK_DEPS=0   # do not pack dependencies
-  INTO=dir      # place artifacts in `dir`
-  BRANCH=name   # use `name` as branch name
-make deploy   # copy packages to S3
-make release  # release a version
+make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
+make fetch  # download and prepare dependant modules
+make build  # compile and link
+make clean  # remove build artifacts
+  ALL=1       # remove entire artifacts directory
+
+make test         # run tests
+  TEST=test         # run only test `test` with Redis output
+  TEST_ARGS=args    # add extra RLTest `args`
+  VERBOSE=1         # verbose tests output
+  COVERAGE=1        # perform coverage analysis
+
+make pack       # create installation packages
+  PACK_DEPS=0     # do not pack dependencies
+  INTO=dir        # place artifacts in `dir`
+  BRANCH=name     # use `name` as branch name
+make deploy     # copy packages to S3
+make release    # release a version
 
 fetch and build options:
   WITH_TF=0     # SKip TensofFlow
@@ -60,7 +62,7 @@ DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 # INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
 INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
 
-REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
+REDIS_VALGRIND_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
 
 TARGET=$(BINDIR)/redisai.so
 
@@ -71,8 +73,7 @@ CMAKE_FILES += \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
-WITH_COVERAGE=off
-ifeq ($(TEST_COVERAGE),on)
+ifeq ($(COVERAGE),1)
 WITH_COVERAGE=on
 endif
 
@@ -168,7 +169,7 @@ TEST_PREFIX=set -e; cd $(ROOT)/test
 # TODO: --errors-for-leak-kinds=definite
 VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
 TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
+VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRIND_SUPRESS))
 
 test:
 ifneq ($(NO_LFS),1)
@@ -198,13 +199,14 @@ docker:
 
 #----------------------------------------------------------------------------------------------
 # Currently only testing for leaks using TF
+
 MODULE_ARGS=\
-	BACKENDSPATH  $(realpath $(BINDIR)) \
+	BACKENDSPATH $(realpath $(BINDIR)) \
 	TF redisai_tensorflow.so 
 
 VALGRIND_ARGS=\
 	$(VALGRIND_OPTIONS) \
-	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
+	--suppressions=$(realpath $(REDIS_VALGRIND_SUPRESS)) \
 	-v redis-server --protected-mode no --save "" --appendonly no
 
 valgrind: $(TARGET)
