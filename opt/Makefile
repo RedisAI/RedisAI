@@ -12,7 +12,10 @@ MK_CUSTOM_CLEAN:=1
 define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
 make fetch  # download and prepare dependant modules
+
 make build  # compile and link
+  DEBUG=1          # build for debugging 
+  WHY=1            # explain CMake decisions (into /tmp/cmake.why) 
 make clean  # remove build artifacts
   ALL=1       # remove entire artifacts directory
 
@@ -20,7 +23,7 @@ make test         # run tests
   TEST=test         # run only test `test` with Redis output
   TEST_ARGS=args    # add extra RLTest `args`
   VERBOSE=1         # verbose tests output
-  COVERAGE=1        # perform coverage analysis
+  COV=1             # perform coverage analysis
 
 make pack       # create installation packages
   PACK_DEPS=0     # do not pack dependencies
@@ -68,19 +71,23 @@ TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
+#---------------------------------------------------------------------------------------------- 
+
 CMAKE_FILES += \
 	$(SRCDIR)/CMakeLists.txt \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
-ifeq ($(COVERAGE),1)
-WITH_COVERAGE=on
+ifeq ($(COV),1)
+USE_COVERAGE=on
+else
+USE_COVERAGE=off
 endif
 
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
-	-DENABLE_CODECOVERAGE=$(WITH_COVERAGE) \
+	-DUSE_COVERAGE=$(USE_COVERAGE) \
 	-DDEVICE=$(DEVICE)
 
 ifeq ($(WITH_TF),0)
@@ -149,6 +156,13 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
+define CHECK_REDIS_SERVER
+$(SHOW)if ! command -v redis-server > /dev/null; then \
+	echo "Cannot find redis-server. Aborting." ;\
+	exit 1 ;\
+fi
+endef
+
 TEST_REPORT_DIR ?= $(PWD)
 ifeq ($(VERBOSE),1)
 TEST_ARGS += -v
@@ -166,30 +180,52 @@ SLAVES ?= 1
 AOF ?= 1
 
 TEST_PREFIX=set -e; cd $(ROOT)/test
+
+define TEST_CMD
+DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
+endef
+
 # TODO: --errors-for-leak-kinds=definite
-VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
-TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRIND_SUPRESS))
+VALGRIND_OPTIONS=\
+	-q \
+	--leak-check=full \
+	--show-reachable=no \
+	--show-possibly-lost=no
+
+define VALGRIND_TEST_CMD
+$(TEST_CMD) \
+	--no-output-catch \
+	--use-valgrind \
+	--vg-no-fail-on-errors \
+	--vg-verbose
+	--vg-options "$(VALGRIND_OPTIONS)" \
+	--vg-suppressions $(realpath $(REDIS_VALGRIND_SUPRESS))
+endef
 
 test:
+	$(CHECK_REDIS_SERVER)
 ifneq ($(NO_LFS),1)
 	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
 	$(SHOW)cd $(ROOT); git lfs pull
+endif
+ifeq ($(COV),1)
+	$(COVERAGE_RESET)
 endif
 ifeq ($(GEN),1)
 	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
 endif
 ifeq ($(AOF),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ; $(TEST_CMD) --use-aof
 endif
 ifeq ($(SLAVES),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves
+	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ; $(TEST_CMD) --use-slaves
 endif
-ifeq ($(VALGRIND),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
-	$(VALGRIND_TEST_CMD) 
+# ifeq ($(VALGRIND),1)
+# 	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
+# 	$(VALGRIND_TEST_CMD) 
+# endif
+ifeq ($(COV),1)
+	$(COVERAGE_COLLECT_REPORT)
 endif
 
 #----------------------------------------------------------------------------------------------
