@@ -3,7 +3,8 @@ ifneq ($(MK.cmake),)
 
 MK_CMAKE_FILES ?= $(SRCDIR)/CMakeLists.txt
 
-$(BINDIR)/Makefile : bindirs $(MK_CMAKE_FILES)
+# bindirs
+$(BINDIR)/Makefile : $(MK_CMAKE_FILES)
 	$(SHOW)if [ ! -d $(BINDIR) ]; then echo "CMake: $(BINDIR) does not exist."; exit 1; fi
 	$(SHOW)cd $(BINDIR); cmake $(CMAKE_WHY) $(CMAKE_FLAGS) $(abspath $(SRCDIR)) $(CMAKE_SINK)
 

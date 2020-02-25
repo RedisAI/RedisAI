@@ -30,10 +30,9 @@ help() {
 		AOF=0|1         Tests with --test-aof
 		SLAVES=0|1      Tests with --test-slaves
 		
-		TEST=test     Run specific test (e.g. test.py:test_name)
-		VALGRIND=1    Run with Valgrind
-		VGD=1         Same as VALGRIND=1
-		CALLGRIND=1   Run with Callgrind
+		TEST=test        Run specific test (e.g. test.py:test_name)
+		VALGRIND|VGD=1   Run with Valgrind
+		CALLGRIND|CGD=1  Run with Callgrind
 
 	END
 }

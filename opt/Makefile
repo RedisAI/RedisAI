@@ -2,10 +2,10 @@
 ROOT:=..
 include readies/mk/main
 
-MK_CMAKE:=1
 MK.cmake:=1
-MK_CMAKE_INSTALL:=1
 MK_CUSTOM_CLEAN:=1
+
+MK_ALL_TARGETS=bindirs fetch build pack
 
 #---------------------------------------------------------------------------------------------- 
 
@@ -61,18 +61,19 @@ DEPS_FLAGS=cpu
 DEVICE=cpu
 endif
 
+#---------------------------------------------------------------------------------------------- 
+
 SRCDIR=..
 BINDIR=$(BINROOT)/src
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
-# INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
 INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
-
-REDIS_VALGRIND_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
 
 TARGET=$(BINDIR)/redisai.so
 INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
+
+REDIS_VALGRIND_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
 
 #---------------------------------------------------------------------------------------------- 
 
@@ -113,7 +114,7 @@ include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
 
-.PHONY: deps fetch pack pack_ramp pack_deps test
+.PHONY: deps prebuild fetch pack pack_ramp pack_deps test
 
 include $(MK)/rules
 
@@ -122,7 +123,8 @@ include $(MK)/rules
 prebuild:
 	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
 
-$(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
+$(info $(TARGET): $(MK_MAKEFILES) $(DEPS))
+$(TARGET): $(DEPS)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
@@ -178,10 +180,9 @@ ifeq ($(COV),1)
 	$(COVERAGE_RESET)
 endif
 	$(SHOW)\
+		DEVICE=$(DEVICE) \
 		MODULE=$(INSTALLED_TARGET) \
-		GEN=$(GEN) \
-		AOF=$(AOF) \
-		SLAVES=$(SLAVES) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		$(ROOT)/test/tests.sh
 ifeq ($(COV),1)
 	$(COVERAGE_COLLECT_REPORT)
