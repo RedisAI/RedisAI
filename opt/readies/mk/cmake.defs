@@ -9,7 +9,7 @@ endif
 
 ifeq ($(WHY),1)
 CMAKE_WHY=--trace-expand
-CMAKE_SINK=>/tmp/cmake.log
+CMAKE_SINK= >/tmp/cmake.why 2>&1
 endif
 
 endif # MK.cmake

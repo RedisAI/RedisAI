@@ -15,6 +15,7 @@ make fetch  # download and prepare dependant modules
 
 make build  # compile and link
   DEBUG=1          # build for debugging 
+  VARIANT=name     # build variant `name`
   WHY=1            # explain CMake decisions (into /tmp/cmake.why) 
 make clean  # remove build artifacts
   ALL=1       # remove entire artifacts directory
@@ -24,6 +25,7 @@ make test         # run tests
   TEST_ARGS=args    # add extra RLTest `args`
   VERBOSE=1         # verbose tests output
   COV=1             # perform coverage analysis
+make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
 make pack       # create installation packages
   PACK_DEPS=0     # do not pack dependencies
@@ -68,6 +70,7 @@ INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
 REDIS_VALGRIND_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
 
 TARGET=$(BINDIR)/redisai.so
+INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
@@ -156,41 +159,9 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
-define CHECK_REDIS_SERVER
-$(SHOW)if ! command -v redis-server > /dev/null; then \
-	echo "Cannot find redis-server. Aborting." ;\
-	exit 1 ;\
-fi
-endef
-
-TEST_REPORT_DIR ?= $(PWD)
-ifeq ($(VERBOSE),1)
-TEST_ARGS += -v
-endif
-ifeq ($(TEST),)
-TEST=
-PYDEBUG=
-else
-TEST_ARGS += -s --test $(TEST)
-PYDEBUG=1
-endif
-
-GEN ?= 1
-SLAVES ?= 1
-AOF ?= 1
-
-TEST_PREFIX=set -e; cd $(ROOT)/test
-
-define TEST_CMD
-DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-endef
-
-# TODO: --errors-for-leak-kinds=definite
-VALGRIND_OPTIONS=\
-	-q \
-	--leak-check=full \
-	--show-reachable=no \
-	--show-possibly-lost=no
+export GEN ?= 1
+export SLAVES ?= 1
+export AOF ?= 1
 
 define VALGRIND_TEST_CMD
 $(TEST_CMD) \
@@ -203,27 +174,15 @@ $(TEST_CMD) \
 endef
 
 test:
-	$(CHECK_REDIS_SERVER)
-ifneq ($(NO_LFS),1)
-	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
-	$(SHOW)cd $(ROOT); git lfs pull
-endif
 ifeq ($(COV),1)
 	$(COVERAGE_RESET)
 endif
-ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
-endif
-ifeq ($(AOF),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ; $(TEST_CMD) --use-aof
-endif
-ifeq ($(SLAVES),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ; $(TEST_CMD) --use-slaves
-endif
-# ifeq ($(VALGRIND),1)
-# 	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
-# 	$(VALGRIND_TEST_CMD) 
-# endif
+	$(SHOW)\
+		MODULE=$(INSTALLED_TARGET) \
+		GEN=$(GEN) \
+		AOF=$(AOF) \
+		SLAVES=$(SLAVES) \
+		$(ROOT)/test/tests.sh
 ifeq ($(COV),1)
 	$(COVERAGE_COLLECT_REPORT)
 endif
@@ -234,11 +193,6 @@ docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
 
 #----------------------------------------------------------------------------------------------
-# Currently only testing for leaks using TF
-
-MODULE_ARGS=\
-	BACKENDSPATH $(realpath $(BINDIR)) \
-	TF redisai_tensorflow.so 
 
 VALGRIND_ARGS=\
 	$(VALGRIND_OPTIONS) \
@@ -246,7 +200,7 @@ VALGRIND_ARGS=\
 	-v redis-server --protected-mode no --save "" --appendonly no
 
 valgrind: $(TARGET)
-	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(INSTALLED_TARGET))
 
 CALLGRIND_ARGS=\
 	--tool=callgrind \
@@ -258,4 +212,4 @@ CALLGRIND_ARGS=\
 	-v redis-server --protected-mode no --save "" --appendonly no
 
 callgrind: $(TARGET)
-	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
+	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(INSTALLED_TARGET))

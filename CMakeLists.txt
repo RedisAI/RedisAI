@@ -20,6 +20,13 @@ ENDIF()
 
 SET(CMAKE_CC_COMMON_FLAGS "-fPIC")
 
+IF (USE_COVERAGE)
+    IF (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        MESSAGE(FATAL_ERROR "Build type must be DEBUG for coverage")
+    ENDIF()
+    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -coverage")
+ENDIF()
+
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CC_COMMON_FLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CC_COMMON_FLAGS}")
 
@@ -30,15 +37,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 # Add -fno-omit-frame-pointer to avoid seeing incomplete stack traces
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer -DVALGRIND")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer -DVALGRIND")
-
-#----------------------------------------------------------------------------------------------
-
-IF (USE_COVERAGE)
-    IF (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-        MESSAGE(FATAL_ERROR "Build type must be DEBUG for coverage")
-    ENDIF()
-    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -coverage")
-ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
