@@ -3,7 +3,11 @@ ROOT:=..
 include readies/mk/main
 
 MK_CMAKE:=1
+MK.cmake:=1
 MK_CMAKE_INSTALL:=1
+MK_CUSTOM_CLEAN:=1
+
+#---------------------------------------------------------------------------------------------- 
 
 define HELP
 make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
@@ -52,10 +56,12 @@ endif
 
 SRCDIR=..
 BINDIR=$(BINROOT)/src
-# INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
-INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
+# INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
+INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
+
 REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
+
 TARGET=$(BINDIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends

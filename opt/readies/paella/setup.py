@@ -227,7 +227,12 @@ class Setup(OnPlatform):
 #        self.install("git-lfs", _try=_try)
 
     def install_gnu_utils(self, _try=False):
-        self.install("make findutils gnu-sed gnu-tar")
+        packs = ""
+        if self.os == 'macosx':
+            packs= "make findutils gnu-sed gnu-tar gawk"
+        elif self.os == 'freebsd':
+            packs = "gmake findutils gsed gtar gawk"
+        self.install(packs)
         for x in ['make', 'find', 'sed', 'tar']:
             p = "/usr/local/bin/{}".format(x)
             if not os.path.exists(p):

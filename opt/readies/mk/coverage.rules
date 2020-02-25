@@ -1,0 +1,7 @@
+
+ifeq ($(COV),1)
+
+cov-upload:
+	$(SHOW)bash <(curl -s https://codecov.io/bash) -f $(COV_INFO)
+
+endif # COV

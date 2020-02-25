@@ -1,5 +1,5 @@
 
-ifneq ($(MK_CMAKE),)
+ifneq ($(MK.cmake),)
 
 MK_MAKEFILES += $(BINDIR)/Makefile
 
@@ -11,4 +11,4 @@ ifeq ($(WHY),1)
 CMAKE_WHY=--trace-expand
 endif
 
-endif # MK_CMAKE
+endif # MK.cmake
