@@ -90,13 +90,13 @@ jobs:
       - run:
           name: Build
           command: |
-			# make fetch SHOW=1
-		    make -C opt build COV=1 SHOW=1
+            # make fetch SHOW=1
+            make -C opt build COV=1 SHOW=1
       - run:
           name: Test with coverage
           command: |
             make -C opt test SHOW=1 COV=1
-			make cov-upload COV=1
+            make cov-upload COV=1
 
   build-macos:
     macos:

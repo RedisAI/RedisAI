@@ -8,6 +8,10 @@ MK_CUSTOM_CLEAN:=1
 
 MK_ALL_TARGETS=bindirs fetch build pack
 
+ifneq ($(VGD),)
+VALGRIND=$(VGD)
+endif
+
 ifeq ($(COV),1)
 DEBUG ?= 1
 endif
@@ -175,23 +179,15 @@ export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
 
-ifneq ($(VGD),)
-VALGRIND=$(VGD)
-endif
-
 test:
-ifeq ($(COV),1)
 	$(COVERAGE_RESET)
-endif
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(INSTALLED_TARGET) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		$(ROOT)/test/tests.sh
-ifeq ($(COV),1)
 	$(COVERAGE_COLLECT_REPORT)
-endif
 
 valgrind:
 	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))

@@ -2,6 +2,7 @@
 import os
 import sys
 import tempfile
+import textwrap
 from .platform import OnPlatform, Platform
 
 #----------------------------------------------------------------------------------------------
@@ -11,6 +12,8 @@ class Runner:
         self.nop = nop
 
     def run(self, cmd, output_on_error=False, _try=False):
+        if cmd.find('\n') > -1:
+            cmd = str.lstrip(textwrap.dedent(cmd)).replace('\n', '; ')
         print(cmd)
         sys.stdout.flush()
         if self.nop:
@@ -216,8 +219,17 @@ class Setup(OnPlatform):
         self.install("curl wget", _try=_try)
 
     def install_git_lfs_on_linux(self, _try=False):
-        self.run("set -e; wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.9.2/git-lfs-linux-amd64-v2.9.2.tar.gz -O /tmp/git-lfs.tar.gz")
-        self.run("cd /tmp; tar xzf git-lfs.tar.gz; ./install.sh")
+        self.run("""
+            set -e
+            d=$(mktemp -d /tmp/git-lfs.XXXXXX)
+            mkdir -p $d
+            wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.9.2/git-lfs-linux-amd64-v2.9.2.tar.gz -O $d/git-lfs.tar.gz
+            cd $d
+            tar xf git-lfs.tar.gz
+            cd -
+            $d/install.sh
+            rm -rf $d
+            """)
 
 #        cmd = "curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.{}.sh | bash"
 #        if self.platform.is_redhat_compat():
