@@ -12,6 +12,8 @@ ARG ARCH=x64
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
 FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
 
+SHELL ["/bin/bash", "-c"]
+
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
@@ -32,7 +34,7 @@ ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
 RUN set -e ;\
 	. ./venv/bin/activate ;\
-	if [ "$DEPS_ARGS" = "" ]; then \
+	if [[ -z $DEPS_ARGS ]]; then \
 		./get_deps.sh gpu ;\
 	else \
 		env $DEPS_ARGS ./get_deps.sh gpu ;\
@@ -46,9 +48,9 @@ RUN set -e ;\
 
 ARG PACK=1
 
-RUN if [ "$PACK" = "1" ]; then \
+RUN if [[ $PACK == 1 ]]; then \
 		. ./venv/bin/activate ;\
-		make -C opt pack GPU=1 ;\
+		make -C opt pack GPU=1 VERBOSE=1 ;\
 	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI

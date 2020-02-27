@@ -183,8 +183,6 @@ export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
 
-$(info COV_DIR=$(COV_DIR))
-
 test:
 	$(COVERAGE_RESET)
 	$(SHOW)\

@@ -1,4 +1,8 @@
 
+ifneq ($(filter cov-upload,$(MAKECMDGOALS)),)
+COV=1
+endif
+
 ifeq ($(COV),1)
 
 CC_FLAGS.coverage += --coverage
