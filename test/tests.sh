@@ -4,14 +4,17 @@
 [[ $IGNERR == 1 ]] || set -e
 
 error() {
-	echo "There are errors."
+	echo "There are errors:"
+	gawk 'NR>L-4 && NR<L+4 { printf "%-5d%4s%s\n",NR,(NR==L?">>> ":""),$0 }' L=$1 $0
 	exit 1
 }
 
-trap error ERR
+[[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . $HERE/../opt/readies/shibumi/functions
+
+export ROOT=$(realpath $HERE/..)
 
 #----------------------------------------------------------------------------------------------
 
@@ -57,7 +60,7 @@ check_redis_server() {
 #----------------------------------------------------------------------------------------------
 
 valgrind_config() {
-	VALGRIND_OPTIONS="\
+	export VG_OPTIONS="
 		-q \
 		--leak-check=full \
 		--show-reachable=no \
@@ -65,12 +68,11 @@ valgrind_config() {
 
 	VALGRIND_SUPRESSIONS=$ROOT/opt/redis_valgrind.sup
 
-	RLTEST_ARGS+=" \
+	RLTEST_ARGS+="\
 		--no-output-catch \
 		--use-valgrind \
 		--vg-no-fail-on-errors \
-		--vg-verbose
-		--vg-options \"$VALGRIND_OPTIONS\" \
+		--vg-verbose \
 		--vg-suppressions $VALGRIND_SUPRESSIONS"
 }
 
@@ -83,6 +85,8 @@ run_tests() {
 }
 
 #----------------------------------------------------------------------------------------------
+
+[[ $1 == --help || $1 == help ]] && { help; exit 0; }
 
 DEVICE=${DEVICE:-cpu}
 
@@ -111,9 +115,6 @@ fi
 
 #----------------------------------------------------------------------------------------------
 
-[[ $1 == --help || $1 == help ]] && { help; exit 0; }
-
-ROOT=$(realpath $HERE/..)
 cd $ROOT/test
 
 install_git_lfs

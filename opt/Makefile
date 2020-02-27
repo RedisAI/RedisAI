@@ -3,9 +3,14 @@ ROOT:=..
 include readies/mk/main
 
 MK.cmake:=1
+MK_CUSTOM_CMAKE_BUILD:=1
 MK_CUSTOM_CLEAN:=1
 
 MK_ALL_TARGETS=bindirs fetch build pack
+
+ifeq ($(COV),1)
+DEBUG ?= 1
+endif
 
 #---------------------------------------------------------------------------------------------- 
 
@@ -13,18 +18,22 @@ define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
 make fetch  # download and prepare dependant modules
 
-make build  # compile and link
-  DEBUG=1          # build for debugging 
-  VARIANT=name     # build variant `name`
-  WHY=1            # explain CMake decisions (into /tmp/cmake.why) 
-make clean  # remove build artifacts
-  ALL=1       # remove entire artifacts directory
+make build      # compile and link
+  DEBUG=1         # build for debugging
+  COV=1           # build for coverage analysis (implies DEBUG=1)
+  VARIANT=name    # build variant `name`
+  WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
+make clean      # remove build artifacts
+  ALL=1           # remove entire artifacts directory
+make install    # create ready-to-run scheme (module and engines)
 
 make test         # run tests
   TEST=test         # run only test `test` with Redis output
   TEST_ARGS=args    # add extra RLTest `args`
   VERBOSE=1         # verbose tests output
   COV=1             # perform coverage analysis
+  VALGRIND|VGD=1    # test with Valgrind (implies DEBUG=1)
+  CALLGRIND|CGD=1   # test with Callgrind (implies DEBUG=1)
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
 make pack       # create installation packages
@@ -33,6 +42,7 @@ make pack       # create installation packages
   BRANCH=name     # use `name` as branch name
 make deploy     # copy packages to S3
 make release    # release a version
+make docker     # build docker image
 
 fetch and build options:
   WITH_TF=0     # SKip TensofFlow
@@ -73,8 +83,6 @@ INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
-REDIS_VALGRIND_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
-
 #---------------------------------------------------------------------------------------------- 
 
 CMAKE_FILES += \
@@ -114,24 +122,21 @@ include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
 
-.PHONY: deps prebuild fetch pack pack_ramp pack_deps test
+.PHONY: fetch deps pack pack_ramp pack_deps test
 
 include $(MK)/rules
 
 #---------------------------------------------------------------------------------------------- 
 
-prebuild:
-	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
+#prebuild:
+#	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
 
-$(info $(TARGET): $(MK_MAKEFILES) $(DEPS))
-$(TARGET): $(DEPS)
-	$(SHOW)mkdir -p $(INSTALL_DIR)
+cmake-build $(TARGET): $(MK_MAKEFILES)
 	$(SHOW)$(MAKE) -C $(BINDIR)
+	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
-#	$(SHOW)cd $(ROOT) ;\
-#	if [ ! -e install ]; then ln -sf install-$(DEVICE) install; fi
 
-install:
+install $(INSTALLED_TARGET): $(TARGET)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
 
@@ -146,13 +151,18 @@ endif
 
 #---------------------------------------------------------------------------------------------- 
 
+setup:
+	@echo Setting up system...
+	$(SHOW)$(ROOT)/opt/readies/bin/getpy3
+	$(SHOW)$(ROOT)/opt/system-setup.py
+
 fetch deps:
 	@echo Fetching dependencies...
 	$(SHOW)VERBOSE=$(_SHOW) $(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
 #----------------------------------------------------------------------------------------------
 
-pack:
+pack: $(INSTALLED_TARGET)
 ifneq ($(PACK_DEPS),0)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
@@ -165,15 +175,9 @@ export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
 
-define VALGRIND_TEST_CMD
-$(TEST_CMD) \
-	--no-output-catch \
-	--use-valgrind \
-	--vg-no-fail-on-errors \
-	--vg-verbose
-	--vg-options "$(VALGRIND_OPTIONS)" \
-	--vg-suppressions $(realpath $(REDIS_VALGRIND_SUPRESS))
-endef
+ifneq ($(VGD),)
+VALGRIND=$(VGD)
+endif
 
 test:
 ifeq ($(COV),1)
@@ -183,34 +187,19 @@ endif
 		DEVICE=$(DEVICE) \
 		MODULE=$(INSTALLED_TARGET) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
 		$(ROOT)/test/tests.sh
 ifeq ($(COV),1)
 	$(COVERAGE_COLLECT_REPORT)
 endif
 
+valgrind:
+	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
+
+callgrind:
+	$(SHOW)CALLGRIND=1 $(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
+
 #----------------------------------------------------------------------------------------------
 
 docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
-
-#----------------------------------------------------------------------------------------------
-
-VALGRIND_ARGS=\
-	$(VALGRIND_OPTIONS) \
-	--suppressions=$(realpath $(REDIS_VALGRIND_SUPRESS)) \
-	-v redis-server --protected-mode no --save "" --appendonly no
-
-valgrind: $(TARGET)
-	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(INSTALLED_TARGET))
-
-CALLGRIND_ARGS=\
-	--tool=callgrind \
-	--dump-instr=yes \
-	--simulate-cache=no \
-	--collect-jumps=no \
-	--collect-atstart=yes \
-	--instr-atstart=yes \
-	-v redis-server --protected-mode no --save "" --appendonly no
-
-callgrind: $(TARGET)
-	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(INSTALLED_TARGET))
