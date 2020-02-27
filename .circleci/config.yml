@@ -71,7 +71,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redislabsmodules/rmbuilder:latest
+      - image: redisfab/rmbuilder:x64-buster
     steps:
       - checkout
       - run:
