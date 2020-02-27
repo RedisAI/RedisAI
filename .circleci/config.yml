@@ -38,7 +38,6 @@ commands:
           command: |
             mkdir -p ~/workspace/tests
             make -C opt test SHOW=1 VERBOSE=1
-            cp test/logs/* ~/workspace/tests
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
@@ -49,8 +48,9 @@ commands:
             - 'packages/release/*.tgz'
             - 'packages/branch/*.zip'
             - 'packages/branch/*.tgz'
-      - store_test_results:
-          path: ~/workspace/tests
+      - store_artifacts:
+          path: test/logs
+          
   deploy:
     parameters:
       from:
@@ -100,7 +100,7 @@ jobs:
 
   build-macos:
     macos:
-      xcode: 10.2.1
+      xcode: 11.1.0
     steps:
       - run:
           name: Fix macOS Python installation
@@ -159,7 +159,7 @@ jobs:
             mkdir -p ~/workspace/tests
             docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 30m
-      - store_test_results:
+      - store_artifacts:
           path: ~/workspace/tests
 
   deploy_package:
