@@ -193,7 +193,7 @@ test:
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		$(ROOT)/test/tests.sh
-	# $(COVERAGE_COLLECT_REPORT)
+	$(COVERAGE_COLLECT_REPORT)
 
 valgrind:
 	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
