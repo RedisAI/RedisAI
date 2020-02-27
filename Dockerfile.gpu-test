@@ -22,20 +22,34 @@ COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
 RUN ./opt/readies/bin/getpy3
-RUN ./opt/system-setup.py
+RUN set -e ;\
+	python3 -m virtualenv venv ;\
+	. ./venv/bin/activate ;\
+	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
-RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_deps.sh gpu; fi
+RUN set -e ;\
+	. ./venv/bin/activate ;\
+	if [ "$DEPS_ARGS" = "" ]; then \
+		./get_deps.sh gpu ;\
+	else \
+		env $DEPS_ARGS ./get_deps.sh gpu ;\
+	fi
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+RUN set -e ;\
+	. ./venv/bin/activate ;\
+	make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK=1
 
-RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
+RUN if [ "$PACK" = "1" ]; then \
+		. ./venv/bin/activate ;\
+		make -C opt pack GPU=1 ;\
+	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI
 
-CMD ["bash", "-c", "make -C opt test GPU=1 SHOW=1"]
+CMD ["bash", "-c", ". ./venv/bin/activate; make -C opt test GPU=1 SHOW=1"]

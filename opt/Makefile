@@ -12,6 +12,10 @@ ifneq ($(VGD),)
 VALGRIND=$(VGD)
 endif
 
+ifeq ($(VALGRIND),1)
+DEBUG ?= 1
+endif
+
 ifeq ($(COV),1)
 DEBUG ?= 1
 endif
@@ -179,6 +183,8 @@ export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
 
+$(info COV_DIR=$(COV_DIR))
+
 test:
 	$(COVERAGE_RESET)
 	$(SHOW)\
@@ -187,7 +193,7 @@ test:
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		$(ROOT)/test/tests.sh
-	$(COVERAGE_COLLECT_REPORT)
+	# $(COVERAGE_COLLECT_REPORT)
 
 valgrind:
 	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
