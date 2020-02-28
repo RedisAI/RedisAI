@@ -41,7 +41,7 @@ class RedisAISetup(paella.Setup):
         else:
             self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3 python3-devel")
-            self.pip_install("psutil")
+            self.pip3_install("psutil")
 
         self.install_git_lfs_on_linux()
 
@@ -66,12 +66,17 @@ class RedisAISetup(paella.Setup):
         self.install("redis")
 
     def common_last(self):
-        # if not self.has_command("RLTest"):
-        self.pip3_install("git+https://github.com/RedisLabsModules/RLTest.git@master")
-        # if not self.has_command("ramp"):
-        self.pip3_install("git+https://github.com/RedisLabs/RAMP@master")
+        # this is due to rmbuilder older versions. should be removed once fixed.
+        self.run("python3 -m pip uninstall -y -q redis redis-py-cluster ramp-packer RLTest rmtest semantic-version || true")
+        # redis-py-cluster should be installed from git due to redis-py dependency
+        self.pip3_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
+        # the following can be probably installed from pypi
+        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
+        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")         
+        
         root = os.path.join(os.path.dirname(__file__), "..")
         self.pip3_install("-r {}/test/test_requirements.txt".format(root))
+        
 
 #----------------------------------------------------------------------------------------------
 
