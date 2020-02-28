@@ -26,7 +26,7 @@ COPY ./test/test_requirements.txt test/
 RUN ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 RUN set -e ;\
-	python3 -m virtualenv venv ;\
+	python3 -m virtualenv venv --system-site-packages;\
 	. venv/bin/activate ;\
 	./opt/system-setup.py
 
