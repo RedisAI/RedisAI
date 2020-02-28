@@ -27,13 +27,13 @@ RUN ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 RUN set -e ;\
 	python3 -m virtualenv venv ;\
-	. ./venv/bin/activate ;\
+	. venv/bin/activate ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
 RUN set -e ;\
-	. ./venv/bin/activate ;\
+	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
 		./get_deps.sh gpu ;\
 	else \
@@ -43,13 +43,14 @@ RUN set -e ;\
 ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
-	. ./venv/bin/activate ;\
+	. venv/bin/activate ;\
 	make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK=1
 
-RUN if [[ $PACK == 1 ]]; then \
-		. ./venv/bin/activate ;\
+RUN set -e ;\
+	if [[ $PACK == 1 ]]; then \
+		. venv/bin/activate ;\
 		make -C opt pack GPU=1 VERBOSE=1 ;\
 	fi
 

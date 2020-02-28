@@ -95,7 +95,7 @@ jobs:
           name: Test with coverage
           command: |
             make -C opt test SHOW=1 COV=1
-            make cov-upload COV=1
+            make -C opt cov-upload
 
   build-macos:
     macos:
