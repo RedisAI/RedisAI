@@ -310,6 +310,7 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
     size_t len = strlen(e.what());
     *error = (char*)alloc(len * sizeof(char));
     strcpy(*error, e.what());
+    delete ctx;
     return NULL;
   }
   return ctx;
@@ -339,6 +340,7 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     size_t len = strlen(e.what());
     *error = (char*)alloc(len * sizeof(char));
     strcpy(*error, e.what());
+    delete ctx;
     return NULL;
   }
   return ctx;
