@@ -15,3 +15,7 @@ MAKEFLAGS += --no-builtin-rules  --no-print-directory
 define __SEP
 import os; rows, cols = os.popen('stty size', 'r').read().split(); print('-' * (int(cols) - 1) + \"\n\")
 endef
+
+ifneq ($(filter cov-upload,$(MAKECMDGOALS)),)
+COV=1
+endif

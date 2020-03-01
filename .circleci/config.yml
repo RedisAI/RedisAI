@@ -15,16 +15,15 @@ commands:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy
+            ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            git clone git://github.com/antirez/redis.git --branch 5.0.7
-            (cd redis && make malloc=libc -j $(nproc) && make install)
-            redis-server --version
+            git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
             ./get_deps.sh cpu
       - save_cache:
           paths:
             - deps
-          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+            - /usr/local
+          key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Set up workspace
           command: |
@@ -38,7 +37,6 @@ commands:
           command: |
             mkdir -p ~/workspace/tests
             make -C opt test SHOW=1 VERBOSE=1
-            cp test/logs/* ~/workspace/tests
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
@@ -49,8 +47,9 @@ commands:
             - 'packages/release/*.tgz'
             - 'packages/branch/*.zip'
             - 'packages/branch/*.tgz'
-      - store_test_results:
-          path: ~/workspace/tests
+      - store_artifacts:
+          path: test/logs
+          
   deploy:
     parameters:
       from:
@@ -68,9 +67,37 @@ jobs:
     steps:
       - ci_steps:
           platform: debian
+
+  coverage:
+    docker:
+      - image: redisfab/rmbuilder:x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getpy3
+            ./opt/system-setup.py
+            # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # fallback to using the latest cache if no exact match is found
+          - v1-dependencies-
+      - run:
+          name: Build
+          command: |
+            # make fetch SHOW=1
+            make -C opt build COV=1 SHOW=1
+      - run:
+          name: Test with coverage
+          command: |
+            make -C opt test SHOW=1 COV=1
+            make -C opt cov-upload
+
   build-macos:
     macos:
-      xcode: 10.2.1
+      xcode: 11.1.0
     steps:
       - run:
           name: Fix macOS Python installation
@@ -78,6 +105,7 @@ jobs:
             brew reinstall -f python2
       - ci_steps:
           platform: macosx
+
   build-multiarch-docker:
     machine:
       enabled: true
@@ -102,6 +130,7 @@ jobs:
             sudo docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             make -C opt/build/docker build
             sudo make -C opt/build/docker publish
+
   build-gpu:
     machine:
       enabled: true
@@ -110,13 +139,6 @@ jobs:
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
       - checkout
-#      - run:
-#          name: Checkout LFS
-#          command: |
-#            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-#            sudo apt-get install -y git-lfs
-#            git lfs install
-#            git lfs pull
       - run:
           name: Build
           command: |
@@ -127,8 +149,9 @@ jobs:
             mkdir -p ~/workspace/tests
             docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 30m
-      - store_test_results:
+      - store_artifacts:
           path: ~/workspace/tests
+
   deploy_package:
     parameters:
       package:
@@ -164,6 +187,14 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - coverage:
+          requires:
+            - build
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              only: /.*/ 
       - build-macos:
           filters:
             branches:

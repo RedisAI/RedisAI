@@ -22,7 +22,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN ./opt/readies/bin/getpy
+RUN ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""

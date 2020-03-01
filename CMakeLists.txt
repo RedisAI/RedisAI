@@ -16,16 +16,29 @@ IF(NOT CMAKE_BUILD_TYPE)
             "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 ENDIF()
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+#----------------------------------------------------------------------------------------------
+
+SET(CMAKE_CC_COMMON_FLAGS "-fPIC")
+
+IF (USE_COVERAGE)
+    IF (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+        MESSAGE(FATAL_ERROR "Build type must be DEBUG for coverage")
+    ENDIF()
+    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -coverage")
+ENDIF()
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_CC_COMMON_FLAGS}")
+SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CC_COMMON_FLAGS}")
 
 # For adding specific Release flags
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 # Add -fno-omit-frame-pointer to avoid seeing incomplete stack traces
-set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer -DVALGRIND")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-pointer -DVALGRIND")
+
+#----------------------------------------------------------------------------------------------
 
 option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)

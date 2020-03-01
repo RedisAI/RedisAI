@@ -1,7 +1,10 @@
 
-ifneq ($(MK_CMAKE),)
+ifneq ($(MK.cmake),)
+
+MK_CMAKE_FILES ?= $(SRCDIR)/CMakeLists.txt
 
 MK_MAKEFILES += $(BINDIR)/Makefile
+DEFAULT_TARGETS += cmake-build
 
 ifeq ($(DEBUG),1)
 CMAKE_FLAGS += -DCMAKE_BUILD_TYPE=Debug
@@ -9,6 +12,7 @@ endif
 
 ifeq ($(WHY),1)
 CMAKE_WHY=--trace-expand
+CMAKE_SINK= >/tmp/cmake.why 2>&1
 endif
 
-endif # MK_CMAKE
+endif # MK.cmake

@@ -4,21 +4,53 @@
 
 #include "readies/cetara/diag/gdb.h"
 
+#include <ctype.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sys/types.h>
 #include <sys/ptrace.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
 
 #ifdef __linux__
 
-#if 1
+static inline bool _via_gdb_simple()
+{
+    const int status_fd = open("/proc/self/status", O_RDONLY);
+    if (status_fd == -1)
+        return false;
+
+    char buf[4096];
+    const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
+    if (num_read <= 0)
+        return false;
+
+    buf[num_read] = '\0';
+    char tracer_pid[] = "TracerPid:";
+    const char *tracer_pid_p = strstr(buf, tracer_pid);
+    if (!tracer_pid_p)
+        return false;
+
+    for (const char *p = tracer_pid_p + sizeof(tracer_pid) - 1; p <= buf + num_read; ++p)
+    {
+        if (isspace(*p))
+            continue;
+        return isdigit(*p) && *p != '0';
+    }
+
+    return false;
+}
 
 static inline bool _via_gdb()
 {
+    if (_via_gdb_simple())
+        return true;
+
     int pid;
     int from_child[2] = {-1, -1};
 
@@ -77,37 +109,6 @@ static inline bool _via_gdb()
         return ret == 1;
     }
 }
-
-#else
-
-static inline bool _via_gdb()
-{
-    const int status_fd = open("/proc/self/status", O_RDONLY);
-    if (status_fd == -1)
-        return false;
-
-    char buf[4096];
-    const ssize_t num_read = read(status_fd, buf, sizeof(buf) - 1);
-    if (num_read <= 0)
-        return false;
-
-    buf[num_read] = '\0';
-    constexpr char tracer_pid[] = "TracerPid:";
-    const auto tracer_pid_p = strstr(buf, tracer_pid);
-    if (!tracer_pid_p)
-        return false;
-
-    for (const char *p = tracer_pid_p + sizeof(tracer_pid) - 1; p <= buf + num_read; ++p)
-    {
-        if (isspace(*p))
-            continue;
-        return isdigit(*p) && *p != '0';
-    }
-
-    return false;
-}
-
-#endif // 1
 
 #elif defined(__APPLE__)
 

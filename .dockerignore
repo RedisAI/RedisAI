@@ -8,3 +8,4 @@ venv*/
 *.zip
 *.tgz
 *.tar.gz
+/VARAINT
