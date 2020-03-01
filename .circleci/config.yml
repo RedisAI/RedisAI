@@ -17,7 +17,7 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
+            git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
             ./get_deps.sh cpu
       - save_cache:
           paths:
