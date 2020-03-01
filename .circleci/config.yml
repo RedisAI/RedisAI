@@ -17,9 +17,7 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            git clone git://github.com/antirez/redis.git --branch 5.0.7
-            (cd redis && make malloc=libc -j $(nproc) && make install)
-            redis-server --version
+            git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
             ./get_deps.sh cpu
       - save_cache:
           paths:
@@ -79,7 +77,7 @@ jobs:
           name: Install dependencies
           command: |
             ./opt/readies/bin/getpy3
-            BREW_NO_UPDATE=1 ./opt/system-setup.py
+            ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
       - restore_cache:
           keys:
@@ -141,13 +139,6 @@ jobs:
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
       - checkout
-#      - run:
-#          name: Checkout LFS
-#          command: |
-#            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-#            sudo apt-get install -y git-lfs
-#            git lfs install
-#            git lfs pull
       - run:
           name: Build
           command: |
