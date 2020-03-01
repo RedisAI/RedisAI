@@ -1,11 +1,21 @@
 
-.PHONY: all
-
-all: $(MK_ALL_TARGETS)
+default: build
 
 include $(MK)/common.rules
 include $(MK)/variant.rules
 include $(MK)/bindirs.rules
 include $(MK)/help.rules
 include $(MK)/build.rules
+include $(MK)/coverage.rules
+
+ifneq ($(MK.cmake),)
 include $(MK)/cmake.rules
+endif
+
+ifneq ($(MK.configure),)
+include $(MK)/configure.rules
+endif
+
+all: $(MK_ALL_TARGETS)
+
+.PHONY: all default

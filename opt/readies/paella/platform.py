@@ -1,6 +1,7 @@
 
 from __future__ import absolute_import
 import platform
+import os
 import re
 
 #----------------------------------------------------------------------------------------------
@@ -34,6 +35,13 @@ class Platform:
 
     def __init__(self, strict=False):
         self.os = self.dist = self.os_ver = self.full_os_ver = self.osnick = self.arch = '?'
+
+        # self.os = os.getenv("READIES_PLATFORM_OS", '?')
+        # self.dist = os.getenv("READIES_PLATFORM_DIST", '?')
+        # self.os_ver = os.getenv("READIES_PLATFORM_OS_VER", '?')
+        # self.full_os_ver = os.getenv("READIES_PLATFORM_FULL_OS_VER", '?')
+        # self.osnick = os.getenv("READIES_PLATFORM_OSNICK", '?')
+        # self.arch = os.getenv("READIES_PLATFORM_ARCH", '?')
 
         self.os = platform.system().lower()
         if self.os == 'linux':
@@ -189,6 +197,8 @@ class OnPlatform:
                     assert(False), "Cannot determine installer"
             elif os == 'macosx':
                 self.macosx()
+            elif os == 'freebsd':
+                self.freebsd()
 
         self.common_last()
 

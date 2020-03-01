@@ -11,6 +11,7 @@ venv*/
 *.zip
 *.tgz
 *.tar.gz
+/VARIANT
 
 # Misc
 .DS_Store

@@ -1,0 +1,51 @@
+
+ifneq ($(filter cov-upload,$(MAKECMDGOALS)),)
+COV=1
+endif
+
+ifeq ($(COV),1)
+
+CC_FLAGS.coverage += --coverage
+LD_FLAGS.coverage += --coverage
+
+COV_INFO=$(BINROOT)/cov.info
+COV_DIR=$(BINROOT)/cov
+
+COV_EXCLUDE += \
+    '/Applications/*' \
+    '/usr/*'
+
+define COVERAGE_RESET
+$(SHOW)set -e ;\
+echo "Starting coverage analysys." ;\
+mkdir -p $(COV_DIR) ;\
+lcov --directory $(BINROOT) --base-directory $(SRCDIR) -z > /dev/null 2>&1
+endef
+
+define COVERAGE_COLLECT
+$(SHOW)set -e ;\
+echo "Collecting coverage data ..." ;\
+lcov --capture --directory $(BINROOT) --base-directory $(SRCDIR) --output-file $(COV_INFO) > /dev/null 2>&1 ;\
+lcov -o $(COV_INFO) -r $(COV_INFO) $(COV_EXCLUDE) > /dev/null 2>&1
+endef
+
+define COVERAGE_REPORT
+$(SHOW)set -e ;\
+lcov -l $(COV_INFO) ;\
+genhtml --legend -o $(COV_DIR) $(COV_INFO) > /dev/null 2>&1 ;\
+echo "Coverage info at $$(realpath $(COV_DIR))/index.html"
+endef
+
+define COVERAGE_COLLECT_REPORT
+$(COVERAGE_COLLECT)
+$(COVERAGE_REPORT)
+endef
+
+else
+
+COVERAGE_RESET=
+COVERAGE_COLLECT=
+COVERAGE_REPORT=
+COVERAGE_COLLECT_REPORT=
+
+endif # COV

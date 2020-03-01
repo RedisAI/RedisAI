@@ -1,5 +1,7 @@
 
+ifndef BINROOT
 BINROOT=$(ROOT)/bin/$(FULL_VARIANT)
+endif
 BINROOT.release=$(ROOT)/bin/$(FULL_VARIANT.release)
 BIN_DIRS=$(sort $(patsubst %/,%,$(BINDIR) $(dir $(OBJECTS))) $(BINDIRS))
 

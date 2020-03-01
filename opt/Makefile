@@ -2,26 +2,55 @@
 ROOT:=..
 include readies/mk/main
 
-MK_CMAKE:=1
-MK_CMAKE_INSTALL:=1
+MK.cmake:=1
+MK_CUSTOM_CMAKE_BUILD:=1
+MK_CUSTOM_CLEAN:=1
+
+MK_ALL_TARGETS=bindirs fetch build pack
+
+ifneq ($(VGD),)
+VALGRIND=$(VGD)
+endif
+
+ifeq ($(VALGRIND),1)
+DEBUG ?= 1
+endif
+
+ifeq ($(COV),1)
+DEBUG ?= 1
+endif
+
+#---------------------------------------------------------------------------------------------- 
 
 define HELP
-make setup    # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
-make fetch    # download and prepare dependant modules
-make build    # compile and link
-make clean    # remove build artifacts
-  ALL=1         # remove entire artifacts directory
-make test     # run tests
-  TEST=test       # run only test `test` with Redis output
-  TEST_ARGS=args  # add extra RLTest `args`
-  VERBOSE=1   # verbose tests output
-  TEST_COVERAGE=off # add coverage
-make pack     # create installation packages
-  PACK_DEPS=0   # do not pack dependencies
-  INTO=dir      # place artifacts in `dir`
-  BRANCH=name   # use `name` as branch name
-make deploy   # copy packages to S3
-make release  # release a version
+make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
+make fetch  # download and prepare dependant modules
+
+make build      # compile and link
+  DEBUG=1         # build for debugging
+  COV=1           # build for coverage analysis (implies DEBUG=1)
+  VARIANT=name    # build variant `name`
+  WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
+make clean      # remove build artifacts
+  ALL=1           # remove entire artifacts directory
+make install    # create ready-to-run scheme (module and engines)
+
+make test         # run tests
+  TEST=test         # run only test `test` with Redis output
+  TEST_ARGS=args    # add extra RLTest `args`
+  VERBOSE=1         # verbose tests output
+  COV=1             # perform coverage analysis
+  VALGRIND|VGD=1    # test with Valgrind (implies DEBUG=1)
+  CALLGRIND|CGD=1   # test with Callgrind (implies DEBUG=1)
+make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
+
+make pack       # create installation packages
+  PACK_DEPS=0     # do not pack dependencies
+  INTO=dir        # place artifacts in `dir`
+  BRANCH=name     # use `name` as branch name
+make deploy     # copy packages to S3
+make release    # release a version
+make docker     # build docker image
 
 fetch and build options:
   WITH_TF=0     # SKip TensofFlow
@@ -50,30 +79,35 @@ DEPS_FLAGS=cpu
 DEVICE=cpu
 endif
 
+#---------------------------------------------------------------------------------------------- 
+
 SRCDIR=..
 BINDIR=$(BINROOT)/src
-# INSTALL_DIR=$(ROOT)/install-$(DEVICE)
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
-INSTALL_DIR=$(ROOT)/bin/$(OS)-$(ARCH)-$(DEVICE)/install
-REDIS_VALGRID_SUPRESS=$(ROOT)/opt/redis_valgrind.sup
+INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
+
 TARGET=$(BINDIR)/redisai.so
+INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
+
+#---------------------------------------------------------------------------------------------- 
 
 CMAKE_FILES += \
 	$(SRCDIR)/CMakeLists.txt \
 	$(SRCDIR)/src/CMakeLists.txt \
 	$(SRCDIR)/libtorch_c/CMakeLists.txt
 
-WITH_COVERAGE=off
-ifeq ($(TEST_COVERAGE),on)
-WITH_COVERAGE=on
+ifeq ($(COV),1)
+USE_COVERAGE=on
+else
+USE_COVERAGE=off
 endif
 
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
-	-DENABLE_CODECOVERAGE=$(WITH_COVERAGE) \
+	-DUSE_COVERAGE=$(USE_COVERAGE) \
 	-DDEVICE=$(DEVICE)
 
 ifeq ($(WITH_TF),0)
@@ -96,23 +130,21 @@ include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
 
-.PHONY: deps fetch pack pack_ramp pack_deps test
+.PHONY: fetch deps pack pack_ramp pack_deps test
 
 include $(MK)/rules
 
 #---------------------------------------------------------------------------------------------- 
 
-prebuild:
-	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
+#prebuild:
+#	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
 
-$(TARGET): prebuild $(MK_MAKEFILES) $(DEPS)
-	$(SHOW)mkdir -p $(INSTALL_DIR)
+cmake-build $(TARGET): $(MK_MAKEFILES)
 	$(SHOW)$(MAKE) -C $(BINDIR)
+	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
-#	$(SHOW)cd $(ROOT) ;\
-#	if [ ! -e install ]; then ln -sf install-$(DEVICE) install; fi
 
-install:
+install $(INSTALLED_TARGET): $(TARGET)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
 
@@ -127,13 +159,18 @@ endif
 
 #---------------------------------------------------------------------------------------------- 
 
+setup:
+	@echo Setting up system...
+	$(SHOW)$(ROOT)/opt/readies/bin/getpy3
+	$(SHOW)$(ROOT)/opt/system-setup.py
+
 fetch deps:
 	@echo Fetching dependencies...
 	$(SHOW)VERBOSE=$(_SHOW) $(ROOT)/get_deps.sh $(DEPS_FLAGS)
 
 #----------------------------------------------------------------------------------------------
 
-pack:
+pack: $(INSTALLED_TARGET)
 ifneq ($(PACK_DEPS),0)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
@@ -142,76 +179,27 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
-TEST_REPORT_DIR ?= $(PWD)
-ifeq ($(VERBOSE),1)
-TEST_ARGS += -v
-endif
-ifeq ($(TEST),)
-TEST=
-PYDEBUG=
-else
-TEST_ARGS += -s --test $(TEST)
-PYDEBUG=1
-endif
-
-GEN ?= 1
-SLAVES ?= 1
-AOF ?= 1
-
-TEST_PREFIX=set -e; cd $(ROOT)/test
-# TODO: --errors-for-leak-kinds=definite
-VALGRIND_OPTIONS="--leak-check=full -q --show-reachable=no --show-possibly-lost=no"
-TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so
-VALGRIND_TEST_CMD= DEVICE=$(DEVICE) PYDEBUG=$(PYDEBUG) python3 -m RLTest $(TEST_ARGS) --module $(INSTALL_DIR)/redisai.so --no-output-catch --use-valgrind --vg-no-fail-on-errors --vg-verbose  --vg-options $(VALGRIND_OPTIONS) --vg-suppressions $(realpath $(REDIS_VALGRID_SUPRESS))
+export GEN ?= 1
+export SLAVES ?= 1
+export AOF ?= 1
 
 test:
-ifneq ($(NO_LFS),1)
-	$(SHOW)if [ "$(git lfs env > /dev/null 2>&1 ; echo $?)" != "0" ]; then cd $(ROOT); git lfs install; fi
-	$(SHOW)cd $(ROOT); git lfs pull
-endif
-ifeq ($(GEN),1)
-	$(SHOW)$(TEST_PREFIX); $(TEST_CMD)
-endif
-ifeq ($(AOF),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-aof:\n\n" ;\
-	$(TEST_CMD) --use-aof
-endif
-ifeq ($(SLAVES),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with --use-slaves:\n\n" ;\
-	$(TEST_CMD) --use-slaves
-endif
-ifeq ($(VALGRIND),1)
-	$(SHOW)$(TEST_PREFIX); printf "\nTests with valgrind:\n\n" ;\
-	$(VALGRIND_TEST_CMD) 
-endif
+	$(COVERAGE_RESET)
+	$(SHOW)\
+		DEVICE=$(DEVICE) \
+		MODULE=$(INSTALLED_TARGET) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
+		$(ROOT)/test/tests.sh
+	$(COVERAGE_COLLECT_REPORT)
+
+valgrind:
+	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
+
+callgrind:
+	$(SHOW)CALLGRIND=1 $(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 
 docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
-
-#----------------------------------------------------------------------------------------------
-# Currently only testing for leaks using TF
-MODULE_ARGS=\
-	BACKENDSPATH  $(realpath $(BINDIR)) \
-	TF redisai_tensorflow.so 
-
-VALGRIND_ARGS=\
-	$(VALGRIND_OPTIONS) \
-	--suppressions=$(realpath $(REDIS_VALGRID_SUPRESS)) \
-	-v redis-server --protected-mode no --save "" --appendonly no
-
-valgrind: $(TARGET)
-	$(SHOW)valgrind $(VALGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)
-
-CALLGRIND_ARGS=\
-	--tool=callgrind \
-	--dump-instr=yes \
-	--simulate-cache=no \
-	--collect-jumps=no \
-	--collect-atstart=yes \
-	--instr-atstart=yes \
-	-v redis-server --protected-mode no --save "" --appendonly no
-
-callgrind: $(TARGET)
-	$(SHOW)valgrind $(CALLGRIND_ARGS) --loadmodule $(realpath $(TARGET)) $(MODULE_ARGS)

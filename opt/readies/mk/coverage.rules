@@ -1,0 +1,11 @@
+
+ifeq ($(COV),1)
+
+cov-upload:
+ifneq ($(CODECOV_TOKEN),)
+	$(SHOW)bash <(curl -s https://codecov.io/bash) -f $(COV_INFO)
+else
+	@echo "To upload to codecov.io, please define CODECOV_TOKEN for this module."
+endif
+
+endif # COV
