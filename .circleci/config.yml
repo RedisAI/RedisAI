@@ -17,7 +17,7 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
+            # git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
             ./get_deps.sh cpu
       - save_cache:
           paths:
@@ -63,14 +63,14 @@ commands:
 jobs:
   build:
     docker:
-      - image: redisfab/rmbuilder:x64-buster
+      - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - ci_steps:
           platform: debian
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:x64-buster
+      - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - checkout
       - run:
@@ -157,7 +157,7 @@ jobs:
       package:
         type: string
     docker:
-      - image: redisfab/rmbuilder:x64-buster
+      - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - attach_workspace:
           at: ~/workspace
@@ -168,7 +168,7 @@ jobs:
 
   deploy_docs:
     docker:
-      - image: redislabsmodules/rmbuilder:latest
+      - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - checkout
       - run:
