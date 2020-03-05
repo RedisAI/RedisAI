@@ -142,4 +142,4 @@ Read the docs at [redisai.io](http://redisai.io). Checkout our [showcase repo](h
 
 Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2019, Tensorwerk Inc & Redis Labs Ltd
+Copyright 2020, Tensorwerk Inc & Redis Labs Ltd
