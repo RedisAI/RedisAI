@@ -116,6 +116,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
     mctx->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
     RAI_TensorFree(output_tensor);
+    RedisModule_Free(outputs[i]);
   }
 
   return 0;

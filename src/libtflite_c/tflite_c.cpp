@@ -132,7 +132,7 @@ void deleter(DLManagedTensor * arg) {
 }
 
 DLManagedTensor* toManagedDLPack(std::shared_ptr<tflite::Interpreter> interpreter,
-                                 int tflite_output) {
+                                 int tflite_output, void* (*alloc)(size_t)) {
   TfLiteTensor* tensor = interpreter->tensor(tflite_output);
 
   TfLiteIntArray* output_dims = tensor->dims;
@@ -189,7 +189,8 @@ DLManagedTensor* toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
       throw std::logic_error("Unsupported output data type");
   }
 
-  DLManagedTensor* output = new DLManagedTensor;
+  // We use alloc here to allow deallocation from the module
+  DLManagedTensor* output = (DLManagedTensor*)alloc(sizeof(DLManagedTensor));
   output->dl_tensor = dl_tensor;
   output->manager_ctx = NULL;
   output->deleter = deleter;
@@ -302,7 +303,7 @@ extern "C" void tfliteRunModel(void* ctx,
 
   try {
     for (size_t i=0; i<tflite_outputs.size(); i++) {
-      outputs[i] = toManagedDLPack(interpreter, tflite_outputs[i]);
+      outputs[i] = toManagedDLPack(interpreter, tflite_outputs[i], alloc);
     }
   }
   catch(std::exception& e) {
