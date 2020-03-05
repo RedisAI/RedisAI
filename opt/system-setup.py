@@ -61,17 +61,15 @@ class RedisAISetup(paella.Setup):
         self.install("redis")
 
     def common_last(self):
-        # this is due to rmbuilder older versions. should be removed once fixed.
-        self.run("python3 -m pip uninstall -y -q redis redis-py-cluster ramp-packer RLTest rmtest semantic-version || true")
         # redis-py-cluster should be installed from git due to redis-py dependency
         self.pip3_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
-        # the following can be probably installed from pypi
         self.pip3_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
-        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")         
-        
+        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
+
         root = os.path.join(os.path.dirname(__file__), "..")
         self.pip3_install("-r {}/test/test_requirements.txt".format(root))
-        
+
+        self.pip3_install("mkdocs mkdocs-material mkdocs-extensions")
 
 #----------------------------------------------------------------------------------------------
 

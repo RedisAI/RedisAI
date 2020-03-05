@@ -173,7 +173,7 @@ jobs:
       - checkout
       - run:
           name: Build Docs
-          command: mkdocs build
+          command: python3 -m mkdocs build
       - run:
           name: Deploy Docs to S3
           command: |
