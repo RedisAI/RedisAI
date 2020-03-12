@@ -127,7 +127,8 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 0.2.1   | 1.0.1   | 1.12.0     | None   | None          |
 | 0.3.1   | 1.1.0   | 1.12.0     | None   | 0.4.0         |
 | 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
-| master  | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
+| 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
+| master  | 1.4.0   | 1.15.0     | 2.0.0  | 1.0.0         |
 
 
 ## Documentation
