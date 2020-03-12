@@ -7,8 +7,8 @@ ARG OS=debian:buster
 FROM ${OS}
 
 
-ARG TF_BRANCH=r1.14
-ARG TF_VER=1.14.0
+ARG TF_BRANCH=r1.15
+ARG TF_VER=1.15.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV X_NPROC "cat /proc/cpuinfo|grep processor|wc -l"
