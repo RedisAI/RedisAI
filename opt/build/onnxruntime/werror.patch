@@ -1,8 +1,8 @@
 diff --git a/cmake/CMakeLists.txt b/cmake/CMakeLists.txt
-index f6252b9..613b47d 100644
+index c0ccab69..17a6be3d 100644
 --- a/cmake/CMakeLists.txt
 +++ b/cmake/CMakeLists.txt
-@@ -427,8 +427,8 @@ else()
+@@ -573,8 +573,8 @@ else()
    string(APPEND CMAKE_C_FLAGS " -Wall -Wextra -ffunction-sections -fdata-sections")
  
    if(onnxruntime_DEV_MODE)
@@ -33,59 +33,25 @@ index 76e083314..a515736cd 100644
    ei_add_cxx_compiler_flag("-pedantic")
    ei_add_cxx_compiler_flag("-Wall")
    ei_add_cxx_compiler_flag("-Wextra")
+Submodule cmake/external/googletest contains untracked content
 Submodule cmake/external/googletest contains modified content
 diff --git a/cmake/external/googletest/googletest/cmake/internal_utils.cmake b/cmake/external/googletest/googletest/cmake/internal_utils.cmake
-index 6448918f..38e1a864 100644
+index 2f70f0b0..caabed6d 100644
 --- a/cmake/external/googletest/googletest/cmake/internal_utils.cmake
 +++ b/cmake/external/googletest/googletest/cmake/internal_utils.cmake
-@@ -94,7 +94,7 @@ macro(config_compiler_and_linker)
-     set(cxx_no_exception_flags "-EHs-c- -D_HAS_EXCEPTIONS=0")
-     set(cxx_no_rtti_flags "-GR-")
+@@ -88,7 +88,7 @@ macro(config_compiler_and_linker)
+     set(cxx_strict_flags "-W -Wpointer-arith -Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wunused-parameter -Wcast-align -Wchar-subscripts -Winline -Wredundant-decls")
+     set(cxx_no_rtti_flags "-fno-rtti")
    elseif (CMAKE_COMPILER_IS_GNUCXX)
 -    set(cxx_base_flags "-Wall -Wshadow -Werror")
 +    set(cxx_base_flags "-Wall -Wshadow")
      if(NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0.0)
        set(cxx_base_flags "${cxx_base_flags} -Wno-error=dangling-else")
      endif()
-diff --git a/cmake/external/googletest/googletest/xcode/Config/General.xcconfig b/cmake/external/googletest/googletest/xcode/Config/General.xcconfig
-index f23e3222..ac07337f 100644
---- a/cmake/external/googletest/googletest/xcode/Config/General.xcconfig
-+++ b/cmake/external/googletest/googletest/xcode/Config/General.xcconfig
-@@ -17,7 +17,7 @@ ZERO_LINK = NO
- PREBINDING = NO
- 
- // Strictest warning policy
--WARNING_CFLAGS = -Wall -Werror -Wendif-labels -Wnewline-eof -Wno-sign-compare -Wshadow
-+WARNING_CFLAGS = -Wall -Wendif-labels -Wnewline-eof -Wno-sign-compare -Wshadow
- 
- // Work around Xcode bugs by using external strip. See:
- // http://lists.apple.com/archives/Xcode-users/2006/Feb/msg00050.html
-Submodule cmake/external/gsl contains modified content
-diff --git a/cmake/external/gsl/tests/CMakeLists.txt b/cmake/external/gsl/tests/CMakeLists.txt
-index 0e08d77..a4d103d 100644
---- a/cmake/external/gsl/tests/CMakeLists.txt
-+++ b/cmake/external/gsl/tests/CMakeLists.txt
-@@ -41,7 +41,7 @@ target_compile_options(gsl_tests_config INTERFACE
-         -Wcast-align
-         -Wconversion
-         -Wctor-dtor-privacy
--        -Werror
-+#        -Werror
-         -Wextra
-         -Wno-missing-braces
-         -Wnon-virtual-dtor
-@@ -129,7 +129,7 @@ target_compile_options(gsl_tests_config_noexcept INTERFACE
-         -Wcast-align
-         -Wconversion
-         -Wctor-dtor-privacy
--        -Werror
-+#        -Werror
-         -Wextra
-         -Wno-missing-braces
-         -Wnon-virtual-dtor
+Submodule cmake/external/nsync contains untracked content
 Submodule cmake/external/nsync contains modified content
 diff --git a/cmake/external/nsync/builds/aarch64.linux.c++11/Makefile b/cmake/external/nsync/builds/aarch64.linux.c++11/Makefile
-index d7b138b..d76d43f 100644
+index faa6853..7bf062d 100644
 --- a/cmake/external/nsync/builds/aarch64.linux.c++11/Makefile
 +++ b/cmake/external/nsync/builds/aarch64.linux.c++11/Makefile
 @@ -2,7 +2,7 @@
@@ -96,7 +62,7 @@ index d7b138b..d76d43f 100644
 +PLATFORM_CFLAGS=-std=c++11 -Wall -Wextra -pedantic
  PLATFORM_LDFLAGS=-pthread
  MKDEP=${CC} -M -std=c++11
- PLATFORM_C=../../platform/linux/src/nsync_semaphore_futex.c ../../platform/c++11/src/per_thread_waiter.cc ../../platform/c++11/src/yield.cc ../../platform/c++11/src/time_rep_timespec.cc ../../platform/c++11/src/nsync_panic.cc
+ # It's dangerous to use C++ class destructors if we can avoid it, because nsync
 diff --git a/cmake/external/nsync/builds/aarch64.linux.clang/Makefile b/cmake/external/nsync/builds/aarch64.linux.clang/Makefile
 index 291b3db..961aea1 100644
 --- a/cmake/external/nsync/builds/aarch64.linux.clang/Makefile
@@ -213,7 +179,7 @@ index 009cd01..f058b7f 100644
  PLATFORM_LIBS=-lrt
  MKDEP=${CC} -M
 diff --git a/cmake/external/nsync/builds/x86_64.linux.c++11/Makefile b/cmake/external/nsync/builds/x86_64.linux.c++11/Makefile
-index d7b138b..d76d43f 100644
+index faa6853..7bf062d 100644
 --- a/cmake/external/nsync/builds/x86_64.linux.c++11/Makefile
 +++ b/cmake/external/nsync/builds/x86_64.linux.c++11/Makefile
 @@ -2,7 +2,7 @@
@@ -224,7 +190,7 @@ index d7b138b..d76d43f 100644
 +PLATFORM_CFLAGS=-std=c++11 -Wall -Wextra -pedantic
  PLATFORM_LDFLAGS=-pthread
  MKDEP=${CC} -M -std=c++11
- PLATFORM_C=../../platform/linux/src/nsync_semaphore_futex.c ../../platform/c++11/src/per_thread_waiter.cc ../../platform/c++11/src/yield.cc ../../platform/c++11/src/time_rep_timespec.cc ../../platform/c++11/src/nsync_panic.cc
+ # It's dangerous to use C++ class destructors if we can avoid it, because nsync
 diff --git a/cmake/external/nsync/builds/x86_64.linux.clang/Makefile b/cmake/external/nsync/builds/x86_64.linux.clang/Makefile
 index dc16f1f..dfa2bfb 100644
 --- a/cmake/external/nsync/builds/x86_64.linux.clang/Makefile
@@ -493,12 +459,13 @@ index 365b34b..962962a 100644
  			case "$ldflags" in ?*) echo "PLATFORM_LDFLAGS=$ldflags";; esac
  			case "$libs" in ?*) echo "PLATFORM_LIBS=$libs";; esac
  			echo "MKDEP_DEPEND=mkdep"
+Submodule cmake/external/onnx contains untracked content
 Submodule cmake/external/onnx contains modified content
 diff --git a/cmake/external/onnx/CMakeLists.txt b/cmake/external/onnx/CMakeLists.txt
-index 195b0486..1c903bdf 100644
+index 8351a520..df5e4c01 100644
 --- a/cmake/external/onnx/CMakeLists.txt
 +++ b/cmake/external/onnx/CMakeLists.txt
-@@ -485,7 +485,7 @@ elseif(APPLE)
+@@ -518,7 +518,7 @@ elseif(APPLE)
  else()
    target_compile_options(onnx PRIVATE -Wall -Wextra)
    if(${ONNX_WERROR})
@@ -552,25 +519,26 @@ index d0d2099..0ebedc9 100644
  endfunction()
 Submodule third_party/pybind11 contains modified content
 diff --git a/cmake/external/onnx/third_party/pybind11/tests/CMakeLists.txt b/cmake/external/onnx/third_party/pybind11/tests/CMakeLists.txt
-index df77d43..63cebdb 100644
+index 765c47a..35b034d 100644
 --- a/cmake/external/onnx/third_party/pybind11/tests/CMakeLists.txt
 +++ b/cmake/external/onnx/third_party/pybind11/tests/CMakeLists.txt
-@@ -129,7 +129,7 @@ function(pybind11_enable_warnings target_name)
+@@ -146,7 +146,6 @@ function(pybind11_enable_warnings target_name)
      if(MSVC)
        target_compile_options(${target_name} PRIVATE /WX)
-     else()
+     elseif(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Intel|Clang)")
 -      target_compile_options(${target_name} PRIVATE -Werror)
-+#      target_compile_options(${target_name} PRIVATE -Werror)
      endif()
    endif()
  endfunction()
+Submodule cmake/external/onnx-tensorrt contains untracked content
 Submodule cmake/external/onnx-tensorrt contains modified content
+Submodule third_party/onnx contains untracked content
 Submodule third_party/onnx contains modified content
 diff --git a/cmake/external/onnx-tensorrt/third_party/onnx/CMakeLists.txt b/cmake/external/onnx-tensorrt/third_party/onnx/CMakeLists.txt
-index e64dfcec..776429d0 100644
+index 8351a520..df5e4c01 100644
 --- a/cmake/external/onnx-tensorrt/third_party/onnx/CMakeLists.txt
 +++ b/cmake/external/onnx-tensorrt/third_party/onnx/CMakeLists.txt
-@@ -473,7 +473,7 @@ elseif(APPLE)
+@@ -518,7 +518,7 @@ elseif(APPLE)
  else()
    target_compile_options(onnx PRIVATE -Wall -Wextra)
    if(${ONNX_WERROR})
@@ -624,18 +592,18 @@ index d0d2099..0ebedc9 100644
  endfunction()
 Submodule third_party/pybind11 contains modified content
 diff --git a/cmake/external/onnx-tensorrt/third_party/onnx/third_party/pybind11/tests/CMakeLists.txt b/cmake/external/onnx-tensorrt/third_party/onnx/third_party/pybind11/tests/CMakeLists.txt
-index df77d43..63cebdb 100644
+index 765c47a..35b034d 100644
 --- a/cmake/external/onnx-tensorrt/third_party/onnx/third_party/pybind11/tests/CMakeLists.txt
 +++ b/cmake/external/onnx-tensorrt/third_party/onnx/third_party/pybind11/tests/CMakeLists.txt
-@@ -129,7 +129,7 @@ function(pybind11_enable_warnings target_name)
+@@ -146,7 +146,6 @@ function(pybind11_enable_warnings target_name)
      if(MSVC)
        target_compile_options(${target_name} PRIVATE /WX)
-     else()
+     elseif(CMAKE_CXX_COMPILER_ID MATCHES "(GNU|Intel|Clang)")
 -      target_compile_options(${target_name} PRIVATE -Werror)
-+#      target_compile_options(${target_name} PRIVATE -Werror)
      endif()
    endif()
  endfunction()
+Submodule cmake/external/protobuf contains untracked content
 Submodule cmake/external/protobuf contains modified content
 diff --git a/cmake/external/protobuf/m4/ax_pthread.m4 b/cmake/external/protobuf/m4/ax_pthread.m4
 index d218d1af7..d479c1648 100644
@@ -651,11 +619,11 @@ index d218d1af7..d479c1648 100644
  		AC_LINK_IFELSE([AC_LANG_SOURCE([[int main(void){return 0;}]])],
  		    [ac_link="$ax_pthread_2step_ac_link"
 diff --git a/cmake/external/protobuf/python/setup.py b/cmake/external/protobuf/python/setup.py
-index a9df075e7..e8d22dd4e 100755
+index 9aabbf7aa..799432bed 100755
 --- a/cmake/external/protobuf/python/setup.py
 +++ b/cmake/external/protobuf/python/setup.py
-@@ -208,7 +208,7 @@ if __name__ == '__main__':
-       extra_compile_args.append('-std=c++11')
+@@ -219,7 +219,7 @@ if __name__ == '__main__':
+       extra_compile_args.append('-Wno-shorten-64-to-32')
  
      if warnings_as_errors in sys.argv:
 -      extra_compile_args.append('-Werror')
@@ -664,10 +632,10 @@ index a9df075e7..e8d22dd4e 100755
  
      # C++ implementation extension
 diff --git a/cmake/external/protobuf/src/Makefile.am b/cmake/external/protobuf/src/Makefile.am
-index 4bb77452f..c95d46b71 100644
+index 9d7bc4c12..4f70d6bf1 100644
 --- a/cmake/external/protobuf/src/Makefile.am
 +++ b/cmake/external/protobuf/src/Makefile.am
-@@ -876,7 +876,7 @@ no_warning_test.cc:
+@@ -896,7 +896,7 @@ no_warning_test.cc:
  
  no_warning_test_LDADD = $(PTHREAD_LIBS) libprotobuf.la libprotoc.la
  no_warning_test_CXXFLAGS = $(PTHREAD_CFLAGS) $(PTHREAD_DEF) $(ZLIB_DEF) \
@@ -706,7 +674,6 @@ index f7f1566..8e11602 100644
    add_cxx_compiler_flag(-pedantic)
    add_cxx_compiler_flag(-pedantic-errors)
    add_cxx_compiler_flag(-Wshorten-64-to-32)
-Submodule cmake/external/tvm contains untracked content
 Submodule cmake/external/tvm contains modified content
 diff --git a/cmake/external/tvm/Jenkinsfile b/cmake/external/tvm/Jenkinsfile
 index 608f9ca8..b6e38952 100644
@@ -745,15 +712,15 @@ index 608f9ca8..b6e38952 100644
          make('tvmai/ci-i386', 'build', '-j2')
          pack_lib('i386', tvm_multilib)
 diff --git a/tools/ci_build/build.py b/tools/ci_build/build.py
-index 9da8b5d002..0a365d03c9 100755
+index e39f7955..0cbd65df 100755
 --- a/tools/ci_build/build.py
 +++ b/tools/ci_build/build.py
-@@ -902,7 +902,7 @@ def main():
+@@ -1000,7 +1000,7 @@ def main():
      if (args.build):
-         build_targets(cmake_path, build_dir, configs, args.parallel)
+         build_targets(args, cmake_path, build_dir, configs, args.parallel)
  
 -    if args.test :
 +    if False and args.test :
          run_onnxruntime_tests(args, source_dir, ctest_path, build_dir, configs,
                                args.enable_pybind and not args.skip_onnx_tests,
-                               args.use_tvm, args.use_tensorrt, args.use_ngraph)
+                               args.use_tvm, args.use_tensorrt)

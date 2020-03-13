@@ -1,8 +1,8 @@
 FROM balenalib/raspberrypi3-python:latest-stretch-build
 
 ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
-ARG ONNXRUNTIME_BRANCH=rel-1.0.0
-ARG ONNXRUNTIME_VER=1.0.0
+ARG ONNXRUNTIME_BRANCH=rel-1.2.0
+ARG ONNXRUNTIME_VER=1.2.0
 ARG ARCH_FLAG="--arm"
 
 RUN [ "cross-build-start" ]
@@ -33,7 +33,7 @@ RUN set -e ;\
 
 RUN set -e ;\
 	cd onnxruntime ;\
-	patch -p1 -i ../werrror.patch
+	patch -p1 -i ../werror.patch
 
 RUN set -e ;\
 	cd onnxruntime ;\

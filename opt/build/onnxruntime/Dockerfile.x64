@@ -6,7 +6,7 @@ ARG OS=debian:buster
 FROM ${OS}
 
 ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
-ARG ONNXRUNTIME_VER=1.0.0
+ARG ONNXRUNTIME_VER=1.2.0
 
 RUN apt-get -qq update
 RUN apt-get -qq install -y curl wget tar git
