@@ -30,6 +30,19 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
+
     # TODO: enable me
     # env.assertEqual(ret[0], b'TORCH')
     # env.assertEqual(ret[1], b'CPU')
@@ -175,7 +188,7 @@ def test_pytorch_modelinfo(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -199,6 +212,7 @@ def test_pytorch_modelinfo(env):
         env.assertEqual(info_dict_0['TYPE'], 'MODEL')
         env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
         env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertEqual(info_dict_0['TAG'], 'asdf')
         env.assertTrue(info_dict_0['DURATION'] > previous_duration)
         env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
         env.assertEqual(info_dict_0['CALLS'], call)
@@ -248,6 +262,14 @@ def test_pytorch_scriptset(env):
         script = f.read()
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -323,7 +345,7 @@ def test_pytorch_scriptrun(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -430,6 +452,7 @@ def test_pytorch_scriptrun(env):
     env.assertEqual(info_dict_0['KEY'], 'ket')
     env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
     env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
+    env.assertEqual(info_dict_0['TAG'], 'asdf')
     env.assertTrue(info_dict_0['DURATION'] > 0)
     env.assertEqual(info_dict_0['SAMPLES'], -1)
     env.assertEqual(info_dict_0['CALLS'], 4)
@@ -450,8 +473,8 @@ def test_pytorch_scriptinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    env.debugPrint("skipping this test for now", force=True)
-    return
+    # env.debugPrint("skipping this test for now", force=True)
+    # return
 
     con = env.getConnection()
 
@@ -562,3 +585,47 @@ def test_pytorch_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c'), con)
     env.assertEqual(ret, None)
+
+
+def test_pytorch_modellist_scriptlist(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    script_filename = os.path.join(test_data_path, 'script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELLIST')
+
+    env.assertEqual(ret[0], [b'm1', b'm:v1'])
+    env.assertEqual(ret[1], [b'm2', b'm:v1'])
+
+    ret = con.execute_command('AI.SCRIPTLIST')
+
+    env.assertEqual(ret[0], [b's1', b's:v1'])
+    env.assertEqual(ret[1], [b's2', b's:v1'])
+

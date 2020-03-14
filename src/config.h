@@ -2,6 +2,11 @@
 #define SRC_CONFIG_H_
 
 typedef enum {
+  RAI_MODEL,
+  RAI_SCRIPT
+} RAI_RunType;
+
+typedef enum {
   RAI_BACKEND_TENSORFLOW = 0,
   RAI_BACKEND_TFLITE,
   RAI_BACKEND_TORCH,
