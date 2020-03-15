@@ -28,6 +28,7 @@ pages:
     - 'Commands': commands.md
     - 'Backend': dataandbackend.md
     - 'Configuration': configuring.md
+    - 'Performance': performance.md
 
 markdown_extensions:
   - admonition
