@@ -160,6 +160,9 @@ def test_onnx_modelrun_mnist_autobatch(env):
 
     ensureSlaveSynced(con, env)
 
+    import time
+    time.sleep(1)
+
     tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
     values = tensor[-1]
     argmax = max(range(len(values)), key=lambda i: values[i])
