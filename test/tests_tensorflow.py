@@ -393,6 +393,7 @@ def test_run_tf_model_autobatch(env):
     def run():
         con = env.getConnection()
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
+        ensureSlaveSynced(con, env)
 
     t = threading.Thread(target=run)
     t.start()
