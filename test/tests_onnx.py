@@ -147,6 +147,8 @@ def test_onnx_modelrun_mnist_autobatch(env):
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
+    ensureSlaveSynced(con, env)
+
     def run():
         con = env.getConnection()
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd')
@@ -155,6 +157,8 @@ def test_onnx_modelrun_mnist_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+
+    ensureSlaveSynced(con, env)
 
     tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
     values = tensor[-1]

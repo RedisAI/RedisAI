@@ -388,6 +388,8 @@ def test_run_tf_model_autobatch(env):
     con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
+    ensureSlaveSynced(con, env)
+
     def run():
         con = env.getConnection()
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
@@ -396,6 +398,8 @@ def test_run_tf_model_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    ensureSlaveSynced(con, env)
 
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
