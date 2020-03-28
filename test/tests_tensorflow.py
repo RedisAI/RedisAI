@@ -1,5 +1,6 @@
 import redis
 from functools import wraps
+import multiprocessing as mp
 
 from includes import *
 
@@ -537,25 +538,24 @@ def test_with_batch_and_minbatch(env):
                             'INPUTS', 'input', 'OUTPUTS', output_name)
 
     # Running thrice since minbatchsize = 2
-    t1 = threading.Thread(target=run)
+    t1 = mp.Process(target=run)
     t1.start()
-    t2 = threading.Thread(target=run)
+    t2 = mp.Process(target=run)
     t2.start()
-    t3 = threading.Thread(target=run)
+    t3 = mp.Process(target=run)
     t3.start()
-    t2.join()
-    # This is where the problem. If we set the model again (Note that the new
-    # MODELSET can set the model on a new key or on the same key), then the
-    # subsequent requests fails.
+
+    time.sleep(3)
+
     con.execute_command('AI.MODELSET', another_model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
                         'INPUTS', inputvar,
                         'OUTPUTS', outputvar,
                         model_pb)
 
-    t1 = threading.Thread(target=run, args=(another_model_name, 'final1'))
+    t1 = mp.Process(target=run, args=(another_model_name, 'final1'))
     t1.start()
-    t2 = threading.Thread(target=run, args=(another_model_name, 'final2'))
+    t2 = mp.Process(target=run, args=(another_model_name, 'final2'))
     t2.start()
     time.sleep(3)
     dtype, shape, data = con.execute_command('AI.TENSORGET', 'final1', 'BLOB')
@@ -566,3 +566,6 @@ def test_with_batch_and_minbatch(env):
     _, label = labels[str(label_id)]
 
     env.assertEqual(label, 'giant_panda')
+
+    t3.kill()
+

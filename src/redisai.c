@@ -98,7 +98,8 @@ queueItem *queueEvict(queue *queue, queueItem *item) {
     queue->back->next = NULL;
   }
   else {
-    item->prev->next = item->next->prev;
+    item->prev->next = item->next;
+    item->next->prev = item->prev;
   }
 
   item->next = NULL;
