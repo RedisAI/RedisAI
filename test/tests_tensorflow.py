@@ -538,12 +538,12 @@ def test_with_batch_and_minbatch(env):
                             'INPUTS', 'input', 'OUTPUTS', output_name)
 
     # Running thrice since minbatchsize = 2
-    t1 = mp.Process(target=run)
-    t1.start()
-    t2 = mp.Process(target=run)
-    t2.start()
-    t3 = mp.Process(target=run)
-    t3.start()
+    p1 = mp.Process(target=run)
+    p1.start()
+    p2 = mp.Process(target=run)
+    p2.start()
+    p3 = mp.Process(target=run)
+    p3.start()
 
     time.sleep(3)
 
@@ -553,11 +553,13 @@ def test_with_batch_and_minbatch(env):
                         'OUTPUTS', outputvar,
                         model_pb)
 
-    t1 = mp.Process(target=run, args=(another_model_name, 'final1'))
-    t1.start()
-    t2 = mp.Process(target=run, args=(another_model_name, 'final2'))
-    t2.start()
+    p1 = mp.Process(target=run, args=(another_model_name, 'final1'))
+    p1.start()
+    p2 = mp.Process(target=run, args=(another_model_name, 'final2'))
+    p2.start()
+
     time.sleep(3)
+
     dtype, shape, data = con.execute_command('AI.TENSORGET', 'final1', 'BLOB')
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
@@ -567,5 +569,5 @@ def test_with_batch_and_minbatch(env):
 
     env.assertEqual(label, 'giant_panda')
 
-    t3.kill()
+    p3.terminate()
 
