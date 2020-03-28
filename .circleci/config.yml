@@ -234,13 +234,13 @@ workflows:
             branches:
               only: master
 
-  nightly:
-    triggers:
-      - schedule:
-          cron: "20 17 * * *"
-          filters:
-             branches:
-               only:
-                 - master
-    jobs:
-      - build-macos
+  #nightly:
+  #  triggers:
+  #   - schedule:
+  #        cron: "20 17 * * *"
+  #        filters:
+  #           branches:
+  #             only:
+  #              - master
+  #  jobs:
+  #    - build-macos
