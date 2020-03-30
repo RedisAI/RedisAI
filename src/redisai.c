@@ -556,6 +556,7 @@ void RedisAI_FreeRunStats(RedisModuleCtx *ctx, struct RedisAI_RunStats *rstats) 
 void *RedisAI_RunSession(struct RedisAI_RunInfo **batch_rinfo) {
   if (array_len(batch_rinfo) == 0) {
     return NULL;
+  }
 
   RAI_Error* err = RedisModule_Calloc(1, sizeof(RAI_Error));
   long long rtime;
@@ -688,6 +689,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (AC_GetUnsignedLongLong(&ac, &minbatchsize, 0) != AC_OK) {
       return RedisModule_ReplyWithError(ctx, "Invalid argument for MINBATCHSIZE");
     }
+  }
 
 
   if (AC_IsAtEnd(&ac)) {
@@ -2045,7 +2047,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.modellist", RedisAI_ModelList_RedisCommand, "readonly", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai._modellist", RedisAI_ModelList_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
@@ -2065,7 +2067,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.scriptlist", RedisAI_ScriptList_RedisCommand, "readonly", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai._scriptlist", RedisAI_ScriptList_RedisCommand, "readonly", 1, 1, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 

@@ -619,12 +619,12 @@ def test_pytorch_modellist_scriptlist(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELLIST')
+    ret = con.execute_command('AI._MODELLIST')
 
     env.assertEqual(ret[0], [b'm1', b'm:v1'])
     env.assertEqual(ret[1], [b'm2', b'm:v1'])
 
-    ret = con.execute_command('AI.SCRIPTLIST')
+    ret = con.execute_command('AI._SCRIPTLIST')
 
     env.assertEqual(ret[0], [b's1', b's:v1'])
     env.assertEqual(ret[1], [b's2', b's:v1'])

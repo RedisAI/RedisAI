@@ -165,23 +165,23 @@ AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
 ---
 
-## AI.MODELLIST
+## AI._MODELLIST
 
-NOTE: `MODELLIST` is EXPERIMENTAL and might be removed in future versions.
+NOTE: `_MODELLIST` is EXPERIMENTAL and might be removed in future versions.
 
 List all models. Returns a list of (key, tag) pairs.
 
 ```sql
-AI.MODELLIST
+AI._MODELLIST
 ```
 
-### MODELLIST Example
+### _MODELLIST Example
 
 ```sql
 AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
 AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
 
-AI.MODELLIST
+AI._MODELLIST
 
 >  1) 1) "model1"
 >  1) 2) "resnet18:v1"
@@ -279,23 +279,23 @@ AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
 ---
 
-## AI.SCRIPTLIST
+## AI._SCRIPTLIST
 
-NOTE: `SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
+NOTE: `_SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
 
 List all scripts. Returns a list of (key, tag) pairs.
 
 ```sql
-AI.SCRIPTLIST
+AI._SCRIPTLIST
 ```
 
-### SCRIPTLIST Example
+### _SCRIPTLIST Example
 
 ```sql
 AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
 AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
 
-AI.SCRIPTLIST
+AI._SCRIPTLIST
 
 >  1) 1) "script1"
 >  1) 2) "addtwo:v0.1"
