@@ -1,4 +1,6 @@
 import redis
+from functools import wraps
+import multiprocessing as mp
 
 from includes import *
 
@@ -7,11 +9,19 @@ python -m RLTest --test tests_tensorflow.py --module path/to/redisai.so
 '''
 
 
-def test_run_mobilenet(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
+def skip_if_no_TF(f):
+    @wraps(f)
+    def wrapper(env, *args, **kwargs):
+        if not TEST_TF:
+            env.debugPrint("skipping {} since TEST_TF=0".format(
+                sys._getframe().f_code.co_name), force=True)
+            return
+        return f(env, *args, **kwargs)
+    return wrapper
 
+
+@skip_if_no_TF
+def test_run_mobilenet(env):
     con = env.getConnection()
 
     input_var = 'input'
@@ -24,13 +34,16 @@ def test_run_mobilenet(env):
 
     ensureSlaveSynced(con, env)
 
-    mobilenet_model_serialized = con.execute_command('AI.MODELGET', 'mobilenet')
+    mobilenet_model_serialized = con.execute_command(
+        'AI.MODELGET', 'mobilenet')
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_mobilenet_model_serialized = con2.execute_command('AI.MODELGET', 'mobilenet')
-        env.assertEqual(len(mobilenet_model_serialized), len(slave_mobilenet_model_serialized))
+        slave_mobilenet_model_serialized = con2.execute_command(
+            'AI.MODELGET', 'mobilenet')
+        env.assertEqual(len(mobilenet_model_serialized),
+                        len(slave_mobilenet_model_serialized))
 
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -38,12 +51,14 @@ def test_run_mobilenet(env):
 
     ensureSlaveSynced(con, env)
     input_tensor_meta = con.execute_command('AI.TENSORGET', 'input', 'META')
-    env.assertEqual([b'FLOAT', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
+    env.assertEqual(
+        [b'FLOAT', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_tensor_meta = con2.execute_command('AI.TENSORGET', 'input', 'META')
+        slave_tensor_meta = con2.execute_command(
+            'AI.TENSORGET', 'input', 'META')
         env.assertEqual(input_tensor_meta, slave_tensor_meta)
 
     con.execute_command('AI.MODELRUN', 'mobilenet',
@@ -63,19 +78,18 @@ def test_run_mobilenet(env):
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_dtype, slave_shape, slave_data = con2.execute_command('AI.TENSORGET', 'output', 'BLOB')
+        slave_dtype, slave_shape, slave_data = con2.execute_command(
+            'AI.TENSORGET', 'output', 'BLOB')
         env.assertEqual(dtype, slave_dtype)
         env.assertEqual(shape, slave_shape)
         env.assertEqual(data, slave_data)
 
 
+@skip_if_no_TF
 def test_run_mobilenet_multiproc(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
     if VALGRIND:
-        env.debugPrint("skipping {} since VALGRIND=1".format(sys._getframe().f_code.co_name), force=True)
+        env.debugPrint("skipping {} since VALGRIND=1".format(
+            sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
@@ -106,17 +120,15 @@ def test_run_mobilenet_multiproc(env):
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_dtype, slave_shape, slave_data = con2.execute_command('AI.TENSORGET', 'output', 'BLOB')
+        slave_dtype, slave_shape, slave_data = con2.execute_command(
+            'AI.TENSORGET', 'output', 'BLOB')
         env.assertEqual(dtype, slave_dtype)
         env.assertEqual(shape, slave_shape)
         env.assertEqual(data, slave_data)
 
 
+@skip_if_no_TF
 def test_del_tf_model(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -154,14 +166,12 @@ def test_del_tf_model(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(
+            "WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
 
+@skip_if_no_TF
 def test_run_tf_model(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -182,8 +192,10 @@ def test_run_tf_model(env):
     # env.assertEqual(ret[0], b'TF')
     # env.assertEqual(ret[1], b'CPU')
 
-    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
 
     ensureSlaveSynced(con, env)
 
@@ -217,11 +229,8 @@ def test_run_tf_model(env):
         env.assertFalse(con2.execute_command('EXISTS', 'm'))
 
 
+@skip_if_no_TF
 def test_run_tf_model_errors(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -245,7 +254,8 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.MODELGET' command", exception.__str__())
+        env.assertEqual(
+            "wrong number of arguments for 'AI.MODELGET' command", exception.__str__())
 
     # ERR WRONGTYPE
     con.execute_command('SET', 'NOT_MODEL', 'BAR')
@@ -254,7 +264,8 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual(
+            "WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
     # cleanup
     con.execute_command('DEL', 'NOT_MODEL')
 
@@ -365,11 +376,60 @@ def test_run_tf_model_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
-def test_tensorflow_modelinfo(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
+@skip_if_no_TF
+def test_run_tf_model_autobatch(env):
+    if not TEST_PT:
         return
 
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+
+    con.execute_command('AI.TENSORSET', 'd', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'e', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+
+    ensureSlaveSynced(con, env)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS',
+                            'd', 'e', 'OUTPUTS', 'f')
+        ensureSlaveSynced(con, env)
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    ensureSlaveSynced(con, env)
+
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+
+@skip_if_no_TF
+def test_tensorflow_modelinfo(env):
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -382,17 +442,20 @@ def test_tensorflow_modelinfo(env):
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command(
+        'AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command(
+        'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     previous_duration = 0
     for call in range(1, 10):
-        ret = con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        ret = con.execute_command(
+            'AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
 
@@ -420,11 +483,8 @@ def test_tensorflow_modelinfo(env):
     env.assertEqual(info_dict_0['ERRORS'], 0)
 
 
+@skip_if_no_TF
 def test_tensorflow_modelrun_disconnect(env):
-    if not TEST_TF:
-        env.debugPrint("skipping {} since TEST_TF=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
     red = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -437,13 +497,77 @@ def test_tensorflow_modelrun_disconnect(env):
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = red.execute_command(
+        'AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = red.execute_command(
+        'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(red, env)
 
-    ret = send_and_disconnect(('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c'), red)
+    ret = send_and_disconnect(
+        ('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c'), red)
     env.assertEqual(ret, None)
+
+
+@skip_if_no_TF
+def test_with_batch_and_minbatch(env):
+    con = env.getConnection()
+    batch_size = 2
+    minbatch_size = 2
+    model_name = 'model'
+    another_model_name = 'another_model'
+    inputvar = 'input'
+    outputvar = 'MobilenetV2/Predictions/Reshape_1'
+
+    model_pb, labels, img = load_mobilenet_test_data()
+
+    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', inputvar,
+                        'OUTPUTS', outputvar,
+                        model_pb)
+    con.execute_command('AI.TENSORSET', 'input',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    def run(name=model_name, output_name='output'):
+        con.execute_command('AI.MODELRUN', name,
+                            'INPUTS', 'input', 'OUTPUTS', output_name)
+
+    # Running thrice since minbatchsize = 2
+    p1 = mp.Process(target=run)
+    p1.start()
+    p2 = mp.Process(target=run)
+    p2.start()
+    p3 = mp.Process(target=run)
+    p3.start()
+
+    time.sleep(3)
+
+    con.execute_command('AI.MODELSET', another_model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', inputvar,
+                        'OUTPUTS', outputvar,
+                        model_pb)
+
+    p1 = mp.Process(target=run, args=(another_model_name, 'final1'))
+    p1.start()
+    p2 = mp.Process(target=run, args=(another_model_name, 'final2'))
+    p2.start()
+
+    time.sleep(3)
+
+    dtype, shape, data = con.execute_command('AI.TENSORGET', 'final1', 'BLOB')
+    dtype_map = {b'FLOAT': np.float32}
+    tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
+    label_id = np.argmax(tensor) - 1
+
+    _, label = labels[str(label_id)]
+
+    env.assertEqual(label, 'giant_panda')
+
+    p3.terminate()
+
