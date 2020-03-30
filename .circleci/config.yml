@@ -195,12 +195,12 @@ workflows:
               only: /.*/
             tags:
               only: /.*/ 
-      #- build-macos:
-      #    filters:
-      #      branches:
-      #        ignore: /.*/
-      #      tags:
-      #        only: /^v[0-9].*/
+      # - build-macos:
+      #     filters:
+      #       branches:
+      #         ignore: /.*/
+      #       tags:
+      #         only: /^v[0-9].*/
       #- build-multiarch-docker:
       #    filters:
       #      tags:

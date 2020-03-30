@@ -67,12 +67,22 @@ AI.TENSORGET foo BLOB
 Set a model.
 
 ```sql
-AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
+AI.MODELSET model_key backend device [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 ```
 
 * model_key - Key for storing the model
 * backend - The backend corresponding to the model being set. Allowed values: `TF`, `TORCH`, `ONNX`.
 * device - Device where the model is loaded and where the computation will run. Allowed values: `CPU`, `GPU`.
+* BATCHSIZE n - Batch incoming requests from multiple clients if they hit the same model and if input tensors have the same
+                shape. Upon MODELRUN, the request queue is visited, input tensors from compatible requests are concatenated
+                along the 0-th (batch) dimension, up until BATCHSIZE is exceeded. The model is then run for the entire batch,
+                results are unpacked back among the individual requests and the respective clients are unblocked.
+                If the batch size of the inputs to the first request in the queue exceeds BATCHSIZE, the request is served
+                in any case. Default is 0 (no batching).
+* MINBATCHSIZE m - Do not execute a MODELRUN until the batch size has reached MINBATCHSIZE. This is primarily used to force
+                   batching during testing, but it can also be used under normal operation. In this case, note that requests
+                   for which MINBATCHSIZE is not reached will hang indefinitely.
+                   Default is 0 (no minimum batch size).
 * INPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to inputs [`TF` backend only]
 * OUTPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to outputs [`TF` backend only]
 * model_blob - Binary buffer containing the model protobuf saved from a supported backend
@@ -89,6 +99,14 @@ AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pb
 
 ```sql
 AI.MODELSET mnist_net ONNX CPU < mnist.onnx
+```
+
+```sql
+AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 < mnist.onnx
+```
+
+```sql
+AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 < foo.pb
 ```
 
 ## AI.MODELGET
