@@ -1,6 +1,7 @@
 #include "model.h"
 #include "model_struct.h"
 #include "backends.h"
+#include "stats.h"
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
@@ -16,6 +17,8 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
   const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
+
+  const char *tag = RedisModule_LoadStringBuffer(io, NULL);
 
   const size_t batchsize = RedisModule_LoadUnsigned(io);
   const size_t minbatchsize = RedisModule_LoadUnsigned(io);
@@ -46,7 +49,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_Error err = {0};
 
-  RAI_Model *model = RAI_ModelCreate(backend, devicestr, opts, ninputs, inputs, noutputs, outputs,
+  RAI_Model *model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
@@ -58,7 +61,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    model = RAI_ModelCreate(backend, devicestr, opts, ninputs, inputs, noutputs, outputs, buffer, len, &err);
+    model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs, buffer, len, &err);
   }
  
   if (err.code != RAI_OK) {
@@ -73,6 +76,16 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   RedisModule_Free(inputs);
   RedisModule_Free(outputs);
   RedisModule_Free(buffer);
+
+  RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
+  RedisModuleString* stats_keystr = RedisModule_CreateStringFromString(stats_ctx,
+                                                                       RedisModule_GetKeyNameFromIO(io));
+  const char* stats_devicestr = RedisModule_Strdup(devicestr);
+  const char* stats_tag = RedisModule_Strdup(tag);
+
+  model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
+
+  RedisModule_Free(stats_keystr);
 
   return model;
 }
@@ -96,6 +109,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
 
   RedisModule_SaveUnsigned(io, model->backend);
   RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
+  RedisModule_SaveStringBuffer(io, model->tag, strlen(model->tag) + 1);
   RedisModule_SaveUnsigned(io, model->opts.batchsize);
   RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
   RedisModule_SaveUnsigned(io, model->ninputs);
@@ -148,9 +162,9 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   const char* backendstr = RAI_BackendName(model->backend);
 
-  RedisModule_EmitAOF(aof, "AI.MODELSET", "slcclclcvcvb",
+  RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvb",
                       key,
-                      backendstr, model->devicestr,
+                      backendstr, model->devicestr, model->tag,
                       "BATCHSIZE", model->opts.batchsize,
                       "MINBATCHSIZE", model->opts.minbatchsize,
                       "INPUTS", inputs_, model->ninputs,
@@ -199,7 +213,7 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
   return RedisAI_ModelType != NULL;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const char* tag, RAI_ModelOpts opts,
                            size_t ninputs, const char **inputs,
                            size_t noutputs, const char **outputs,
                            const char *modeldef, size_t modellen, RAI_Error* err) {
@@ -236,6 +250,11 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, RAI_Model
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
     return NULL;
   }
+
+  if (model) {
+    model->tag = RedisModule_Strdup(tag);
+  }
+
   return model;
 }
 
@@ -276,6 +295,10 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
     RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
     return;
   }
+
+  RedisModule_Free(model->tag);
+
+  RAI_RemoveStatsEntry(model->infokey);
 
   RedisModule_Free(model);
 }

@@ -17,6 +17,7 @@ typedef struct RAI_Model {
   void *session;
   RAI_Backend backend;
   char* devicestr;
+  char* tag;
   RAI_ModelOpts opts;
   char **inputs;
   size_t ninputs;
@@ -24,6 +25,7 @@ typedef struct RAI_Model {
   size_t noutputs;
   long long refCount;
   void* data;
+  void* infokey;
 } RAI_Model;
 
 typedef struct RAI_ModelCtxParam {

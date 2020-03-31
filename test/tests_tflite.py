@@ -34,13 +34,24 @@ def test_run_tflite_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
     env.assertEqual(ret, b'OK')
 
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
     # TODO: enable me
     # env.assertEqual(ret[0], b'TFLITE')
     # env.assertEqual(ret[1], b'CPU')
