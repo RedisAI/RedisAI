@@ -584,3 +584,35 @@ def test_with_batch_and_minbatch(env):
 
     p3.terminate()
 
+
+@skip_if_no_TF
+def test_pytorch_model_rdb_save_load(env):
+    env.skipOnCluster()
+
+    input_var = 'input'
+    output_var = 'MobilenetV2/Predictions/Reshape_1'
+
+    model_pb, labels, img = load_mobilenet_test_data()
+
+    con = env.getConnection()
+    ret = con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
+                        'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
+
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'mobilenet', 'BLOB')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mobilenet', 'BLOB')
+    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    # Assert in memory model binary is equal to loaded model binary
+    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
+    # Assert input model binary is equal to loaded model binary
+    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+
