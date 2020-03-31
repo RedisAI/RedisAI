@@ -644,10 +644,15 @@ def test_pytorch_model_rdb_save_load(env):
 
     con = env.getConnection()
 
-    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
     env.assertEqual(ret, b'OK')
 
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
 
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
@@ -655,10 +660,13 @@ def test_pytorch_model_rdb_save_load(env):
     env.stop()
     env.start()
     con = env.getConnection()
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
-    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
-    # Assert in memory model binary is equal to loaded model binary
-    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
-    # Assert input model binary is equal to loaded model binary
-    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_after_rdbload, shape_after_rdbload, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+
+    # Assert in memory model metadata is equal to loaded model metadata
+    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
+    # Assert in memory tensor data is equal to loaded tensor data
+    env.assertTrue(dtype_memory == dtype_after_rdbload)
+    env.assertTrue(shape_memory == shape_after_rdbload)
+    env.assertTrue(data_memory == data_after_rdbload)
