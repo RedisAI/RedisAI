@@ -1,5 +1,6 @@
 import sys
-
+import os
+import subprocess
 import redis
 from includes import *
 
@@ -252,3 +253,33 @@ def test_onnx_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out'), con)
     env.assertEqual(ret, None)
+
+def test_onnx_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    dbFileName = env.cmd('config', 'get', 'dbfilename')[1]
+    dbDir = env.cmd('config', 'get', 'dir')[1]
+    rdb_file_path = os.path.join(dbDir, dbFileName)
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        linear_model = f.read()
+
+    con = env.getConnection()
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, b'OK')
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_master = con.execute_command('AI.MODELGET', 'linear')
+    env.assertEqual(linear_model,model_serialized_master)
+
