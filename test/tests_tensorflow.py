@@ -187,7 +187,20 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
+
     # TODO: enable me
     # env.assertEqual(ret[0], b'TF')
     # env.assertEqual(ret[1], b'CPU')
