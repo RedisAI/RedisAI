@@ -586,21 +586,47 @@ def test_with_batch_and_minbatch(env):
 
 
 @skip_if_no_TF
-def test_pytorch_model_rdb_save_load(env):
-    env.skipOnCluster()
+def test_tensorflow_model_rdb_save_load(env):
+    con = env.getConnection()
 
     input_var = 'input'
     output_var = 'MobilenetV2/Predictions/Reshape_1'
 
     model_pb, labels, img = load_mobilenet_test_data()
 
-    con = env.getConnection()
-    ret = con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
+    con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, model_pb)
 
-    env.assertEqual(ret, b'OK')
+    ensureSlaveSynced(con, env)
 
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'mobilenet', 'BLOB')
+    model_serialized_memory = con.execute_command(
+        'AI.MODELGET', 'mobilenet')
+
+    ensureSlaveSynced(con, env)
+
+    con.execute_command('AI.TENSORSET', 'input',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    ensureSlaveSynced(con, env)
+    input_tensor_meta = con.execute_command('AI.TENSORGET', 'input', 'META')
+    env.assertEqual(
+        [b'FLOAT', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        slave_tensor_meta = con2.execute_command(
+            'AI.TENSORGET', 'input', 'META')
+        env.assertEqual(input_tensor_meta, slave_tensor_meta)
+
+    ret = con.execute_command('AI.MODELRUN', 'mobilenet',
+                        'INPUTS', 'input', 'OUTPUTS', 'output')
+
+    env.assertEqual(ret, b'OK')
+    ensureSlaveSynced(con, env)
+
+    dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
 
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
@@ -609,10 +635,18 @@ def test_pytorch_model_rdb_save_load(env):
     env.start()
     con = env.getConnection()
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mobilenet', 'BLOB')
-    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
-    # Assert in memory model binary is equal to loaded model binary
-    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
-    # Assert input model binary is equal to loaded model binary
-    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+    dtype_after_rdbload, shape_after_rdbload, data_after_rdbload = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
+
+    # Assert in memory model metadata is equal to loaded model metadata
+    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
+    # Assert in memory tensor data is equal to loaded tensor data
+    env.assertTrue(dtype_memory==dtype_after_rdbload)
+    env.assertTrue(shape_memory==shape_after_rdbload)
+    env.assertTrue(data_memory==data_after_rdbload)
+
+    ret = con.execute_command('AI.MODELRUN', 'mobilenet',
+                        'INPUTS', 'input', 'OUTPUTS', 'output')
+    env.assertEqual(ret, b'OK')
+
+
 
