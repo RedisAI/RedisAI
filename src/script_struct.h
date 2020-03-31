@@ -12,7 +12,9 @@ typedef struct RAI_Script {
   // We keep it here at the moment, until we have a
   // CUDA allocator for dlpack
   char* devicestr;
+  char* tag;
   long long refCount;
+  void* infokey;
 } RAI_Script;
 
 typedef struct RAI_ScriptCtxParam {

@@ -36,7 +36,18 @@ def test_onnx_modelrun_mnist(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+ 
     # TODO: enable me
     # env.assertEqual(ret[0], b'ONNX')
     # env.assertEqual(ret[1], b'CPU')
@@ -123,6 +134,58 @@ def test_onnx_modelrun_mnist(env):
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
         env.assertEqual(tensor2, tensor)
+
+
+def test_onnx_modelrun_mnist_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_batched.onnx')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
+                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    ensureSlaveSynced(con, env)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+
+    ensureSlaveSynced(con, env)
+
+    import time
+    time.sleep(1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
 
 
 def test_onnx_modelrun_iris(env):

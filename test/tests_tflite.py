@@ -34,13 +34,24 @@ def test_run_tflite_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
     env.assertEqual(ret, b'OK')
 
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
     # TODO: enable me
     # env.assertEqual(ret[0], b'TFLITE')
     # env.assertEqual(ret[1], b'CPU')
@@ -116,6 +127,57 @@ def test_run_tflite_model(env):
     value = tensor[-1][0]
 
     env.assertEqual(value, 1)
+
+
+# TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch
+#       size. At least we should constrain MINBATCHSIZE according to the
+#       hard-coded dims in the tflite model.
+def test_run_tflite_model_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    try:
+        ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU',
+                                  'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    # env.assertEqual(ret, b'OK')
+
+    # con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    # con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    # def run():
+    #     con = env.getConnection()
+    #     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd', 'd2')
+
+    # t = threading.Thread(target=run)
+    # t.start()
+
+    # con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'b2')
+
+    # tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    # value = tensor[-1][0]
+
+    # env.assertEqual(value, 1)
+
+    # tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
+    # value = tensor[-1][0]
+
+    # env.assertEqual(value, 1)
 
 
 def test_tflite_modelinfo(env):

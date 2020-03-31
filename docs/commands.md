@@ -67,12 +67,23 @@ AI.TENSORGET foo BLOB
 Set a model.
 
 ```sql
-AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
+AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
 ```
 
 * model_key - Key for storing the model
 * backend - The backend corresponding to the model being set. Allowed values: `TF`, `TORCH`, `ONNX`.
 * device - Device where the model is loaded and where the computation will run. Allowed values: `CPU`, `GPU`.
+* TAG tag - Optional string tagging the model, such as a version number or other identifier
+* BATCHSIZE n - Batch incoming requests from multiple clients if they hit the same model and if input tensors have the same
+                shape. Upon MODELRUN, the request queue is visited, input tensors from compatible requests are concatenated
+                along the 0-th (batch) dimension, up until BATCHSIZE is exceeded. The model is then run for the entire batch,
+                results are unpacked back among the individual requests and the respective clients are unblocked.
+                If the batch size of the inputs to the first request in the queue exceeds BATCHSIZE, the request is served
+                in any case. Default is 0 (no batching).
+* MINBATCHSIZE m - Do not execute a MODELRUN until the batch size has reached MINBATCHSIZE. This is primarily used to force
+                   batching during testing, but it can also be used under normal operation. In this case, note that requests
+                   for which MINBATCHSIZE is not reached will hang indefinitely.
+                   Default is 0 (no minimum batch size).
 * INPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to inputs [`TF` backend only]
 * OUTPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to outputs [`TF` backend only]
 * model_blob - Binary buffer containing the model protobuf saved from a supported backend
@@ -88,20 +99,30 @@ AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pb
 ```
 
 ```sql
-AI.MODELSET mnist_net ONNX CPU < mnist.onnx
+AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 < mnist.onnx
+```
+
+```sql
+AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 < mnist.onnx
+```
+
+```sql
+AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 < foo.pb
 ```
 
 ## AI.MODELGET
 
-Get a model.
+Get model metadata and optionally its binary blob.
 
 ```sql
-AI.MODELGET model_key
+AI.MODELGET model_key [META | BLOB]
 ```
 
 * model_key - Key for the model
+* META - Only return information on backend, device and tag
+* BLOB - Return information on backend, device and tag, as well as a binary blob containing the serialized model
 
-The command returns the model as serialized by the backend, that is a string containing a protobuf.
+The command returns a list of key-value strings, namely `BACKEND backend DEVICE device TAG tag [BLOB blob]`.
 
 
 ## AI.MODELDEL
@@ -144,6 +165,31 @@ AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
 ---
 
+## AI._MODELLIST
+
+NOTE: `_MODELLIST` is EXPERIMENTAL and might be removed in future versions.
+
+List all models. Returns a list of (key, tag) pairs.
+
+```sql
+AI._MODELLIST
+```
+
+### _MODELLIST Example
+
+```sql
+AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
+AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
+
+AI._MODELLIST
+
+>  1) 1) "model1"
+>  1) 2) "resnet18:v1"
+>  2) 1) "model2"
+>  2) 2) "resnet18:v2"
+```
+---
+
 
 
 ## AI.SCRIPTSET
@@ -151,11 +197,12 @@ AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
 Set a script.
 
 ```sql
-AI.SCRIPTSET script_key device script_source
+AI.SCRIPTSET script_key device [TAG tag] script_source
 ```
 
 * script_key - Key for storing the script
 * device - The device where the script will execute
+* TAG tag - Optional string tagging the script, such as a version number or other identifier
 * script_source - A string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 ### SCRIPTSET Example
@@ -171,9 +218,13 @@ def addtwo(a, b):
 AI.SCRIPTSET addscript GPU < addtwo.txt
 ```
 
+```sql
+AI.SCRIPTSET addscript GPU TAG myscript:v0.1 < addtwo.txt
+```
+
 ## AI.SCRIPTGET
 
-Get a script.
+Get script metadata and source.
 
 ```sql
 AI.SCRIPTGET script_key
@@ -181,6 +232,7 @@ AI.SCRIPTGET script_key
 
 * script_key - key for the script
 
+The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
 
 ## AI.SCRIPTDEL
 
@@ -225,6 +277,31 @@ AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
 !!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
         
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
+---
+
+## AI._SCRIPTLIST
+
+NOTE: `_SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
+
+List all scripts. Returns a list of (key, tag) pairs.
+
+```sql
+AI._SCRIPTLIST
+```
+
+### _SCRIPTLIST Example
+
+```sql
+AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
+AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
+
+AI._SCRIPTLIST
+
+>  1) 1) "script1"
+>  1) 2) "addtwo:v0.1"
+>  2) 1) "script2"
+>  2) 2) "addtwo:v0.2"
+```
 ---
 
 ## AI.INFO
