@@ -629,3 +629,47 @@ def test_pytorch_modellist_scriptlist(env):
     env.assertEqual(ret[0], [b's1', b's:v1'])
     env.assertEqual(ret[1], [b's2', b's:v1'])
 
+
+def test_pytorch_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_PT:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    if DEVICE == "GPU":
+        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_after_rdbload, shape_after_rdbload, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+
+    # Assert in memory model metadata is equal to loaded model metadata
+    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
+    # Assert in memory tensor data is equal to loaded tensor data
+    env.assertTrue(dtype_memory == dtype_after_rdbload)
+    env.assertTrue(shape_memory == shape_after_rdbload)
+    env.assertTrue(data_memory == data_after_rdbload)

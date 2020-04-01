@@ -1228,7 +1228,12 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   AI_dictEntry *entry = AI_dictFind(run_queues, mto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
   if (!entry){
-    return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
+      // If the queue does not exist, initialize it
+      if(ensureRunQueue(mto->devicestr)==REDISMODULE_ERR) {
+        return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
+      }
+      entry = AI_dictFind(run_queues, mto->devicestr);
+      run_queue_info = AI_dictGetVal(entry);
   }
   else{
     run_queue_info = AI_dictGetVal(entry);
