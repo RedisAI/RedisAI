@@ -266,7 +266,7 @@ def test_tflite_modelrun_disconnect(env):
     env.assertEqual(ret, None)
 
 
-def test_pytorch_model_rdb_save_load(env):
+def test_tflite_model_rdb_save_load(env):
     env.skipOnCluster()
     if not TEST_TFLITE:
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
