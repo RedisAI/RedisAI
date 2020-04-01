@@ -1,5 +1,6 @@
 import sys
-
+import os
+import subprocess
 import redis
 from includes import *
 
@@ -315,3 +316,36 @@ def test_onnx_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out'), con)
     env.assertEqual(ret, None)
+
+def test_onnx_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_ONNX:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env.getConnection()
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
+    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    # Assert in memory model binary is equal to loaded model binary
+    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
+    # Assert input model binary is equal to loaded model binary
+    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+

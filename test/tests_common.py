@@ -38,6 +38,31 @@ def test_common_tensorset(env):
 def test_common_tensorset_error_replies(env):
     con = env.getConnection()
 
+    # WRONGTYPE Operation against a key holding the wrong kind of value
+    try:
+        con.execute_command('SET','non-tensor','value')
+        con.execute_command('AI.TENSORSET', 'non-tensor', 'INT32', 2, 'unsupported', 2, 3)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "WRONGTYPE Operation against a key holding the wrong kind of value")
+
+    # ERR invalid data type
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT128', 2, 'VALUES', 2, 3)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid data type")
+
+    # ERR negative value found in tensor shape
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', -1, 'VALUES', 2, 3)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "negative value found in tensor shape")
+
     # ERR unsupported data format
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'unsupported', 2, 3)
@@ -154,6 +179,23 @@ def test_common_tensorget(env):
 
 def test_common_tensorget_error_replies(env):
     con = env.getConnection()
+
+    # ERR cannot get tensor from empty key
+    try:
+        con.execute_command('AI.TENSORGET', 'empty', 'unsupported')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "cannot get tensor from empty key")
+
+    # WRONGTYPE Operation against a key holding the wrong kind of value
+    try:
+        con.execute_command('SET', 'non-tensor', 'value')
+        con.execute_command('AI.TENSORGET', 'non-tensor', 'unsupported')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "WRONGTYPE Operation against a key holding the wrong kind of value")
 
     # ERR unsupported data format
     try:

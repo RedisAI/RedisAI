@@ -264,3 +264,36 @@ def test_tflite_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c'), red)
     env.assertEqual(ret, None)
+
+
+def test_tflite_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_TFLITE:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    # Assert in memory model binary is equal to loaded model binary
+    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
+    # Assert input model binary is equal to loaded model binary
+    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
