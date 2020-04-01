@@ -455,7 +455,7 @@ def test_tensorflow_modelinfo(env):
     env.assertEqual(ret, b'OK')
     info = con.execute_command('AI.INFO', 'm')  # Getting initial info before modelrun
     info_dict0 = info_to_dict(info)
-    expected = {'KEY': 'm', 'TYPE': 'MODEL', 'BACKEND': 'TF', 'DEVICE': 'CPU',
+    expected = {'KEY': 'm', 'TYPE': 'MODEL', 'BACKEND': 'TF', 'DEVICE': DEVICE,
                 'TAG': '', 'DURATION': 0, 'SAMPLES': 0, 'CALLS': 0, 'ERRORS': 0}
     env.assertEqual(info_dict0, expected)
 
