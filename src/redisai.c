@@ -805,9 +805,10 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
+  RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+
   model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 
-  RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
@@ -1746,9 +1747,10 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
   }
 
+  RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
+
   script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 
-  RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
   RedisModule_CloseKey(key);
 
   RedisModule_ReplyWithSimpleString(ctx, "OK");
