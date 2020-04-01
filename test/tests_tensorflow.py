@@ -444,7 +444,6 @@ def test_run_tf_model_autobatch(env):
 @skip_if_no_TF
 def test_tensorflow_modelinfo(env):
     con = env.getConnection()
-
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
 
@@ -454,6 +453,19 @@ def test_tensorflow_modelinfo(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
     env.assertEqual(ret, b'OK')
+    info = con.execute_command('AI.INFO', 'm')  # Getting initial info before modelrun
+    info_dict0 = info_to_dict(info)
+    expected = {'KEY': 'm', 'TYPE': 'MODEL', 'BACKEND': 'TF', 'DEVICE': DEVICE,
+                'TAG': '', 'DURATION': 0, 'SAMPLES': 0, 'CALLS': 0, 'ERRORS': 0}
+    env.assertEqual(info_dict0, expected)
+
+    # second modelset; a corner case
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', model_pb)
+    env.assertEqual(ret, b'OK')
+    info = con.execute_command('AI.INFO', 'm')  # this will fail
+    info_dict1 = info_to_dict(info)
+    env.assertEqual(info_dict1, info_dict0)
 
     ret = con.execute_command(
         'AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
