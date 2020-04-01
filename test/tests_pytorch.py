@@ -632,8 +632,11 @@ def test_pytorch_modellist_scriptlist(env):
 
 def test_pytorch_model_rdb_save_load(env):
     env.skipOnCluster()
-    if env.useSlaves or env.useAof or not TEST_PT:
+    if env.useAof or not TEST_PT:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    if DEVICE == "GPU":
+        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')

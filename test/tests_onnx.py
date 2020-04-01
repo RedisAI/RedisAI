@@ -319,7 +319,7 @@ def test_onnx_modelrun_disconnect(env):
 
 def test_onnx_model_rdb_save_load(env):
     env.skipOnCluster()
-    if env.useSlaves or env.useAof or not TEST_ONNX:
+    if env.useAof or not TEST_ONNX:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
 

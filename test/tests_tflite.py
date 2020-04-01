@@ -268,7 +268,7 @@ def test_tflite_modelrun_disconnect(env):
 
 def test_tflite_model_rdb_save_load(env):
     env.skipOnCluster()
-    if env.useSlaves or env.useAof or not TEST_TFLITE:
+    if env.useAof or not TEST_TFLITE:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
 
