@@ -130,6 +130,8 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
 | master  | 1.4.0   | 1.15.0     | 2.0.0  | 1.0.0         |
 
+Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x.
+
 ## Documentation
 
 Read the docs at [redisai.io](http://redisai.io). Checkout our [showcase repo](https://github.com/RedisAI/redisai-examples) for a lot of examples written using different client libraries.
