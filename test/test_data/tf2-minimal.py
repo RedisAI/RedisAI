@@ -3,6 +3,8 @@ from tensorflow import keras
 from tensorflow.python.framework.convert_to_constants import convert_variables_to_constants_v2
 import numpy as np
 
+# From https://github.com/leimao/Frozen_Graph_TensorFlow
+
 tf.random.set_seed(seed=0)
 
 model = keras.Sequential(layers=[
@@ -11,15 +13,6 @@ model = keras.Sequential(layers=[
                              keras.layers.Dense(128, activation="relu", name="dense"),
                              keras.layers.Dense(10, activation="softmax", name="output")
                          ], name="FCN")
-
-# model = keras.Sequential(layers=[
-#                          keras.layers.InputLayer(input_shape=(28, 28), name="input"),
-#                          keras.layers.Flatten(input_shape=(28, 28), name="flatten"),
-#                          keras.layers.Dense(128, activation="relu", name="dense",
-#                              kernel_initializer='random_uniform', bias_initializer='zeros'),
-#                          keras.layers.Dense(10, activation="softmax", name="output",
-#                              kernel_initializer='random_uniform', bias_initializer='zeros'),
-#                          )], name="FCN")
 
 model.compile(optimizer="adam",
               loss="sparse_categorical_crossentropy",
