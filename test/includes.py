@@ -22,6 +22,7 @@ TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
 VALGRIND = os.environ.get("VALGRIND") == "1"
+PROFILER = os.environ.get("PROFILER") == "1"
 print(f"Running tests on {DEVICE}\n")
 
 
