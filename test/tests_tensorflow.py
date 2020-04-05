@@ -243,6 +243,73 @@ def test_run_tf_model(env):
 
 
 @skip_if_no_TF
+def test_run_tf2_model(env):
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph_v2.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
+                              'INPUTS', 'x', 'OUTPUTS', 'Identity', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
+                              'INPUTS', 'x', 'OUTPUTS', 'Identity', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
+    zero_values = [0] * (28 * 28)
+
+    con.execute_command('AI.TENSORSET', 'x', 'FLOAT',
+                        1, 1, 28, 28, 'VALUES', *zero_values)
+
+    ensureSlaveSynced(con, env)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'x', 'OUTPUTS', 'y')
+
+    ensureSlaveSynced(con, env)
+
+    tensor = con.execute_command('AI.TENSORGET', 'y', 'VALUES')
+    values = tensor[-1]
+    for value in values:
+        env.assertAlmostEqual(float(value), 0.1, 1E-4)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        tensor2 = con2.execute_command('AI.TENSORGET', 'y', 'VALUES')
+        env.assertEqual(tensor2, tensor)
+
+    for _ in env.reloadingIterator():
+        env.assertExists('m')
+        env.assertExists('x')
+        env.assertExists('y')
+
+    con.execute_command('AI.MODELDEL', 'm')
+    ensureSlaveSynced(con, env)
+
+    env.assertFalse(env.execute_command('EXISTS', 'm'))
+
+    ensureSlaveSynced(con, env)
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        env.assertFalse(con2.execute_command('EXISTS', 'm'))
+
+
+@skip_if_no_TF
 def test_run_tf_model_errors(env):
     con = env.getConnection()
 
