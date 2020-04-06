@@ -144,7 +144,7 @@ def test_del_tf_model(env):
     ensureSlaveSynced(con, env)
 
     con.execute_command('AI.MODELDEL', 'm')
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -234,7 +234,7 @@ def test_run_tf_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     ensureSlaveSynced(con, env)
 
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -301,7 +301,7 @@ def test_run_tf2_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     ensureSlaveSynced(con, env)
 
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -441,7 +441,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "Invalid GraphDef")
+        env.assertEqual("Invalid GraphDef",exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')

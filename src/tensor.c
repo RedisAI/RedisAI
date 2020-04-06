@@ -223,7 +223,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx){
   return RedisAI_TensorType != NULL;
 }
 
-RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, int ndims, int hasdata) {
+RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, int ndims, int tensorAllocMode) {
   const size_t dtypeSize = Tensor_DataTypeSize(dtype);
   if ( dtypeSize == 0){
     return NULL;
@@ -247,15 +247,24 @@ RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, in
       .device_type = kDLCPU,
       .device_id = 0
   };
-  void* data = NULL;
-  if (hasdata) {
+  void *data = NULL;
+  switch (tensorAllocMode)
+  {
+  case TENSORALLOC_ALLOC:
     data = RedisModule_Alloc(len * dtypeSize);
-  }
-  else {
+    break;
+  case TENSORALLOC_CALLOC:
     data = RedisModule_Calloc(len, dtypeSize);
+    break;
+  case TENSORALLOC_NONE:
+    /* shallow copy no alloc */
+  default:
+    /* assume TENSORALLOC_NONE
+    shallow copy no alloc */
+    break;
   }
 
-  if (data == NULL) {
+  if (tensorAllocMode != TENSORALLOC_NONE && data == NULL){
     RedisModule_Free(ret);
     return NULL;
   }
@@ -275,12 +284,13 @@ RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, in
   };
 
   ret->refCount = 1;
+  ret->tensorRS = NULL;
   return ret;
 }
 
 RAI_Tensor* RAI_TensorCreate(const char* dataType, long long* dims, int ndims, int hasdata) {
   DLDataType dtype = RAI_TensorDataTypeFromString(dataType);
-  return RAI_TensorCreateWithDLDataType(dtype, dims, ndims, hasdata);
+  return RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
 }
 
 #if 0
@@ -337,7 +347,7 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n)
 
   DLDataType dtype = RAI_TensorDataType(ts[0]);
 
-  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, 1);
+  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
 
   for (long long i=0; i<n; i++) {
     memcpy(RAI_TensorData(ret) + batch_offsets[i] * sample_size * dtype_size, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
@@ -363,7 +373,7 @@ RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, lon
 
   DLDataType dtype = RAI_TensorDataType(t);
 
-  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, 1);
+  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
 
   memcpy(RAI_TensorData(ret), RAI_TensorData(t) + offset * sample_size * dtype_size, len * sample_size * dtype_size);
 
@@ -390,6 +400,7 @@ RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
   };
 
   ret->refCount = 1;
+  ret->tensorRS = NULL;
   return ret;
 }
 
@@ -429,7 +440,12 @@ void RAI_TensorFree(RAI_Tensor* t){
       if (t->tensor.dl_tensor.strides) {
         RedisModule_Free(t->tensor.dl_tensor.strides);
       }
-      RedisModule_Free(t->tensor.dl_tensor.data);
+      if ( t->tensorRS != NULL ){
+        RedisModule_FreeString(NULL,t->tensorRS);
+      }
+      else{
+        RedisModule_Free(t->tensor.dl_tensor.data);
+      }
     }
     RedisModule_Free(t);
   }
@@ -437,6 +453,12 @@ void RAI_TensorFree(RAI_Tensor* t){
 
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len){
   memcpy(t->tensor.dl_tensor.data, data, len);
+  return 1;
+}
+
+int RAI_TensorSetDataFromRS(RAI_Tensor* t, RedisModuleString* rs){
+  t->tensorRS = rs;
+  t->tensor.dl_tensor.data = RedisModule_StringPtrLen(rs,NULL);
   return 1;
 }
 

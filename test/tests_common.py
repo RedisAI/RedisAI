@@ -55,13 +55,13 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(exception.__str__(), "invalid data type")
 
-    # ERR negative value found in tensor shape
+    # ERR invalid or negative value found in tensor shape
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', -1, 'VALUES', 2, 3)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "negative value found in tensor shape")
+        env.assertEqual("invalid or negative value found in tensor shape",exception.__str__())
 
     # ERR unsupported data format
     try:
@@ -69,7 +69,7 @@ def test_common_tensorset_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "invalid argument found in tensor shape")
+        env.assertEqual("invalid or negative value found in tensor shape",exception.__str__())
 
     # ERR invalid value
     try:
@@ -77,7 +77,7 @@ def test_common_tensorset_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "invalid value")
+        env.assertEqual("invalid value",exception.__str__())
 
     # ERR invalid value
     try:
@@ -198,14 +198,14 @@ def test_common_tensorget_error_replies(env):
         env.assertEqual(exception.__str__(), "WRONGTYPE Operation against a key holding the wrong kind of value")
 
     # ERR unsupported data format
+    ret = con.execute_command('AI.TENSORSET', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)
+    env.assertEqual(ret, b'OK')
     try:
-        ret = con.execute_command('AI.TENSORSET', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)
-        env.assertEqual(ret, b'OK')
         con.execute_command('AI.TENSORGET', 'T_FLOAT', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "unsupported data format")
+        env.assertEqual("unsupported data format",exception.__str__())
 
 
 def test_common_tensorset_multiproc(env):
