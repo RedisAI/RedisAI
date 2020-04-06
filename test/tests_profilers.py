@@ -1,3 +1,4 @@
+from RLTest.Profilers.stackUtil import fromFoldedStacksToDataframe
 from includes import *
 
 '''
@@ -31,9 +32,7 @@ def test_profile_small_tensorset(env):
             ret = con.execute_command('AI.TENSORSET', 'tensor_blob_{0}_{1}'.format(datatype, tensor_number), datatype,
                                       2, 'BLOB', tested_datatypes_blobs[datatype])
             env.assertEqual(ret, b'OK')
-    res = env.stopProfiler()
-    env.debugPrint("{0} perf.data file {1}".format(sys._getframe().f_code.co_name, env.getProfilerOutputs()),
-                   force=True)
+    stopandwrapUpProfiler(env, sys._getframe().f_code.co_name)
 
 
 def test_profile_medium_tensorset(env):
@@ -62,9 +61,7 @@ def test_profile_medium_tensorset(env):
             ret = con.execute_command('AI.TENSORSET', 'tensor_blob_{0}_{1}'.format(datatype, tensor_number), datatype,
                                       1, 256, 'BLOB', tested_datatypes_blobs[datatype])
             env.assertEqual(ret, b'OK')
-    res = env.stopProfiler()
-    env.debugPrint("{0} perf.data file {1}".format(sys._getframe().f_code.co_name, env.getProfilerOutputs()),
-                   force=True)
+    stopandwrapUpProfiler(env, sys._getframe().f_code.co_name)
 
 
 def test_profile_large_tensorset(env):
@@ -81,6 +78,34 @@ def test_profile_large_tensorset(env):
                                   'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                                   'BLOB', img.tobytes())
         env.assertEqual(ret, b'OK')
+
+    stopandwrapUpProfiler(env, sys._getframe().f_code.co_name)
+
+
+def stopandwrapUpProfiler(env,testname):
     res = env.stopProfiler()
-    env.debugPrint("{0} perf.data file {1}".format(sys._getframe().f_code.co_name, env.getProfilerOutputs()),
+    env.assertEqual(res, True)
+    env.debugPrint("{0} perf.data file {1}".format(testname, env.getProfilerOutputs()),
                    force=True)
+    res = env.generateTraceFiles()
+    env.assertEqual(res, True)
+    res = env.stackCollapse()
+    env.assertEqual(res, True)
+    stacks = env.getCollapsedStacksMap()
+    for filename, stacksMap in stacks.items():
+        env.debugPrint(
+            "{0} collapsed stacks {1} len {2}".format(testname, filename, len(stacksMap)),
+            force=True)
+        df = fromFoldedStacksToDataframe(stacksMap, "RedisAI_TensorSet_RedisCommand", threshold=1)
+        # render dataframe as html
+        html = df.to_html(index=False)
+
+        # write html to file
+        text_file = open("{}.html".format(testname), "w")
+        env.debugPrint(
+            "{}.html".format(testname),
+            force=True)
+        text_file.write(html)
+        text_file.close()
+
+
