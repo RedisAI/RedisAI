@@ -13,8 +13,8 @@ RUN [ "cross-build-start" ]
 
 ARG ARCH
 
-ARG TF_BRANCH=r1.14
-ARG TF_VER=1.14.0
+ARG TF_BRANCH=r1.15
+ARG TF_VER=1.15.0
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TF_IGNORE_MAX_BAZEL_VERSION=1
@@ -44,7 +44,7 @@ RUN set -e ;\
 
 RUN set -e ;\
 	cd tensorflow ;\
-	patch -p1 -i ../tf-1.14.0-arm64v8.patch
+	patch -p1 -i ../tf-1.15.0-arm64v8.patch
 
 RUN set -e ;\
 	cd tensorflow ;\

@@ -1,6 +1,7 @@
 #include "script.h"
 #include "script_struct.h"
 #include "backends.h"
+#include "stats.h"
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
@@ -17,11 +18,12 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
   RAI_Error err = {0};
 
   const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
+  const char *tag = RedisModule_LoadStringBuffer(io, NULL);
 
   size_t len;
   char *scriptdef = RedisModule_LoadStringBuffer(io, &len);
 
-  RAI_Script *script = RAI_ScriptCreate(devicestr, scriptdef, &err);
+  RAI_Script *script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
@@ -32,7 +34,7 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
       return NULL;
     }
     RAI_ClearError(&err);
-    script = RAI_ScriptCreate(devicestr, scriptdef, &err);
+    script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
   }
  
   RedisModule_Free(scriptdef);
@@ -41,6 +43,16 @@ static void* RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
   }
+
+  RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
+  RedisModuleString* stats_keystr = RedisModule_CreateStringFromString(stats_ctx,
+                                                                       RedisModule_GetKeyNameFromIO(io));
+  const char* stats_devicestr = RedisModule_Strdup(devicestr);
+  const char* stats_tag = RedisModule_Strdup(tag);
+
+  script->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, stats_devicestr, stats_tag);
+
+  RedisModule_Free(stats_keystr);
 
   return script;
 }
@@ -51,13 +63,14 @@ static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
   size_t len = strlen(script->scriptdef) + 1;
 
   RedisModule_SaveStringBuffer(io, script->devicestr, strlen(script->devicestr) + 1);
+  RedisModule_SaveStringBuffer(io, script->tag, strlen(script->tag) + 1);
   RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
 
 static void RAI_Script_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
   RAI_Script *script = (RAI_Script*)value;
 
-  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "scc", key, script->devicestr, script->scriptdef);
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccc", key, script->devicestr, script->tag, script->scriptdef);
 }
 
 static void RAI_Script_DTFree(void *value) {
@@ -84,12 +97,18 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
   return RedisAI_ScriptType != NULL;
 }
 
-RAI_Script *RAI_ScriptCreate( const char* devicestr, const char *scriptdef, RAI_Error* err) {
+RAI_Script *RAI_ScriptCreate( const char* devicestr, const char* tag, const char *scriptdef, RAI_Error* err) {
   if (!RAI_backends.torch.script_create) {
     RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
     return NULL;
   }
-  return RAI_backends.torch.script_create(devicestr, scriptdef, err);
+  RAI_Script* script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
+
+  if (script) {
+    script->tag = RedisModule_Strdup(tag);
+  }
+
+  return script;
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
@@ -101,6 +120,10 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
     RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
     return;
   }
+
+  RedisModule_Free(script->tag);
+
+  RAI_RemoveStatsEntry(script->infokey);
  
   RAI_backends.torch.script_free(script, err);
 }

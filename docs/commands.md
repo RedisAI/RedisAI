@@ -116,6 +116,7 @@ The **`AI.MODELSET`** commands stores a model as the value of a key.
 
 ```
 AI.MODELSET <key> <backend> <device>
+    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
     [INPUTS <name> ...] [OUTPUTS name ...] <model>
 ```
 
@@ -129,6 +130,17 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
+* **TAG**: an optional string for tagging the model, such as a version number or any arbitrary identifier
+* **BATCHSIZE**: batch incoming requests from multiple clients if they hit the same model and if input tensors have the same
+                shape. Upon MODELRUN, the request queue is visited, input tensors from compatible requests are concatenated
+                along the 0-th (batch) dimension, up until BATCHSIZE is exceeded. The model is then run for the entire batch,
+                results are unpacked back among the individual requests and the respective clients are unblocked.
+                If the batch size of the inputs to the first request in the queue exceeds BATCHSIZE, the request is served
+                in any case. Default is 0 (no batching).
+* **MINBATCHSIZE**: Do not execute a MODELRUN until the batch size has reached MINBATCHSIZE. This is primarily used to force
+                   batching during testing, but it can also be used under normal operation. In this case, note that requests
+                   for which MINBATCHSIZE is not reached will hang indefinitely.
+                   Default is 0 (no minimum batch size).
 * **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
 * **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
 * **model**: the Protobuf-serialized model
@@ -146,22 +158,38 @@ $ cat mobilenet_v2_1.4_224_frozen.pb | redis-cli -x AI.MODELSET mymodel TF CPU I
 OK
 ```
 
+```sql
+AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 < mnist.onnx
+```
+
+```sql
+AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 < mnist.onnx
+```
+
+```sql
+AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 < foo.pb
+```
+
 ## AI.MODELGET
-The **`AI.MODELGET`** command returns a model stored as a key's value.
+The **`AI.MODELGET`** command returns a model's meta data and blob stored as a key's value.
 
 **Redis API**
 
 ```
-AI.MODELGET <key>
+AI.MODELGET <key> [META | BLOB]
 ```
 
 _Arguments
 
 * **key**: the model's key name
+* META - Only return information on backend, device and tag
+* BLOB - Return information on backend, device and tag, as well as a binary blob containing the serialized model
 
 _Return_
 
 A Bulk String that is the Protobuf-serialized representation of the model by the backend.
+
+The command returns a list of key-value strings, namely `BACKEND backend DEVICE device TAG tag [BLOB blob]`.
 
 **Examples**
 
@@ -233,18 +261,44 @@ redis> AI.MODELRUN mymodel INPUTS mytensor OUTPUTS classes predictions
 OK
 ```
 
+## AI._MODELLIST
+
+NOTE: `_MODELLIST` is EXPERIMENTAL and might be removed in future versions.
+
+List all models. Returns a list of (key, tag) pairs.
+
+```sql
+AI._MODELLIST
+```
+
+### _MODELLIST Example
+
+```sql
+AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
+AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
+
+AI._MODELLIST
+
+>  1) 1) "model1"
+>  1) 2) "resnet18:v1"
+>  2) 1) "model2"
+>  2) 2) "resnet18:v2"
+```
+
 ## AI.SCRIPTSET
 The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
 
 **Redis API**
 
 ```
-AI.SCRIPTSET <key> <device> "<script>"
+AI.SCRIPTSET <key> <device> [TAG tag] "<script>"
 ```
 
 _Arguments_
 
+
 * **key**: the script's key name
+* TAG tag - Optional string tagging the script, such as a version number or other identifier
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
@@ -270,10 +324,16 @@ $ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU
 OK
 ```
 
+```sql
+AI.SCRIPTSET addscript GPU TAG myscript:v0.1 < addtwo.txt
+```
+
 ## AI.SCRIPTGET
 The **`AI.SCRIPTGET`** command returns the [TorchScript](https://pytorch.org/docs/stable/jit.html) stored as a key's value.
 
 **Redis API**
+
+Get script metadata and source.
 
 ```
 AI.SCRIPTGET <key>
@@ -286,6 +346,7 @@ _Arguments_
 _Return_
 
 Array consisting of two items:
+!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
 
 1. The script's device as a String
 2. The script's source code as a String
@@ -368,6 +429,31 @@ redis> AI.TENSORGET result VALUES
 
 !!! warning "Intermediate memory overhead"
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+## AI._SCRIPTLIST
+
+NOTE: `_SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
+
+List all scripts. Returns a list of (key, tag) pairs.
+
+```sql
+AI._SCRIPTLIST
+```
+
+### _SCRIPTLIST Example
+
+```sql
+AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
+AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
+
+AI._SCRIPTLIST
+
+>  1) 1) "script1"
+>  1) 2) "addtwo:v0.1"
+>  2) 1) "script2"
+>  2) 2) "addtwo:v0.2"
+```
+---
 
 ## AI.INFO
 The **`AI.INFO`** command returns information about the execution a model or a script.

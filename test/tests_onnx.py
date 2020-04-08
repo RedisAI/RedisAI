@@ -1,5 +1,6 @@
 import sys
-
+import os
+import subprocess
 import redis
 from includes import *
 
@@ -35,7 +36,18 @@ def test_onnx_modelrun_mnist(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+ 
     # TODO: enable me
     # env.assertEqual(ret[0], b'ONNX')
     # env.assertEqual(ret[1], b'CPU')
@@ -122,6 +134,58 @@ def test_onnx_modelrun_mnist(env):
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
         env.assertEqual(tensor2, tensor)
+
+
+def test_onnx_modelrun_mnist_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_batched.onnx')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
+                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    ensureSlaveSynced(con, env)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+
+    ensureSlaveSynced(con, env)
+
+    import time
+    time.sleep(1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
+
+    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
+    values = tensor[-1]
+    argmax = max(range(len(values)), key=lambda i: values[i])
+
+    env.assertEqual(argmax, 1)
 
 
 def test_onnx_modelrun_iris(env):
@@ -252,3 +316,36 @@ def test_onnx_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out'), con)
     env.assertEqual(ret, None)
+
+def test_onnx_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_ONNX:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+
+    with open(linear_model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env.getConnection()
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
+    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    # Assert in memory model binary is equal to loaded model binary
+    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
+    # Assert input model binary is equal to loaded model binary
+    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+

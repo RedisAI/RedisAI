@@ -32,8 +32,10 @@ typedef struct RAI_Error RAI_Error;
 #define REDISAI_INFOMSG_THREADS_PER_QUEUE "Setting THREADS_PER_QUEUE parameter to"
 
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
+RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreateByConcatenatingTensors)(RAI_Tensor** ts, long long n);
+RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreateBySlicingTensor)(RAI_Tensor* t, long long offset, long long len);
 size_t MODULE_API_FUNC(RedisAI_TensorLength)(RAI_Tensor* t);
-size_t MODULE_API_FUNC(RedisAI_TensorGetDataSize)(const char* dataTypeStr);
+size_t MODULE_API_FUNC(RedisAI_TensorDataSize)(RAI_Tensor* t);
 size_t MODULE_API_FUNC(RedisAI_TensorDataType)(RAI_Tensor* t);
 void MODULE_API_FUNC(RedisAI_TensorFree)(RAI_Tensor* t);
 int MODULE_API_FUNC(RedisAI_TensorSetData)(RAI_Tensor* tensor, const char* data, size_t len);
@@ -47,7 +49,7 @@ long long MODULE_API_FUNC(RedisAI_TensorDim)(RAI_Tensor* t, int dim);
 size_t MODULE_API_FUNC(RedisAI_TensorByteSize)(RAI_Tensor* t);
 char* MODULE_API_FUNC(RedisAI_TensorData)(RAI_Tensor* t);
 
-RAI_Model* MODULE_API_FUNC(RedisAI_ModelCreate)(int backend, char* devicestr,
+RAI_Model* MODULE_API_FUNC(RedisAI_ModelCreate)(int backend, char* devicestr, char* tag, RAI_ModelOpts opts,
                                                 size_t ninputs, const char **inputs,
                                                 size_t noutputs, const char **outputs,
                                                 const char *modeldef, size_t modellen, RAI_Error* err);
@@ -62,7 +64,7 @@ int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx* mctx, RAI_Error* err);
 RAI_Model* MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model* model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
 
-RAI_Script* MODULE_API_FUNC(RedisAI_ScriptCreate)(char* devicestr, const char* scriptdef, RAI_Error* err);
+RAI_Script* MODULE_API_FUNC(RedisAI_ScriptCreate)(char* devicestr, char* tag, const char* scriptdef, RAI_Error* err);
 void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script* script, RAI_Error* err);
 RAI_ScriptRunCtx* MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script* script, const char *fnname);
 int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInput)(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor);
@@ -92,7 +94,9 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreate);
-  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetDataSize);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateByConcatenatingTensors);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateBySlicingTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDataSize);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorFree);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetData);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetValueFromLongLong);

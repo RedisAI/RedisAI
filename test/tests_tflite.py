@@ -34,13 +34,24 @@ def test_run_tflite_model(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
     env.assertEqual(ret, b'OK')
 
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
-    env.assertEqual(len(ret), 3)
+    env.assertEqual(len(ret), 6)
     # TODO: enable me
     # env.assertEqual(ret[0], b'TFLITE')
     # env.assertEqual(ret[1], b'CPU')
@@ -116,6 +127,57 @@ def test_run_tflite_model(env):
     value = tensor[-1][0]
 
     env.assertEqual(value, 1)
+
+
+# TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch
+#       size. At least we should constrain MINBATCHSIZE according to the
+#       hard-coded dims in the tflite model.
+def test_run_tflite_model_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    try:
+        ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU',
+                                  'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+    except Exception as e:
+        exception = e
+    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    # env.assertEqual(ret, b'OK')
+
+    # con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    # con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    # def run():
+    #     con = env.getConnection()
+    #     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd', 'd2')
+
+    # t = threading.Thread(target=run)
+    # t.start()
+
+    # con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'b2')
+
+    # tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    # value = tensor[-1][0]
+
+    # env.assertEqual(value, 1)
+
+    # tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
+    # value = tensor[-1][0]
+
+    # env.assertEqual(value, 1)
 
 
 def test_tflite_modelinfo(env):
@@ -202,3 +264,36 @@ def test_tflite_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c'), red)
     env.assertEqual(ret, None)
+
+
+def test_tflite_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_TFLITE:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    # Assert in memory model binary is equal to loaded model binary
+    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
+    # Assert input model binary is equal to loaded model binary
+    env.assertTrue(model_pb == model_serialized_after_rdbload[7])

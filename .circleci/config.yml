@@ -195,12 +195,12 @@ workflows:
               only: /.*/
             tags:
               only: /.*/ 
-      - build-macos:
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: /^v[0-9].*/
+      # - build-macos:
+      #     filters:
+      #       branches:
+      #         ignore: /.*/
+      #       tags:
+      #         only: /^v[0-9].*/
       #- build-multiarch-docker:
       #    filters:
       #      tags:
@@ -234,13 +234,13 @@ workflows:
             branches:
               only: master
 
-  nightly:
-    triggers:
-      - schedule:
-          cron: "20 17 * * *"
-          filters:
-             branches:
-               only:
-                 - master
-    jobs:
-      - build-macos
+  #nightly:
+  #  triggers:
+  #   - schedule:
+  #        cron: "20 17 * * *"
+  #        filters:
+  #           branches:
+  #             only:
+  #              - master
+  #  jobs:
+  #    - build-macos

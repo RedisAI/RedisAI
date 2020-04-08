@@ -30,6 +30,19 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELGET', 'm')
+    env.assertEqual(len(ret), 6)
+    env.assertEqual(ret[-1], b'asdf')
+
+
     # TODO: enable me
     # env.assertEqual(ret[0], b'TORCH')
     # env.assertEqual(ret[1], b'CPU')
@@ -117,6 +130,51 @@ def test_pytorch_modelrun(env):
         env.assertEqual(tensor2, tensor)
 
 
+def test_pytorch_modelrun_autobatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    ensureSlaveSynced(con, env)
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f')
+        ensureSlaveSynced(con, env)
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+
+    ensureSlaveSynced(con, env)
+
+    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
+    values = tensor[-1]
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+
 def test_pytorch_modelinfo(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -130,7 +188,7 @@ def test_pytorch_modelinfo(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -154,6 +212,7 @@ def test_pytorch_modelinfo(env):
         env.assertEqual(info_dict_0['TYPE'], 'MODEL')
         env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
         env.assertEqual(info_dict_0['DEVICE'], DEVICE)
+        env.assertEqual(info_dict_0['TAG'], 'asdf')
         env.assertTrue(info_dict_0['DURATION'] > previous_duration)
         env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
         env.assertEqual(info_dict_0['CALLS'], call)
@@ -203,6 +262,14 @@ def test_pytorch_scriptset(env):
         script = f.read()
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -278,7 +345,7 @@ def test_pytorch_scriptrun(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -385,6 +452,7 @@ def test_pytorch_scriptrun(env):
     env.assertEqual(info_dict_0['KEY'], 'ket')
     env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
     env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
+    env.assertEqual(info_dict_0['TAG'], 'asdf')
     env.assertTrue(info_dict_0['DURATION'] > 0)
     env.assertEqual(info_dict_0['SAMPLES'], -1)
     env.assertEqual(info_dict_0['CALLS'], 4)
@@ -405,8 +473,8 @@ def test_pytorch_scriptinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    env.debugPrint("skipping this test for now", force=True)
-    return
+    # env.debugPrint("skipping this test for now", force=True)
+    # return
 
     con = env.getConnection()
 
@@ -517,3 +585,91 @@ def test_pytorch_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c'), con)
     env.assertEqual(ret, None)
+
+
+def test_pytorch_modellist_scriptlist(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    script_filename = os.path.join(test_data_path, 'script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI._MODELLIST')
+
+    env.assertEqual(ret[0], [b'm1', b'm:v1'])
+    env.assertEqual(ret[1], [b'm2', b'm:v1'])
+
+    ret = con.execute_command('AI._SCRIPTLIST')
+
+    env.assertEqual(ret[0], [b's1', b's:v1'])
+    env.assertEqual(ret[1], [b's2', b's:v1'])
+
+
+def test_pytorch_model_rdb_save_load(env):
+    env.skipOnCluster()
+    if env.useAof or not TEST_PT:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    if DEVICE == "GPU":
+        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    env.assertEqual(ret, b'OK')
+
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+
+    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+
+    env.stop()
+    env.start()
+    con = env.getConnection()
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm', 'BLOB')
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+    dtype_after_rdbload, shape_after_rdbload, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+
+    # Assert in memory model metadata is equal to loaded model metadata
+    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
+    # Assert in memory tensor data is equal to loaded tensor data
+    env.assertTrue(dtype_memory == dtype_after_rdbload)
+    env.assertTrue(shape_memory == shape_after_rdbload)
+    env.assertTrue(data_memory == data_after_rdbload)
