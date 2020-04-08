@@ -62,7 +62,6 @@ def test_common_tensorset_error_replies(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("invalid or negative value found in tensor shape",exception.__str__())
-        env.assertEqual("negative value found in tensor shape",exception.__str__())
 
     # ERR invalid argument found in tensor shape
     try:
@@ -71,7 +70,6 @@ def test_common_tensorset_error_replies(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("invalid or negative value found in tensor shape",exception.__str__())
-        env.assertEqual("invalid argument found in tensor shape",exception.__str__())
 
     # ERR invalid value
     try:
