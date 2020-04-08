@@ -238,13 +238,15 @@ def test_common_tensorset_multiproc_blob(env):
         env.assertEqual(ret, b'OK')
 
     
-    def funcname(env, repetitions):
-        for repetion in range(1,repetitions):
-            env.execute_command('AI.TENSORSET', 'tensor_{0}'.format(repetitions), 'FLOAT', 1, 256, 'BLOB', tested_datatypes_map["FLOAT"])
+    def funcname(env, blob, repetitions, same_key):
+        for _ in range(1,same_key):
+            for repetion in range(1,repetitions):
+                env.execute_command('AI.TENSORSET', 'tensor_{0}'.format(repetitions), 'FLOAT', 1, 256, 'BLOB', blob)
     
+    tensor_blob = tested_datatypes_map["FLOAT"]
     t = time.time()
     run_test_multiproc(env, 10,
-                       lambda env: funcname(env,100000) )
+                       lambda env: funcname(env,tensor_blob,10000,10) )
     elapsed_time = time.time() - t
     avg_ops_sec = 100000*10/elapsed_time
     env.debugPrint("AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec), True)

@@ -371,13 +371,13 @@ size_t RAI_ModelRunCtxNumBatches(RAI_ModelRunCtx* mctx) {
 }
 
 void RAI_ModelRunCtxCopyBatch(RAI_ModelRunCtx* dest, size_t id_dest, RAI_ModelRunCtx* src, size_t id_src) {
-  size_t ninputs = array_len(src->batches[id_src].inputs);
+  const size_t ninputs = array_len(src->batches[id_src].inputs);
   for (size_t i=0; i<ninputs; i++) {
     RAI_ModelCtxParam param = src->batches[id_src].inputs[i];
     RAI_ModelRunCtxAddInput(dest, id_dest, param.name, param.tensor);
   }
 
-  size_t noutputs = array_len(src->batches[id_src].outputs);
+  const size_t noutputs = array_len(src->batches[id_src].outputs);
   for (size_t i=0; i<noutputs; i++) {
     RAI_ModelCtxParam param = src->batches[id_src].outputs[i];
     RAI_ModelRunCtxAddOutput(dest, id_dest, param.name);

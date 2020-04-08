@@ -8,6 +8,7 @@ from includes import *
 python -m RLTest --test tests_common.py --module path/to/redisai.so
 '''
 
+
 #
 # def test_profile_small_tensorset(env):
 #     if not PROFILER:
@@ -111,27 +112,30 @@ def test_profile_modelrun(env):
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
-        tensor_number = tensor_number+1
+        tensor_number = tensor_number + 1
 
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
-                        'INPUTS', 'transaction','reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 
-    res = env.startProfiler(frequency=999,profileOnlyMasterThread=True)
+    res = env.startProfiler(frequency=999, profileOnlyMasterThread=True)
     t = time.time()
-    for tensor_number in range(1,10001):
+    for tensor_number in range(1, 10001):
         for repetition in range(0, 10):
-            ret = con.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS', 'transactionTensor:{}'.format(tensor_number),'referenceTensor:{}'.format(tensor_number), 'OUTPUTS', 'classificationTensor:{}_{}'.format(tensor_number,repetition))
+            ret = con.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
+                                      'transactionTensor:{}'.format(tensor_number),
+                                      'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                      'classificationTensor:{}_{}'.format(tensor_number, repetition))
             env.assertEqual(ret, b'OK')
     elapsed_time = time.time() - t
     stopandwrapUpProfiler(env, sys._getframe().f_code.co_name, "RedisAI_ModelRun_RedisCommand")
-    avg_ops_sec = 100*10000 / elapsed_time
+    avg_ops_sec = 100 * 10000 / elapsed_time
     env.debugPrint(
         "AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec),
         True)
 
 
-def stopandwrapUpProfiler(env,testname, startFunction):
+def stopandwrapUpProfiler(env, testname, startFunction):
     res = env.stopProfiler()
     env.assertEqual(res, True)
     env.debugPrint("{0} perf.data file {1}".format(testname, env.getProfilerOutputs()),
@@ -158,5 +162,3 @@ def stopandwrapUpProfiler(env,testname, startFunction):
             force=True)
         text_file.write(html)
         text_file.close()
-
-
