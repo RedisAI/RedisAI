@@ -5,7 +5,7 @@ import sys
 import time
 from multiprocessing import Process
 import threading
-
+import gzip
 import numpy as np
 from skimage.io import imread
 from skimage.transform import resize
@@ -22,6 +22,7 @@ TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
 VALGRIND = os.environ.get("VALGRIND") == "1"
+PROFILER = os.environ.get("PROFILER") == "1"
 print(f"Running tests on {DEVICE}\n")
 
 
@@ -84,6 +85,24 @@ def load_mobilenet_test_data():
 
     return model_pb, labels, img
 
+def load_creditcardfraud_data(env,max_tensors=10000):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'creditcardfraud.pb')
+    creditcard_transaction_filename = os.path.join(test_data_path, 'creditcard_10K.csv')
+    rng = np.random.default_rng()
+
+    env.debugPrint("reading transaction tensors", force=True)
+    creditcard_transactions = np.genfromtxt(creditcard_transaction_filename, delimiter=',', dtype='float32', skip_header=1, usecols=range(0,30))
+
+    creditcard_referencedata = []
+    env.debugPrint("generating reference tensors", force=True)
+    for tr in range(0,max_tensors):
+        creditcard_referencedata.append(rng.random((1,256), dtype='float32'))
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    return model_pb, creditcard_transactions, creditcard_referencedata
 
 def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
