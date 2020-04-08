@@ -237,16 +237,6 @@ def test_common_tensorset_multiproc_blob(env):
         tested_datatypes_map[datatype]=tensor_blob
         env.assertEqual(ret, b'OK')
 
-<<<<<<< HEAD
-    
-    def funcname(env, repetitions):
-        for repetion in range(1,repetitions):
-            env.execute_command('AI.TENSORSET', 'tensor_{0}'.format(repetitions), 'FLOAT', 1, 256, 'BLOB', tested_datatypes_map["FLOAT"])
-    
-    t = time.time()
-    run_test_multiproc(env, 10,
-                       lambda env: funcname(env,100000) )
-=======
     def funcname(env, blob, repetitions, same_key):
         for _ in range(1,same_key):
             for repetion in range(1,repetitions):
@@ -256,15 +246,11 @@ def test_common_tensorset_multiproc_blob(env):
     t = time.time()
     run_test_multiproc(env, 10,
                        lambda env: funcname(env,tensor_blob,10000,10) )
->>>>>>> extended.testing
     elapsed_time = time.time() - t
     avg_ops_sec = 100000*10/elapsed_time
     env.debugPrint("AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec), True)
 
-<<<<<<< HEAD
-=======
 
->>>>>>> extended.testing
 def test_tensorset_disconnect(env):
     red = env.getConnection()
     ret = send_and_disconnect(('AI.TENSORSET', 't_FLOAT', 'FLOAT', 2, 'VALUES', 2, 3), red)
