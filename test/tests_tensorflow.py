@@ -663,4 +663,36 @@ def test_with_batch_and_minbatch(env):
 
     p3.terminate()
 
+@skip_if_no_TF
+def test_profile_modelrun(env):
+    con = env.getConnection()
 
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
+
+    tensor_number = 1
+    for transaction_tensor in creditcard_transactions:
+        ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 30,
+                                  'BLOB', transaction_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    tensor_number = 1
+    for reference_tensor in creditcard_referencedata:
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 256,
+                                  'BLOB', reference_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    for tensor_number in range(1, 10001):
+        for repetition in range(0, 10):
+            ret = con.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
+                                      'transactionTensor:{}'.format(tensor_number),
+                                      'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                      'classificationTensor:{}_{}'.format(tensor_number, repetition))
+            env.assertEqual(ret, b'OK')
