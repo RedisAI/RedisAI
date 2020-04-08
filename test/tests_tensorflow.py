@@ -605,7 +605,7 @@ def test_tensorflow_modelrun_disconnect(env):
 
 
 @skip_if_no_TF
-def test_with_batch_and_minbatch(env):
+def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     con = env.getConnection()
     batch_size = 2
     minbatch_size = 2
@@ -664,7 +664,7 @@ def test_with_batch_and_minbatch(env):
     p3.terminate()
 
 @skip_if_no_TF
-def test_profile_modelrun(env):
+def test_tensorflow_modelrun_financialNet(env):
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
