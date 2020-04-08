@@ -5,7 +5,7 @@ import sys
 import time
 from multiprocessing import Process
 import threading
-
+from numpy.random import default_rng
 import numpy as np
 from skimage.io import imread
 from skimage.transform import resize
@@ -84,6 +84,22 @@ def load_mobilenet_test_data():
 
     return model_pb, labels, img
 
+def load_creditcardfraud_data(env,max_tensors=10000):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'creditcardfraud.pb')
+    creditcard_transaction_filename = os.path.join(test_data_path, 'creditcard_10K.csv')
+    rg = default_rng()
+
+    creditcard_transactions = np.genfromtxt(creditcard_transaction_filename, delimiter=',', dtype='float32', skip_header=1, usecols=range(0,30))
+
+    creditcard_referencedata = []
+    for tr in range(0,max_tensors):
+        creditcard_referencedata.append(rg.random((1,256), dtype='float32'))
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    return model_pb, creditcard_transactions, creditcard_referencedata
 
 def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
