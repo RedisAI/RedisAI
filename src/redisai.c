@@ -1098,28 +1098,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   // The key is having a single thread looping for execution
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
-  if (RedisModule_IsKeysPositionRequest(ctx)) {
-    RedisModule_KeyAtPos(ctx, 1);
-    for (int i=2; i<argc; i++) {
-      const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
-      if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
-        continue;
-      }
-      RedisModule_KeyAtPos(ctx, i);
-    }
-    return REDISMODULE_OK;
-  }
-
-  RedisModule_AutoMemory(ctx);
-
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  RedisModuleString* keystr;
-  AC_GetRString(&ac, &keystr, 0);
-
-  RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ);
-  int type = RedisModule_KeyType(key);
+  RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_READ);
+  const int type = RedisModule_KeyType(key);
   if (type == REDISMODULE_KEYTYPE_EMPTY) {
     RedisModule_CloseKey(key);
     return RedisModule_ReplyWithError(ctx, "ERR model key is empty");
@@ -1131,46 +1111,15 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   RAI_Model *mto = RedisModule_ModuleTypeGetValue(key);
-
-  ArgsCursor inac = {0};
-  ArgsCursor outac = {0};
-
-  if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "INPUTS not specified.");
-  }
-
-  const char* matches[] = {"OUTPUTS"};
-  AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
-
-  if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified.");
-  }
-
-  AC_GetSliceToEnd(&ac, &outac);
-
-  size_t ninputs = inac.argc;
-  RedisModuleString *inputs[ninputs];
-  for (size_t i=0; i<ninputs; i++) {
-    AC_GetRString(&inac, inputs+i, 0); 
-  }
-
-  size_t noutputs = outac.argc;
-  RedisModuleString *outputs[noutputs];
-  for (size_t i=0; i<noutputs; i++) {
-    AC_GetRString(&outac, outputs+i, 0); 
-  }
-
-  if (mto->inputs && array_len(mto->inputs) != ninputs) {
-    return RedisModule_ReplyWithError(ctx, "Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match.");
-  }
-
-  if (mto->outputs && array_len(mto->outputs) != noutputs) {
-    return RedisModule_ReplyWithError(ctx, "Number of names given as OUTPUTS during MODELSET and keys given as OUTPUTS here do not match.");
+  const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
+  if (strcasecmp(inputstr, "INPUTS")) {
+    RedisModule_CloseKey(key);
+    return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified.");
   }
 
   struct RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
-  RedisModule_RetainString(ctx, keystr);
-  rinfo->runkey = keystr;
+  RedisModule_RetainString(NULL, argv[1]);
+  rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
   rinfo->sctx = NULL;
   rinfo->outkeys = NULL;
@@ -1178,62 +1127,79 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_ModelRunCtxAddBatch(rinfo->mctx);
 
-  for (size_t i=0; i<ninputs; i++) {
-    RedisModuleKey *argkey = RedisModule_OpenKey(ctx, inputs[i], REDISMODULE_READ);
-    int type = RedisModule_KeyType(argkey);
-    if (type == REDISMODULE_KEYTYPE_EMPTY) {
-      // todo free rinfo, close key
-      RedisModule_CloseKey(argkey);
-      return RedisModule_ReplyWithError(ctx, "Input key is empty");
-    }
-    if (!(RedisModule_KeyType(argkey) == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
-      // todo free rinfo, close key
-      RedisModule_CloseKey(argkey);
-      return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
-    }
-    RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
-    RedisModule_CloseKey(argkey);
-    // Opname here is passed without copying
-    const char* opname = NULL;
-    if (mto->inputs) {
-      opname = mto->inputs[i];
-    }
-    if (!RAI_ModelRunCtxAddInput(rinfo->mctx, 0, opname, t)) {
-      // todo free rinfo
-      return RedisModule_ReplyWithError(ctx, "Input key not found.");
+  // parsing aux vars
+  int is_input = 0;
+  size_t ninputs = 0;
+  size_t noutputs = 0;
+  size_t expected_noutputs = 0;
+  if (mto->outputs) {
+    expected_noutputs = array_len(mto->outputs);
+    rinfo->outkeys =
+        RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
+  }
+  int outputs_flag_count = 0;
+
+  for (size_t argpos = 3; argpos <= argc - 1; argpos++) {
+    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
+      is_input = 1;
+      outputs_flag_count = 1;
+    } else {
+      RedisModule_RetainString(NULL, argv[argpos]);
+      if (is_input == 0) {
+        RedisModuleKey *argkey =
+            RedisModule_OpenKey(ctx, argv[argpos], REDISMODULE_READ);
+        const int type = RedisModule_KeyType(argkey);
+        if (type == REDISMODULE_KEYTYPE_EMPTY) {
+          // todo free rinfo, close key
+          RedisModule_CloseKey(argkey);
+          return RedisModule_ReplyWithError(ctx, "ERR Input key is empty");
+        }
+        if (!(RedisModule_KeyType(argkey) == REDISMODULE_KEYTYPE_MODULE &&
+              RedisModule_ModuleTypeGetType(argkey) == RedisAI_TensorType)) {
+          // todo free rinfo, close key
+          RedisModule_CloseKey(argkey);
+          return RedisModule_ReplyWithError(ctx,
+                                            REDISMODULE_ERRORMSG_WRONGTYPE);
+        }
+        RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
+        RedisModule_CloseKey(argkey);
+        // Opname here is passed without copying
+        const char *opname = NULL;
+        if (mto->inputs) {
+          opname = mto->inputs[ninputs];
+        }
+        if (!RAI_ModelRunCtxAddInput(rinfo->mctx, 0, opname, t)) {
+          // todo free rinfo
+          return RedisModule_ReplyWithError(ctx, "ERR Input key not found.");
+        }
+        ninputs++;
+      } else {
+        // Opname here is passed without copying
+        const char *opname = NULL;
+        if (mto->outputs) {
+          opname = mto->outputs[noutputs];
+        }
+        if (!RAI_ModelRunCtxAddOutput(rinfo->mctx, 0, opname)) {
+          // todo free rinfo
+          return RedisModule_ReplyWithError(ctx, "ERR Output key not found.");
+        }
+        rinfo->outkeys[noutputs] = argv[argpos];
+        noutputs++;
+      }
     }
   }
-
-  rinfo->outkeys = RedisModule_Calloc(noutputs, sizeof(RedisModuleString*));
-  for (size_t i=0; i<noutputs; i++) {
-    // Opname here is passed without copying
-    const char* opname = NULL;
-    if (mto->outputs) {
-      opname = mto->outputs[i];
-    }
-    if (!RAI_ModelRunCtxAddOutput(rinfo->mctx, 0, opname)) {
-      // todo free rinfo
-      return RedisModule_ReplyWithError(ctx, "Output key not found.");
-    }
-    RedisModule_RetainString(ctx, outputs[i]);
-    rinfo->outkeys[i] = outputs[i];
-  }
-
-  //  RedisModule_AbortBlock(bc);
-  //  return RedisModule_ReplyWithError(ctx, "-ERR Can't start thread");
 
   AI_dictEntry *entry = AI_dictFind(run_queues, mto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
-  if (!entry){
-      // If the queue does not exist, initialize it
-      if(ensureRunQueue(mto->devicestr)==REDISMODULE_ERR) {
-        return RedisModule_ReplyWithError(ctx, "Queue not initialized for device.");
-      }
-      entry = AI_dictFind(run_queues, mto->devicestr);
-      run_queue_info = AI_dictGetVal(entry);
-  }
-  else{
+  if (!entry) {
+    // If the queue does not exist, initialize it
+    if (ensureRunQueue(mto->devicestr) == REDISMODULE_ERR) {
+      return RedisModule_ReplyWithError(ctx, "ERR Queue not initialized for device.");
+    }
+    entry = AI_dictFind(run_queues, mto->devicestr);
+    run_queue_info = AI_dictGetVal(entry);
+  } else {
     run_queue_info = AI_dictGetVal(entry);
   }
 
@@ -1244,12 +1210,6 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   queuePush(run_queue_info->run_queue, rinfo);
   pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  // RedisAI_RunSession(rinfo);
-  // RedisAI_FreeRunInfo(ctx, rinfo);
-  // return RedisModule_ReplyWithSimpleString(ctx, "foo");
-
-  // RedisModule_ReplicateVerbatim(ctx);
 
   return REDISMODULE_OK;
 }
