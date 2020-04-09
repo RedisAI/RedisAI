@@ -342,8 +342,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if( RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t) != REDISMODULE_OK ){
     return RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
   }
-  RedisModule_CloseKey(key);
   RedisModule_ReplyWithSimpleString(ctx, "OK");
+  RedisModule_CloseKey(key);
   RedisModule_ReplicateVerbatim(ctx);
   return REDISMODULE_OK;
 }

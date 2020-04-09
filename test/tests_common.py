@@ -85,43 +85,57 @@ def test_common_tensorset_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "invalid value")
+        env.assertEqual("invalid value", exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 1)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
+
+    # test for more arguments than the required
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'FLOAT', 2, 'VALUES', 2, 3, "extra1", "extra2")
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command",exception.__str__())
 
 
 def test_common_tensorget(env):
