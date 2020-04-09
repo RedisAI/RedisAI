@@ -371,7 +371,9 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
   ret->backend = backend;
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->inputs = inputs_;
+  ret->ninputs = ninputs;
   ret->outputs = outputs_;
+  ret->noutputs = ninputs;
   ret->opts = opts;
   ret->refCount = 1;
   

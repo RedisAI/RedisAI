@@ -304,12 +304,10 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
 }
 
 RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
-#define BATCH_INITIAL_SIZE 10
   RAI_ModelRunCtx* mctx = RedisModule_Calloc(1, sizeof(*mctx));
   mctx->model = RAI_ModelGetShallowCopy(model);
   mctx->nbatches=0;
-  mctx->batches = array_new(RAI_ModelCtxBatch, BATCH_INITIAL_SIZE);
-#undef BATCH_INITIAL_SIZE
+  mctx->batches = array_new(RAI_ModelCtxBatch, MODELRUN_BATCH_INITIAL_CAPACITY);
   return mctx;
 }
 
@@ -359,21 +357,19 @@ size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx) {
 }
 
 int RAI_ModelRunCtxAddBatch(RAI_ModelRunCtx* mctx) {
-#define PARAM_INITIAL_SIZE 10
   RAI_ModelCtxBatch batch = {
-    .inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE),
+    .inputs = array_new(RAI_ModelCtxParam, MODELRUN_PARAM_INITIAL_CAPACITY),
     .ninputs = 0,
-    .outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE),
+    .outputs = array_new(RAI_ModelCtxParam, MODELRUN_PARAM_INITIAL_CAPACITY),
     .noutputs = 0
   };
-#undef PARAM_INITIAL_SIZE
   array_append(mctx->batches, batch);
-  mctx->batches++;
+  mctx->nbatches++;
   return array_len(mctx->batches)-1;
 }
 
 size_t RAI_ModelRunCtxNumBatches(RAI_ModelRunCtx* mctx) {
-  return array_len(mctx->batches);
+  return mctx->nbatches;
 }
 
 void RAI_ModelRunCtxCopyBatch(RAI_ModelRunCtx* dest, size_t id_dest, RAI_ModelRunCtx* src, size_t id_src) {

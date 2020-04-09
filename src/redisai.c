@@ -1133,6 +1133,9 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t ninputs = 0;
   size_t noutputs = 0;
   int outputs_flag_count = 0;
+
+  RAI_ModelRunCtxAddBatch(rinfo->mctx);
+
   for (size_t argpos = 3; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count==0) {
@@ -1157,17 +1160,15 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         }
         RAI_Tensor *t = RedisModule_ModuleTypeGetValue(argkey);
         RedisModule_CloseKey(argkey);
-        if (!RAI_ModelRunCtxAddInput(rinfo->mctx, 0, arg_string, t)){
-          // todo free rinfo
-          char *buffer = RedisModule_Alloc( 50* sizeof(*buffer));
-          sprintf(buffer, "ERR Input key (%s) not found. %d", arg_string, rinfo->mctx->batches[0].ninputs );
-          return RedisModule_ReplyWithError(ctx, buffer);
+        if (RAI_ModelRunCtxAddInput(rinfo->mctx, 0, arg_string, t) != REDISMODULE_OK){
+          // RedisAI_FreeRunInfo(ctx, rinfo);
+          return RedisModule_ReplyWithError(ctx, "ERR Input key not found.");
         }
         ninputs++;
       }
       else {
-        if (!RAI_ModelRunCtxAddOutput(rinfo->mctx, 0, arg_string)){
-          // todo free rinfo
+        if (RAI_ModelRunCtxAddOutput(rinfo->mctx, 0, arg_string)!= REDISMODULE_OK){
+          // RedisAI_FreeRunInfo(ctx, rinfo);
           return RedisModule_ReplyWithError(ctx, "ERR Output key not found.");
         }
         rinfo->outkeys[noutputs] = argv[argpos];
@@ -1177,19 +1178,30 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   rinfo->outkeys_argc = noutputs;
 
-  if (mto->ninputs != ninputs) {
+  if (mto->inputs && array_len(mto->inputs) != ninputs) {
     RedisAI_FreeRunInfo(ctx, rinfo);
-    char *buffer = RedisModule_Alloc( 150* sizeof(*buffer));
-    sprintf(buffer, "ERR Number of names given as INPUTS (%d) during MODELSET and keys given as INPUTS (%d) here do not match.", mto->ninputs, ninputs );
-    return RedisModule_ReplyWithError(ctx, buffer);
+    return RedisModule_ReplyWithError(ctx, "Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match.");
   }
 
-  if (mto->noutputs != noutputs) {
+  if (mto->outputs && array_len(mto->outputs) != noutputs) {
     RedisAI_FreeRunInfo(ctx, rinfo);
-    char *buffer = RedisModule_Alloc( 150* sizeof(*buffer));
-    sprintf(buffer, "ERR Number of names given as OUTPUTS (%d) during MODELSET and keys given as OUTPUTS (%d) here do not match.", mto->noutputs, noutputs );
-    return RedisModule_ReplyWithError(ctx, buffer);
+    return RedisModule_ReplyWithError(ctx, "Number of names given as OUTPUTS during MODELSET and keys given as OUTPUTS here do not match.");
   }
+
+
+  // if (mto->ninputs != ninputs) {
+  //   RedisAI_FreeRunInfo(ctx, rinfo);
+  //   char *buffer = RedisModule_Alloc( 150* sizeof(*buffer));
+  //   sprintf(buffer, "ERR Number of names given as INPUTS (%d) during MODELSET and keys given as INPUTS (%d) here do not match.", mto->ninputs, ninputs );
+  //   return RedisModule_ReplyWithError(ctx, buffer);
+  // }
+
+  // if (mto->noutputs != noutputs) {
+  //   RedisAI_FreeRunInfo(ctx, rinfo);
+  //   char *buffer = RedisModule_Alloc( 150* sizeof(*buffer));
+  //   sprintf(buffer, "ERR Number of names given as OUTPUTS (%d) during MODELSET and keys given as OUTPUTS (%d) here do not match.", mto->noutputs, noutputs );
+  //   return RedisModule_ReplyWithError(ctx, buffer);
+  // }
 
   AI_dictEntry *entry = AI_dictFind(run_queues, mto->devicestr);
   RunQueueInfo *run_queue_info = NULL;
