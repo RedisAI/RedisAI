@@ -176,7 +176,18 @@ An array of alternating key-value pairs as follows:
 
 **Examples**
 
-Assuming that your model is stored under the 'mymodel' key, you can use the following read and save it to local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli):
+Assuming that your model is stored under the 'mymodel' key, you can obtain its metadata with:
+
+```
+redis> 1) BACKEND
+2) TF
+3) DEVICE
+4) CPU
+5) TAG
+6) imagenet:5.0
+```
+
+You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
 
 ```
 $ redis-cli --raw AI.MODELGET mymodel BLOB > model.ext
@@ -245,27 +256,34 @@ OK
 ```
 
 ## AI._MODELLIST
+The **AI._MODELLIST** command returns all the models in the database.
 
-NOTE: `_MODELLIST` is EXPERIMENTAL and might be removed in future versions.
+!!! warning "Experimental API"
+    `AI._MODELLIST` is an EXPERIMENTAL command that may be removed in future versions.
 
-List all models. Returns a list of (key, tag) pairs.
+**Redis API**
 
-```sql
+```
 AI._MODELLIST
 ```
 
-### _MODELLIST Example
+_Arguments_
 
-```sql
-AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
-AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
+None.
 
-AI._MODELLIST
+_Return_
 
->  1) 1) "model1"
->  1) 2) "resnet18:v1"
->  2) 1) "model2"
->  2) 2) "resnet18:v2"
+An array with an entry per model. Each entry is a an array with two entries:
+
+1. The model's key name as a String
+1. The model's tag as a String
+
+**Examples**
+
+```
+redis> > AI._MODELLIST
+1) 1) "mymodel"
+   2) imagenet:5.0
 ```
 
 ## AI.SCRIPTSET
@@ -281,7 +299,7 @@ _Arguments_
 
 
 * **key**: the script's key name
-* TAG tag - Optional string tagging the script, such as a version number or other identifier
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
@@ -303,12 +321,8 @@ def addtwo(a, b):
 It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
 ```
-$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU TAG myscript:v0.1
 OK
-```
-
-```sql
-AI.SCRIPTSET addscript GPU TAG myscript:v0.1 < addtwo.txt
 ```
 
 ## AI.SCRIPTGET
@@ -341,8 +355,12 @@ The following shows how to read the script stored at the 'myscript' key:
 
 ```
 redis> AI.SCRIPTGET myscript
-1) CPU
-2) def addtwo(a, b):
+1) DEVICE
+2) CPU
+3) TAG
+4) "myscript:v0.1"
+5) SOURCE
+6) def addtwo(a, b):
     return a + b
 ```
 
@@ -415,29 +433,35 @@ redis> AI.TENSORGET result VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTLIST
+The **AI._SCRIPTLIST** command returns all the scripts in the database.
 
-NOTE: `_SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
+!!! warning "Experimental API"
+    `AI._MODELLIST` is an EXPERIMENTAL command that may be removed in future versions.
 
-List all scripts. Returns a list of (key, tag) pairs.
+**Redis API**
 
-```sql
+```
 AI._SCRIPTLIST
 ```
 
-### _SCRIPTLIST Example
+_Arguments_
 
-```sql
-AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
-AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
+None.
 
-AI._SCRIPTLIST
+_Return_
 
->  1) 1) "script1"
->  1) 2) "addtwo:v0.1"
->  2) 1) "script2"
->  2) 2) "addtwo:v0.2"
+An array with an entry per script. Each entry is a an array with two entries:
+
+1. The script's key name as a String
+1. The script's tag as a String
+
+**Examples**
+
 ```
----
+redis> > AI._SCRIPTLIST
+1) 1) "myscript"
+   2) "myscript:v0.1"
+```
 
 ## AI.INFO
 The **`AI.INFO`** command returns information about the execution a model or a script.
