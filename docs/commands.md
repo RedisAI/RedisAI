@@ -130,17 +130,9 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
-* **TAG**: an optional string for tagging the model, such as a version number or any arbitrary identifier
-* **BATCHSIZE**: batch incoming requests from multiple clients if they hit the same model and if input tensors have the same
-                shape. Upon MODELRUN, the request queue is visited, input tensors from compatible requests are concatenated
-                along the 0-th (batch) dimension, up until BATCHSIZE is exceeded. The model is then run for the entire batch,
-                results are unpacked back among the individual requests and the respective clients are unblocked.
-                If the batch size of the inputs to the first request in the queue exceeds BATCHSIZE, the request is served
-                in any case. Default is 0 (no batching).
-* **MINBATCHSIZE**: Do not execute a MODELRUN until the batch size has reached MINBATCHSIZE. This is primarily used to force
-                   batching during testing, but it can also be used under normal operation. In this case, note that requests
-                   for which MINBATCHSIZE is not reached will hang indefinitely.
-                   Default is 0 (no minimum batch size).
+* **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
+* **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
+* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (defai;t value: 0).
 * **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
 * **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
 * **model**: the Protobuf-serialized model
@@ -154,20 +146,8 @@ A simple 'OK' string or an error.
 This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choice that are native to your programming language:
 
 ```
-$ cat mobilenet_v2_1.4_224_frozen.pb | redis-cli -x AI.MODELSET mymodel TF CPU INPUTS input OUTPUTS MobilenetV2/Predictions/Reshape_1
+$ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output
 OK
-```
-
-```sql
-AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 < mnist.onnx
-```
-
-```sql
-AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 < mnist.onnx
-```
-
-```sql
-AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 < foo.pb
 ```
 
 ## AI.MODELGET
@@ -182,21 +162,24 @@ AI.MODELGET <key> [META | BLOB]
 _Arguments
 
 * **key**: the model's key name
-* META - Only return information on backend, device and tag
-* BLOB - Return information on backend, device and tag, as well as a binary blob containing the serialized model
+* **META**: will only return the model's meta information (default)
+* **BLOB**: will return the model's meta information and a blob containing the serialized model
 
 _Return_
 
-A Bulk String that is the Protobuf-serialized representation of the model by the backend.
+An array of alternating key-value pairs as follows:
 
-The command returns a list of key-value strings, namely `BACKEND backend DEVICE device TAG tag [BLOB blob]`.
+1. **BACKEND**: the backend used by the model as a String
+1. **DEVICE**: the device used to execute the model as a String
+1. **TAG**: the model's tag as a String
+1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
 
 **Examples**
 
 Assuming that your model is stored under the 'mymodel' key, you can use the following read and save it to local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli):
 
 ```
-$ redis-cli --raw AI.MODELGET mymodel > model.ext
+$ redis-cli --raw AI.MODELGET mymodel BLOB > model.ext
 ```
 
 ## AI.MODELDEL
@@ -345,11 +328,12 @@ _Arguments_
 
 _Return_
 
-Array consisting of two items:
+An array with alternating entries that represent the following key-value pairs:
 !!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
 
-1. The script's device as a String
-2. The script's source code as a String
+1. **DEVICE**: the script's device as a String
+1. **TAG**: the scripts's tag as a String
+1. **SOURCE**: the script's source code as a String
 
 **Examples**
 
