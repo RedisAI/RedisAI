@@ -63,7 +63,7 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("negative value found in tensor shape",exception.__str__())
 
-    # ERR unsupported data format
+    # ERR invalid argument found in tensor shape
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'unsupported', 2, 3)
     except Exception as e:
@@ -237,7 +237,6 @@ def test_common_tensorset_multiproc_blob(env):
         tested_datatypes_map[datatype]=tensor_blob
         env.assertEqual(ret, b'OK')
 
-    
     def funcname(env, blob, repetitions, same_key):
         for _ in range(1,same_key):
             for repetion in range(1,repetitions):

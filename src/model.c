@@ -307,12 +307,13 @@ RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
 #define BATCH_INITIAL_SIZE 10
   RAI_ModelRunCtx* mctx = RedisModule_Calloc(1, sizeof(*mctx));
   mctx->model = RAI_ModelGetShallowCopy(model);
+  mctx->nbatches=0;
   mctx->batches = array_new(RAI_ModelCtxBatch, BATCH_INITIAL_SIZE);
 #undef BATCH_INITIAL_SIZE
   return mctx;
 }
 
-static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** paramArr,
+static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** paramArr, 
                                 const char* name, RAI_Tensor* tensor) {
 
   RAI_ModelCtxParam param = {
@@ -320,22 +321,24 @@ static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** param
       .tensor = tensor ? RAI_TensorGetShallowCopy(tensor): NULL,
   };
   *paramArr = array_append(*paramArr, param);
-  return 1;
+  return REDISMODULE_OK;
 }
 
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, size_t id, const char* inputName, RAI_Tensor* inputTensor) {
   if (id >= RAI_ModelRunCtxNumBatches(mctx)) {
     // TODO error
-    return 0;
+    return REDISMODULE_ERR;
   }
+  mctx->batches[id].ninputs++;
   return Model_RunCtxAddParam(mctx, &mctx->batches[id].inputs, inputName, inputTensor);
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, size_t id, const char* outputName) {
   if (id >= RAI_ModelRunCtxNumBatches(mctx)) {
     // TODO error
-    return 0;
+    return REDISMODULE_ERR;
   }
+  mctx->batches[id].noutputs++;
   return Model_RunCtxAddParam(mctx, &mctx->batches[id].outputs, outputName, NULL);
 }
 
@@ -344,25 +347,28 @@ size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx* mctx) {
     return 0;
   }
   // Here we assume batch is well-formed (i.e. number of outputs is equal in all batches)
-  return array_len(mctx->batches[0].inputs);
+  return mctx->batches[0].ninputs;
 }
 
 size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx) {
-  if (RAI_ModelRunCtxNumBatches(mctx) == 0) {
+  if (RAI_ModelRunCtxNumBatches(mctx)) {
     return 0;
   }
   // Here we assume batch is well-formed (i.e. number of outputs is equal in all batches)
-  return array_len(mctx->batches[0].outputs);
+  return mctx->batches[0].noutputs;
 }
 
 int RAI_ModelRunCtxAddBatch(RAI_ModelRunCtx* mctx) {
 #define PARAM_INITIAL_SIZE 10
   RAI_ModelCtxBatch batch = {
     .inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE),
-    .outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE)
+    .ninputs = 0,
+    .outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE),
+    .noutputs = 0
   };
 #undef PARAM_INITIAL_SIZE
   array_append(mctx->batches, batch);
+  mctx->batches++;
   return array_len(mctx->batches)-1;
 }
 
@@ -371,13 +377,14 @@ size_t RAI_ModelRunCtxNumBatches(RAI_ModelRunCtx* mctx) {
 }
 
 void RAI_ModelRunCtxCopyBatch(RAI_ModelRunCtx* dest, size_t id_dest, RAI_ModelRunCtx* src, size_t id_src) {
-  const size_t ninputs = array_len(src->batches[id_src].inputs);
+  const size_t ninputs = src->batches[id_src].ninputs;
+  const size_t noutputs = src->batches[id_src].noutputs;
+
   for (size_t i=0; i<ninputs; i++) {
     RAI_ModelCtxParam param = src->batches[id_src].inputs[i];
     RAI_ModelRunCtxAddInput(dest, id_dest, param.name, param.tensor);
   }
 
-  const size_t noutputs = array_len(src->batches[id_src].outputs);
   for (size_t i=0; i<noutputs; i++) {
     RAI_ModelCtxParam param = src->batches[id_src].outputs[i];
     RAI_ModelRunCtxAddOutput(dest, id_dest, param.name);
@@ -423,7 +430,7 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
 }
 
 int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
-  int ret;
+  int ret = REDISMODULE_ERR;
 
   switch (mctx->model->backend) {
     case RAI_BACKEND_TENSORFLOW:

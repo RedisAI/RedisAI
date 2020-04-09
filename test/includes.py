@@ -5,7 +5,7 @@ import sys
 import time
 from multiprocessing import Process
 import threading
-import gzip
+from numpy.random import default_rng
 import numpy as np
 from skimage.io import imread
 from skimage.transform import resize
@@ -89,15 +89,13 @@ def load_creditcardfraud_data(env,max_tensors=10000):
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'creditcardfraud.pb')
     creditcard_transaction_filename = os.path.join(test_data_path, 'creditcard_10K.csv')
-    rng = np.random.default_rng()
+    rg = default_rng()
 
-    env.debugPrint("reading transaction tensors", force=True)
     creditcard_transactions = np.genfromtxt(creditcard_transaction_filename, delimiter=',', dtype='float32', skip_header=1, usecols=range(0,30))
 
     creditcard_referencedata = []
-    env.debugPrint("generating reference tensors", force=True)
     for tr in range(0,max_tensors):
-        creditcard_referencedata.append(rng.random((1,256), dtype='float32'))
+        creditcard_referencedata.append(rg.random((1,256), dtype='float32'))
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
