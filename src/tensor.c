@@ -9,10 +9,10 @@
 RedisModuleType *RedisAI_TensorType = NULL;
 
 DLDataType RAI_TensorDataTypeFromString(const char* typestr){
-  if (strcasecmp(typestr, "FLOAT") == 0){
+  if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0){
     return (DLDataType){ .code = kDLFloat, .bits = 32, .lanes = 1};
   }
-  if (strcasecmp(typestr, "DOUBLE") == 0) {
+  if (strcasecmp(typestr, RAI_DATATYPE_STR_DOUBLE) == 0) {
     return (DLDataType){ .code = kDLFloat, .bits = 64, .lanes = 1};
   }
   if (strncasecmp(typestr, "INT", 3) == 0) {
@@ -46,14 +46,17 @@ static size_t Tensor_DataTypeSize(DLDataType dtype) {
   return dtype.bits / 8;
 }
 
-void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+  int result = REDISMODULE_ERR;
   *dtypestr = RedisModule_Calloc(8, sizeof(char));
   if (dtype.code == kDLFloat) {
     if (dtype.bits == 32) {
-      strcpy(*dtypestr, "FLOAT");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_FLOAT);
+      result = REDISMODULE_OK;
     }
     else if (dtype.bits == 64) {
-      strcpy(*dtypestr, "DOUBLE");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_DOUBLE);
+      result = REDISMODULE_OK;
     }
     else {
       RedisModule_Free(*dtypestr);
@@ -62,16 +65,20 @@ void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
   }
   else if (dtype.code == kDLInt) {
     if (dtype.bits == 8) {
-      strcpy(*dtypestr, "INT8");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_INT8);
+      result = REDISMODULE_OK;
     }
     else if (dtype.bits == 16) {
-      strcpy(*dtypestr, "INT16");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_INT16);
+      result = REDISMODULE_OK;
     }
     else if (dtype.bits == 32) {
-      strcpy(*dtypestr, "INT32");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_INT32);
+      result = REDISMODULE_OK;
     }
     else if (dtype.bits == 64) {
-      strcpy(*dtypestr, "INT64");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_INT64);
+      result = REDISMODULE_OK;
     }
     else {
       RedisModule_Free(*dtypestr);
@@ -80,16 +87,19 @@ void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
   }
   else if (dtype.code == kDLUInt) {
     if (dtype.bits == 8) {
-      strcpy(*dtypestr, "UINT8");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_UINT8);
+      result = REDISMODULE_OK;
     }
     else if (dtype.bits == 16) {
-      strcpy(*dtypestr, "UINT16");
+      strcpy(*dtypestr, RAI_DATATYPE_STR_UINT16);
+      result = REDISMODULE_OK;
     }
     else {
       RedisModule_Free(*dtypestr);
       *dtypestr = NULL;
     }
   }
+  return result;
 }
 
 static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {

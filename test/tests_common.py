@@ -180,13 +180,13 @@ def test_common_tensorget(env):
 def test_common_tensorget_error_replies(env):
     con = env.getConnection()
 
-    # ERR cannot get tensor from empty key
+    # ERR tensor key is empty
     try:
         con.execute_command('AI.TENSORGET', 'empty', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "cannot get tensor from empty key")
+        env.assertEqual("tensor key is empty",exception.__str__())
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:
@@ -195,7 +195,7 @@ def test_common_tensorget_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "WRONGTYPE Operation against a key holding the wrong kind of value")
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
 
     # ERR unsupported data format
     ret = con.execute_command('AI.TENSORSET', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)
