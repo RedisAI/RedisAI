@@ -372,7 +372,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', 'PORCH', DEVICE,
@@ -395,7 +395,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_5', 'TF', DEVICE,
@@ -411,14 +411,14 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Output node named \"mult\" not found in TF graph.", exception.__str__())
+        env.assertEqual("Output node named \"mult\" not found in TF graph", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_7', 'TF', DEVICE, model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified.", exception.__str__())
+        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -465,7 +465,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
 
 @skip_if_no_TF

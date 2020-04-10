@@ -106,7 +106,7 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB.", exception.__str__())
+        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', model_pb)
@@ -148,21 +148,21 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
@@ -218,7 +218,7 @@ def test_run_tflite_model_autobatch(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Auto-batching not supported by the TFLITE backend.", exception.__str__())
+        env.assertEqual("Auto-batching not supported by the TFLITE backend", exception.__str__())
 
     # env.assertEqual(ret, b'OK')
 

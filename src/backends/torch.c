@@ -35,7 +35,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_
       dl_device = kDLGPU;
       break;
     default:
-      RAI_SetError(error, RAI_EMODELCONFIGURE, "Error configuring model: unsupported device\n");
+      RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
       return NULL;
   }
 
@@ -71,7 +71,7 @@ void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
 int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   const size_t nbatches = array_len(mctx->batches);
   if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
 
@@ -134,7 +134,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   for(size_t i=0 ; i<noutputs; ++i) {
     if (outputs_dl[i] == NULL) {
-      RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected number of outputs.");
+      RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected number of outputs");
       return 1;
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
@@ -188,7 +188,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, 
       dl_device = kDLGPU;
       break;
     default:
-      RAI_SetError(error, RAI_ESCRIPTCONFIGURE, "Error configuring script: unsupported device\n");
+      RAI_SetError(error, RAI_ESCRIPTCONFIGURE, "ERR Error configuring script: unsupported device");
       break;
   }
 

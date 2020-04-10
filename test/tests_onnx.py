@@ -64,7 +64,7 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid DEVICE.", exception.__str__())
+        env.assertEqual("Invalid DEVICE", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', model_pb)
@@ -108,7 +108,7 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified.", exception.__str__())
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')

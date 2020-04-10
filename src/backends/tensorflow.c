@@ -268,7 +268,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     if (oper == NULL) {
       size_t len = strlen(outputs[i]);
       char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
-      sprintf(msg, "Output node named \"%s\" not found in TF graph.", outputs[i]);
+      sprintf(msg, "Output node named \"%s\" not found in TF graph", outputs[i]);
       RAI_SetError(error, RAI_EMODELIMPORT, msg);
       return NULL;
     }
@@ -336,7 +336,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     }
   }
   if (foundNoGPU == 1 && device == RAI_DEVICE_GPU) {
-    RAI_SetError(error, RAI_EMODELCREATE, "GPU requested but TF couldn't find CUDA");
+    RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but TF couldn't find CUDA");
     TF_DeleteDeviceList(deviceList);
     TF_DeleteStatus(deviceListStatus);
     // TODO: free other memory allocations
@@ -424,7 +424,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   const size_t nbatches = array_len(mctx->batches);
   if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
   
@@ -522,7 +522,7 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
   TF_GraphToGraphDef(model->model, tf_buffer, status);
 
   if (TF_GetCode(status) != TF_OK) {
-    RAI_SetError(error, RAI_EMODELSERIALIZE, "Error serializing TF model");
+    RAI_SetError(error, RAI_EMODELSERIALIZE, "ERR Error serializing TF model");
     TF_DeleteBuffer(tf_buffer);
     TF_DeleteStatus(status);
     return 1;
