@@ -256,8 +256,8 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     TF_Operation* oper = TF_GraphOperationByName(model, inputs[i]);
     if (oper == NULL) {
       size_t len = strlen(inputs[i]);
-      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
-      sprintf(msg, "Input node named \"%s\" not found in TF graph.", inputs[i]);
+      char* msg = RedisModule_Calloc(60 + len, sizeof(*msg));
+      sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
       RAI_SetError(error, RAI_EMODELIMPORT, msg);
       return NULL;
     }
@@ -267,8 +267,8 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     TF_Operation* oper = TF_GraphOperationByName(model, outputs[i]);
     if (oper == NULL) {
       size_t len = strlen(outputs[i]);
-      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
-      sprintf(msg, "Output node named \"%s\" not found in TF graph", outputs[i]);
+      char* msg = RedisModule_Calloc(60 + len, sizeof(*msg));
+      sprintf(msg, "ERR Output node named \"%s\" not found in TF graph", outputs[i]);
       RAI_SetError(error, RAI_EMODELIMPORT, msg);
       return NULL;
     }

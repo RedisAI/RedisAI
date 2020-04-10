@@ -98,7 +98,7 @@ mstime_t mstime(void) {
 /* Return REDISMODULE_ERR if there was an error getting the Model.
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
-int RAI_getModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
                               RedisModuleKey **key, RAI_Model **model,
                               int mode) {
   *key = RedisModule_OpenKey(ctx, keyName, mode);
@@ -119,7 +119,7 @@ int RAI_getModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
 /* Return REDISMODULE_ERR if there was an error getting the Script.
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
-int RAI_getScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
                               RedisModuleKey **key, RAI_Script **script,
                               int mode) {
   *key = RedisModule_OpenKey(ctx, keyName, mode);
@@ -139,7 +139,7 @@ int RAI_getScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
 
 /* Return REDISMODULE_ERR if is the key not associated with a tensor type.
  * Return REDISMODULE_OK otherwise. */
-int RAI_openKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName,
+int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName,
                               RedisModuleKey **key,
                               int mode) {
   *key = RedisModule_OpenKey(ctx, keyName, mode);
@@ -157,7 +157,7 @@ int RAI_openKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName,
 /* Return REDISMODULE_ERR if there was an error getting the Tensor.
  * Return REDISMODULE_OK if the tensor value stored at key was correctly
  * returned and available at *tensor variable. */
-int RAI_getTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
                                RedisModuleKey **key, RAI_Tensor **tensor,
                                int mode) {
   *key = RedisModule_OpenKey(ctx, keyName, mode);
@@ -349,7 +349,7 @@ int RedisAI_Run_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   for (size_t i=0; i<num_outputs; ++i) {
     RedisModuleKey *outkey;
-    const int status = RAI_openKey_Tensor(ctx, rinfo->outkeys[i], &outkey, REDISMODULE_READ|REDISMODULE_WRITE);
+    const int status = RAI_OpenKey_Tensor(ctx, rinfo->outkeys[i], &outkey, REDISMODULE_READ|REDISMODULE_WRITE);
     if(status==REDISMODULE_ERR){
         RedisAI_FreeRunInfo(ctx, rinfo);
         if (rstats) {
@@ -583,7 +583,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
   RedisModuleKey *key;
-  const int status = RAI_openKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ|REDISMODULE_WRITE);
+  const int status = RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ|REDISMODULE_WRITE);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -729,7 +729,7 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Tensor *t;
   RedisModuleKey *key;
-  const int status = RAI_getTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ);
+  const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -1019,7 +1019,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto;
   RedisModuleKey *key;
-  const int status = RAI_getModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
+  const int status = RAI_GetModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
   if (status == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
@@ -1086,7 +1086,7 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto;
   RedisModuleKey *key;
-  const int status = RAI_getModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ|REDISMODULE_WRITE);
+  const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ|REDISMODULE_WRITE);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -1149,7 +1149,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto;
   RedisModuleKey *modelKey;
-  const int status = RAI_getModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
+  const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -1191,7 +1191,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       if (is_input == 0) {
         RAI_Tensor *inputTensor;
         RedisModuleKey *tensorKey;
-        const int status = RAI_getTensorFromKeyspace(
+        const int status = RAI_GetTensorFromKeyspace(
             ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
         if (status == REDISMODULE_ERR) {
           // TODO: free rinfo
@@ -1289,7 +1289,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Script *sto;
   RedisModuleKey *key;
-  const int status = RAI_getScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+  const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -1332,7 +1332,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   for (size_t i=0; i<ninputs; i++) {
     RAI_Tensor *t;
     RedisModuleKey *argkey;
-    const int status = RAI_getTensorFromKeyspace(ctx, inputs[i], &argkey, &t, REDISMODULE_READ);
+    const int status = RAI_GetTensorFromKeyspace(ctx, inputs[i], &argkey, &t, REDISMODULE_READ);
     if(status==REDISMODULE_ERR){
          RedisModule_CloseKey(key);
         return REDISMODULE_ERR;
@@ -1395,7 +1395,7 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Script *sto;
   RedisModuleKey *key;
-  const int status = RAI_getScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+  const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
@@ -1419,7 +1419,7 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
   RAI_Script *sto;
   RedisModuleKey *key;
-  const int status = RAI_getScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_WRITE);
+  const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_WRITE);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }

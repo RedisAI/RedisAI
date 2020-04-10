@@ -468,7 +468,7 @@ int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len){
 
 int RAI_TensorSetDataFromRS(RAI_Tensor* t, RedisModuleString* rs){
   t->tensorRS = rs;
-  t->tensor.dl_tensor.data = RedisModule_StringPtrLen(rs,NULL);
+  t->tensor.dl_tensor.data = (void*)RedisModule_StringPtrLen(rs,NULL);
   return 1;
 }
 
