@@ -27,7 +27,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
   RAI_Device device;
   int64_t deviceid;
   if (!parseDeviceStr(devicestr, &device, &deviceid)) {
-    RAI_SetError(error, RAI_EMODELCONFIGURE, "Unsupported device");
+    RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Unsupported device");
     return NULL;
   }
 
@@ -39,7 +39,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
       dl_device = kDLGPU;
       break;
     default:
-      RAI_SetError(error, RAI_EMODELCONFIGURE, "Error configuring model: unsupported device\n");
+      RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
       return NULL;
   }
 
@@ -86,7 +86,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   const size_t nbatches = array_len(mctx->batches);
   if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
 
@@ -149,13 +149,13 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   for(size_t i=0 ; i<noutputs; ++i) {
     if (outputs_dl[i] == NULL) {
-      RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected number of outputs.");
+      RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected number of outputs");
       return 1;
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
     if (nbatches > 1 && RAI_TensorDim(output_tensor, 0) != total_batch_size) {
       RAI_TensorFree(output_tensor);
-      RAI_SetError(error, RAI_EMODELRUN, "Model did not generate the expected batch size.");
+      RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected batch size");
       return 1;
     }
     if (nbatches > 1) {

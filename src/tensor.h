@@ -10,6 +10,16 @@
 #define TENSORALLOC_ALLOC 1
 #define TENSORALLOC_CALLOC 2
 
+// Numeric data type of tensor elements, one of FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16
+static const char* RAI_DATATYPE_STR_FLOAT = "FLOAT";
+static const char* RAI_DATATYPE_STR_DOUBLE = "DOUBLE";
+static const char* RAI_DATATYPE_STR_INT8 = "INT8";
+static const char* RAI_DATATYPE_STR_INT16 = "INT16";
+static const char* RAI_DATATYPE_STR_INT32 = "INT32";
+static const char* RAI_DATATYPE_STR_INT64 = "INT64";
+static const char* RAI_DATATYPE_STR_UINT8 = "UINT8";
+static const char* RAI_DATATYPE_STR_UINT16 = "UINT16";
+
 extern RedisModuleType *RedisAI_TensorType;
 
 int RAI_TensorInit(RedisModuleCtx* ctx);
@@ -24,7 +34,7 @@ size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype);
 size_t RAI_TensorDataSizeFromString(const char* dataType);
 DLDataType RAI_TensorDataType(RAI_Tensor* t);
 DLDataType RAI_TensorDataTypeFromString(const char* dataType);
-void Tensor_DataTypeStr(DLDataType dtype, char **dtypestr);
+int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr);
 void RAI_TensorFree(RAI_Tensor* t);
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len);
 int RAI_TensorSetDataFromRS(RAI_Tensor* t, RedisModuleString* rs);

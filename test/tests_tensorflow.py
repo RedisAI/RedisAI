@@ -157,7 +157,7 @@ def test_del_tf_model(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("no model at key", exception.__str__())
+        env.assertEqual("model key is empty", exception.__str__())
 
     # ERR wrong type
     try:
@@ -349,14 +349,14 @@ def test_run_tf_model_errors(env):
     # cleanup
     con.execute_command('DEL', 'NOT_MODEL')
 
-    # ERR cannot get model from empty key
+    # ERR model key is empty
     con.execute_command('DEL', 'DONT_EXIST')
     try:
         con.execute_command('AI.MODELGET', 'DONT_EXIST')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("cannot get model from empty key", exception.__str__())
+        env.assertEqual("model key is empty", exception.__str__())
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
@@ -364,6 +364,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_1', 'TF',
@@ -371,6 +372,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', 'PORCH', DEVICE,
@@ -378,6 +380,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("unsupported backend", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_3', 'TORCH', DEVICE,
@@ -392,6 +395,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_5', 'TF', DEVICE,
@@ -399,6 +403,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_6', 'TF', DEVICE,
@@ -406,12 +411,14 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Output node named \"mult\" not found in TF graph", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_7', 'TF', DEVICE, model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -419,6 +426,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -426,6 +434,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -433,6 +442,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     # ERR Invalid GraphDef
     try:
@@ -448,12 +458,14 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
 
 @skip_if_no_TF
