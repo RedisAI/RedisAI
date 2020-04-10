@@ -31,6 +31,12 @@ typedef struct RAI_Error RAI_Error;
 #define REDISAI_ERRORMSG_THREADS_PER_QUEUE "ERR: error setting THREADS_PER_QUEUE to"
 #define REDISAI_INFOMSG_THREADS_PER_QUEUE "Setting THREADS_PER_QUEUE parameter to"
 
+enum RedisAI_DataFmt {
+  REDISAI_DATA_BLOB = 0,
+  REDISAI_DATA_VALUES,
+  REDISAI_DATA_NONE
+};
+
 struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   RedisModuleString *runkey;

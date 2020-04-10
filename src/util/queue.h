@@ -31,11 +31,4 @@ queueItem *queueEvict(queue *queue, queueItem *item);
 long long queueLength(queue *queue);
 void queueRelease(queue *queue);
 
-typedef struct RunQueueInfo {
-  pthread_mutex_t run_queue_mutex;
-  pthread_cond_t queue_condition_var;
-  queue *run_queue;
-  pthread_t *threads;
-} RunQueueInfo;
-
 #endif /* __QUEUE_H */

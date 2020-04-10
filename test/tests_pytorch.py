@@ -465,6 +465,8 @@ def test_pytorch_scriptrun(env):
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
+    ensureSlaveSynced(con, env)
+
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
