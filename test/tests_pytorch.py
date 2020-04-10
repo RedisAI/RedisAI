@@ -323,7 +323,7 @@ def test_pytorch_scriptdel(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("no script at key", exception.__str__())
+        env.assertEqual("script key is empty", exception.__str__())
 
     # ERR wrong type from SCRIPTDEL
     try:
@@ -374,7 +374,7 @@ def test_pytorch_scriptrun(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("cannot get script from empty key", exception.__str__())
+        env.assertEqual("script key is empty", exception.__str__())
 
     # ERR wrong type from SCRIPTGET
     try:
@@ -410,7 +410,7 @@ def test_pytorch_scriptrun(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Input key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty", exception.__str__())
 
     # ERR Input key not tensor
     try:
@@ -464,6 +464,8 @@ def test_pytorch_scriptrun(env):
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    ensureSlaveSynced(con, env)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()

@@ -37,6 +37,14 @@ def test_common_tensorset(env):
 
 def test_common_tensorset_error_replies(env):
     con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.TENSORSET', 'sample_raw_ok', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    env.assertEqual(ret, b'OK')
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:
@@ -123,6 +131,28 @@ def test_common_tensorset_error_replies(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
+    try:
+        con.execute_command('AI.TENSORSET', 'blob_tensor_moreargs', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command", exception.__str__())
+
+    try:
+        con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs', 'FLOAT', 2, 'BLOB')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command", exception.__str__())
+
+    # ERR data length does not match tensor shape and type
+    try:
+        con.execute_command('AI.TENSORSET', 'sample_raw_wrong_blob_for_dim', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("data length does not match tensor shape and type", exception.__str__())
+
 
 def test_common_tensorget(env):
     con = env.getConnection()
@@ -180,13 +210,13 @@ def test_common_tensorget(env):
 def test_common_tensorget_error_replies(env):
     con = env.getConnection()
 
-    # ERR cannot get tensor from empty key
+    # ERR tensor key is empty
     try:
         con.execute_command('AI.TENSORGET', 'empty', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "cannot get tensor from empty key")
+        env.assertEqual("tensor key is empty",exception.__str__())
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:
@@ -195,7 +225,7 @@ def test_common_tensorget_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "WRONGTYPE Operation against a key holding the wrong kind of value")
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
 
     # ERR unsupported data format
     ret = con.execute_command('AI.TENSORSET', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)

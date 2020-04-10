@@ -26,7 +26,7 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
   if (detail) {
     err->detail = RedisModule_Strdup(detail);
   } else {
-    err->detail = RedisModule_Strdup("Generic error");
+    err->detail = RedisModule_Strdup("ERR Generic error");
   }
 
   err->detail_oneline = RAI_Chomp(err->detail);
