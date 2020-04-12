@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "redismodule.h"
+#include "util/dict.h"
 
 #define REDISAI_LLAPI_VERSION 1
 
@@ -46,6 +47,9 @@ struct RedisAI_RunInfo {
   int status;
   long long duration_us;
   RAI_Error* err;
+  int use_local_context;
+  AI_dict *dagTensorsContext;
+  AI_dict *dagTensorsPersistentContext;
 };
 
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
