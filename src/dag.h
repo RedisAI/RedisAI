@@ -9,10 +9,10 @@
 #include "run_info.h"
 
 /**
- * Actual method running the Commands in the background thread
- * Called within `RedisAI_Run_ThreadMain`
+ * Actual method running the DAGRUN Commands in the background
+ * thread Called within `RedisAI_Run_ThreadMain`
  */
-void *RedisAI_RunDag(RedisAI_RunInfo *rinfo);
+void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo);
 
 /**
  * Reply Callback called after a successful RedisModule_UnblockClient() within

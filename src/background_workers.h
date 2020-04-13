@@ -1,7 +1,7 @@
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
 
-
+#include "model_script_run_session.h"
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
@@ -12,6 +12,7 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
+#include "dag.h"
 
 #define REDISAI_DEFAULT_THREADS_PER_QUEUE 1
 

@@ -2,9 +2,9 @@
 #include "model_struct.h"
 #include "redismodule.h"
 #include "script.h"
-#include "util/dict.h"
 #include "util/arr_rm_alloc.h"
-
+#include "util/dict.h"
+#include "err.h"
 /**
  * Allocate the memory and initialise the RAI_DagOp.
  * @param result Output parameter to capture allocated RAI_DagOp.
@@ -12,24 +12,30 @@
  * failed.
  */
 int dagInit(RAI_DagOp** result) {
-  *result = RedisModule_Calloc(1, sizeof(RAI_DagOp*));
-  if (!(*result)) {
+  RAI_DagOp* dagOp;
+  dagOp = (RAI_DagOp*)RedisModule_Calloc(1, sizeof(RAI_DagOp));
+  if (!dagOp) {
     return REDISMODULE_ERR;
   }
-  (*result)->runkey = NULL;
-  (*result)->outkeys = array_new(RedisModuleString*, 10);
-  if (!((*result)->outkeys)) {
+  dagOp->commandName = NULL;
+  dagOp->runkey = NULL;
+  dagOp->outkeys = (RedisModuleString**)array_new(RedisModuleString*, 10);
+  if (!(dagOp->outkeys)) {
     return REDISMODULE_ERR;
   }
-  (*result)->mctx = NULL;
-  (*result)->sctx = NULL;
-  (*result)->duration_us = 0;
-  (*result)->err = NULL;
-  (*result)->argv = array_new(RedisModuleString*, 10);
-  if (!((*result)->argv)) {
+  dagOp->mctx = NULL;
+  dagOp->sctx = NULL;
+  dagOp->duration_us = 0;
+  RAI_InitError(&dagOp->err);
+  if (!(dagOp->err)) {
     return REDISMODULE_ERR;
   }
-  (*result)->argc = 0;
+  dagOp->argv = (RedisModuleString**)array_new(RedisModuleString*, 10);
+  if (!(dagOp->argv)) {
+    return REDISMODULE_ERR;
+  }
+  dagOp->argc = 0;
+  *result = dagOp;
   return REDISMODULE_OK;
 }
 
@@ -41,7 +47,7 @@ int dagInit(RAI_DagOp** result) {
  */
 int runInfoInit(RedisAI_RunInfo** result) {
   RedisAI_RunInfo* rinfo;
-  rinfo = (RedisAI_RunInfo*)calloc(1, sizeof(RedisAI_RunInfo));
+  rinfo = (RedisAI_RunInfo*)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
@@ -50,8 +56,16 @@ int runInfoInit(RedisAI_RunInfo** result) {
   rinfo->mctx = NULL;
   rinfo->sctx = NULL;
   rinfo->duration_us = 0;
-  rinfo->err = NULL;
+  RAI_InitError(&rinfo->err);
+  if (!(rinfo->err)) {
+    return REDISMODULE_ERR;
+  }
   rinfo->use_local_context = 0;
+  rinfo->dagTensorsContext =
+      AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  if (!(rinfo->dagTensorsContext)) {
+    return REDISMODULE_ERR;
+  }
   rinfo->dagTensorsPersistentContext =
       AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
   if (!(rinfo->dagTensorsPersistentContext)) {

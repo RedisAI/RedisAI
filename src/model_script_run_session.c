@@ -121,7 +121,7 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
 
   RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
   long long rtime;
-  int status;
+  int result;
   RAI_ModelRunCtx *mctx = NULL;
   RAI_ScriptRunCtx *sctx = NULL;
   if (batch_rinfo[0]->mctx) {
@@ -137,9 +137,9 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
 
   const long long start = ustime();
   if (mctx) {
-    status = RAI_ModelRun(mctx, err);
+    result = RAI_ModelRun(mctx, err);
   } else if (sctx) {
-    status = RAI_ScriptRun(sctx, err);
+    result = RAI_ScriptRun(sctx, err);
   }
   rtime = ustime() - start;
 
@@ -160,7 +160,7 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
       // No batching for scripts for now
     }
 
-    rinfo->status = status;
+    rinfo->result = result;
     rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
     // TODO: add information on whether the call was batched
     // and how large the batch was
@@ -203,7 +203,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     rstats = AI_dictGetVal(stats_entry);
   }
 
-  if (rinfo->status) {
+  if (rinfo->result==REDISMODULE_ERR) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
     if (rstats) {
       rstats->calls += 1;

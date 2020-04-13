@@ -41,7 +41,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   }
 
   RAI_Tensor *t=NULL;
-  const int parse_result = RAI_parseTensorSetArgs(ctx,argv,argc,&t,1);
+  RAI_Error err;
+  const int parse_result = RAI_parseTensorSetArgs(ctx,argv,argc,&t,1,&err);
 
   // if the number of parsed args is negative something went wrong
   if(parse_result<0){
@@ -917,25 +918,24 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
   }
   rinfo->use_local_context = 1;
+  RAI_DagOp* currentDagOp = NULL;
+  dagInit(&currentDagOp);
+  array_append(rinfo->dagOps,currentDagOp);
 
   // parsing aux vars
   int locals_flag = 0;
   int separator_flag = 0;
   long reply_length = 0;
 
-  RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
   // TODO: parse the entire command args and determine device
-  const char *device_string = "CPU";
   RunQueueInfo *run_queue_info = NULL;
   // If the queue does not exist, initialize it
-  if (ensureRunQueue(device_string,&run_queue_info) == REDISMODULE_ERR) {
-    RedisModule_ReplyWithError(
+  if (ensureRunQueue("CPU",&run_queue_info) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(
         ctx, "ERR Queue not initialized for device");
-    rinfo->dagReplyLength++;
-    RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
   }
-
-  for (size_t argpos = 2; argpos <= argc - 1; argpos++) {
+  
+  for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "LOAD")) {
       const int parse_result = RAI_parseDAGLoadArgs(
@@ -943,11 +943,9 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       if (parse_result > 0) {
         argpos += parse_result - 1;
       } else {
-        // TODO: clean temp structures and exit
-        rinfo->dagReplyLength++;
-        RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+        // TODO: clean temp structures
+        return REDISMODULE_ERR;
       }
-      
     }
     else if (!strcasecmp(arg_string, "PERSIST")) {
       const int parse_result =
@@ -956,27 +954,26 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       if (parse_result > 0) {
         argpos += parse_result - 1;
       } else {
-        // TODO: clean temp structures and exit
-        rinfo->dagReplyLength++;
-        RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+        // TODO: clean temp structures
+        return REDISMODULE_ERR;
       }
     }
-    else if (!strcasecmp(arg_string, "|>")) {
+    else if (!strcasecmp(arg_string, "|>" )) {
+      // if(rinfo->dagNumberCommands>0){
         rinfo->dagNumberCommands++;
         RAI_DagOp* currentDagOp = NULL;
         dagInit(&currentDagOp);
         array_append(rinfo->dagOps,currentDagOp);
+      // }
     } else {
-      RedisModule_RetainString(NULL,argv[argpos]);
-//      rinfo->dagOps[rinfo->dagNumberCommands]=argv[argpos];
-//      rinfo->dag_commands_argc[rinfo->dagNumberCommands]++;
+      RedisModule_RetainString(NULL, argv[argpos]);
+      array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
+      rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
     }
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL,
                                           NULL, 0);
-  // RedisModule_SetDisconnectCallback(rinfo->client,
-  // RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   queuePush(run_queue_info->run_queue, rinfo);

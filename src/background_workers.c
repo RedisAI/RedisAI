@@ -1,5 +1,6 @@
 #include "background_workers.h"
-
+#include "dag.h"
+#include "model_script_run_session.h"
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
@@ -101,6 +102,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           break;
         }
 
+        // DAGRUN
+        if (rinfo->use_local_context==1){
+          break;
+        }
+
         size_t batchsize = rinfo->mctx->model->opts.batchsize;
 
         if (batchsize == 0) {
@@ -158,7 +164,13 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
       pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
-      RAI_ModelRunScriptRunSession(batch_rinfo);
+      if (array_len(batch_rinfo) > 0) {
+        if (batch_rinfo[0]->use_local_context == 1) {
+          RedisAI_DagRunSession(batch_rinfo[0]);
+        } else {
+          RAI_ModelRunScriptRunSession(batch_rinfo);
+        }
+      }
 
       for (long long i = 0; i < array_len(evicted_items); i++) {
         RedisModule_Free(evicted_items[i]);

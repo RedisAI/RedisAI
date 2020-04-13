@@ -6,6 +6,7 @@
 #include "dlpack/dlpack.h"
 #include "redismodule.h"
 #include "util/dict.h"
+#include "err.h"
 
 #define TENSORALLOC_NONE 0
 #define TENSORALLOC_ALLOC 1
@@ -71,7 +72,9 @@ int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx,
 
 void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
 
-int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity);
+int RAI_parseTensorSetArgs(RedisModuleCtx* ctx, RedisModuleString** argv,
+                           int argc, RAI_Tensor** t, int enforceArity,
+                           RAI_Error* error);
 
 int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor *t);
 

@@ -17,39 +17,77 @@
 #include "rmutil/args.h"
 #include "run_info.h"
 
-void *RedisAI_RunDag(RedisAI_RunInfo *rinfo) {
+
+/**
+ * Actual method running the DAGRUN Commands in the background
+ * thread Called within `RedisAI_Run_ThreadMain`
+ */
+void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
   RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
   long long rtime;
   int status;
-  RAI_ModelRunCtx *mctx = NULL;
-  mctx = RAI_ModelRunCtxCreate(rinfo->mctx->model);
-  int id = RAI_ModelRunCtxAddBatch(mctx);
-  RAI_ModelRunCtxCopyBatch(mctx, id, rinfo->mctx, 0);
-
-  const long long start = ustime();
-  status = RAI_ModelRun(mctx, err);
-  rtime = ustime() - start;
-
-  size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
-  for (long long o = 0; o < noutputs; o++) {
-    RAI_Tensor *tensor = mctx->batches[0].outputs[o].tensor;
-    if (tensor) {
-      rinfo->mctx->batches[0].outputs[o].tensor =
-          RAI_TensorGetShallowCopy(tensor);
-    } else {
-      rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+  for (size_t i = 0; i < array_len(rinfo->dagOps); i++)
+  {
+    RAI_DagOp *currentOp = rinfo->dagOps[i];
+    const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
+    currentOp->commandName = RedisModule_Strdup(arg_string);
+    if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+      RAI_Tensor *t = NULL;
+      const int parse_result = RAI_parseTensorSetArgs(
+          NULL, currentOp->argv, currentOp->argc, &t, 0, &currentOp->err);
+      if (parse_result > 0) {
+        const char *key_string =
+            RedisModule_StringPtrLen(currentOp->argv[1], NULL);
+        AI_dictAdd(rinfo->dagTensorsContext, key_string, t);
+        currentOp->result = REDISMODULE_OK;
+      } else {
+        currentOp->result = REDISMODULE_ERR;
+      }
     }
+    // if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+    //   if (argpos + 1 >= argc) {
+    //     RedisModule_WrongArity(ctx);
+    //     break;
+    //   }
+    //   const char *key_string = RedisModule_StringPtrLen(argv[argpos + 1], NULL);
+    //   RAI_Tensor *t = NULL;
+    //   const int get_result = RAI_getTensorFromLocalContext(
+    //       ctx, rinfo->dagTensorsContext, key_string, &t);
+    //   if (get_result == REDISMODULE_OK) {
+    //     const int parse_result =
+    //         RAI_parseTensorGetArgs(ctx, &argv[argpos], argc - argpos, t);
+    //     if (parse_result > 0) {
+    //       argpos += parse_result - 1;
+    //     }
+    //   }
+    // }
   }
+  
+  // RedisModule_ReplyWithSimpleString(ctx,"HELLODAG");
+  // const long long start = ustime();
+  // status = RAI_ModelRun(rinfo->mctx, err);
+  // rtime = ustime() - start;
 
-  rinfo->status = status;
-  rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
-  rinfo->duration_us = rtime;
+  // size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+  // for (long long o = 0; o < noutputs; o++) {
+  //   RAI_Tensor *tensor = rinfo->mctx->batches[0].outputs[o].tensor;
+  //   if (tensor) {
+  //     rinfo->mctx->batches[0].outputs[o].tensor =
+  //         RAI_TensorGetShallowCopy(tensor);
+  //   } else {
+  //     rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+  //   }
+  // }
 
-  rinfo->err->code = err->code;
-  if (err->code != RAI_OK) {
-    rinfo->err->detail = RedisModule_Strdup(err->detail);
-    rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
-  }
+  // rinfo->result = status;
+  // rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  // rinfo->duration_us = rtime;
+
+  // rinfo->err->code = err->code;
+  // if (err->code != RAI_OK) {
+  //   rinfo->err->detail = RedisModule_Strdup(err->detail);
+  //   rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
+  // }
   if (rinfo->client != NULL) {
     RedisModule_UnblockClient(rinfo->client, rinfo);
   }
@@ -61,10 +99,26 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   REDISMODULE_NOT_USED(argv);
   REDISMODULE_NOT_USED(argc);
   RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
+  RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
+  for (size_t i = 0; i < array_len(rinfo->dagOps); i++)
+  {
+    RAI_DagOp *currentOp = rinfo->dagOps[i];
+    if (!strcasecmp(currentOp->commandName, "AI.TENSORSET")) {
+      rinfo->dagReplyLength++;
+      if(currentOp->result==REDISMODULE_ERR){
+        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+        RAI_ClearError(currentOp->err);
+      }else{
+        RedisModule_ReplyWithSimpleString(ctx, "OK");
+      }
+    }
+    
+    /* code */
+  }
+  
   AI_dictIterator *persist_iter =
       AI_dictGetSafeIterator(rinfo->dagTensorsPersistentContext);
   AI_dictEntry *persist_entry = AI_dictNext(persist_iter);
-
   while (persist_entry) {
     const char *persist_key_name = AI_dictGetKey(persist_entry);
     AI_dictEntry *tensor_entry =
@@ -191,37 +245,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 // int RAI_background(){
-//   if (!strcasecmp(arg_string, "AI.TENSORSET")) {
-//       reply_length++;
-//       RAI_Tensor *t = NULL;
-//       const int parse_result =
-//           RAI_parseTensorSetArgs(ctx, &argv[argpos], argc - argpos, &t, 0);
-//       if (parse_result > 0) {
-//         const char *key_string =
-//             RedisModule_StringPtrLen(argv[argpos + 1], NULL);
-//         argpos += parse_result - 1;
-//         AI_dictAdd(rinfo->dagTensorsContext, key_string, t);
-//         RedisModule_ReplyWithSimpleString(ctx, "OK");
-//       }
-//     }
-//     if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-//       reply_length++;
-//       if (argpos + 1 >= argc) {
-//         RedisModule_WrongArity(ctx);
-//         break;
-//       }
-//       const char *key_string = RedisModule_StringPtrLen(argv[argpos + 1],
-//       NULL); RAI_Tensor *t = NULL; const int get_result =
-//           RAI_getTensorFromLocalContext(ctx, rinfo->dagTensorsContext,
-//           key_string, &t);
-//       if (get_result == REDISMODULE_OK) {
-//         const int parse_result =
-//             RAI_parseTensorGetArgs(ctx, &argv[argpos], argc - argpos, t);
-//         if (parse_result > 0) {
-//           argpos += parse_result - 1;
-//         }
-//       }
-//     }
+  
 //     if (!strcasecmp(arg_string, "AI.MODELRUN")) {
 //       reply_length++;
 //       if (argpos + 1 >= argc) {

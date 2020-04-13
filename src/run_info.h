@@ -9,15 +9,17 @@
 #include "script.h"
 #include "util/dict.h"
 #include "util/arr_rm_alloc.h"
+#include "err.h"
 
 typedef struct RAI_DagOp {
+  char* commandName;
   RedisModuleString *runkey;
   RedisModuleString **outkeys;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
-  int status;
+  int result; // REDISMODULE_OK or REDISMODULE_ERR
   long long duration_us;
-  RAI_Error *err;
+  RAI_Error* err;
   RedisModuleString **argv;
   int argc;
 } RAI_DagOp;
@@ -37,7 +39,7 @@ typedef struct RedisAI_RunInfo {
   RedisModuleString **outkeys;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
-  int status;
+  int result; // REDISMODULE_OK or REDISMODULE_ERR
   long long duration_us;
   RAI_Error *err;
   // DAG

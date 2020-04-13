@@ -1,4 +1,5 @@
 #include "tensor.h"
+#include "err.h"
 #include "tensor_struct.h"
 #include <stddef.h>
 #include <strings.h>
@@ -710,7 +711,7 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
   RedisModule_Free(dtypestr);
 }
 
-int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity)
+int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity, RAI_Error *error)
 {
   if (argc < 4) {
     RedisModule_WrongArity(ctx);
@@ -720,7 +721,11 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   const char* typestr = RedisModule_StringPtrLen(argv[2], NULL);
   size_t datasize = RAI_TensorDataSizeFromString(typestr);
   if (!datasize){
-    RedisModule_ReplyWithError(ctx, "ERR invalid data type");
+    if(ctx==NULL){
+      RAI_SetError(error, RAI_ETENSORSET, "ERR invalid data type");
+    }else{
+      RedisModule_ReplyWithError(ctx, "ERR invalid data type");
+    }
     return -1;
   }
   const char* fmtstr;
@@ -744,7 +749,11 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
       // check right away if the arity is correct
       if (remaining_args != 1 && enforceArity==1){
         RedisModule_Free(dims);
-        RedisModule_WrongArity(ctx);
+        if(ctx==NULL){
+          RAI_SetError(error, RAI_ETENSORSET, "ERR wrong number of arguments for 'AI.TENSORSET' command");
+        }else{
+          RedisModule_WrongArity(ctx);
+        }
         return -1;
       }
       argpos++;
@@ -757,7 +766,11 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
       // check right away if the arity is correct
       if (remaining_args != len && enforceArity==1){ 
         RedisModule_Free(dims);
-        RedisModule_WrongArity(ctx);
+        if(ctx==NULL){
+          RAI_SetError(error, RAI_ETENSORSET, "ERR wrong number of arguments for 'AI.TENSORSET' command");
+        }else{
+          RedisModule_WrongArity(ctx);
+        }
         return -1;
       }
       argpos++;
@@ -767,8 +780,13 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
       const int retval = RedisModule_StringToLongLong(argv[argpos],&dimension);
       if (retval != REDISMODULE_OK || dimension <= 0) {
           RedisModule_Free(dims);
-          RedisModule_ReplyWithError(ctx,
-              "ERR invalid or negative value found in tensor shape");
+          if (ctx == NULL) {
+            RAI_SetError(error, RAI_ETENSORSET,
+                         "ERR invalid or negative value found in tensor shape");
+          } else {
+            RedisModule_ReplyWithError(
+                ctx, "ERR invalid or negative value found in tensor shape");
+          }
           return -1;
       }
       ndims++;
@@ -785,7 +803,13 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
   if (!t){
     RedisModule_Free(dims);
-    RedisModule_ReplyWithError(ctx, "ERR could not create tensor");
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_ETENSORSET,
+                    "ERR could not create tensor");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx, "ERR could not create tensor");
+    }
     return -1;
   }
   long i = 0;
@@ -794,7 +818,12 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
       RedisModule_StringPtrLen(argv[argpos],&datalen);
       if (datalen != nbytes){
         RAI_TensorFree(*t);
-        RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
+        if (ctx == NULL) {
+          RAI_SetError(error, RAI_ETENSORSET,
+                        "ERR data length does not match tensor shape and type");
+        } else {
+          RedisModule_ReplyWithError(ctx, "ERR data length does not match tensor shape and type");
+        }
         return -1;
       }
       RedisModule_RetainString(NULL,argv[argpos]);
@@ -807,13 +836,23 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
           const int retval = RedisModule_StringToDouble(argv[argpos],&val);
           if (retval != REDISMODULE_OK) {
             RAI_TensorFree(*t);
-            RedisModule_ReplyWithError(ctx, "ERR invalid value");
+            if (ctx == NULL) {
+              RAI_SetError(error, RAI_ETENSORSET,
+                            "ERR invalid value");
+            } else {
+              RedisModule_ReplyWithError(ctx, "ERR invalid value");
+            }
             return -1;
           }
           const int retset = RAI_TensorSetValueFromDouble(*t, i, val);
           if (retset == -1){
             RAI_TensorFree(*t);
-            RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
+            if (ctx == NULL) {
+              RAI_SetError(error, RAI_ETENSORSET,
+                            "ERR cannot specify values for this datatype");
+            } else {
+              RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
+            }
             return -1;
           }
         }
@@ -822,13 +861,23 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
           const int retval = RedisModule_StringToLongLong(argv[argpos],&val);
           if (retval != REDISMODULE_OK) {
             RAI_TensorFree(*t);
-            RedisModule_ReplyWithError(ctx, "ERR invalid value");
+            if (ctx == NULL) {
+              RAI_SetError(error, RAI_ETENSORSET,
+                            "ERR invalid value");
+            } else {
+              RedisModule_ReplyWithError(ctx, "ERR invalid value");
+            }
             return -1;
           }
           const int retset = RAI_TensorSetValueFromLongLong(*t, i, val);
           if (retset == -1){
             RAI_TensorFree(*t);
-            RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
+            if (ctx == NULL) {
+              RAI_SetError(error, RAI_ETENSORSET,
+                            "ERR cannot specify values for this datatype");
+            } else {
+              RedisModule_ReplyWithError(ctx, "ERR cannot specify values for this datatype");
+            }
             return -1;
           }
         }
