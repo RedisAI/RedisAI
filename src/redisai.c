@@ -973,7 +973,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         }
         RAI_Model *mto;
         RedisModuleKey *modelKey;
-        const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey,
+        const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
                                                     &mto, REDISMODULE_READ);
         if (status == REDISMODULE_ERR) {
           return REDISMODULE_ERR;
