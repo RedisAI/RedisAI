@@ -78,12 +78,12 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
           ctx, tensor_keyname, &key, REDISMODULE_READ | REDISMODULE_WRITE);
       if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
-        rinfo->dag_reply_length++;
+        rinfo->dagReplyLength++;
       } else {
         if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) !=
             REDISMODULE_OK) {
           RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
-          rinfo->dag_reply_length++;
+          rinfo->dagReplyLength++;
         }
       }
       RedisModule_CloseKey(key);
@@ -92,12 +92,12 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
     } else {
       RedisModule_ReplyWithError(
           ctx, "ERR specified persistent key that was not used on DAG");
-      rinfo->dag_reply_length++;
+      rinfo->dagReplyLength++;
     }
     persist_entry = AI_dictNext(persist_iter);
   }
   AI_dictReleaseIterator(persist_iter);
-  RedisModule_ReplySetArrayLength(ctx, rinfo->dag_reply_length);
+  RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
   return REDISMODULE_OK;
 }
 

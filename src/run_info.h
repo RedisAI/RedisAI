@@ -8,9 +8,9 @@
 #include "redismodule.h"
 #include "script.h"
 #include "util/dict.h"
+#include "util/arr_rm_alloc.h"
 
-typedef struct RedisAI_RunInfo {
-  RedisModuleBlockedClient *client;
+typedef struct RAI_DagOp {
   RedisModuleString *runkey;
   RedisModuleString **outkeys;
   RAI_ModelRunCtx *mctx;
@@ -18,13 +18,43 @@ typedef struct RedisAI_RunInfo {
   int status;
   long long duration_us;
   RAI_Error *err;
+  RedisModuleString **argv;
+  int argc;
+} RAI_DagOp;
+
+/**
+ * Allocate the memory and initialise the RAI_DagOp.
+ * @param result Output parameter to capture allocated RAI_DagOp.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
+ * failed.
+ */
+int dagInit(RAI_DagOp **result);
+
+typedef struct RedisAI_RunInfo {
+  RedisModuleBlockedClient *client;
+  // TODO: completly move modelrun and scriptrun to dagOps
+  RedisModuleString *runkey;
+  RedisModuleString **outkeys;
+  RAI_ModelRunCtx *mctx;
+  RAI_ScriptRunCtx *sctx;
+  int status;
+  long long duration_us;
+  RAI_Error *err;
+  // DAG
   int use_local_context;
   AI_dict *dagTensorsContext;
   AI_dict *dagTensorsPersistentContext;
-  RedisModuleString ***dag_commands_argv;
-  int *dag_commands_argc;
-  int dag_number_commands;
-  int dag_reply_length;
+  RAI_DagOp **dagOps;
+  int dagReplyLength;
+  int dagNumberCommands;
 } RedisAI_RunInfo;
+
+/**
+ * Allocate the memory and initialise the RedisAI_RunInfo.
+ * @param result Output parameter to capture allocated RedisAI_RunInfo.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
+ * failed.
+ */
+int runInfoInit(RedisAI_RunInfo **result);
 
 #endif /* SRC_RUN_INFO_H_ */

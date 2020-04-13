@@ -2,6 +2,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
         redisai.c
+        run_info.c
         background_workers.c
         model_script_run_session.c
         dag.c
@@ -16,7 +17,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         rmutil/args.c
         rmutil/heap.c
         rmutil/priority_queue.c
-        rmutil/vector.c)
+        rmutil/vector.c run_info.c)
 
 IF(BUILD_TF)
     ADD_LIBRARY(redisai_tensorflow_obj OBJECT

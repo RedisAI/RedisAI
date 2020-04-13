@@ -410,20 +410,21 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
+  RedisAI_RunInfo *rinfo = NULL;
+  if (runInfoInit(&rinfo) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+  }
+
   RAI_Model *mto;
   RedisModuleKey *modelKey;
   const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
-
-  RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
+  
   RedisModule_RetainString(NULL, argv[1]);
   rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
-  rinfo->sctx = NULL;
-  rinfo->outkeys = NULL;
-  rinfo->err = NULL;
 
   const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(ctx, argv,
                                    argc, &rinfo, &mto, 0, NULL, 0, NULL);
@@ -654,10 +655,10 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
-    RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend\n");
+    RedisModule_Log(ctx, "warning", "Backend TORCH not loaded, will try loading default backend");
     int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
     if (ret == REDISMODULE_ERR) {
-      RedisModule_Log(ctx, "error", "Could not load TORCH default backend\n");
+      RedisModule_Log(ctx, "error", "Could not load TORCH default backend");
       int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
       RAI_ClearError(&err);
       return ret;
@@ -901,7 +902,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 }
 
 /**
- * AI.DAGRUN device [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ] |>
+ * AI.DAGRUN [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ] |>
  * [COMMAND1] |> [COMMAND2] |> [COMMANDN]
  *
  * The request is queued and evaded asynchronously from a separate thread. The
@@ -911,38 +912,27 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
-  RedisAI_RunInfo *rinfo =
-      RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
-  rinfo->runkey = NULL;
-  rinfo->mctx = NULL;
-  rinfo->sctx = NULL;
-  rinfo->outkeys = NULL;
-  rinfo->err = NULL;
-  rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-  rinfo->dagTensorsPersistentContext =
-      AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  RedisAI_RunInfo *rinfo = NULL;
+  if (runInfoInit(&rinfo) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+  }
   rinfo->use_local_context = 1;
-  rinfo->dag_commands_argv = array_new(RedisModuleString**,10);
-  rinfo->dag_commands_argc = array_new(int,10);
 
-  rinfo->dag_number_commands = 0;
-  rinfo->dag_commands_argv[0]=array_new(RedisModuleString*,10);
-  rinfo->dag_commands_argc[0]=0;
-  rinfo->dag_reply_length = 0;
   // parsing aux vars
   int locals_flag = 0;
   int separator_flag = 0;
   long reply_length = 0;
 
   RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
-  const char *device_string = RedisModule_StringPtrLen(argv[1], NULL);
+  // TODO: parse the entire command args and determine device
+  const char *device_string = "CPU";
   RunQueueInfo *run_queue_info = NULL;
   // If the queue does not exist, initialize it
   if (ensureRunQueue(device_string,&run_queue_info) == REDISMODULE_ERR) {
     RedisModule_ReplyWithError(
         ctx, "ERR Queue not initialized for device");
-    rinfo->dag_reply_length++;
-    RedisModule_ReplySetArrayLength(ctx, rinfo->dag_reply_length);
+    rinfo->dagReplyLength++;
+    RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
   }
 
   for (size_t argpos = 2; argpos <= argc - 1; argpos++) {
@@ -954,8 +944,8 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         argpos += parse_result - 1;
       } else {
         // TODO: clean temp structures and exit
-        rinfo->dag_reply_length++;
-        RedisModule_ReplySetArrayLength(ctx, rinfo->dag_reply_length);
+        rinfo->dagReplyLength++;
+        RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
       }
       
     }
@@ -967,19 +957,19 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         argpos += parse_result - 1;
       } else {
         // TODO: clean temp structures and exit
-        rinfo->dag_reply_length++;
-        RedisModule_ReplySetArrayLength(ctx, rinfo->dag_reply_length);
+        rinfo->dagReplyLength++;
+        RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
       }
     }
     else if (!strcasecmp(arg_string, "|>")) {
-        rinfo->dag_number_commands++;
-        rinfo->dag_commands_argv[rinfo->dag_number_commands]=array_new(RedisModuleString*,10);
-        rinfo->dag_commands_argc[rinfo->dag_number_commands]=0;
-       
+        rinfo->dagNumberCommands++;
+        RAI_DagOp* currentDagOp = NULL;
+        dagInit(&currentDagOp);
+        array_append(rinfo->dagOps,currentDagOp);
     } else {
       RedisModule_RetainString(NULL,argv[argpos]);
-      rinfo->dag_commands_argv[rinfo->dag_number_commands]=argv[argpos];
-      rinfo->dag_commands_argc[rinfo->dag_number_commands]++;
+//      rinfo->dagOps[rinfo->dagNumberCommands]=argv[argpos];
+//      rinfo->dag_commands_argc[rinfo->dagNumberCommands]++;
     }
   }
 
