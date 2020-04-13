@@ -85,84 +85,104 @@ def test_dag_local_tensorset_persist(env):
     ret = con.execute_command("AI.TENSORGET tensor3 VALUES")
     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
-# def test_dag_local_tensorset_persist(env):
-#     con = env.getConnection()
+def test_dag_local_tensorset_persist(env):
+    con = env.getConnection()
 
-#     command = "AI.DAGRUN PERSIST 1 volative_tensor_persisted |> "\
-#         "AI.TENSORSET volative_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
-#         "AI.TENSORGET volative_tensor_persisted VALUES"
+    command = "AI.DAGRUN PERSIST 1 tensor1 "\
+        "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET tensor1 VALUES"
 
-#     ret = con.execute_command(command)
-#     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
 
-#     ret = con.execute_command("AI.TENSORGET volative_tensor_persisted VALUES")
-#     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
+    ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
+    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
-
-# def test_dag_load_persist_tensorset_tensorget(env):
-#     con = env.getConnection()
-
-#     ret = con.execute_command(
-#         "AI.TENSORSET persisted_tensor_1 FLOAT 1 2 VALUES 5 10")
-#     env.assertEqual(ret, b'OK')
-
-#     ret = con.execute_command(
-#         "AI.TENSORSET persisted_tensor_2 FLOAT 1 3 VALUES 0 0 0")
-#     env.assertEqual(ret, b'OK')
-
-#     command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volative_tensor_persisted |> "\
-#         "AI.TENSORSET volative_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
-#         "AI.TENSORGET persisted_tensor_1 VALUES |> "\
-#         "AI.TENSORGET persisted_tensor_2 VALUES "
-
-#     ret = con.execute_command(command)
-#     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
-#                     b'FLOAT', [1, 3], [b'0', b'0', b'0']]])
-
-#     ret = con.execute_command("AI.TENSORGET volative_tensor_persisted VALUES")
-#     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
-
-
-# def test_dag_local_tensorset_tensorget(env):
+# def test_dag_local_multiple_tensorset_on_same_tensor(env):
 #     con = env.getConnection()
 
 #     command = "AI.DAGRUN "\
-#         "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
-#         "AI.TENSORGET volative_tensor VALUES"
+#         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
+#         "AI.TENSORGET tensor1 VALUES |> "\
+#         "AI.TENSORSET tensor1 FLOAT 1 4 VALUES 20 40 60 80 |> "\
+#         "AI.TENSORGET tensor1 VALUES"
 
 #     ret = con.execute_command(command)
-#     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
+#     env.assertEqual([
+#                      b'OK', 
+#                     [b'FLOAT', [1, 2], [b'5', b'10']],
+#                      b'OK', 
+#                     [b'FLOAT', [1, 4], [b'20', b'40', b'60', b'80']]
+#                     ], ret)
+
+#     ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
+#     env.assertEqual([b'FLOAT', [1, 4], [b'20', b'40',b'60',b'80']],ret)
 
 
-# def test_dag_keyspace_tensorget(env):
-#     con = env.getConnection()
+def test_dag_load_persist_tensorset_tensorget(env):
+    con = env.getConnection()
 
-#     ret = con.execute_command(
-#         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
-#     env.assertEqual(ret, b'OK')
+    ret = con.execute_command(
+        "AI.TENSORSET persisted_tensor_1 FLOAT 1 2 VALUES 5 10")
+    env.assertEqual(ret, b'OK')
 
-#     command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
-#         "AI.TENSORGET persisted_tensor VALUES"
+    ret = con.execute_command(
+        "AI.TENSORSET persisted_tensor_2 FLOAT 1 3 VALUES 0 0 0")
+    env.assertEqual(ret, b'OK')
 
-#     ret = con.execute_command(command)
-#     env.assertEqual(ret, [[b'FLOAT', [1, 2], [b'5', b'10']]])
+    command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volative_tensor_persisted "\
+        "AI.TENSORSET volative_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET persisted_tensor_1 VALUES |> "\
+        "AI.TENSORGET persisted_tensor_2 VALUES "
+
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
+                    b'FLOAT', [1, 3], [b'0', b'0', b'0']]])
+
+    ret = con.execute_command("AI.TENSORGET volative_tensor_persisted VALUES")
+    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
 
-# def test_dag_keyspace_and_localcontext_tensorget(env):
-#     con = env.getConnection()
+def test_dag_local_tensorset_tensorget(env):
+    con = env.getConnection()
 
-#     ret = con.execute_command(
-#         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
-#     env.assertEqual(ret, b'OK')
+    command = "AI.DAGRUN "\
+        "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET volative_tensor VALUES"
 
-#     command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
-#         "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
-#         "AI.TENSORGET persisted_tensor VALUES |> "\
-#         "AI.TENSORGET volative_tensor VALUES"
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
 
-#     ret = con.execute_command(command)
-#     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
-#                     b'FLOAT', [1, 2], [b'5', b'10']]])
+
+def test_dag_keyspace_tensorget(env):
+    con = env.getConnection()
+
+    ret = con.execute_command(
+        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+    env.assertEqual(ret, b'OK')
+
+    command = "AI.DAGRUN LOAD 1 persisted_tensor "\
+        "AI.TENSORGET persisted_tensor VALUES"
+
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [[b'FLOAT', [1, 2], [b'5', b'10']]])
+
+
+def test_dag_keyspace_and_localcontext_tensorget(env):
+    con = env.getConnection()
+
+    ret = con.execute_command(
+        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+    env.assertEqual(ret, b'OK')
+
+    command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
+        "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET persisted_tensor VALUES |> "\
+        "AI.TENSORGET volative_tensor VALUES"
+
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
+                    b'FLOAT', [1, 2], [b'5', b'10']]])
 
 
 # def test_dag_modelrun_financialNet_separate_tensorget(env):
