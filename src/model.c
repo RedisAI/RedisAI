@@ -589,7 +589,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
           RedisModule_CloseKey(tensorKey);
         } else {
           const int get_result = RAI_getTensorFromLocalContext(
-              ctx, *localContextDict, arg_string, &inputTensor);
+              ctx, *localContextDict, arg_string, &inputTensor,NULL);
           if (get_result == REDISMODULE_ERR) {
             return -1;
           }

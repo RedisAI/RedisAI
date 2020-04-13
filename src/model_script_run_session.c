@@ -119,7 +119,8 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
     return NULL;
   }
 
-  RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  RAI_Error *err;
+  RAI_InitError(&err);
   long long rtime;
   int result;
   RAI_ModelRunCtx *mctx = NULL;

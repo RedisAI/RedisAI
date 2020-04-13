@@ -23,6 +23,10 @@ int dagInit(RAI_DagOp** result) {
   if (!(dagOp->outkeys)) {
     return REDISMODULE_ERR;
   }
+  dagOp->outTensors = (RAI_Tensor*)array_new(RAI_Tensor, 10);
+  if (!(dagOp->outTensors)) {
+    return REDISMODULE_ERR;
+  }
   dagOp->mctx = NULL;
   dagOp->sctx = NULL;
   dagOp->duration_us = 0;

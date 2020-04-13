@@ -15,6 +15,7 @@ typedef struct RAI_DagOp {
   char* commandName;
   RedisModuleString *runkey;
   RedisModuleString **outkeys;
+  RAI_Tensor **outTensors;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
   int result; // REDISMODULE_OK or REDISMODULE_ERR

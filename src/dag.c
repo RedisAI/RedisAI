@@ -34,7 +34,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
     if (!strcasecmp(arg_string, "AI.TENSORSET")) {
       RAI_Tensor *t = NULL;
       const int parse_result = RAI_parseTensorSetArgs(
-          NULL, currentOp->argv, currentOp->argc, &t, 0, &currentOp->err);
+          NULL, currentOp->argv, currentOp->argc, &t, 0, currentOp->err);
       if (parse_result > 0) {
         const char *key_string =
             RedisModule_StringPtrLen(currentOp->argv[1], NULL);
@@ -44,50 +44,84 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         currentOp->result = REDISMODULE_ERR;
       }
     }
-    // if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-    //   if (argpos + 1 >= argc) {
-    //     RedisModule_WrongArity(ctx);
-    //     break;
-    //   }
-    //   const char *key_string = RedisModule_StringPtrLen(argv[argpos + 1], NULL);
-    //   RAI_Tensor *t = NULL;
-    //   const int get_result = RAI_getTensorFromLocalContext(
-    //       ctx, rinfo->dagTensorsContext, key_string, &t);
-    //   if (get_result == REDISMODULE_OK) {
-    //     const int parse_result =
-    //         RAI_parseTensorGetArgs(ctx, &argv[argpos], argc - argpos, t);
-    //     if (parse_result > 0) {
-    //       argpos += parse_result - 1;
-    //     }
-    //   }
-    // }
-  }
-  
-  // RedisModule_ReplyWithSimpleString(ctx,"HELLODAG");
+    else if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+      // TODO enable me with Error
+      // if (argpos + 1 >= argc) {
+      //   RedisModule_WrongArity(ctx);
+      //   break;
+      // }
+      const char *key_string = RedisModule_StringPtrLen(currentOp->argv[1], NULL);
+      RAI_Tensor *t = NULL;
+      currentOp->result = RAI_getTensorFromLocalContext(
+          NULL, rinfo->dagTensorsContext, key_string, &t, currentOp->err);
+      if (currentOp->result == REDISMODULE_OK) {
+        RAI_Tensor* outTensor = NULL;
+        // TODO: check tensor copy return value
+        RAI_TensorCopyTensor(t,&outTensor);
+        array_append(currentOp->outTensors, outTensor);
+        currentOp->result=REDISMODULE_OK;
+      }
+    }
+    else if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+        //     RedisModule_RetainString(NULL, argv[1]);
+  //     rinfo->runkey = argv[1];
+  //     rinfo->mctx = RAI_ModelRunCtxCreate(mto);
+  //     rinfo->sctx = NULL;
+  //     rinfo->outkeys = NULL;
+  //     rinfo->err = NULL;
+
+  //     const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
+  //         ctx,&argv[argpos], argc - argpos, &rinfo, &mto, 1,
+  //         &(rinfo->dagTensorsContext), 1, "|>");
+  //     if (parse_result > 0) {
+  //       argpos += parse_result - 1;
+
+  //     }
+
+  //     RAI_Error *err;
+  // RAI_InitError(&err);
+  // long long rtime;
+  // int result;
+  // RAI_ModelRunCtx *mctx = NULL;
+  // RAI_ScriptRunCtx *sctx = NULL;
+  //   mctx = RAI_ModelRunCtxCreate(batch_rinfo[0]->mctx->model);
+  //   for (long long i = 0; i < array_len(batch_rinfo); i++) {
+  //     int id = RAI_ModelRunCtxAddBatch(mctx);
+  //     RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
+  //   }
+ 
+
   // const long long start = ustime();
-  // status = RAI_ModelRun(rinfo->mctx, err);
+  //   result = RAI_ModelRun(mctx, err);
+  
   // rtime = ustime() - start;
 
-  // size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
-  // for (long long o = 0; o < noutputs; o++) {
-  //   RAI_Tensor *tensor = rinfo->mctx->batches[0].outputs[o].tensor;
-  //   if (tensor) {
-  //     rinfo->mctx->batches[0].outputs[o].tensor =
-  //         RAI_TensorGetShallowCopy(tensor);
-  //   } else {
-  //     rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+  //   struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
+  //     size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
+  //     for (long long o = 0; o < noutputs; o++) {
+  //       RAI_Tensor *tensor = mctx->batches[i].outputs[o].tensor;
+  //       if (tensor) {
+  //         rinfo->mctx->batches[0].outputs[o].tensor =
+  //             RAI_TensorGetShallowCopy(tensor);
+  //       } else {
+  //         rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+  //       }
+  //     }
+   
+
+  //   rinfo->result = result;
+  //   rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  //   // TODO: add information on whether the call was batched
+  //   // and how large the batch was
+  //   rinfo->duration_us = rtime;
+
+  //   rinfo->err->code = err->code;
+  //   if (err->code != RAI_OK) {
+  //     rinfo->err->detail = RedisModule_Strdup(err->detail);
+  //     rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
   //   }
-  // }
-
-  // rinfo->result = status;
-  // rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
-  // rinfo->duration_us = rtime;
-
-  // rinfo->err->code = err->code;
-  // if (err->code != RAI_OK) {
-  //   rinfo->err->detail = RedisModule_Strdup(err->detail);
-  //   rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
-  // }
+    }
+  }
   if (rinfo->client != NULL) {
     RedisModule_UnblockClient(rinfo->client, rinfo);
   }
@@ -100,22 +134,41 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   REDISMODULE_NOT_USED(argc);
   RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
   RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
-  for (size_t i = 0; i < array_len(rinfo->dagOps); i++)
-  {
+  for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
     if (!strcasecmp(currentOp->commandName, "AI.TENSORSET")) {
       rinfo->dagReplyLength++;
-      if(currentOp->result==REDISMODULE_ERR){
+      if (currentOp->result == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
         RAI_ClearError(currentOp->err);
-      }else{
+      } else {
+        RedisModule_ReplyWithSimpleString(ctx, "OK");
+      }
+    } else if (!strcasecmp(currentOp->commandName, "AI.TENSORGET")) {
+      rinfo->dagReplyLength++;
+      if (currentOp->result == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+        RAI_ClearError(currentOp->err);
+      } else {
+        if (array_len(currentOp->outTensors) > 0) {
+          RAI_Tensor *tensor = currentOp->outTensors[0];
+          RAI_parseTensorGetArgs(ctx, currentOp->argv, currentOp->argc, tensor);
+        } else {
+          RedisModule_ReplyWithError(
+              ctx, "ERR error getting tensor from local context");
+        }
+      }
+    } else if (!strcasecmp(currentOp->commandName, "AI.MODELRUN")) {
+      rinfo->dagReplyLength++;
+      if (currentOp->result == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+        RAI_ClearError(currentOp->err);
+      } else {
         RedisModule_ReplyWithSimpleString(ctx, "OK");
       }
     }
-    
-    /* code */
   }
-  
+
   AI_dictIterator *persist_iter =
       AI_dictGetSafeIterator(rinfo->dagTensorsPersistentContext);
   AI_dictEntry *persist_entry = AI_dictNext(persist_iter);
@@ -247,34 +300,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
 // int RAI_background(){
   
 //     if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-//       reply_length++;
-//       if (argpos + 1 >= argc) {
-//         RedisModule_WrongArity(ctx);
-//         break;
-//       }
-
-//       RAI_Model *mto;
-//       RedisModuleKey *modelKey;
-//       const int status = RAI_GetModelFromKeyspace(
-//           ctx, argv[argpos + 1], &modelKey, &mto, REDISMODULE_READ);
-//       if (status == REDISMODULE_ERR) {
-//         return REDISMODULE_ERR;
-//       }
-
-//       RedisModule_RetainString(NULL, argv[1]);
-//       rinfo->runkey = argv[1];
-//       rinfo->mctx = RAI_ModelRunCtxCreate(mto);
-//       rinfo->sctx = NULL;
-//       rinfo->outkeys = NULL;
-//       rinfo->err = NULL;
-
-//       const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
-//           ctx,&argv[argpos], argc - argpos, &rinfo, &mto, 1,
-//           &(rinfo->dagTensorsContext), 1, "|>");
-//       if (parse_result > 0) {
-//         argpos += parse_result - 1;
-
-//       }
+    
 
 //       // TODO: parse and process modelrun
 //     }

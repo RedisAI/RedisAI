@@ -393,6 +393,34 @@ RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, lon
   return ret;
 }
 
+/**
+ * Allocate the memory for a new Tensor and copy data fom a tensor to it.
+ * @param t Source tensor to copy.
+ * @param result Destination tensor to copy.
+ * @return 0 on success, or 1 if the copy failed
+ * failed.
+ */
+int RAI_TensorCopyTensor(RAI_Tensor* t, RAI_Tensor** dest) {
+  const long long ndims = RAI_TensorNumDims(t);
+  long long dims[ndims];
+
+  const long long dtype_size = RAI_TensorDataSize(t);
+  long long sample_size = 1;
+
+  for (long long i=0; i<ndims; i++) {
+    dims[i] = RAI_TensorDim(t, i);
+    sample_size *= dims[i];
+  }
+
+  DLDataType dtype = RAI_TensorDataType(t);
+
+  RAI_Tensor* ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
+
+  memcpy(RAI_TensorData(ret), RAI_TensorData(t), sample_size * dtype_size);
+  *dest = ret;
+  return 0;
+}
+
 // Beware: this will take ownership of dltensor
 RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor) {
 
@@ -668,18 +696,20 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx,
                                   AI_dict *localContextDict,
                                   const char *localContextKey,
-                                  RAI_Tensor **tensor) {
+                                  RAI_Tensor **tensor, RAI_Error *error) {
   int result = REDISMODULE_ERR;
   AI_dictEntry *tensor_entry = AI_dictFind(localContextDict, localContextKey);
   if (tensor_entry) {
     *tensor = AI_dictGetVal(tensor_entry);
     result = REDISMODULE_OK;
   } else{
-    char msg[70];
-    sprintf(msg, "ERR LOCAL tensor key is empty %s", localContextKey);
-    // RedisModule_ReplyWithError(ctx, "ERR tensor key is empty LOCAL");
-        RedisModule_ReplyWithError(ctx, msg);
-
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_ETENSORGET,
+                    "ERR tensor key is empty");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx, "ERR tensor key is empty");
+    }
   }
   return result;
 }

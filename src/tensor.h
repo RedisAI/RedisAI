@@ -27,6 +27,15 @@ extern RedisModuleType *RedisAI_TensorType;
 int RAI_TensorInit(RedisModuleCtx* ctx);
 RAI_Tensor* RAI_TensorCreate(const char* dataType, long long* dims, int ndims, int hasdata);
 RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, int ndims, int tensorAllocMode);
+
+/**
+ * Allocate the memory for a new Tensor and copy data fom a tensor to it.
+ * @param t Source tensor to copy.
+ * @param result Destination tensor to copy.
+ * @return 0 on success, or 1 if the copy failed
+ * failed.
+ */
+int RAI_TensorCopyTensor(RAI_Tensor* t, RAI_Tensor** dest);
 RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor);
 RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts, long long n);
 RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, long long len);
@@ -68,7 +77,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx,
                                   AI_dict *localContextDict,
                                   const char *localContextKey,
-                                  RAI_Tensor **tensor);
+                                  RAI_Tensor **tensor, RAI_Error *error);
 
 void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
 

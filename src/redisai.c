@@ -934,7 +934,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return RedisModule_ReplyWithError(
         ctx, "ERR Queue not initialized for device");
   }
-  
+  int currentOpArgPos=0;
   for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "LOAD")) {
@@ -964,12 +964,30 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         RAI_DagOp* currentDagOp = NULL;
         dagInit(&currentDagOp);
         array_append(rinfo->dagOps,currentDagOp);
+        currentOpArgPos=-1;
       // }
     } else {
+      if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+        if (argc - 2 < argpos) {
+          return RedisModule_WrongArity(ctx);
+        }
+        RAI_Model *mto;
+        RedisModuleKey *modelKey;
+        const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey,
+                                                    &mto, REDISMODULE_READ);
+        if (status == REDISMODULE_ERR) {
+          return REDISMODULE_ERR;
+        }
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
+        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
+            RAI_ModelRunCtxCreate(mto);
+      }
       RedisModule_RetainString(NULL, argv[argpos]);
       array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
       rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
+
     }
+    currentOpArgPos++;
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL,
