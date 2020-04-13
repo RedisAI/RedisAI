@@ -1,6 +1,6 @@
 #include "dag.h"
 
-#include "batching.h"
+
 #include "model.h"
 #include "redisai.h"
 #include "tensor.h"

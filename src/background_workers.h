@@ -1,7 +1,7 @@
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
 
-#include "batching.h"
+
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"

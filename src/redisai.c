@@ -1,6 +1,6 @@
 #include "redismodule.h"
 #include "tensor.h"
-#include "batching.h"
+
 #include "model.h"
 #include "dag.h"
 #include "model_script_run_session.h"

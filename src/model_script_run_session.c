@@ -1,6 +1,6 @@
 #include "model_script_run_session.h"
 
-#include "batching.h"
+
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"

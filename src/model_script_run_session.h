@@ -1,7 +1,7 @@
 #ifndef SRC_MODEL_SCRIPT_RUN_SESSION_H_
 #define SRC_MODEL_SCRIPT_RUN_SESSION_H_
 
-#include "batching.h"
+
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"

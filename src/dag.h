@@ -1,7 +1,7 @@
 #ifndef SRC_DAG_H_
 #define SRC_DAG_H_
 
-#include "batching.h"
+
 #include "model.h"
 #include "redisai.h"
 #include "tensor.h"
