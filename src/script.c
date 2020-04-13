@@ -207,3 +207,25 @@ RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {
   ++script->refCount;
   return script;
 }
+
+
+/* Return REDISMODULE_ERR if there was an error getting the Script.
+ * Return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable. */
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key, RAI_Script **script,
+                              int mode) {
+  *key = RedisModule_OpenKey(ctx, keyName, mode);
+  if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, "ERR script key is empty");
+    return REDISMODULE_ERR;
+  }
+  if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ScriptType) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    return REDISMODULE_ERR;
+  }
+  *script = RedisModule_ModuleTypeGetValue(*key);
+  return REDISMODULE_OK;
+}

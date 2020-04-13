@@ -5,6 +5,7 @@
 #include "tensor_struct.h"
 #include "dlpack/dlpack.h"
 #include "redismodule.h"
+#include "util/dict.h"
 
 #define TENSORALLOC_NONE 0
 #define TENSORALLOC_ALLOC 1
@@ -47,5 +48,31 @@ int RAI_TensorNumDims(RAI_Tensor* t);
 long long RAI_TensorDim(RAI_Tensor* t, int dim);
 size_t RAI_TensorByteSize(RAI_Tensor* t);
 char* RAI_TensorData(RAI_Tensor* t);
+
+/* Return REDISMODULE_ERR if is the key not associated with a tensor type.
+ * Return REDISMODULE_OK otherwise. */
+int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key,
+                              int mode);
+
+/* Return REDISMODULE_ERR if there was an error getting the Tensor.
+ * Return REDISMODULE_OK if the tensor value stored at key was correctly
+ * returned and available at *tensor variable. */
+int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                               RedisModuleKey **key, RAI_Tensor **tensor,
+                               int mode);
+
+/* Return REDISMODULE_ERR if there was an error getting the Tensor.
+ * Return REDISMODULE_OK if the tensor value is present at the localContextDict. */
+int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx,
+                                  AI_dict *localContextDict,
+                                  const char *localContextKey,
+                                  RAI_Tensor **tensor);
+
+void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
+
+int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity);
+
+int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor *t);
 
 #endif /* SRC_TENSOR_H_ */

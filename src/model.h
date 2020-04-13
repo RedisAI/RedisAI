@@ -5,7 +5,11 @@
 #include "model_struct.h"
 #include "tensor.h"
 #include "redismodule.h"
+#include "run_info.h"
 #include "err.h"
+#include "redisai.h"
+#include "util/dict.h"
+#include "run_info.h"
 
 extern RedisModuleType *RedisAI_ModelType;
 
@@ -33,5 +37,18 @@ int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err);
 RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model);
 
 int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
+/* Return REDISMODULE_ERR if there was an error getting the Model.
+ * Return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable. */
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key, RAI_Model **model,
+                              int mode);
 
+int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
+                                        RedisModuleString **argv, int argc,
+                                        RedisAI_RunInfo **rinfo,
+                                        RAI_Model **mto, int useLocalContext,
+                                        AI_dict **localContextDict, 
+                                        int use_chaining_operator,
+                                        const char *chaining_operator);
 #endif /* SRC_MODEL_H_ */

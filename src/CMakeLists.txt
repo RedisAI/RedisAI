@@ -2,6 +2,9 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
         redisai.c
+        background_workers.c
+        model_script_run_session.c
+        dag.c
         backends.c
         model.c
         err.c
@@ -20,6 +23,7 @@ IF(BUILD_TF)
             backends/tensorflow.c
             backends/util.c
             err.c
+            util/dict.c
             tensor.c)
 ENDIF()
 
@@ -28,6 +32,7 @@ IF(BUILD_TFLITE)
             backends/tflite.c
             backends/util.c
             err.c
+            util/dict.c
             tensor.c)
 ENDIF()
 
@@ -36,6 +41,7 @@ IF(BUILD_TORCH)
             backends/torch.c
             backends/util.c
             err.c
+            util/dict.c
             tensor.c)
 ENDIF()
 
@@ -44,6 +50,7 @@ IF(BUILD_ORT)
             backends/onnxruntime.c
             backends/util.c
             err.c
+            util/dict.c
             tensor.c)
 ENDIF()
 
