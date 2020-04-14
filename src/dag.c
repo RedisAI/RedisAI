@@ -67,7 +67,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
     else if (!strcasecmp(arg_string, "AI.MODELRUN")) {
       // TODO: move rinfo context of modelrun to DagOp
       const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
-          NULL, currentOp->argv, currentOp->argc, &currentOp->mctx, &currentOp->outkeys,
+          NULL, currentOp->argv, currentOp->argc, &(currentOp->mctx), &(currentOp->outkeys),
           &(currentOp->mctx->model), 1, &(rinfo->dagTensorsContext), 0, NULL,
           currentOp->err);
 
@@ -284,7 +284,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       separator_flag = 1;
       break;
     } else {
-      AI_dictAdd(*localContextDict, arg_string, 1);
+      AI_dictAdd(*localContextDict, arg_string, (void *) 1);
       number_loaded_keys++;
     }
   }
