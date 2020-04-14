@@ -635,7 +635,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
             RedisModule_ReplyWithError(ctx, "ERR Output key not found");
           }
         }
-        *outkeys[noutputs] = argv[argpos];
+        (*outkeys)[noutputs] = argv[argpos];
         noutputs++;
       }
     }
