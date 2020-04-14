@@ -17,7 +17,7 @@ int dagInit(RAI_DagOp** result) {
   if (!dagOp) {
     return REDISMODULE_ERR;
   }
-  dagOp->commandName = NULL;
+  dagOp->commandType = REDISAI_DAG_CMD_NONE;
   dagOp->runkey = NULL;
   dagOp->outkeys = (RedisModuleString**)array_new(RedisModuleString*, 10);
   if (!(dagOp->outkeys)) {

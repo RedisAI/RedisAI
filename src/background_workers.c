@@ -12,6 +12,13 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
+#include <pthread.h>
+#include <pthread.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
 
 int freeRunQueueInfo(RunQueueInfo *info) {
   int result = REDISMODULE_OK;

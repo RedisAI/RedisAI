@@ -1,6 +1,8 @@
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
 
+#include <pthread.h>
+
 #include "model_script_run_session.h"
 #include "model.h"
 #include "redisai.h"

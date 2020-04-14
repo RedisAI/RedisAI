@@ -961,10 +961,17 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
       chainingOpCount++;
     } else {
+      if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORGET;
+      }
+      if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORSET;
+      }
       if (!strcasecmp(arg_string, "AI.MODELRUN")) {
         if (argc - 2 < argpos) {
           return RedisModule_WrongArity(ctx);
         }
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_MODELRUN;
         RAI_Model *mto;
         RedisModuleKey *modelKey;
         const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
@@ -977,7 +984,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
           deviceStr=mto->devicestr;
         }else{
           // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(arg_string, "AI.MODELRUN")!=0){
+          if(strcasecmp(mto->devicestr, deviceStr)!=0){
             // TODO: clean temp structures
             RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");
           }

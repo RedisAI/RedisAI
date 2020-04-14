@@ -26,9 +26,10 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++)
   {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
-    const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
-    currentOp->commandName = RedisModule_Strdup(arg_string);
-    if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+    switch (currentOp->commandType)
+    {
+    case REDISAI_DAG_CMD_TENSORSET:
+    {
       RAI_Tensor *t = NULL;
       const int parse_result = RAI_parseTensorSetArgs(
           NULL, currentOp->argv, currentOp->argc, &t, 0, currentOp->err);
@@ -36,22 +37,14 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         const char *key_string =
             RedisModule_StringPtrLen(currentOp->argv[1], NULL);
         AI_dictReplace(rinfo->dagTensorsContext, key_string, t);
-        // if (currentOp->result != REDISMODULE_OK) {
-        //   RAI_SetError(
-        //       currentOp->err, RAI_ETENSORSET,
-        //       "ERR error saving output tensor to DAG's local tensor context");
-        // }
         currentOp->result = REDISMODULE_OK;
       } else {
         currentOp->result = REDISMODULE_ERR;
       }
+      break;
     }
-    else if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-      // TODO enable me with Error
-      // if (argpos + 1 >= argc) {
-      //   RedisModule_WrongArity(ctx);
-      //   break;
-      // }
+    case REDISAI_DAG_CMD_TENSORGET:
+    {
       const char *key_string = RedisModule_StringPtrLen(currentOp->argv[1], NULL);
       RAI_Tensor *t = NULL;
       currentOp->result = RAI_getTensorFromLocalContext(
@@ -63,10 +56,11 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         array_append(currentOp->outTensors, outTensor);
         currentOp->result=REDISMODULE_OK;
       }
-    }
-    else if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-      // TODO: move rinfo context of modelrun to DagOp
-      const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
+      break;
+      }
+    case REDISAI_DAG_CMD_MODELRUN:
+      {
+        const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
           NULL, currentOp->argv, currentOp->argc, &(currentOp->mctx), &(currentOp->outkeys),
           &(currentOp->mctx->model), 1, &(rinfo->dagTensorsContext), 0, NULL,
           currentOp->err);
@@ -97,6 +91,13 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
       } else {
         currentOp->result = REDISMODULE_ERR;
       }
+
+      break;
+      }
+      
+    default:
+      /* no-op */
+      break;
     }
   }
   if (rinfo->client != NULL) {
@@ -113,36 +114,50 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
-    if (!strcasecmp(currentOp->commandName, "AI.TENSORSET")) {
-      rinfo->dagReplyLength++;
-      if (currentOp->result == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-        RAI_ClearError(currentOp->err);
-      } else {
-        RedisModule_ReplyWithSimpleString(ctx, "OK");
-      }
-    } else if (!strcasecmp(currentOp->commandName, "AI.TENSORGET")) {
-      rinfo->dagReplyLength++;
-      if (currentOp->result == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-        RAI_ClearError(currentOp->err);
-      } else {
-        if (array_len(currentOp->outTensors) > 0) {
-          RAI_Tensor *tensor = currentOp->outTensors[0];
-          RAI_parseTensorGetArgs(ctx, currentOp->argv, currentOp->argc, tensor);
+    switch (currentOp->commandType) {
+      case REDISAI_DAG_CMD_TENSORSET: {
+        rinfo->dagReplyLength++;
+        if (currentOp->result == REDISMODULE_ERR) {
+          RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+          RAI_ClearError(currentOp->err);
         } else {
-          RedisModule_ReplyWithError(
-              ctx, "ERR error getting tensor from local context");
+          RedisModule_ReplyWithSimpleString(ctx, "OK");
         }
+        break;
       }
-    } else if (!strcasecmp(currentOp->commandName, "AI.MODELRUN")) {
-      rinfo->dagReplyLength++;
-      if (currentOp->result == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-        RAI_ClearError(currentOp->err);
-      } else {
-        RedisModule_ReplyWithSimpleString(ctx, "OK");
+
+      case REDISAI_DAG_CMD_TENSORGET: {
+        rinfo->dagReplyLength++;
+        if (currentOp->result == REDISMODULE_ERR) {
+          RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+          RAI_ClearError(currentOp->err);
+        } else {
+          if (array_len(currentOp->outTensors) > 0) {
+            RAI_Tensor *tensor = currentOp->outTensors[0];
+            RAI_parseTensorGetArgs(ctx, currentOp->argv, currentOp->argc,
+                                   tensor);
+          } else {
+            RedisModule_ReplyWithError(
+                ctx, "ERR error getting tensor from local context");
+          }
+        }
+        break;
       }
+
+      case REDISAI_DAG_CMD_MODELRUN: {
+        rinfo->dagReplyLength++;
+        if (currentOp->result == REDISMODULE_ERR) {
+          RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+          RAI_ClearError(currentOp->err);
+        } else {
+          RedisModule_ReplyWithSimpleString(ctx, "OK");
+        }
+        break;
+      }
+
+      default:
+        /* no-op */
+        break;
     }
   }
 
@@ -193,8 +208,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
 
       for (size_t opN = 0; opN < array_len(rinfo->dagOps); opN++) {
-        RedisModule_Log(ctx, "warning", "DAG's op n#  %d - %s ( argc %d )",
-                        opN,rinfo->dagOps[opN]->commandName,rinfo->dagOps[opN]->argc );
+        RedisModule_Log(ctx, "warning", "DAG's op n#  %d - cmdType %d ( argc %d )",
+                        opN,rinfo->dagOps[opN]->commandType,rinfo->dagOps[opN]->argc );
       }
       
     }

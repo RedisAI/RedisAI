@@ -2,6 +2,7 @@
 #include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
+#include "model.h"
 
 #include "tensorflow/c/c_api.h"
 
@@ -437,7 +438,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   size_t batch_sizes[nbatches];
   size_t batch_offsets[nbatches];
-  if (array_len(mctx->batches[0].inputs) > 0) {
+  if (ninputs > 0) {
     for (size_t b=0; b<nbatches; ++b) {
       batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
     }

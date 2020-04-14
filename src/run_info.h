@@ -11,8 +11,15 @@
 #include "util/arr_rm_alloc.h"
 #include "err.h"
 
+enum RedisAI_DAGCommands {
+  REDISAI_DAG_CMD_NONE = 0,
+  REDISAI_DAG_CMD_TENSORSET,
+  REDISAI_DAG_CMD_TENSORGET,
+  REDISAI_DAG_CMD_MODELRUN
+};
+
 typedef struct RAI_DagOp {
-  char* commandName;
+  int commandType;
   RedisModuleString *runkey;
   RedisModuleString **outkeys;
   RAI_Tensor **outTensors;
