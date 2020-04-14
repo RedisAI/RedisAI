@@ -428,7 +428,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
 
   const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(ctx, argv,
-                                   argc, &rinfo, &mto, 0, NULL, 0, NULL);
+                                   argc, &rinfo, &mto, 0, NULL, 0, NULL, NULL);
   RedisModule_CloseKey(modelKey);
   // if the number of parsed args is negative something went wrong
   if(parse_result<0){
@@ -979,8 +979,10 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
           return REDISMODULE_ERR;
         }
         rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
-        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
-            RAI_ModelRunCtxCreate(mto);
+        rinfo->mctx = RAI_ModelRunCtxCreate(mto);
+        // This is the correct way but for now use the rinfo
+        // rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
+        //     RAI_ModelRunCtxCreate(mto);
       }
       RedisModule_RetainString(NULL, argv[argpos]);
       array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);

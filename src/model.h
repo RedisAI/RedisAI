@@ -50,5 +50,5 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RAI_Model **mto, int useLocalContext,
                                         AI_dict **localContextDict, 
                                         int use_chaining_operator,
-                                        const char *chaining_operator);
+                                        const char *chaining_operator, RAI_Error *error);
 #endif /* SRC_MODEL_H_ */

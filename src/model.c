@@ -538,15 +538,24 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RAI_Model **mto, int useLocalContext,
                                         AI_dict **localContextDict, 
                                         int use_chaining_operator,
-                                        const char *chaining_operator) {
+                                        const char *chaining_operator, RAI_Error *error) {
   if (argc < 3) {
-    RedisModule_WrongArity(ctx);
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_EMODELRUN,
+                   "ERR wrong number of arguments for 'AI.MODELRUN' command");
+    } else {
+      RedisModule_WrongArity(ctx);
+    }
     return -1;
   }
 
   const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
   if (strcasecmp(inputstr, "INPUTS")) {
-    RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
+    } else {
+      RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
+    }
     return -1;
   }
 
@@ -589,7 +598,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
           RedisModule_CloseKey(tensorKey);
         } else {
           const int get_result = RAI_getTensorFromLocalContext(
-              ctx, *localContextDict, arg_string, &inputTensor,NULL);
+              ctx, *localContextDict, arg_string, &inputTensor,error);
           if (get_result == REDISMODULE_ERR) {
             return -1;
           }
@@ -602,7 +611,11 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
         }
         if (!RAI_ModelRunCtxAddInput((*rinfo)->mctx, 0, opname, inputTensor)) {
           // todo free rinfo
-          RedisModule_ReplyWithError(ctx, "ERR Input key not found");
+          if (ctx == NULL) {
+            RAI_SetError(error, RAI_EMODELRUN, "ERR Input key not found");
+          } else {
+            RedisModule_ReplyWithError(ctx, "ERR Input key not found");
+          }
           return -1;
         }
         ninputs++;
@@ -614,7 +627,11 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
         }
         if (!RAI_ModelRunCtxAddOutput((*rinfo)->mctx, 0, opname)) {
           // todo free rinfo
-          return RedisModule_ReplyWithError(ctx, "ERR Output key not found");
+          if (ctx == NULL) {
+            RAI_SetError(error, RAI_EMODELRUN, "ERR Output key not found");
+          } else {
+            RedisModule_ReplyWithError(ctx, "ERR Output key not found");
+          }
         }
         (*rinfo)->outkeys[noutputs] = argv[argpos];
         noutputs++;
@@ -623,17 +640,33 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
   }
 
   if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
-    return RedisModule_ReplyWithError(
-        ctx,
-        "Number of names given as INPUTS during MODELSET and keys given as "
-        "INPUTS here do not match");
+    if (ctx == NULL) {
+      RAI_SetError(
+          error, RAI_EMODELRUN,
+          "Number of names given as INPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx,
+          "Number of names given as INPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    }
+    return -1;
   }
 
   if ((*mto)->outputs && array_len((*mto)->outputs) != noutputs) {
-    return RedisModule_ReplyWithError(
-        ctx,
-        "Number of names given as OUTPUTS during MODELSET and keys given as "
-        "OUTPUTS here do not match");
+    if (ctx == NULL) {
+      RAI_SetError(
+          error, RAI_EMODELRUN,
+          "Number of names given as OUTPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx,
+          "Number of names given as OUTPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    }
+    return -1;
   }
   return argpos;
 }

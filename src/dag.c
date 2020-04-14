@@ -23,9 +23,6 @@
  * thread Called within `RedisAI_Run_ThreadMain`
  */
 void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
-  RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
-  long long rtime;
-  int status;
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++)
   {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
@@ -63,63 +60,49 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
       }
     }
     else if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-        //     RedisModule_RetainString(NULL, argv[1]);
-  //     rinfo->runkey = argv[1];
-  //     rinfo->mctx = RAI_ModelRunCtxCreate(mto);
-  //     rinfo->sctx = NULL;
-  //     rinfo->outkeys = NULL;
-  //     rinfo->err = NULL;
+      // TODO: move rinfo context of modelrun to DagOp
+      const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
+          NULL, currentOp->argv, currentOp->argc, &rinfo,
+          &(rinfo->mctx->model), 1, &(rinfo->dagTensorsContext), 0, NULL,
+          currentOp->err);
 
-  //     const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
-  //         ctx,&argv[argpos], argc - argpos, &rinfo, &mto, 1,
-  //         &(rinfo->dagTensorsContext), 1, "|>");
-  //     if (parse_result > 0) {
-  //       argpos += parse_result - 1;
+      if (parse_result > 0) {
+        currentOp->result = REDISMODULE_OK;
+        const long long start = ustime();
+        currentOp->result = RAI_ModelRun(rinfo->mctx, currentOp->err);
+        currentOp->duration_us = ustime() - start;
+        const size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+        for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++)
+        {
+          RAI_Tensor *tensor = rinfo->mctx->batches[0].outputs[outputNumber].tensor;
+            if (tensor) {
+              const char *key_string = RedisModule_StringPtrLen(rinfo->outkeys[outputNumber], NULL);
+              AI_dictAdd(rinfo->dagTensorsContext, key_string, tensor);
+              currentOp->result = REDISMODULE_OK;
+            } else {
+              RAI_SetError(currentOp->err, RAI_EMODELRUN, "ERR error saving output tensor");
+              currentOp->result = REDISMODULE_ERR;
+            }
+        }
+        
+      } else {
+        currentOp->result = REDISMODULE_ERR;
+      }
 
-  //     }
+    // RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
+      
 
-  //     RAI_Error *err;
-  // RAI_InitError(&err);
-  // long long rtime;
-  // int result;
-  // RAI_ModelRunCtx *mctx = NULL;
-  // RAI_ScriptRunCtx *sctx = NULL;
-  //   mctx = RAI_ModelRunCtxCreate(batch_rinfo[0]->mctx->model);
-  //   for (long long i = 0; i < array_len(batch_rinfo); i++) {
-  //     int id = RAI_ModelRunCtxAddBatch(mctx);
-  //     RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
-  //   }
- 
-
-  // const long long start = ustime();
-  //   result = RAI_ModelRun(mctx, err);
-  
-  // rtime = ustime() - start;
-
-  //   struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
-  //     size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
-  //     for (long long o = 0; o < noutputs; o++) {
-  //       RAI_Tensor *tensor = mctx->batches[i].outputs[o].tensor;
-  //       if (tensor) {
-  //         rinfo->mctx->batches[0].outputs[o].tensor =
-  //             RAI_TensorGetShallowCopy(tensor);
-  //       } else {
-  //         rinfo->mctx->batches[0].outputs[o].tensor = NULL;
-  //       }
-  //     }
-   
-
-  //   rinfo->result = result;
-  //   rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
-  //   // TODO: add information on whether the call was batched
-  //   // and how large the batch was
-  //   rinfo->duration_us = rtime;
-
-  //   rinfo->err->code = err->code;
-  //   if (err->code != RAI_OK) {
-  //     rinfo->err->detail = RedisModule_Strdup(err->detail);
-  //     rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
-  //   }
+      // //   struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
+      // size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+      // for (long long o = 0; o < noutputs; o++) {
+      //   RAI_Tensor *tensor = rinfo->mctx->batches[i].outputs[o].tensor;
+      //   // if (tensor) {
+      //   //   rinfo->mctx->batches[0].outputs[o].tensor =
+      //   //       RAI_TensorGetShallowCopy(tensor);
+      //   // } else {
+      //   //   rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+      //   // }
+      // }
     }
   }
   if (rinfo->client != NULL) {
@@ -296,13 +279,3 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   return argpos;
 }
-
-// int RAI_background(){
-  
-//     if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-    
-
-//       // TODO: parse and process modelrun
-//     }
-
-// }
