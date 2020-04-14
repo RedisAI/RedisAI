@@ -922,10 +922,13 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   dagInit(&currentDagOp);
   array_append(rinfo->dagOps,currentDagOp);
 
-  int currentOpArgPos=0;
+  int persistFlag=0;
+  int loadFlag=0;
+  int chainingOpCount=0;
   for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "LOAD")) {
+      loadFlag=1;
       const int parse_result = RAI_parseDAGLoadArgs(
           ctx, &argv[argpos], argc - argpos, &(rinfo->dagTensorsContext), "|>");
       if (parse_result > 0) {
@@ -934,8 +937,8 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         // TODO: clean temp structures
         return REDISMODULE_ERR;
       }
-    }
-    else if (!strcasecmp(arg_string, "PERSIST")) {
+    } else if (!strcasecmp(arg_string, "PERSIST")) {
+      persistFlag=1;
       const int parse_result =
           RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
                                   &(rinfo->dagTensorsPersistentContext), "|>");
@@ -945,15 +948,16 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         // TODO: clean temp structures
         return REDISMODULE_ERR;
       }
-    }
-    else if (!strcasecmp(arg_string, "|>" )) {
-      // if(rinfo->dagNumberCommands>0){
+    } else if (!strcasecmp(arg_string, "|>")) {
+      // on the first pipe operator, if LOAD or PERSIST were used, we've already
+      // allocated memory
+      if (!((persistFlag == 1 || loadFlag == 1) && chainingOpCount == 0)) {
         rinfo->dagNumberCommands++;
-        RAI_DagOp* currentDagOp = NULL;
+        RAI_DagOp *currentDagOp = NULL;
         dagInit(&currentDagOp);
-        array_append(rinfo->dagOps,currentDagOp);
-        currentOpArgPos=-1;
-      // }
+        array_append(rinfo->dagOps, currentDagOp);
+      }
+      chainingOpCount++;
     } else {
       if (!strcasecmp(arg_string, "AI.MODELRUN")) {
         if (argc - 2 < argpos) {
@@ -975,9 +979,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisModule_RetainString(NULL, argv[argpos]);
       array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
       rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
-
     }
-    currentOpArgPos++;
   }
 
   // TODO: parse the entire command args and determine device

@@ -294,7 +294,11 @@ static void _dictRehashStep(AI_dict *d) {
     if (d->iterators == 0) AI_dictRehash(d,1);
 }
 
-/* Add an element to the target hash table */
+/**
+ *  Add an element to the target hash table
+ * @return 0 on success, or 1 if the insertion failed
+ * failed.
+ */
 int AI_dictAdd(AI_dict *d, void *key, void *val)
 {
     AI_dictEntry *entry = AI_dictAddRaw(d,key,NULL);

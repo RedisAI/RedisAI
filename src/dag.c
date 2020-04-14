@@ -35,7 +35,12 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
       if (parse_result > 0) {
         const char *key_string =
             RedisModule_StringPtrLen(currentOp->argv[1], NULL);
-        AI_dictAdd(rinfo->dagTensorsContext, key_string, t);
+        AI_dictReplace(rinfo->dagTensorsContext, key_string, t);
+        // if (currentOp->result != REDISMODULE_OK) {
+        //   RAI_SetError(
+        //       currentOp->err, RAI_ETENSORSET,
+        //       "ERR error saving output tensor to DAG's local tensor context");
+        // }
         currentOp->result = REDISMODULE_OK;
       } else {
         currentOp->result = REDISMODULE_ERR;
@@ -77,10 +82,14 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
           RAI_Tensor *tensor = currentOp->mctx->batches[0].outputs[outputNumber].tensor;
             if (tensor) {
               const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
-              AI_dictAdd(rinfo->dagTensorsContext, key_string, tensor);
-              currentOp->result = REDISMODULE_OK;
+              AI_dictReplace(rinfo->dagTensorsContext, key_string, tensor);
+              // currentOp->result = REDISMODULE_OK; 
+              
+              // if(currentOp->result!=REDISMODULE_OK){
+              //   RAI_SetError(currentOp->err, RAI_EMODELRUN, "ERR error saving output tensor to DAG's local tensor context");
+              // }
             } else {
-              RAI_SetError(currentOp->err, RAI_EMODELRUN, "ERR error saving output tensor");
+              RAI_SetError(currentOp->err, RAI_EMODELRUN, "ERR output tensor on DAG's MODELRUN was null");
               currentOp->result = REDISMODULE_ERR;
             }
         }
@@ -168,7 +177,28 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisModule_ReplyWithError(
           ctx, "ERR specified persistent key that was not used on DAG");
       rinfo->dagReplyLength++;
+
+      RedisModule_Log(ctx, "warning",
+                      "on DAGRUN's PERSIST pecified persistent key (%s) that "
+                      "was not used on DAG. Logging all local context keys",
+                      persist_key_name);
+      AI_dictIterator *local_iter =
+          AI_dictGetSafeIterator(rinfo->dagTensorsContext);
+      AI_dictEntry *local_entry = AI_dictNext(local_iter);
+      while (local_entry) {
+        const char *localcontext_key_name = AI_dictGetKey(local_entry);
+        RedisModule_Log(ctx, "warning", "DAG's local context key (%s)",
+                        localcontext_key_name);
+        local_entry = AI_dictNext(local_iter);
+      }
+
+      for (size_t opN = 0; opN < array_len(rinfo->dagOps); opN++) {
+        RedisModule_Log(ctx, "warning", "DAG's op n#  %d - %s ( argc %d )",
+                        opN,rinfo->dagOps[opN]->commandName,rinfo->dagOps[opN]->argc );
+      }
+      
     }
+
     persist_entry = AI_dictNext(persist_iter);
   }
   AI_dictReleaseIterator(persist_iter);

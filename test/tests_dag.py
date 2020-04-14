@@ -14,8 +14,9 @@ def test_dag_load(env):
         "AI.TENSORSET persisted_tensor_1 FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
     command = "AI.DAGRUN "\
-        "LOAD 1 persisted_tensor_1  PERSIST 1 tensor1 "\
-        "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                "LOAD 1 persisted_tensor_1 "\
+                "PERSIST 1 tensor1 |> "\
+              "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK'])
@@ -39,7 +40,7 @@ def test_dag_local_tensorset_persist(env):
     con = env.getConnection()
 
     command = "AI.DAGRUN "\
-        "PERSIST 1 tensor1 "\
+        "PERSIST 1 tensor1 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
     ret = con.execute_command(command)
@@ -53,18 +54,18 @@ def test_dag_local_tensorset_persist(env):
     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
 
-def test_dag_local_tensorset_persist(env):
+def test_dag_multilocal_tensorset_persist(env):
     con = env.getConnection()
 
     command = "AI.DAGRUN "\
-        "PERSIST 1 tensor3 "\
+        "PERSIST 1 tensor3 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET tensor2 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET tensor3 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET tensor4 FLOAT 1 2 VALUES 5 10 "
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [b'OK',b'OK',b'OK',b'OK'])
+    env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret)
 
     # assert that transaction tensor exists
     ret = con.execute_command("EXISTS tensor1")
@@ -85,10 +86,10 @@ def test_dag_local_tensorset_persist(env):
     ret = con.execute_command("AI.TENSORGET tensor3 VALUES")
     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
-def test_dag_local_tensorset_persist(env):
+def test_dag_local_tensorset_tensorget_persist(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUN PERSIST 1 tensor1 "\
+    command = "AI.DAGRUN PERSIST 1 tensor1 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET tensor1 VALUES"
 
@@ -99,26 +100,26 @@ def test_dag_local_tensorset_persist(env):
     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
 
-# TODO: fix me
-# def test_dag_local_multiple_tensorset_on_same_tensor(env):
-#     con = env.getConnection()
+def test_dag_local_multiple_tensorset_on_same_tensor(env):
+    con = env.getConnection()
 
-#     command = "AI.DAGRUN "\
-#         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
-#         "AI.TENSORGET tensor1 VALUES |> "\
-#         "AI.TENSORSET tensor1 FLOAT 1 4 VALUES 20 40 60 80 |> "\
-#         "AI.TENSORGET tensor1 VALUES"
+    command = "AI.DAGRUN "\
+                     "PERSIST 1 tensor1 |> "\
+        "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET tensor1 VALUES |> "\
+        "AI.TENSORSET tensor1 FLOAT 1 4 VALUES 20 40 60 80 |> "\
+        "AI.TENSORGET tensor1 VALUES"
 
-#     ret = con.execute_command(command)
-#     env.assertEqual([
-#                      b'OK', 
-#                     [b'FLOAT', [1, 2], [b'5', b'10']],
-#                      b'OK', 
-#                     [b'FLOAT', [1, 4], [b'20', b'40', b'60', b'80']]
-#                     ], ret)
+    ret = con.execute_command(command)
+    env.assertEqual([
+                     b'OK', 
+                    [b'FLOAT', [1, 2], [b'5', b'10']],
+                     b'OK', 
+                    [b'FLOAT', [1, 4], [b'20', b'40', b'60', b'80']]
+                    ], ret)
 
-#     ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
-#     env.assertEqual([b'FLOAT', [1, 4], [b'20', b'40',b'60',b'80']],ret)
+    ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
+    env.assertEqual([b'FLOAT', [1, 4], [b'20', b'40',b'60',b'80']],ret)
 
 
 def test_dag_load_persist_tensorset_tensorget(env):
@@ -132,7 +133,7 @@ def test_dag_load_persist_tensorset_tensorget(env):
         "AI.TENSORSET persisted_tensor_2 FLOAT 1 3 VALUES 0 0 0")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volative_tensor_persisted "\
+    command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volative_tensor_persisted |> "\
         "AI.TENSORSET volative_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET persisted_tensor_1 VALUES |> "\
         "AI.TENSORGET persisted_tensor_2 VALUES "
@@ -163,7 +164,7 @@ def test_dag_keyspace_tensorget(env):
         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUN LOAD 1 persisted_tensor "\
+    command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
         "AI.TENSORGET persisted_tensor VALUES"
 
     ret = con.execute_command(command)
@@ -177,7 +178,7 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUN LOAD 1 persisted_tensor "\
+    command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
         "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET persisted_tensor VALUES |> "\
         "AI.TENSORGET volative_tensor VALUES"
@@ -208,11 +209,11 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
     for transaction_tensor in creditcard_transactions[:5]:
         ret = con.execute_command(
             'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
-            'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number),
+            'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
-            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
-            'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), 
+                'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
+                'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), 
         )
         env.assertEqual([b'OK',b'OK'],ret)
 
@@ -247,7 +248,7 @@ def test_dag_modelrun_financialNet(env):
     for transaction_tensor in creditcard_transactions[:5]:
         ret = con.execute_command(
             'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
-                         'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number),
+                         'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
@@ -282,7 +283,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:5]:
         ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
+            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
@@ -332,7 +333,7 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:5]:
         ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
+            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
