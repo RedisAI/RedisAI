@@ -428,7 +428,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
 
   const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(ctx, argv,
-                                   argc, &rinfo, &mto, 0, NULL, 0, NULL, NULL);
+                                   argc, &rinfo->mctx, &rinfo->outkeys, &mto, 0, NULL, 0, NULL, NULL);
   RedisModule_CloseKey(modelKey);
   // if the number of parsed args is negative something went wrong
   if(parse_result<0){
@@ -922,18 +922,6 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   dagInit(&currentDagOp);
   array_append(rinfo->dagOps,currentDagOp);
 
-  // parsing aux vars
-  int locals_flag = 0;
-  int separator_flag = 0;
-  long reply_length = 0;
-
-  // TODO: parse the entire command args and determine device
-  RunQueueInfo *run_queue_info = NULL;
-  // If the queue does not exist, initialize it
-  if (ensureRunQueue("CPU",&run_queue_info) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(
-        ctx, "ERR Queue not initialized for device");
-  }
   int currentOpArgPos=0;
   for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
@@ -979,10 +967,10 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
           return REDISMODULE_ERR;
         }
         rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
-        rinfo->mctx = RAI_ModelRunCtxCreate(mto);
+        // rinfo->mctx = RAI_ModelRunCtxCreate(mto);
         // This is the correct way but for now use the rinfo
-        // rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
-        //     RAI_ModelRunCtxCreate(mto);
+        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
+            RAI_ModelRunCtxCreate(mto);
       }
       RedisModule_RetainString(NULL, argv[argpos]);
       array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
@@ -990,6 +978,14 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
     }
     currentOpArgPos++;
+  }
+
+  // TODO: parse the entire command args and determine device
+  RunQueueInfo *run_queue_info = NULL;
+  // If the queue does not exist, initialize it
+  if (ensureRunQueue("CPU",&run_queue_info) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(
+        ctx, "ERR Queue not initialized for device");
   }
 
   rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL,

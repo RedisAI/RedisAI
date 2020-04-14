@@ -534,7 +534,9 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
 
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RedisModuleString **argv, int argc,
-                                        RedisAI_RunInfo **rinfo,
+                                        // RedisAI_RunInfo **rinfo,
+                                        RAI_ModelRunCtx **mctx,
+                                        RedisModuleString ***outkeys,
                                         RAI_Model **mto, int useLocalContext,
                                         AI_dict **localContextDict, 
                                         int use_chaining_operator,
@@ -559,7 +561,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
     return -1;
   }
 
-  RAI_ModelRunCtxAddBatch((*rinfo)->mctx);
+  RAI_ModelRunCtxAddBatch(*mctx);
 
   // parsing aux vars
   int is_input = 0;
@@ -580,7 +582,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       outputs_flag_count = 1;
       const size_t expected_noutputs = argc - argpos - 1;
       if (expected_noutputs > 0) {
-        (*rinfo)->outkeys =
+        *outkeys =
             RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
       }
     } else {
@@ -609,7 +611,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
         if ((*mto)->inputs) {
           opname = (*mto)->inputs[ninputs];
         }
-        if (!RAI_ModelRunCtxAddInput((*rinfo)->mctx, 0, opname, inputTensor)) {
+        if (!RAI_ModelRunCtxAddInput(*mctx, 0, opname, inputTensor)) {
           // todo free rinfo
           if (ctx == NULL) {
             RAI_SetError(error, RAI_EMODELRUN, "ERR Input key not found");
@@ -625,7 +627,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
         if ((*mto)->outputs) {
           opname = (*mto)->outputs[noutputs];
         }
-        if (!RAI_ModelRunCtxAddOutput((*rinfo)->mctx, 0, opname)) {
+        if (!RAI_ModelRunCtxAddOutput(*mctx, 0, opname)) {
           // todo free rinfo
           if (ctx == NULL) {
             RAI_SetError(error, RAI_EMODELRUN, "ERR Output key not found");
@@ -633,7 +635,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
             RedisModule_ReplyWithError(ctx, "ERR Output key not found");
           }
         }
-        (*rinfo)->outkeys[noutputs] = argv[argpos];
+        *outkeys[noutputs] = argv[argpos];
         noutputs++;
       }
     }

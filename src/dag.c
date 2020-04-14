@@ -62,21 +62,21 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
     else if (!strcasecmp(arg_string, "AI.MODELRUN")) {
       // TODO: move rinfo context of modelrun to DagOp
       const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(
-          NULL, currentOp->argv, currentOp->argc, &rinfo,
-          &(rinfo->mctx->model), 1, &(rinfo->dagTensorsContext), 0, NULL,
+          NULL, currentOp->argv, currentOp->argc, &currentOp->mctx, &currentOp->outkeys,
+          &(currentOp->mctx->model), 1, &(rinfo->dagTensorsContext), 0, NULL,
           currentOp->err);
 
       if (parse_result > 0) {
         currentOp->result = REDISMODULE_OK;
         const long long start = ustime();
-        currentOp->result = RAI_ModelRun(rinfo->mctx, currentOp->err);
+        currentOp->result = RAI_ModelRun(currentOp->mctx, currentOp->err);
         currentOp->duration_us = ustime() - start;
-        const size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
+        const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
         for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++)
         {
-          RAI_Tensor *tensor = rinfo->mctx->batches[0].outputs[outputNumber].tensor;
+          RAI_Tensor *tensor = currentOp->mctx->batches[0].outputs[outputNumber].tensor;
             if (tensor) {
-              const char *key_string = RedisModule_StringPtrLen(rinfo->outkeys[outputNumber], NULL);
+              const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
               AI_dictAdd(rinfo->dagTensorsContext, key_string, tensor);
               currentOp->result = REDISMODULE_OK;
             } else {
@@ -88,21 +88,6 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
       } else {
         currentOp->result = REDISMODULE_ERR;
       }
-
-    // RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
-      
-
-      // //   struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
-      // size_t noutputs = RAI_ModelRunCtxNumOutputs(rinfo->mctx);
-      // for (long long o = 0; o < noutputs; o++) {
-      //   RAI_Tensor *tensor = rinfo->mctx->batches[i].outputs[o].tensor;
-      //   // if (tensor) {
-      //   //   rinfo->mctx->batches[0].outputs[o].tensor =
-      //   //       RAI_TensorGetShallowCopy(tensor);
-      //   // } else {
-      //   //   rinfo->mctx->batches[0].outputs[o].tensor = NULL;
-      //   // }
-      // }
     }
   }
   if (rinfo->client != NULL) {
