@@ -925,6 +925,8 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   int persistFlag=0;
   int loadFlag=0;
   int chainingOpCount=0;
+  const char* deviceStr = NULL;
+
   for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "LOAD")) {
@@ -968,11 +970,19 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
                                                     &mto, REDISMODULE_READ);
         if (status == REDISMODULE_ERR) {
+          // TODO: clean temp structures
           return REDISMODULE_ERR;
+        } 
+        if (deviceStr==NULL){
+          deviceStr=mto->devicestr;
+        }else{
+          // If the device strings are not equivalent, reply with error ( for now )
+          if(strcasecmp(arg_string, "AI.MODELRUN")!=0){
+            // TODO: clean temp structures
+            RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");
+          }
         }
         rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
-        // rinfo->mctx = RAI_ModelRunCtxCreate(mto);
-        // This is the correct way but for now use the rinfo
         rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
             RAI_ModelRunCtxCreate(mto);
       }
@@ -982,10 +992,14 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
-  // TODO: parse the entire command args and determine device
   RunQueueInfo *run_queue_info = NULL;
+  // If there was no MODELRUN on the DAG, we default all ops to CPU
+  if(deviceStr==NULL){
+    deviceStr="CPU";
+  }
   // If the queue does not exist, initialize it
-  if (ensureRunQueue("CPU",&run_queue_info) == REDISMODULE_ERR) {
+  if (ensureRunQueue(deviceStr,&run_queue_info) == REDISMODULE_ERR) {
+    // TODO: clean temp structures
     return RedisModule_ReplyWithError(
         ctx, "ERR Queue not initialized for device");
   }
