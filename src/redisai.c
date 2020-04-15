@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include "backends/util.h"
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
@@ -1025,8 +1026,6 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
   int flags = RedisModule_GetContextFlags(ctx);
 
-  RAI_BackendsPath = NULL;
-
   if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
     RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
     return REDISMODULE_ERR;
@@ -1107,6 +1106,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
+  // Default configs
+  RAI_BackendsPath = NULL;
+  perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+  setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
+  setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
+  
   RAI_loadTimeConfig(ctx,argv,argc);
 
   run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);

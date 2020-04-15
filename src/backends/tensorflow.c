@@ -293,11 +293,23 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
 
   if (device == RAI_DEVICE_CPU) {
     // Set number of GPU to 0 with
-    // config.device_count = {'GPU': 0} 
+    // config.device_count = {'GPU': 0}
     uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
     TF_SetConfig(sessionOptions, (void *)config, 9, status);
-  }
-  else if (device == RAI_DEVICE_GPU) {
+
+    const uint8_t inter_op_parallelism_threads =
+        getBackendsInterOpParallelism();
+    if (inter_op_parallelism_threads != 0) {
+      uint8_t buf[] = {0x28, inter_op_parallelism_threads};
+      TF_SetConfig(sessionOptions, buf, sizeof(buf), status);
+    }
+    const uint8_t intra_op_parallelism_threads =
+        getBackendsInterOpParallelism();
+    if (intra_op_parallelism_threads != 0) {
+      uint8_t buf[] = {0x10, intra_op_parallelism_threads};
+      TF_SetConfig(sessionOptions, buf, sizeof(buf), status);
+    }
+  } else if (device == RAI_DEVICE_GPU) {
     if (deviceid == -1) {
       // Set
       // config.gpu_options.allow_growth = True

@@ -3,8 +3,10 @@
 
 #include <pthread.h>
 
-#include "model_script_run_session.h"
+#include "config.h"
+#include "dag.h"
 #include "model.h"
+#include "model_script_run_session.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -14,11 +16,10 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
-#include "dag.h"
-#include "config.h"
 
 AI_dict *run_queues;
-static long long perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+long long perqueueThreadPoolSize;
+
 
 typedef struct RunQueueInfo {
   pthread_mutex_t run_queue_mutex;

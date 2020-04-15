@@ -8,6 +8,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         config.c
         dag.c
         backends.c
+        backends/util.c
         model.c
         err.c
         script.c
