@@ -5,6 +5,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         run_info.c
         background_workers.c
         model_script_run_session.c
+        config.c
         dag.c
         backends.c
         model.c

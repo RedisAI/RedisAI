@@ -812,90 +812,24 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   return REDISMODULE_OK;
 }
 
-int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModule_AutoMemory(ctx);
-
-  if (argc < 2) return RedisModule_WrongArity(ctx);
-
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  const char* backend;
-  AC_GetString(&ac, &backend, NULL, 0); 
-
-  const char* path;
-  AC_GetString(&ac, &path, NULL, 0); 
-
-  int ret;
-  if (strcasecmp(backend, "TF") == 0) {
-    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, path);
-  }
-  else if (strcasecmp(backend, "TFLITE") == 0) {
-    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, path);
-  }
-  else if (strcasecmp(backend, "TORCH") == 0) {
-    ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, path);
-  }
-  else if (strcasecmp(backend, "ONNX") == 0) {
-    ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, path);
-  }
-  else {
-    return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
-  }
-
-  if (ret == REDISMODULE_OK) {
-    return RedisModule_ReplyWithSimpleString(ctx, "OK");
-  }
-
-  return RedisModule_ReplyWithError(ctx, "ERR error loading backend");
-}
-
-
-int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
-  RedisModule_AutoMemory(ctx);
-
-  if (RAI_BackendsPath != NULL) {
-    RedisModule_Free(RAI_BackendsPath);
-  }
-  RAI_BackendsPath = RedisModule_Strdup(path);
-
-  return RedisModule_ReplyWithSimpleString(ctx, "OK");
-}
-
-int RedisAI_Config_QueueThreads(RedisModuleString *queueThreadsString) {
-  int result = RedisModule_StringToLongLong(queueThreadsString, &perqueueThreadPoolSize);
-  // make sure the number of threads is a positive integer
-  // if not set the value to the default 
-  if (result == REDISMODULE_OK && perqueueThreadPoolSize < 1 ){
-    perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
-    result = REDISMODULE_ERR;
-  }
-  return result;
-}
-
 /** 
 * AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | LOADBACKEND <backend_identifier> <location_of_backend_library>]
 */
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModule_AutoMemory(ctx);
-
   if (argc < 2) return RedisModule_WrongArity(ctx);
 
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  const char* subcommand;
-  AC_GetString(&ac, &subcommand, NULL, 0); 
-
-  if (strcasecmp(subcommand, "LOADBACKEND") == 0) {
+  const char *subcommand = RedisModule_StringPtrLen(argv[1], NULL);
+  if (!strcasecmp(subcommand, "LOADBACKEND")) {
     return RedisAI_Config_LoadBackend(ctx, argv + 1, argc - 1);
   }
 
-  if (strcasecmp(subcommand, "BACKENDSPATH") == 0) {
+  if (!strcasecmp(subcommand, "BACKENDSPATH")) {
     if (argc > 2) {
-      return RedisAI_Config_BackendsPath(ctx, RedisModule_StringPtrLen(argv[2], NULL));
+      return RedisAI_Config_BackendsPath(
+          ctx, RedisModule_StringPtrLen(argv[2], NULL));
     } else {
-      return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: missing path argument");
+      return RedisModule_ReplyWithError(
+          ctx, "ERR BACKENDSPATH: missing path argument");
     }
   }
 
@@ -1173,62 +1107,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (argc > 0 && argc % 2 != 0) {
-    RedisModule_Log(ctx, "warning", "Even number of arguments provided to module. Please provide arguments as KEY VAL pairs");
-  }
-
-  // need BACKENDSPATH set up before loading specific backends
-  for (int i=0; i<argc/2; i++) {
-    const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
-    const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
-
-    int ret = REDISMODULE_OK;
-    if (strcasecmp(key, "BACKENDSPATH") == 0) {
-      ret = RedisAI_Config_BackendsPath(ctx, val);
-    }
-  }
-
-  for (int i=0; i<argc/2; i++) {
-    const char *key = RedisModule_StringPtrLen(argv[2*i], NULL);
-    const char *val = RedisModule_StringPtrLen(argv[2*i + 1], NULL);
-
-    int ret = REDISMODULE_OK;
-    if (strcasecmp(key, "TF") == 0) {
-      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, val);
-    }
-    else if (strcasecmp(key, "TFLITE") == 0) {
-      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, val);
-    }
-    else if (strcasecmp(key, "TORCH") == 0) {
-      ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, val);
-    }
-    else if (strcasecmp(key, "ONNX") == 0) {
-      ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, val);
-    }
-    // enable configuring the main thread to create a fixed number of worker threads up front per device.
-    // by default we'll use 1
-    else if (strcasecmp(key, "THREADS_PER_QUEUE") == 0) {
-      ret = RedisAI_Config_QueueThreads(argv[2*i + 1]);
-      if (ret == REDISMODULE_OK){
-        char *buffer = RedisModule_Alloc((3 + strlen(REDISAI_INFOMSG_THREADS_PER_QUEUE) + strlen(val)) * sizeof(*buffer));
-        sprintf(buffer, "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, val);
-        RedisModule_Log(ctx, "verbose", buffer);
-        RedisModule_Free(buffer);
-      }
-    }
-    else if (strcasecmp(key, "BACKENDSPATH") == 0) {
-      // aleady taken care of
-    } else {
-      ret = REDISMODULE_ERR;
-    }
-
-    if (ret == REDISMODULE_ERR) {
-      char* buffer = RedisModule_Alloc((4 + strlen(REDISAI_ERRORMSG_PROCESSING_ARG) + strlen(key) + strlen(val)) * sizeof(*buffer));
-      sprintf(buffer, "%s: %s %s", REDISAI_ERRORMSG_PROCESSING_ARG, key, val);
-      RedisModule_Log(ctx, "warning", buffer);
-      RedisModule_Free(buffer);
-    }
-  }
+  RAI_loadTimeConfig(ctx,argv,argc);
 
   run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
   RunQueueInfo *run_queue_info = NULL;

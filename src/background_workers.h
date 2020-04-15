@@ -15,8 +15,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 #include "dag.h"
-
-#define REDISAI_DEFAULT_THREADS_PER_QUEUE 1
+#include "config.h"
 
 AI_dict *run_queues;
 static long long perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
