@@ -3,13 +3,13 @@
 #ifndef SRC_RUN_INFO_H_
 #define SRC_RUN_INFO_H_
 
+#include "err.h"
 #include "model.h"
 #include "model_struct.h"
 #include "redismodule.h"
 #include "script.h"
-#include "util/dict.h"
 #include "util/arr_rm_alloc.h"
-#include "err.h"
+#include "util/dict.h"
 
 enum RedisAI_DAGCommands {
   REDISAI_DAG_CMD_NONE = 0,
@@ -25,9 +25,9 @@ typedef struct RAI_DagOp {
   RAI_Tensor **outTensors;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
-  int result; // REDISMODULE_OK or REDISMODULE_ERR
+  int result;  // REDISMODULE_OK or REDISMODULE_ERR
   long long duration_us;
-  RAI_Error* err;
+  RAI_Error *err;
   RedisModuleString **argv;
   int argc;
 } RAI_DagOp;
@@ -40,6 +40,13 @@ typedef struct RAI_DagOp {
  */
 int dagInit(RAI_DagOp **result);
 
+/**
+ * This structure represents the context in which RedisAI blocking commands
+ * operate.
+ *
+ * Note that not all the context structure is always filled with actual values
+ * but only the fields needed in a given operation.
+ */
 typedef struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
   // TODO: completly move modelrun and scriptrun to dagOps
@@ -47,7 +54,7 @@ typedef struct RedisAI_RunInfo {
   RedisModuleString **outkeys;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
-  int result; // REDISMODULE_OK or REDISMODULE_ERR
+  int result;  // REDISMODULE_OK or REDISMODULE_ERR
   long long duration_us;
   RAI_Error *err;
   // DAG
