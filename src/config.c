@@ -15,6 +15,60 @@
 #include "util/dict.h"
 #include "util/queue.h"
 
+long long backends_intra_op_parallelism;  //  number of threads used within an
+//  individual op for parallelism.
+long long
+    backends_inter_op_parallelism;  //  number of threads used for parallelism
+                                    //  between independent operations.
+
+/**
+ *
+ * @return number of threads used within an individual op for parallelism.
+ */
+long long getBackendsInterOpParallelism() {
+  return backends_inter_op_parallelism;
+}
+
+/**
+ * Set number of threads used for parallelism between independent operations, by
+ * backend.
+ *
+ * @param num_threads
+ * @return 0 on success, or 1  if failed
+ */
+int setBackendsInterOpParallelism(long long num_threads) {
+  int result = 1;
+  if (num_threads >= 0) {
+    backends_inter_op_parallelism = num_threads;
+    result = 0;
+  }
+  return result;
+}
+
+/**
+ *
+ * @return
+ */
+long long getBackendsIntraOpParallelism() {
+  return backends_intra_op_parallelism;
+}
+
+/**
+ * Set number of threads used within an individual op for parallelism, by
+ * backend.
+ *
+ * @param num_threads
+ * @return 0 on success, or 1  if failed
+ */
+int setBackendsIntraOpParallelism(long long num_threads) {
+  int result = 1;
+  if (num_threads >= 0) {
+    backends_intra_op_parallelism = num_threads;
+    result = 0;
+  }
+  return result;
+}
+
 /**
  * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
  * <location_of_backend_library>
@@ -113,7 +167,7 @@ int RedisAI_Config_InterOperationParallelism(
  */
 int RedisAI_Config_IntraOperationParallelism(
     RedisModuleString *num_threads_string) {
-  long temp;
+  long long temp;
   int result = RedisModule_StringToLongLong(num_threads_string, &temp);
   if (result == REDISMODULE_OK) {
     result = setBackendsIntraOpParallelism(temp);
@@ -158,7 +212,7 @@ int RAI_configParamParse(const RedisModuleCtx *ctx, const char *key,
       char *buffer = RedisModule_Alloc(
           (3 + strlen(REDISAI_INFOMSG_INTRA_OP_PARALLELISM) + strlen((val))) *
           sizeof(*buffer));
-      sprintf(buffer, "%s: %d", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
+      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
               getBackendsIntraOpParallelism());
       RedisModule_Log(ctx, "notice", buffer);
       RedisModule_Free(buffer);
@@ -169,7 +223,7 @@ int RAI_configParamParse(const RedisModuleCtx *ctx, const char *key,
       char *buffer = RedisModule_Alloc(
           (3 + strlen(REDISAI_INFOMSG_INTER_OP_PARALLELISM) + strlen((val))) *
           sizeof(*buffer));
-      sprintf(buffer, "%s: %d", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
+      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
               getBackendsInterOpParallelism());
       RedisModule_Log(ctx, "notice", buffer);
       RedisModule_Free(buffer);

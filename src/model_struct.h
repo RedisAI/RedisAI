@@ -7,6 +7,11 @@
 typedef struct RAI_ModelOpts {
   size_t batchsize;
   size_t minbatchsize;
+  long long backends_intra_op_parallelism;  //  number of threads used within an
+//  individual op for parallelism.
+long long
+    backends_inter_op_parallelism;  //  number of threads used for parallelism
+                                    //  between independent operations.
 } RAI_ModelOpts;
 
 typedef struct RAI_Model {

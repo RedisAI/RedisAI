@@ -194,7 +194,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_ModelOpts opts = {
     .batchsize = batchsize,
-    .minbatchsize = minbatchsize
+    .minbatchsize = minbatchsize,
+    .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
+    .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
   };
 
   RAI_Model *model = NULL;

@@ -26,13 +26,53 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define REDISAI_DEFAULT_INTRA_OP_PARALLELISM 0
 #define REDISAI_DEFAULT_INTER_OP_PARALLELISM 0
 #define REDISAI_ERRORMSG_PROCESSING_ARG "ERR error processing argument"
-#define REDISAI_ERRORMSG_THREADS_PER_QUEUE "ERR error setting THREADS_PER_QUEUE to"
-#define REDISAI_ERRORMSG_INTRA_OP_PARALLELISM "ERR error setting INTRA_OP_PARALLELISM to"
-#define REDISAI_ERRORMSG_INTER_OP_PARALLELISM "ERR error setting INTER_OP_PARALLELISM to"
+#define REDISAI_ERRORMSG_THREADS_PER_QUEUE \
+  "ERR error setting THREADS_PER_QUEUE to"
+#define REDISAI_ERRORMSG_INTRA_OP_PARALLELISM \
+  "ERR error setting INTRA_OP_PARALLELISM to"
+#define REDISAI_ERRORMSG_INTER_OP_PARALLELISM \
+  "ERR error setting INTER_OP_PARALLELISM to"
 
-#define REDISAI_INFOMSG_THREADS_PER_QUEUE "Setting THREADS_PER_QUEUE parameter to"
-#define REDISAI_INFOMSG_INTRA_OP_PARALLELISM "Setting INTRA_OP_PARALLELISM parameter to"
-#define REDISAI_INFOMSG_INTER_OP_PARALLELISM "Setting INTER_OP_PARALLELISM parameter to"
+#define REDISAI_INFOMSG_THREADS_PER_QUEUE \
+  "Setting THREADS_PER_QUEUE parameter to"
+#define REDISAI_INFOMSG_INTRA_OP_PARALLELISM \
+  "Setting INTRA_OP_PARALLELISM parameter to"
+#define REDISAI_INFOMSG_INTER_OP_PARALLELISM \
+  "Setting INTER_OP_PARALLELISM parameter to"
+
+/**
+ * Get number of threads used for parallelism between independent operations, by
+ * backend.
+ * @return number of threads used for parallelism between independent
+ * operations, by backend
+ */
+long long getBackendsInterOpParallelism();
+
+/**
+ * Set number of threads used for parallelism between independent operations, by
+ * backend.
+ *
+ * @param num_threads
+ * @return 0 on success, or 1  if failed
+ */
+int setBackendsInterOpParallelism(long long num_threads);
+
+/**
+ * Get number of threads used within an individual op for parallelism, by
+ * backend.
+ * @return number of threads used within an individual op for parallelism, by
+ * backend.
+ */
+long long getBackendsIntraOpParallelism();
+
+/**
+ * Set number of threads used within an individual op for parallelism, by
+ * backend.
+ *
+ * @param num_threads
+ * @return 0 on success, or 1  if failed
+ */
+int setBackendsIntraOpParallelism(long long num_threads);
 
 /**
  * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
