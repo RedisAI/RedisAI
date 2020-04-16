@@ -14,7 +14,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend,  const char* devicestr, RAI_M
 
 void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error);
+int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 

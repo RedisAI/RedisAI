@@ -68,15 +68,15 @@ void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
   torchDeallocContext(model->model);
 }
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
-  const size_t nbatches = array_len(mctx->batches);
+int RAI_ModelRunTorch(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
+  const size_t nbatches = array_len(mctxs);
   if (nbatches == 0) {
     RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
 
-  const size_t ninputs = array_len(mctx->batches[0].inputs);
-  const size_t noutputs = array_len(mctx->batches[0].outputs);
+  const size_t ninputs = array_len(mctxs[0]->inputs);
+  const size_t noutputs = array_len(mctxs[0]->outputs);
 
   RAI_Tensor* inputs[ninputs];
 
@@ -88,9 +88,9 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   if (nbatches > 1) {
     size_t total_batch_size = 0;
-    if (array_len(mctx->batches[0].inputs) > 0) {
+    if (array_len(mctxs[0]->inputs) > 0) {
       for (size_t b=0; b<nbatches; ++b) {
-        batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
+        batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
         total_batch_size += batch_sizes[b];
       }
       batch_offsets[0] = 0;
@@ -103,7 +103,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
       RAI_Tensor* batch[nbatches];
 
       for (size_t b=0; b<nbatches; b++) {
-        batch[b] = mctx->batches[b].inputs[i].tensor;
+        batch[b] = mctxs[b]->inputs[i].tensor;
       }
 
       inputs[i] = RAI_TensorCreateByConcatenatingTensors(batch, nbatches);
@@ -112,7 +112,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   }
   else {
     for (size_t i=0 ; i<ninputs; ++i) {
-      inputs[i] = RAI_TensorGetShallowCopy(mctx->batches[0].inputs[i].tensor);
+      inputs[i] = RAI_TensorGetShallowCopy(mctxs[0]->inputs[i].tensor);
       inputs_dl[i] = &inputs[i]->tensor;
     }
   }
@@ -122,7 +122,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
   }
 
   char* error_descr = NULL;
-  torchRunModel(mctx->model->model,
+  torchRunModel(mctxs[0]->model->model,
                 ninputs, inputs_dl, noutputs, outputs_dl,
                 &error_descr, RedisModule_Alloc);
 
@@ -140,11 +140,11 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
     if (nbatches > 1) {
       for (size_t b=0; b<nbatches; b++) {
-        mctx->batches[b].outputs[i].tensor = RAI_TensorCreateBySlicingTensor(output_tensor, batch_offsets[b], batch_sizes[b]);
+        mctxs[b]->outputs[i].tensor = RAI_TensorCreateBySlicingTensor(output_tensor, batch_offsets[b], batch_sizes[b]);
       }
     }
     else {
-      mctx->batches[0].outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+      mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
     }
     RAI_TensorFree(output_tensor);
   }
