@@ -205,7 +205,10 @@ void RedisAI_FreeRunStats(RedisModuleCtx *ctx, struct RedisAI_RunStats *rstats) 
 }
 
 void *RedisAI_RunSession(struct RedisAI_RunInfo **batch_rinfo) {
-  if (array_len(batch_rinfo) == 0) {
+
+  const long long batch_size = array_len(batch_rinfo);
+
+  if (batch_size == 0) {
     return NULL;
   }
 
@@ -215,10 +218,15 @@ void *RedisAI_RunSession(struct RedisAI_RunInfo **batch_rinfo) {
   RAI_ModelRunCtx* mctx = NULL;
   RAI_ScriptRunCtx* sctx = NULL;
   if (batch_rinfo[0]->mctx) {
-    mctx = RAI_ModelRunCtxCreate(batch_rinfo[0]->mctx->model);
-    for (long long i=0; i<array_len(batch_rinfo); i++) {
-      int id = RAI_ModelRunCtxAddBatch(mctx);
-      RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
+    if (batch_size > 1) {
+      mctx = RAI_ModelRunCtxCreate(batch_rinfo[0]->mctx->model);
+      for (long long i=0; i<batch_size; i++) {
+        int id = RAI_ModelRunCtxAddBatch(mctx);
+        RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
+      }
+    }
+    else {
+      mctx = batch_rinfo[0]->mctx;
     }
   }
   else if (batch_rinfo[0]->sctx) {
@@ -235,18 +243,23 @@ void *RedisAI_RunSession(struct RedisAI_RunInfo **batch_rinfo) {
   }
   rtime = ustime() - start;
 
-  for (long long i=0; i<array_len(batch_rinfo); i++) {
+  for (long long i=0; i<batch_size; i++) {
     struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
     if (mctx) {
-      size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
-      for (long long o=0; o<noutputs; o++) {
-        RAI_Tensor* tensor = mctx->batches[i].outputs[o].tensor;
-        if (tensor) {
-          rinfo->mctx->batches[0].outputs[o].tensor = RAI_TensorGetShallowCopy(tensor);
+      if (batch_size > 1) {
+        size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
+        for (long long o=0; o<noutputs; o++) {
+          RAI_Tensor* tensor = mctx->batches[i].outputs[o].tensor;
+          if (tensor) {
+            rinfo->mctx->batches[0].outputs[o].tensor = RAI_TensorGetShallowCopy(tensor);
+          }
+          else {
+            rinfo->mctx->batches[0].outputs[o].tensor = NULL;
+          }
         }
-        else {
-          rinfo->mctx->batches[0].outputs[o].tensor = NULL;
-        }
+      }
+      else {
+        // Do nothing if no batching
       }
     }
     else if (sctx) {
@@ -270,7 +283,12 @@ void *RedisAI_RunSession(struct RedisAI_RunInfo **batch_rinfo) {
   }
 
   if (mctx) {
-    RAI_ModelRunCtxFree(mctx);
+    if (batch_size > 1) {
+      RAI_ModelRunCtxFree(mctx);
+    }
+    else {
+      // Do nothing if no batching
+    }
   }
   else if (sctx) {
     // No batching for scripts for now
