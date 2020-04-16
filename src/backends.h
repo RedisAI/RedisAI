@@ -14,7 +14,7 @@ typedef struct RAI_LoadedBackend {
   RAI_Model* (*model_create)(RAI_Backend, const char*, RAI_ModelOpts,
                              const char*, size_t, RAI_Error*);
   void (*model_free)(RAI_Model*, RAI_Error*);
-  int (*model_run)(RAI_ModelRunCtx*, RAI_Error*);
+  int (*model_run)(RAI_ModelRunCtx**, RAI_Error*);
   int (*model_serialize)(RAI_Model*, char**, size_t*, RAI_Error*);
 
   RAI_Script* (*script_create)(const char*, const char*, RAI_Error*);

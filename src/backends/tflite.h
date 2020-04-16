@@ -14,7 +14,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
 
 void RAI_ModelFreeTFLite(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunTFLite(RAI_ModelRunCtx *mctx, RAI_Error *error);
+int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTFLite(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
