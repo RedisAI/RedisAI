@@ -708,3 +708,45 @@ def test_tensorflow_modelrun_financialNet(env):
                                       'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
                                       'classificationTensor:{}_{}'.format(tensor_number, repetition))
             env.assertEqual(ret, b'OK')
+
+
+def test_tensorflow_modelrun_financialNet_multiproc(env):
+    con = env.getConnection()
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
+
+    tensor_number = 1
+    for transaction_tensor in creditcard_transactions:
+        ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 30,
+                                  'BLOB', transaction_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    tensor_number = 1
+    for reference_tensor in creditcard_referencedata:
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 256,
+                                  'BLOB', reference_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    def functor_financialNet(env, key_max, repetitions):
+        for tensor_number in range(1, key_max):
+            for repetition in range(1, repetitions):
+                ret = env.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
+                                        'transactionTensor:{}'.format(tensor_number),
+                                        'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                        'classificationTensor:{}_{}'.format(tensor_number, repetition))
+    
+    t = time.time()
+    run_test_multiproc(env, 10,
+                       lambda env: functor_financialNet(env,len(transaction_tensor),100) )
+    elapsed_time = time.time() - t
+    total_ops = len(transaction_tensor)*100
+    avg_ops_sec = total_ops/elapsed_time
+    env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)
