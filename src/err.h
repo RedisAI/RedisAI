@@ -18,6 +18,7 @@ typedef enum {
   RAI_ESCRIPTFREE,
   RAI_ETENSORSET,
   RAI_ETENSORGET,
+  RAI_EDAGRUN,
 } RAI_ErrorCode;
 
 typedef struct RAI_Error {

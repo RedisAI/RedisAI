@@ -21,6 +21,51 @@ def test_dag_load(env):
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK'])
 
+def test_dag_load_errors(env):
+    con = env.getConnection()
+
+    # ERR tensor key is empty
+    try:
+        command = "AI.DAGRUN "\
+                    "LOAD 1 persisted_tensor_1 "\
+                    "PERSIST 1 tensor1 |> "\
+                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty",exception.__str__())
+
+    # WRONGTYPE Operation against a key holding the wrong kind of value
+    try:
+        con.execute_command('SET', 'non-tensor', 'value')
+        command = "AI.DAGRUN "\
+                    "LOAD 1 non-tensor "\
+                    "PERSIST 1 tensor1 |> "\
+                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
+
+
+def test_dag_common_errors(env):
+    con = env.getConnection()
+
+    # ERR unsupported command within DAG
+    try:
+        command = "AI.DAGRUN |> "\
+                "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+
 
 def test_dag_local_tensorset(env):
     con = env.getConnection()

@@ -91,10 +91,13 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         }
         break;
       }
-
-      default:
-        /* no-op */
+      default: {
+        /* unsupported DAG's command */
+        RAI_SetError(currentOp->err, RAI_EDAGRUN,
+                     "ERR unsupported command within DAG");
+        currentOp->result = REDISMODULE_ERR;
         break;
+      }
     }
   }
   if (rinfo->client != NULL) {
