@@ -32,7 +32,8 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         if (parse_result > 0) {
           const char *key_string =
               RedisModule_StringPtrLen(currentOp->argv[1], NULL);
-          AI_dictReplace(rinfo->dagTensorsContext, key_string, t);
+              const char* dictKey=RedisModule_Strdup(key_string);
+          AI_dictReplace(rinfo->dagTensorsContext, dictKey, t);
           currentOp->result = REDISMODULE_OK;
         } else {
           currentOp->result = REDISMODULE_ERR;
@@ -76,7 +77,8 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
             if (tensor) {
               const char *key_string = RedisModule_StringPtrLen(
                   currentOp->outkeys[outputNumber], NULL);
-              AI_dictReplace(rinfo->dagTensorsContext, key_string, tensor);
+              const char* dictKey=RedisModule_Strdup(key_string);
+              AI_dictReplace(rinfo->dagTensorsContext, dictKey, tensor);
             } else {
               RAI_SetError(currentOp->err, RAI_EMODELRUN,
                            "ERR output tensor on DAG's MODELRUN was null");

@@ -524,9 +524,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     AC_GetRString(&outac, outputs+i, 0); 
   }
 
-  RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(sto, fnname);
-
-  RedisModuleString **outkeys;
+  rinfo->sctx = RAI_ScriptRunCtxCreate(sto, fnname);
 
   for (size_t i=0; i<ninputs; i++) {
     RAI_Tensor *t;
@@ -534,32 +532,29 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     const int status = RAI_GetTensorFromKeyspace(ctx, inputs[i], &argkey, &t, REDISMODULE_READ);
     if(status==REDISMODULE_ERR){
          RedisModule_CloseKey(key);
+         RAI_FreeRunInfo(ctx,rinfo);
         return REDISMODULE_ERR;
     }
     RedisModule_CloseKey(argkey);
-    if (!RAI_ScriptRunCtxAddInput(sctx, t)) {
-      RAI_ScriptRunCtxFree(sctx);
+    if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, t)) {
+      RAI_FreeRunInfo(ctx,rinfo);
       RedisModule_CloseKey(key);
       return RedisModule_ReplyWithError(ctx, "Input key not found");
     }
   }
 
-  outkeys = RedisModule_Calloc(noutputs, sizeof(RedisModuleString*));
   for (size_t i=0; i<noutputs; i++) {
-    if (!RAI_ScriptRunCtxAddOutput(sctx)) {
-      RAI_ScriptRunCtxFree(sctx);
+    if (!RAI_ScriptRunCtxAddOutput(rinfo->sctx)) {
+      RAI_FreeRunInfo(ctx,rinfo);
       RedisModule_CloseKey(key);
       return RedisModule_ReplyWithError(ctx, "Output key not found");
     }
     RedisModule_RetainString(ctx, outputs[i]);
-    outkeys[i] = outputs[i];
+    array_append(rinfo->outkeys,outputs[i]);
   }
   
-  rinfo->sctx = sctx;
   RedisModule_RetainString(ctx, keystr);
   rinfo->runkey = keystr;
-  rinfo->outkeys = outkeys;
-  rinfo->err = NULL;
   RunQueueInfo *run_queue_info = NULL;
     // If the queue does not exist, initialize it
   if (ensureRunQueue(sto->devicestr,&run_queue_info) == REDISMODULE_ERR) {
