@@ -13,7 +13,6 @@
 #include "util/dict.h"
 #include "util/queue.h"
 #include <pthread.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>

@@ -461,6 +461,11 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
+  RedisAI_RunInfo *rinfo = NULL;
+  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+  }
+
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     RedisModule_KeyAtPos(ctx, 1);
     for (int i=3; i<argc; i++) {
@@ -549,9 +554,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_RetainString(ctx, outputs[i]);
     outkeys[i] = outputs[i];
   }
-
-  RedisAI_RunInfo *rinfo = RedisModule_Calloc(1, sizeof(struct RedisAI_RunInfo));
-  rinfo->mctx = NULL;
+  
   rinfo->sctx = sctx;
   RedisModule_RetainString(ctx, keystr);
   rinfo->runkey = keystr;
@@ -560,7 +563,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RunQueueInfo *run_queue_info = NULL;
     // If the queue does not exist, initialize it
   if (ensureRunQueue(sto->devicestr,&run_queue_info) == REDISMODULE_ERR) {
-    RAI_ScriptRunCtxFree(sctx);
+    RAI_FreeRunInfo(ctx,rinfo);
     return RedisModule_ReplyWithError(ctx, "ERR Queue not initialized for device");
   }
 
