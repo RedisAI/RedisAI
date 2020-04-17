@@ -28,7 +28,6 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
   } else {
     err->detail = RedisModule_Strdup("ERR Generic error");
   }
-
   err->detail_oneline = RAI_Chomp(err->detail);
 }
 
@@ -61,4 +60,11 @@ void RAI_ClearError(RAI_Error *err) {
     err->detail_oneline = NULL;
   }
   err->code = RAI_OK;
+}
+
+void RAI_FreeError(RAI_Error *err) {
+  if (err) {
+    RAI_ClearError(err);
+    RedisModule_Free(err);
+  }
 }

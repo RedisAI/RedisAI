@@ -83,11 +83,10 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
               currentOp->result = REDISMODULE_ERR;
             }
           }
-
+          array_free(mctxs);
         } else {
           currentOp->result = REDISMODULE_ERR;
         }
-
         break;
       }
 
@@ -214,6 +213,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   AI_dictReleaseIterator(persist_iter);
   RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+  RAI_FreeRunInfo(ctx,rinfo);
   return REDISMODULE_OK;
 }
 
@@ -295,7 +295,8 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       separator_flag = 1;
       break;
     } else {
-      AI_dictAdd(*localContextDict, arg_string, (void *)1);
+      const char* key=RedisModule_Strdup(arg_string);
+      AI_dictAdd(*localContextDict, key, (void *)1);
       number_loaded_keys++;
     }
   }

@@ -544,7 +544,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
             RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
       }
     } else {
-      RedisModule_RetainString(NULL, argv[argpos]);
+      RedisModule_RetainString(ctx, argv[argpos]);
       if (is_input == 0) {
         RAI_Tensor *inputTensor;
         if (useLocalContext == 0) {

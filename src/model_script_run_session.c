@@ -12,102 +12,6 @@
 #include "util/dict.h"
 #include "util/queue.h"
 
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
-  if (rinfo->mctx == NULL) {
-    return -1;
-  }
-
-  size_t ninputs = RAI_ModelRunCtxNumInputs(rinfo->mctx);
-
-  int batchsize = 0;
-
-  if (ninputs == 0) {
-    return batchsize;
-  }
-
-  for (size_t i = 0; i < ninputs; i++) {
-    RAI_Tensor *input = RAI_ModelRunCtxInputTensor(rinfo->mctx, i);
-
-    if (i == 0) {
-      batchsize = RAI_TensorDim(input, 0);
-      continue;
-    }
-
-    if (batchsize != RAI_TensorDim(input, 0)) {
-      batchsize = 0;
-      break;
-    }
-  }
-
-  return batchsize;
-}
-
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2) {
-  if (rinfo1->mctx == NULL || rinfo2->mctx == NULL) {
-    return 0;
-  }
-
-  if (rinfo1->mctx->model != rinfo2->mctx->model) {
-    return 0;
-  }
-
-  const int ninputs1 = RAI_ModelRunCtxNumInputs(rinfo1->mctx);
-  const int ninputs2 = RAI_ModelRunCtxNumInputs(rinfo2->mctx);
-
-  if (ninputs1 != ninputs2) {
-    return 0;
-  }
-
-  for (int i = 0; i < ninputs1; i++) {
-    RAI_Tensor *input1 = RAI_ModelRunCtxInputTensor(rinfo1->mctx, i);
-    RAI_Tensor *input2 = RAI_ModelRunCtxInputTensor(rinfo2->mctx, i);
-
-    int ndims1 = RAI_TensorNumDims(input1);
-    int ndims2 = RAI_TensorNumDims(input2);
-
-    if (ndims1 != ndims2) {
-      return 0;
-    }
-
-    if (ndims1 == 0) {
-      continue;
-    }
-
-    for (int j = 1; j < ndims1; j++) {
-      int dim1 = RAI_TensorDim(input1, j);
-      int dim2 = RAI_TensorDim(input2, j);
-      if (dim1 != dim2) {
-        return 0;
-      }
-    }
-  }
-
-  return 1;
-}
-
-void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
-  if (rinfo->mctx) {
-    for (int i = 0; i < RAI_ModelRunCtxNumOutputs(rinfo->mctx); ++i) {
-      RedisModule_FreeString(ctx, rinfo->outkeys[i]);
-    }
-    RedisModule_Free(rinfo->outkeys);
-    RAI_ModelRunCtxFree(rinfo->mctx);
-  } else if (rinfo->sctx) {
-    for (int i = 0; i < RAI_ScriptRunCtxNumOutputs(rinfo->sctx); ++i) {
-      RedisModule_FreeString(ctx, rinfo->outkeys[i]);
-    }
-    RedisModule_Free(rinfo->outkeys);
-    RAI_ScriptRunCtxFree(rinfo->sctx);
-  }
-
-  if (rinfo->err) {
-    RAI_ClearError(rinfo->err);
-    RedisModule_Free(rinfo->err);
-  }
-
-  RedisModule_Free(rinfo);
-}
 
 /**
  * Actual method running the MODELRUN and SCRIPTRUN Commands in the background
@@ -196,7 +100,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
       rstats->nerrors += 1;
     }
     int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
-    RedisAI_FreeRunInfo(ctx, rinfo);
+    RAI_FreeRunInfo(ctx, rinfo);
     return ret;
   }
 
@@ -214,7 +118,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     const int status = RAI_OpenKey_Tensor(ctx, rinfo->outkeys[i], &outkey,
                                           REDISMODULE_READ | REDISMODULE_WRITE);
     if (status == REDISMODULE_ERR) {
-      RedisAI_FreeRunInfo(ctx, rinfo);
+      RAI_FreeRunInfo(ctx, rinfo);
       if (rstats) {
         rstats->calls += 1;
         rstats->nerrors += 1;
@@ -250,7 +154,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
-  RedisAI_FreeRunInfo(ctx, rinfo);
+  RAI_FreeRunInfo(ctx, rinfo);
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 

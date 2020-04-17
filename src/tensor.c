@@ -471,25 +471,51 @@ size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype) {
   return Tensor_DataTypeSize(dtype);
 }
 
-void RAI_TensorFree(RAI_Tensor* t){
+void RAI_TensorFree(RAI_Tensor *t) {
   if (--t->refCount <= 0){
     if (t->tensor.deleter) {
       t->tensor.deleter(&t->tensor);
     }
     else {
-      RedisModule_Free(t->tensor.dl_tensor.shape);
+      if (t->tensor.dl_tensor.shape) {
+        RedisModule_Free(t->tensor.dl_tensor.shape);
+      }
       if (t->tensor.dl_tensor.strides) {
         RedisModule_Free(t->tensor.dl_tensor.strides);
       }
-      if ( t->tensorRS != NULL ){
-        RedisModule_FreeString(NULL,t->tensorRS);
+      if (t->tensorRS != NULL) {
+        RedisModule_FreeString(NULL, t->tensorRS);
       }
-      else{
+      else if (t->tensor.dl_tensor.data) {
         RedisModule_Free(t->tensor.dl_tensor.data);
       }
     }
     RedisModule_Free(t);
   }
+
+  // if (t) {
+  //   if (--t->refCount <= 0) {
+  //     // if it has a deleter it means memory was allocated outside the module scope,
+  //     // and we should never try to free with RedisModule_Free() memory allocated with malloc() inside the module
+  //     if (t->tensor.deleter) {
+  //       t->tensor.deleter(&t->tensor);
+  //     } else {
+  //       if (t->tensor.dl_tensor.shape) {
+  //         RedisModule_Free(t->tensor.dl_tensor.shape);
+  //       }
+  //       if (t->tensor.dl_tensor.strides) {
+  //         RedisModule_Free(t->tensor.dl_tensor.strides);
+  //       }
+  //       if (t->tensor.dl_tensor.data) {
+  //         RedisModule_Free(t->tensor.dl_tensor.data);
+  //       }
+  //       if (t->tensorRS) {
+  //         RedisModule_FreeString(NULL, t->tensorRS);
+  //       }
+  //       RedisModule_Free(t);
+  //     }
+  //   }
+  // }
 }
 
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len){

@@ -415,7 +415,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (argc < 3) return RedisModule_WrongArity(ctx);
 
   RedisAI_RunInfo *rinfo = NULL;
-  if (runInfoInit(&rinfo) == REDISMODULE_ERR) {
+  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
   }
 
@@ -851,12 +851,12 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
   RedisAI_RunInfo *rinfo = NULL;
-  if (runInfoInit(&rinfo) == REDISMODULE_ERR) {
+  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
   }
   rinfo->use_local_context = 1;
   RAI_DagOp* currentDagOp = NULL;
-  dagInit(&currentDagOp);
+  RAI_InitDagOp(&currentDagOp);
   array_append(rinfo->dagOps,currentDagOp);
 
   int persistFlag=0;
@@ -893,7 +893,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       if (!((persistFlag == 1 || loadFlag == 1) && chainingOpCount == 0)) {
         rinfo->dagNumberCommands++;
         RAI_DagOp *currentDagOp = NULL;
-        dagInit(&currentDagOp);
+        RAI_InitDagOp(&currentDagOp);
         array_append(rinfo->dagOps, currentDagOp);
       }
       chainingOpCount++;

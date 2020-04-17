@@ -38,7 +38,10 @@ typedef struct RAI_DagOp {
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
  * failed.
  */
-int dagInit(RAI_DagOp **result);
+int RAI_InitDagOp(RAI_DagOp **result);
+
+void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp );
+
 
 /**
  * This structure represents the context in which RedisAI blocking commands
@@ -72,6 +75,30 @@ typedef struct RedisAI_RunInfo {
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
  * failed.
  */
-int runInfoInit(RedisAI_RunInfo **result);
+int RAI_InitRunInfo(RedisAI_RunInfo **result);
+
+
+/**
+ * Frees the memory allocated on RedisAI_RunInfo
+ * @param ctx Context in which Redis modules operate
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
+
+/**
+ *
+ * @param rinfo context in which RedisAI blocking command operate.
+ * @return
+ */
+size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
+
+/**
+ *
+ * @param rinfo1 rinfo context 1 in which RedisAI blocking command 1 operates.
+ * @param rinfo2 rinfo context 2 in which RedisAI blocking command 2 operates.
+ * @return
+ */
+int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
+                         struct RedisAI_RunInfo *rinfo2);
 
 #endif /* SRC_RUN_INFO_H_ */

@@ -38,4 +38,6 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail);
 
 void RAI_ClearError(RAI_Error *err);
 
+void RAI_FreeError(RAI_Error *err);
+
 #endif

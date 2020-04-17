@@ -13,21 +13,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 
-/**
- *
- * @param rinfo context in which RedisAI blocking command operate.
- * @return
- */
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
 
-/**
- *
- * @param rinfo1
- * @param rinfo2
- * @return
- */
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2);
 
 /**
  * Actual method running the MODELRUN and SCRIPTRUN Commands in the background
@@ -59,23 +45,17 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
  * by RedisModule_UnblockClient() call after
  * RAI_ModelRunScriptRunSession()
  *
- * @param ctx
+ * @param ctx Context in which Redis modules operate
  * @param rinfo
  */
 void RedisAI_FreeData(RedisModuleCtx *ctx, void *rinfo);
 
 /**
  *
- * @param ctx
+ * @param ctx Context in which Redis modules operate
  * @param bc
  */
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
-/**
- *
- * @param ctx
- * @param rinfo
- */
-void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
 
 #endif /* SRC_MODEL_SCRIPT_RUN_SESSION_H_ */
