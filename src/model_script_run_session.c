@@ -1,6 +1,5 @@
 #include "model_script_run_session.h"
 
-
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
@@ -13,7 +12,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo* rinfo) {
+size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
   if (rinfo->mctx == NULL) {
     return -1;
   }
@@ -27,7 +26,7 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo* rinfo) {
   }
 
   for (size_t i = 0; i < ninputs; i++) {
-    RAI_Tensor* input = RAI_ModelRunCtxInputTensor(rinfo->mctx, 0, i);
+    RAI_Tensor *input = RAI_ModelRunCtxInputTensor(rinfo->mctx, i);
 
     if (i == 0) {
       batchsize = RAI_TensorDim(input, 0);
@@ -43,8 +42,8 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo* rinfo) {
   return batchsize;
 }
 
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo* rinfo1,
-                         struct RedisAI_RunInfo* rinfo2) {
+int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
+                         struct RedisAI_RunInfo *rinfo2) {
   if (rinfo1->mctx == NULL || rinfo2->mctx == NULL) {
     return 0;
   }
@@ -53,16 +52,16 @@ int RAI_RunInfoBatchable(struct RedisAI_RunInfo* rinfo1,
     return 0;
   }
 
-  int ninputs1 = RAI_ModelRunCtxNumInputs(rinfo1->mctx);
-  int ninputs2 = RAI_ModelRunCtxNumInputs(rinfo2->mctx);
+  const int ninputs1 = RAI_ModelRunCtxNumInputs(rinfo1->mctx);
+  const int ninputs2 = RAI_ModelRunCtxNumInputs(rinfo2->mctx);
 
   if (ninputs1 != ninputs2) {
     return 0;
   }
 
   for (int i = 0; i < ninputs1; i++) {
-    RAI_Tensor* input1 = RAI_ModelRunCtxInputTensor(rinfo1->mctx, 0, i);
-    RAI_Tensor* input2 = RAI_ModelRunCtxInputTensor(rinfo2->mctx, 0, i);
+    RAI_Tensor *input1 = RAI_ModelRunCtxInputTensor(rinfo1->mctx, i);
+    RAI_Tensor *input2 = RAI_ModelRunCtxInputTensor(rinfo2->mctx, i);
 
     int ndims1 = RAI_TensorNumDims(input1);
     int ndims2 = RAI_TensorNumDims(input2);
@@ -115,53 +114,39 @@ void RedisAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
  * thread Called within `RedisAI_Run_ThreadMain`
  */
 void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
-  if (array_len(batch_rinfo) == 0) {
+  const long long batch_size = array_len(batch_rinfo);
+
+  if (batch_size == 0) {
     return NULL;
   }
 
-  RAI_Error *err;
-  RAI_InitError(&err);
-  long long rtime;
-  int result;
-  RAI_ModelRunCtx *mctx = NULL;
+  RAI_ModelRunCtx **mctxs = NULL;
   RAI_ScriptRunCtx *sctx = NULL;
+
+  RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  long long rtime;
+  int status;
   if (batch_rinfo[0]->mctx) {
-    mctx = RAI_ModelRunCtxCreate(batch_rinfo[0]->mctx->model);
-    for (long long i = 0; i < array_len(batch_rinfo); i++) {
-      int id = RAI_ModelRunCtxAddBatch(mctx);
-      RAI_ModelRunCtxCopyBatch(mctx, id, batch_rinfo[i]->mctx, 0);
+    mctxs = array_new(RAI_ModelRunCtx *, batch_size);
+    for (long long i = 0; i < batch_size; i++) {
+      mctxs = array_append(mctxs, batch_rinfo[i]->mctx);
     }
   } else if (batch_rinfo[0]->sctx) {
-    // No batching for scripts for now
     sctx = batch_rinfo[0]->sctx;
   }
 
   const long long start = ustime();
-  if (mctx) {
-    result = RAI_ModelRun(mctx, err);
+  if (mctxs) {
+    status = RAI_ModelRun(mctxs, err);
   } else if (sctx) {
-    result = RAI_ScriptRun(sctx, err);
+    status = RAI_ScriptRun(sctx, err);
   }
   rtime = ustime() - start;
 
-  for (long long i = 0; i < array_len(batch_rinfo); i++) {
+  for (long long i = 0; i < batch_size; i++) {
     struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
-    if (mctx) {
-      size_t noutputs = RAI_ModelRunCtxNumOutputs(mctx);
-      for (long long o = 0; o < noutputs; o++) {
-        RAI_Tensor *tensor = mctx->batches[i].outputs[o].tensor;
-        if (tensor) {
-          rinfo->mctx->batches[0].outputs[o].tensor =
-              RAI_TensorGetShallowCopy(tensor);
-        } else {
-          rinfo->mctx->batches[0].outputs[o].tensor = NULL;
-        }
-      }
-    } else if (sctx) {
-      // No batching for scripts for now
-    }
 
-    rinfo->result = result;
+    rinfo->result = status;
     rinfo->err = RedisModule_Calloc(1, sizeof(RAI_Error));
     // TODO: add information on whether the call was batched
     // and how large the batch was
@@ -177,8 +162,8 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
     }
   }
 
-  if (mctx) {
-    RAI_ModelRunCtxFree(mctx);
+  if (mctxs) {
+    array_free(mctxs);
   } else if (sctx) {
     // No batching for scripts for now
   }
@@ -204,7 +189,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     rstats = AI_dictGetVal(stats_entry);
   }
 
-  if (rinfo->result==REDISMODULE_ERR) {
+  if (rinfo->result == REDISMODULE_ERR) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
     if (rstats) {
       rstats->calls += 1;
@@ -238,7 +223,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
     RAI_Tensor *t = NULL;
     if (rinfo->mctx) {
-      t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, 0, i);
+      t = RAI_ModelRunCtxOutputTensor(rinfo->mctx, i);
       if (t && batch_size == 0) {
         batch_size = RAI_TensorDim(t, 0);
       }
@@ -265,11 +250,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
-  // FIXME This crashes Redis, we need to investigate.
-  // RedisModule_CloseKey(rinfo->modelkey);
-
   RedisAI_FreeRunInfo(ctx, rinfo);
-
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
