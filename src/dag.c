@@ -213,7 +213,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   AI_dictReleaseIterator(persist_iter);
   RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
-  RAI_FreeRunInfo(ctx,rinfo);
+  RAI_FreeRunInfo(NULL,rinfo);
   return REDISMODULE_OK;
 }
 
@@ -256,7 +256,8 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
             arg_string);
         return -1;
       }
-      AI_dictAdd(*localContextDict, arg_string, t);
+      const char* dictKey=RedisModule_Strdup(arg_string);
+      AI_dictAdd(*localContextDict, dictKey, t);
       number_loaded_keys++;
     }
   }

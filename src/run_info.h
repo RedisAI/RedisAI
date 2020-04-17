@@ -40,8 +40,12 @@ typedef struct RAI_DagOp {
  */
 int RAI_InitDagOp(RAI_DagOp **result);
 
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp );
-
+/**
+ * Frees the memory allocated of RAI_DagOp
+ * @param ctx Context in which Redis modules operate
+ * @param RAI_DagOp context in which RedisAI command operates.
+ */
+void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
 
 /**
  * This structure represents the context in which RedisAI blocking commands
@@ -76,7 +80,6 @@ typedef struct RedisAI_RunInfo {
  * failed.
  */
 int RAI_InitRunInfo(RedisAI_RunInfo **result);
-
 
 /**
  * Frees the memory allocated on RedisAI_RunInfo

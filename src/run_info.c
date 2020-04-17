@@ -86,9 +86,18 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   return REDISMODULE_OK;
 }
 
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp ){
-  if(dagOp){
-      
+void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
+  if (dagOp) {
+    RAI_FreeError(dagOp->err);
+    if (dagOp->argv) {
+      for (size_t i = 0; i < array_len(dagOp->argv); i++) {
+        RedisModule_FreeString(ctx, dagOp->argv[i]);
+      }
+      array_free(dagOp->argv);
+    }
+    //dagOp->outkeys is released on all argv release above
+    //dagOp->outTensors is released on RunInfo after checking what tensors to persist
+    RedisModule_Free(dagOp);
   }
 }
 
