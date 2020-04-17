@@ -67,7 +67,9 @@ typedef struct RedisAI_RunInfo {
   // DAG
   int use_local_context;
   AI_dict *dagTensorsContext;
-  AI_dict *dagTensorsPersistentContext;
+  AI_dict *dagTensorsPersistentContext;  // dict to flag tensors to persist
+  AI_dict *
+      dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
   RAI_DagOp **dagOps;
   int dagReplyLength;
   int dagNumberCommands;

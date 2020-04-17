@@ -37,6 +37,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
+ * @param loadedContextDict local non-blocking hash table containing key names
+ * loaded from the keyspace tensors
  * @param localContextDict local non-blocking hash table containing DAG's
  * tensors
  * @param chaining_operator operator used to split operations. Any command
@@ -44,7 +46,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc, AI_dict **localContextDict,
+                         int argc, AI_dict **loadedContextDict,
+                         AI_dict **localContextDict,
                          const char *chaining_operator);
 
 /**

@@ -66,6 +66,38 @@ def test_dag_common_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("ERR unsupported command within DAG",exception.__str__())
 
+    # ERR wrong number of arguments for 'AI.DAGRUN' command
+    try:
+        command = "AI.DAGRUN "
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.DAGRUN' command",exception.__str__())
+
+    # ERR invalid or negative value found in number of keys to PERSIST
+    try:
+        command = "AI.DAGRUN PERSIST notnumber |> "\
+                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to PERSIST",exception.__str__())
+
+    # ERR invalid or negative value found in number of keys to LOAD
+    try:
+        command = "AI.DAGRUN LOAD notnumber |> "\
+                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
+
 
 def test_dag_modelrun_financialNet_errors(env):
     con = env.getConnection()

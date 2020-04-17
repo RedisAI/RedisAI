@@ -867,22 +867,22 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (!strcasecmp(arg_string, "LOAD")) {
       loadFlag=1;
       const int parse_result = RAI_parseDAGLoadArgs(
-          ctx, &argv[argpos], argc - argpos, &(rinfo->dagTensorsContext), "|>");
+          ctx, &argv[argpos], argc - argpos,&(rinfo->dagTensorsLoadedContext), &(rinfo->dagTensorsContext), "|>");
       if (parse_result > 0) {
         argpos += parse_result - 1;
       } else {
-        // TODO: clean temp structures
+        RAI_FreeRunInfo(ctx,rinfo);
         return REDISMODULE_ERR;
       }
     } else if (!strcasecmp(arg_string, "PERSIST")) {
-      persistFlag=1;
+      persistFlag = 1;
       const int parse_result =
           RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
                                   &(rinfo->dagTensorsPersistentContext), "|>");
       if (parse_result > 0) {
         argpos += parse_result - 1;
       } else {
-        // TODO: clean temp structures
+        RAI_FreeRunInfo(ctx, rinfo);
         return REDISMODULE_ERR;
       }
     } else if (!strcasecmp(arg_string, "|>")) {
@@ -912,16 +912,16 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
                                                     &mto, REDISMODULE_READ);
         if (status == REDISMODULE_ERR) {
-          // TODO: clean temp structures
+          RAI_FreeRunInfo(ctx,rinfo);
           return REDISMODULE_ERR;
         } 
         if (deviceStr==NULL){
           deviceStr=mto->devicestr;
         }else{
           // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(mto->devicestr, deviceStr)!=0){
-            // TODO: clean temp structures
-            RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");
+          if(strcasecmp(mto->devicestr, deviceStr)!=0){            
+            RAI_FreeRunInfo(ctx,rinfo);
+            return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
         }
         rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
@@ -941,7 +941,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   // If the queue does not exist, initialize it
   if (ensureRunQueue(deviceStr,&run_queue_info) == REDISMODULE_ERR) {
-    // TODO: clean temp structures
+    RAI_FreeRunInfo(ctx,rinfo);
     return RedisModule_ReplyWithError(
         ctx, "ERR Queue not initialized for device");
   }

@@ -71,6 +71,10 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!(rinfo->dagTensorsContext)) {
     return REDISMODULE_ERR;
   }
+  rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  if (!(rinfo->dagTensorsLoadedContext)) {
+    return REDISMODULE_ERR;
+  }
   rinfo->dagTensorsPersistentContext =
       AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
   if (!(rinfo->dagTensorsPersistentContext)) {
@@ -129,7 +133,10 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
         // if the key is persistent then we should not delete it
         AI_dictEntry *persistent_entry =
             AI_dictFind(rinfo->dagTensorsPersistentContext, key);
-        if (!persistent_entry) {
+        // if the key was loaded from the keyspace then we should not delete it
+        AI_dictEntry *loaded_entry =
+            AI_dictFind(rinfo->dagTensorsLoadedContext, key);
+        if (persistent_entry == NULL && loaded_entry == NULL) {
           RAI_TensorFree(tensor);
         }
       }

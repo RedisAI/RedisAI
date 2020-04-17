@@ -32,7 +32,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         if (parse_result > 0) {
           const char *key_string =
               RedisModule_StringPtrLen(currentOp->argv[1], NULL);
-              const char* dictKey=RedisModule_Strdup(key_string);
+          const char *dictKey = RedisModule_Strdup(key_string);
           AI_dictReplace(rinfo->dagTensorsContext, dictKey, t);
           currentOp->result = REDISMODULE_OK;
         } else {
@@ -77,7 +77,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
             if (tensor) {
               const char *key_string = RedisModule_StringPtrLen(
                   currentOp->outkeys[outputNumber], NULL);
-              const char* dictKey=RedisModule_Strdup(key_string);
+              const char *dictKey = RedisModule_Strdup(key_string);
               AI_dictReplace(rinfo->dagTensorsContext, dictKey, tensor);
             } else {
               RAI_SetError(currentOp->err, RAI_EMODELRUN,
@@ -215,7 +215,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   AI_dictReleaseIterator(persist_iter);
   RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
-  RAI_FreeRunInfo(ctx,rinfo);
+  RAI_FreeRunInfo(ctx, rinfo);
   return REDISMODULE_OK;
 }
 
@@ -223,7 +223,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
  */
 int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc, AI_dict **localContextDict,
+                         int argc, AI_dict **loadedContextDict,
+                         AI_dict **localContextDict,
                          const char *chaining_operator) {
   if (argc < 3) {
     RedisModule_WrongArity(ctx);
@@ -259,8 +260,10 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
         return -1;
       }
       RedisModule_CloseKey(key);
-      const char* dictKey=RedisModule_Strdup(arg_string);
+      const char *dictKey = RedisModule_Strdup(arg_string);
       AI_dictAdd(*localContextDict, dictKey, t);
+      const char *keyspacePersistKey = RedisModule_Strdup(dictKey);
+      AI_dictAdd(*loadedContextDict, keyspacePersistKey, (void *)1);
       number_loaded_keys++;
     }
   }
@@ -275,7 +278,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
  * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
  */
 int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
-                            int argc, AI_dict **localContextDict,
+                            int argc, AI_dict **persistContextDict,
                             const char *chaining_operator) {
   if (argc < 3) {
     RedisModule_WrongArity(ctx);
@@ -286,21 +289,22 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   const int retval = RedisModule_StringToLongLong(argv[1], &n_keys);
   if (retval != REDISMODULE_OK || n_keys <= 0) {
     RedisModule_ReplyWithError(
-        ctx, "ERR invalid or negative value found in number of keys to LOAD");
+        ctx,
+        "ERR invalid or negative value found in number of keys to PERSIST");
     return -1;
   }
 
   int number_loaded_keys = 0;
   int separator_flag = 0;
   size_t argpos = 2;
-  for (; (argpos <= argc - 1) && (number_loaded_keys < n_keys); argpos++) {
+  for (; (argpos < argc) && (number_loaded_keys < n_keys); argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, chaining_operator)) {
       separator_flag = 1;
       break;
     } else {
-      const char* key=RedisModule_Strdup(arg_string);
-      AI_dictAdd(*localContextDict, key, (void *)1);
+      const char *key = RedisModule_Strdup(arg_string);
+      AI_dictAdd(*persistContextDict, key, (void *)1);
       number_loaded_keys++;
     }
   }
