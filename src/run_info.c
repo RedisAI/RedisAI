@@ -153,10 +153,12 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     RedisModule_Free(rinfo->dagTensorsPersistentContext);
   }
 
-  for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
-    RAI_FreeDagOp(ctx, rinfo->dagOps[i]);
+  if (rinfo->dagOps) {
+    for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
+      RAI_FreeDagOp(ctx, rinfo->dagOps[i]);
+    }
+    array_free(rinfo->dagOps);
   }
-  array_free(rinfo->dagOps);
 
   if (rinfo->outkeys) {
     for (size_t i = 0; i < array_len(rinfo->outkeys); i++) {
