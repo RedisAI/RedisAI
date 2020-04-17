@@ -47,6 +47,8 @@
 
 #include "../redisai_memory.h"
 
+#include "siphash.c.inc"
+
 static uint64_t stringsHashFunction(const void *key){
     return AI_dictGenHashFunction(key, strlen((char*)key));
 }

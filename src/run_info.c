@@ -25,7 +25,7 @@ int RAI_InitDagOp(RAI_DagOp **result) {
   if (!(dagOp->outkeys)) {
     return REDISMODULE_ERR;
   }
-  dagOp->outTensors = (RAI_Tensor *)array_new(RAI_Tensor, 1);
+  dagOp->outTensors = (RAI_Tensor **)array_new(RAI_Tensor*, 1);
   if (!(dagOp->outTensors)) {
     return REDISMODULE_ERR;
   }
@@ -127,7 +127,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
     while (stats_entry) {
       tensor = AI_dictGetVal(stats_entry);
-      const char *key = (char *)AI_dictGetKey(stats_entry);
+      char *key = (char *)AI_dictGetKey(stats_entry);
 
       if (tensor) {
         // if the key is persistent then we should not delete it
@@ -152,7 +152,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
         AI_dictGetSafeIterator(rinfo->dagTensorsPersistentContext);
     AI_dictEntry *stats_entry = AI_dictNext(iter);
     while (stats_entry) {
-      const char *key = (char *)AI_dictGetKey(stats_entry);
+      char *key = (char *)AI_dictGetKey(stats_entry);
       RedisModule_Free(key);
       stats_entry = AI_dictNext(iter);
     }

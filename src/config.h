@@ -132,7 +132,7 @@ int RedisAI_Config_IntraOperationParallelism(
  * @param val
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
-int RAI_configParamParse(const RedisModuleCtx *ctx, const char *key,
+int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
                          const char *val, RedisModuleString *rsval);
 
 /**
@@ -143,7 +143,7 @@ int RAI_configParamParse(const RedisModuleCtx *ctx, const char *key,
  * @param argc Redis command number of arguments
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
  */
-int RAI_loadTimeConfig(const RedisModuleCtx *ctx,
+int RAI_loadTimeConfig(RedisModuleCtx *ctx,
                        RedisModuleString *const *argv, int argc);
 
 #endif /* SRC_CONFIG_H_ */

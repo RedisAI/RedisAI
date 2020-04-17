@@ -1,5 +1,4 @@
 import redis
-from redisai import convert, utils
 
 from includes import *
 
@@ -138,14 +137,14 @@ def test_dag_local_tensorset(env):
     con = env.getConnection()
 
     command = "AI.DAGRUN "\
-        "AI.TENSORSET volative_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
-        "AI.TENSORSET volative_tensor2 FLOAT 1 2 VALUES 5 10 "
+        "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK',b'OK'])
 
     # assert that transaction tensor does not exist
-    ret = con.execute_command("EXISTS volative_tensor")
+    ret = con.execute_command("EXISTS volatile_tensor")
     env.assertEqual(ret, 0 )
 
 def test_dag_local_tensorset_persist(env):
@@ -245,8 +244,8 @@ def test_dag_load_persist_tensorset_tensorget(env):
         "AI.TENSORSET persisted_tensor_2 FLOAT 1 3 VALUES 0 0 0")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volative_tensor_persisted |> "\
-        "AI.TENSORSET volative_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
+    command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volatile_tensor_persisted |> "\
+        "AI.TENSORSET volatile_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET persisted_tensor_1 VALUES |> "\
         "AI.TENSORGET persisted_tensor_2 VALUES "
 
@@ -254,7 +253,7 @@ def test_dag_load_persist_tensorset_tensorget(env):
     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
                     b'FLOAT', [1, 3], [b'0', b'0', b'0']]])
 
-    ret = con.execute_command("AI.TENSORGET volative_tensor_persisted VALUES")
+    ret = con.execute_command("AI.TENSORGET volatile_tensor_persisted VALUES")
     env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
 
 
@@ -262,8 +261,8 @@ def test_dag_local_tensorset_tensorget(env):
     con = env.getConnection()
 
     command = "AI.DAGRUN "\
-        "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
-        "AI.TENSORGET volative_tensor VALUES"
+        "AI.TENSORSET volatile_tensor FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORGET volatile_tensor VALUES"
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
@@ -291,9 +290,9 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
     env.assertEqual(ret, b'OK')
 
     command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
-        "AI.TENSORSET volative_tensor FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORSET volatile_tensor FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET persisted_tensor VALUES |> "\
-        "AI.TENSORGET volative_tensor VALUES"
+        "AI.TENSORGET volatile_tensor VALUES"
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
@@ -405,14 +404,12 @@ def test_dag_modelrun_financialNet_no_writes(env):
                 'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'VALUES'
             )
             env.assertEqual(4, len(ret))
-            env.assertEqual([b'OK',b'OK'],ret[:2])
-            env.assertEqual([b'FLOAT', [1, 2]],ret[2])
-            values_tensor = ret[3]
-            dtype, shape = utils.to_string(values_tensor[0]), values_tensor[1]
-            classification_tensor = convert.to_sequence(values_tensor[2], shape, dtype)
+            env.assertEqual([b'OK',b'OK'], ret[:2])
+            env.assertEqual([b'FLOAT', [1, 2]], ret[2])
+            dtype, shape, values = ret[3]
             # Assert that resulting classification is within [0,1]
-            env.assertEqual(True, classification_tensor.value[0]>=0 and classification_tensor.value[0]<=1)
-            env.assertEqual(True, classification_tensor.value[1]>=0 and classification_tensor.value[1]<=1)
+            env.assertEqual(True, 0 <= float(values[0]) <= 1)
+            env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
             # assert that transactionTensor does not exist
             ret = con.execute_command("EXISTS transactionTensor:{}".format(
@@ -462,12 +459,10 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
         env.assertEqual([b'FLOAT', [1, 2]],ret[2][:2])
         env.assertEqual(b'OK',ret[3])
         env.assertEqual([b'FLOAT', [1, 2]],ret[4][:2])
-        for rawClassificationTensor in [ret[2],ret[4]]:
-            dtype, shape = utils.to_string(rawClassificationTensor[0]), rawClassificationTensor[1]
-            classification_tensor = convert.to_sequence(rawClassificationTensor[2], shape, dtype)
+        for dtype, shape, values in [ret[2], ret[4]]:
             # Assert that resulting classification is within [0,1]
-            env.assertEqual(True, classification_tensor.value[0]>=0 and classification_tensor.value[0]<=1)
-            env.assertEqual(True, classification_tensor.value[1]>=0 and classification_tensor.value[1]<=1)
+            env.assertEqual(True, 0 <= float(values[0]) <= 1)
+            env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
         # assert that transactionTensor does not exist
         ret = con.execute_command("EXISTS transactionTensor:{}".format(
