@@ -77,6 +77,10 @@ __pycache__
 *.idb
 *.pdb
 
+# Debug/Profile files
+# ignore perf html reports
+*.html 
+
 # Kernel Module Compile Results
 *.mod*
 *.cmd

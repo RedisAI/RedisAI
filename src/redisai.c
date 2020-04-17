@@ -26,6 +26,7 @@
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
 
+// rax *BlockedClients;                /* 'bc' pointer -> list of queues. */
 
 /* ----------------------- RedisAI Module Commands ------------------------- */
 
