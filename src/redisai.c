@@ -431,7 +431,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
 
   const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(ctx, argv,
-                                   argc, &rinfo->mctx, &rinfo->outkeys, &mto, 0, NULL, 0, NULL, NULL);
+                                   argc, &(rinfo->mctx), &(rinfo->outkeys), &mto, 0, NULL, 0, NULL, NULL);
   RedisModule_CloseKey(modelKey);
   // if the number of parsed args is negative something went wrong
   if(parse_result<0){

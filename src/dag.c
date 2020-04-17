@@ -256,6 +256,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
             arg_string);
         return -1;
       }
+      RedisModule_CloseKey(key);
       const char* dictKey=RedisModule_Strdup(arg_string);
       AI_dictAdd(*localContextDict, dictKey, t);
       number_loaded_keys++;
