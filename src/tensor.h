@@ -48,7 +48,6 @@ DLDataType RAI_TensorDataTypeFromString(const char* dataType);
 int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr);
 void RAI_TensorFree(RAI_Tensor* t);
 int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len);
-int RAI_TensorSetDataFromRS(RAI_Tensor* t, RedisModuleString* rs);
 int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val);
 int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val);
 int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val);

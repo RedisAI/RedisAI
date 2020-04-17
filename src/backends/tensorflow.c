@@ -482,7 +482,6 @@ int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
     for (size_t b=0; b<nbatches; ++b) {
       batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
     }
-    // inputTensorsValues[i] = RAI_TFTensorFromTensor(mctx->inputs[i].tensor);
     inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
     TF_Output port;
     port.oper = TF_GraphOperationByName(mctxs[0]->model->model, mctxs[0]->inputs[i].name);
@@ -524,20 +523,10 @@ int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
 
   for(size_t i=0; i<noutputs; ++i) {
     for (size_t b=0; b<nbatches; b++) {
-      RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
-      mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-      RAI_TensorFree(output_tensor);
+      mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
     }
     TF_DeleteTensor(outputTensorsValues[i]);
   }
-
-  // TODO: add (make sure we deallocate once)
-  // for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
-  //   TF_DeleteTensor(inputTensorsValues[i]);
-  // }
-  // for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
-  //   TF_DeleteTensor(outputTensorsValues[i]);
-  // }
 
   TF_DeleteStatus(status);
 

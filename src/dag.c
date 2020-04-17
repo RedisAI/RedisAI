@@ -119,7 +119,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->dagReplyLength++;
         if (currentOp->result == REDISMODULE_ERR) {
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-          RAI_ClearError(currentOp->err);
         } else {
           RedisModule_ReplyWithSimpleString(ctx, "OK");
         }
@@ -130,7 +129,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->dagReplyLength++;
         if (currentOp->result == REDISMODULE_ERR) {
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-          RAI_ClearError(currentOp->err);
         } else {
           if (array_len(currentOp->outTensors) > 0) {
             RAI_Tensor *tensor = currentOp->outTensors[0];
@@ -148,7 +146,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->dagReplyLength++;
         if (currentOp->result == REDISMODULE_ERR) {
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-          RAI_ClearError(currentOp->err);
         } else {
           RedisModule_ReplyWithSimpleString(ctx, "OK");
         }
@@ -218,7 +215,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   AI_dictReleaseIterator(persist_iter);
   RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
-  RAI_FreeRunInfo(NULL,rinfo);
+  RAI_FreeRunInfo(ctx,rinfo);
   return REDISMODULE_OK;
 }
 

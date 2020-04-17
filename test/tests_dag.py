@@ -67,6 +67,41 @@ def test_dag_common_errors(env):
         env.assertEqual("ERR unsupported command within DAG",exception.__str__())
 
 
+def test_dag_modelrun_financialNet_errors(env):
+    con = env.getConnection()
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
+        env)
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    tensor_number=1
+    ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 256,
+                                  'BLOB', creditcard_referencedata[0].tobytes())
+    env.assertEqual(ret, b'OK')
+    
+
+    # ERR wrong number of inputs
+    try:
+        tensor_number=1
+        ret = con.execute_command(
+        'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
+                        'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
+        'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30, '|>',
+        'AI.MODELRUN', 'financialNet', 
+                        'INPUTS', 'transactionTensor:{}'.format(tensor_number),
+                        'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
+        'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META',
+    )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+
+        
+
 def test_dag_local_tensorset(env):
     con = env.getConnection()
 
