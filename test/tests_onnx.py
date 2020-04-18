@@ -346,6 +346,7 @@ def test_onnx_model_rdb_save_load(env):
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
 
+    ensureSlaveSynced(con, env)
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
 
