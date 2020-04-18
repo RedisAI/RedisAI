@@ -209,6 +209,12 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
 
 int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
                          struct RedisAI_RunInfo *rinfo2) {
+
+  // DAG case
+  if (rinfo1->use_local_context == 1 || rinfo2->use_local_context == 1) {
+    return 0;
+  }
+
   if (rinfo1->mctx == NULL || rinfo2->mctx == NULL) {
     return 0;
   }
