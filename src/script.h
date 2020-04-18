@@ -22,5 +22,11 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx);
 
 int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err);
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script);
+/* Return REDISMODULE_ERR if there was an error getting the Script.
+ * Return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable. */
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key, RAI_Script **script,
+                              int mode);
 
 #endif /* SRC_SCRIPT_H_ */
