@@ -78,7 +78,11 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
 void *RedisAI_Run_ThreadMain(void *arg) {
   RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
   pthread_t self = pthread_self();
+#ifdef __APPLE__
+  int res = pthread_setname_np("redisai_bthread");
+#else
   int res = pthread_setname_np(self, "redisai_bthread");
+#endif
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   while (true) {
     int rc = pthread_cond_wait(&run_queue_info->queue_condition_var,

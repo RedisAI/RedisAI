@@ -33,7 +33,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
           const char *key_string =
               RedisModule_StringPtrLen(currentOp->argv[1], NULL);
           const char *dictKey = RedisModule_Strdup(key_string);
-          AI_dictReplace(rinfo->dagTensorsContext, dictKey, t);
+          AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, t);
           currentOp->result = REDISMODULE_OK;
         } else {
           currentOp->result = REDISMODULE_ERR;
@@ -78,7 +78,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
               const char *key_string = RedisModule_StringPtrLen(
                   currentOp->outkeys[outputNumber], NULL);
               const char *dictKey = RedisModule_Strdup(key_string);
-              AI_dictReplace(rinfo->dagTensorsContext, dictKey, tensor);
+              AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, tensor);
             } else {
               RAI_SetError(currentOp->err, RAI_EMODELRUN,
                            "ERR output tensor on DAG's MODELRUN was null");
@@ -261,9 +261,9 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
       RedisModule_CloseKey(key);
       const char *dictKey = RedisModule_Strdup(arg_string);
-      AI_dictAdd(*localContextDict, dictKey, t);
+      AI_dictAdd(*localContextDict, (void*)dictKey, t);
       const char *keyspacePersistKey = RedisModule_Strdup(dictKey);
-      AI_dictAdd(*loadedContextDict, keyspacePersistKey, (void *)1);
+      AI_dictAdd(*loadedContextDict, (void*)keyspacePersistKey, (void *)1);
       number_loaded_keys++;
     }
   }
@@ -304,7 +304,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       break;
     } else {
       const char *key = RedisModule_Strdup(arg_string);
-      AI_dictAdd(*persistContextDict, key, (void *)1);
+      AI_dictAdd(*persistContextDict, (void*)key, (void *)1);
       number_loaded_keys++;
     }
   }
