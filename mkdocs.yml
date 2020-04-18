@@ -1,4 +1,4 @@
-site_name: RedisAI - A Redis module for serving Deep learning and Machine learning models.
+site_name: RedisAI - A Server for Maching and Deep Learning Models
 site_url: http://redisai.io
 repo_url: https://github.com/RedisAI/RedisAI
 repo_name: RedisAI/RedisAI
@@ -27,14 +27,20 @@ extra_javascript:
   - 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML'
 
 nav:
-  - 'Quickstart': index.md
+  - 'Home': index.md
+  - 'Introduction': intro.md
+  - 'Quickstart': quickstart.md
   - 'Commands': commands.md
-  - 'Backend': dataandbackend.md
-  - 'Configuration': configuring.md
+  - 'Clients': clients.md
+  - 'Configuration': configuration.md
+  - 'Performance': performance.md
+  - 'Examples': examples.md
 
 markdown_extensions:
   - admonition
   - pymdownx.arithmatex
+  - pymdownx.details
+  - pymdownx.superfences
   - codehilite:
       guess_lang: False
   - toc:

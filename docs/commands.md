@@ -27,7 +27,7 @@ AI.TENSORSET <key> <type>
 _Arguments_
 
 * **key**: the tensor's key name
-* **type**: the tensor's data type can be one of: 'FLOAT', 'DOUBLE', 'INT8', 'INT16', 'INT32', 'INT64', 'UINT8' or 'UINT16'
+* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8` or `UINT16`
 * **shape**: one or more dimensions, or the number of elements per axis, for the tensor
 * **BLOB**: indicates that data is in binary format and is provided via the subsequent `data` argument
 * **VALUES**: indicates that data is numeric and is provided by one or more subsequent `val` arguments
@@ -321,7 +321,7 @@ def addtwo(a, b):
 It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
 ```
-$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU TAG myscript:v0.1
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG myscript:v0.1
 OK
 ```
 
@@ -466,7 +466,7 @@ redis> > AI._SCRIPTLIST
 ## AI.INFO
 The **`AI.INFO`** command returns information about the execution a model or a script.
 
-Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`]|(#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
+Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
 
 **Redis API**
 
@@ -520,7 +520,54 @@ redis> AI.INFO myscript
 
 The runtime statistics for that script can be reset like so:
 
-```sql
+```
 redis> AI.INFO myscript RESETSTAT
+OK
+```
+
+## AI.CONFIG
+The **AI.CONFIG** command sets the value of configuration directives at run-time, and allows loading DL/ML backends dynamically.
+
+!!! info "Loading DL/ML Backends at Bootstrap"
+    Instead of loading your backends dynamically, you can have RedisAI load them during bootstrap. See the [Configuration page](configuration.md) for more information.
+
+**Redis API**
+```
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>>
+```
+
+_Arguments_
+
+* **BACKENDSPATH**: Specifies the default base backends path to `path`. The backends path is used when dynamically loading a backend (default: '{module_path}/backends', where `module_path` is the module's path).
+* **LOADBACKEND**: Loads the DL/ML backend specified by the `backend` identifier from `path`. If `path` is relative, it is resolved by prefixing the `BACKENDSPATH` to it. If `path` is absolute then it is used as is. The `backend` can be one of:
+    * **TF**: the TensorFlow backend
+    * **TFLITE**: The TensorFlow Lite backend
+    * **TORCH**: The PyTorch backend
+    * **ONNX**: ONNXRuntime backend
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+The following sets the default backends path to '/usr/lib/redis/modules/redisai/backends':
+
+```
+redis> AI.CONFIG BACKENDSPATH /usr/lib/redis/modules/redisai/backends
+OK
+```
+
+This loads the PyTorch backend with a path relative to `BACKENDSPATH`:
+
+```
+redis> AI.CONFIG LOADBACKEND TORCH redisai_torch/redisai_torch.so
+OK
+```
+
+This loads the PyTorch backend with a full path:
+
+```
+redis> AI.CONFIG LOADBACKEND TORCH /usr/lib/redis/modules/redisai/backends/redisai_torch/redisai_torch.so
 OK
 ```
