@@ -463,6 +463,58 @@ redis> > AI._SCRIPTLIST
    2) "myscript:v0.1"
 ```
 
+## AI.DAGRUN
+The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations ( for now we only allow chaining ) to run within RedisAI. 
+It accepts one or more operations, split by the pipe-forward operator (`|>`). 
+
+
+By default, the DAG execution context is local, meaning that loading and persisting tensors should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
+
+When `PERSIST` is not present, object savings are done locally and kept only during the context of the DAG meaning that no output keys are open.
+
+As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining. 
+
+
+**Redis API**
+
+```
+AI.DAGRUN [LOAD <number keys> <key 1> ... <key n>]
+          [PERSIST <number keys> <key 1> ... <key n>] |>
+          [command 1] |>  [command 2] |> [command n]
+```
+
+_Arguments_
+
+* **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
+* **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
+* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of the supported RedisAI commands ( for now `AI.TENSORGET`, `AI.TENSORGET`, and `AI.MODELRUN` ). Command spliting is done by the presence of another `|>`.
+
+_Return_
+
+An array with an entry reply per command. Each entry format respects the specified command reply.
+
+**Examples**
+
+Assuming that running the model that's stored at 'mymodel', we define a temporary tensor 'mytensor' and use it as input, and persist only one of the two outputs - discarding 'classes' and persisting 'predictions'. In the same command return the tensor value of 'predictions'.  The following command does that:
+
+
+```
+redis> AI.DAGRUN PERSIST 1 predictions |>
+          AI.TENSORSET mytensor FLOAT 1 2 VALUES 5 10 |>
+          AI.MODELRUN mymodel INPUTS mytensor OUTPUTS classes predictions |>
+          AI.TENSORGET predictions VALUES
+1) OK
+2) OK
+3) 1) FLOAT
+   2) 1) (integer) 2
+      2) (integer) 2
+   3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+```
+
+!!! warning "Intermediate memory overhead"
+    The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+
 ## AI.INFO
 The **`AI.INFO`** command returns information about the execution a model or a script.
 
