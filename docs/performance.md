@@ -4,7 +4,7 @@ To get an early sense of what RedisAI is capable of, you can test it with [`redi
 any other Redis command. However, in order to have more control over the tests, we'll use a 
 a tool written in Go called [_AIBench_](https://github.com/RedisAI/aibench). 
 
-This page is intended to provide clarity on how to obtain the benchmark numbers, and links to the most recent results. We encourage developers, data scientists, and architects to run these benchmarks for themselves on their particular hardware ,datasets, and Model Servers and pull request this documentation with links for the actual numbers.
+This page is intended to provide clarity on how to obtain the benchmark numbers, and links to the most recent results. We encourage developers, data scientists, and architects to run these benchmarks for themselves on their particular hardware,datasets, and Model Servers and pull request this documentation with links for the actual numbers.
 
 
 
@@ -30,10 +30,35 @@ Following the previously described, the predictive model to be developed is a ne
 ### Understanding the benchmark phases
 
 Benchmarking inference performance has four phases: 
-- **Model setup**: This step is specific for each DL solution being tested (see the benchmark GitHub repo for detailed deployment info for each supported DL solution).
-- **Transaction data parsing and reference data generation**: To keep benchmarking results from being affected by generating data on the fly, the proposed benchmark suite can generate the data required for the inference benchmarks first, and we can then use it as input to the benchmarking and reference data-loading phases. All inference benchmarks use the same dataset, together with random deterministic reference data if using the same random seed.
-- **Reference data loading**: The reference data that defines and describes the financial transactions already resides on a datastore common to all benchmarks. We use Redis as the primary datastore for the inference benchmarks.
-- **Inference query execution**: This phase looks at the achievable inference throughput of each Model Serving solution and performs a full percentile inference latency analysis. The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis). They all share the same flow of requests, as described below.
+
+ - **Model setup**: This step is specific for each DL solution being tested (see the benchmark GitHub repo for detailed deployment info for each supported DL solution).
+
+ - **Transaction data parsing and reference data generation**: To keep benchmarking results from being affected by generating data on the fly, the proposed benchmark suite can generate the data required for the inference benchmarks first, and we can then use it as input to the benchmarking and reference data-loading phases. All inference benchmarks use the same dataset, together with random deterministic reference data if using the same random seed.
+
+ - **Reference data loading**: The reference data that defines and describes the financial transactions already resides on a datastore common to all benchmarks. We use Redis as the primary datastore for the inference benchmarks.
+
+ - **Inference query execution**: This phase looks at the achievable inference throughput of each Model Serving solution and performs a full percentile inference latency analysis. Model serving with and without reference data is supported across all solution to enable a deeper insight on the overall weight of the reference data and the extra network hop to fetch it.
+ 
+
+### Inference query execution diagrams per Model Serving Solution
+
+The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis).
+  
+Bellow you can find a simplified version of the diagrams, including both tests cases ( with and without reference data).
+
+
+#### RedisAI
+
+![RedisAI Model Serving Solution Diagram](images/redisai_modelserver.png "RedisAI Model Serving Solution Diagram")
+
+
+#### TFServing + Redis
+
+![TFServing + Redis Model Serving Solution Diagram](images/tfs_modelserver.png "TFServing + Redis Model Serving Solution Diagram")
+
+#### Rest API + Redis
+
+![Rest API + Redis Model Serving Solution Diagram](images/flask_modelserver.png "Rest API + Redis Model Serving Solution Diagram")
 
 
 ### Model Serving optimizations
@@ -46,7 +71,7 @@ Some Model Servers have components that are lazily initialized, which can increa
 
 Specifically for TensorFlow serving we’ve achieved a better configuration that enabled for higher inference throughput by setting the inter_op_parallelism_threads option to 4 (enabling us to parallelize operations that have sub-operations that are inherently independent up to a degree of 4 concurrent sub-operations). We improved TensorFlow serving intra_op_parallelism_threads results by allowing the tool to adjust with the default behaviour. 
 
-For RedisAI, we maximized inference throughput by configuring the number of shards on Redis Enterprise to 4 and the number of threads per shard to 2.
+For RedisAI, we maximized inference throughput by limiting the inter-op and intra-op parallelism to 1 per shard, meaning that each added redis standalone instance/shard has an associated backend thread, in a shared-nothing architecture - a strategy that allows to maximize the hardware usage, and maintain a linear scalability both on vertical and horizontal flavours.
 
 For the standard web API Model Server, setting Gunicorn worker processes number to 24 for handling concurrent requests resulted in the highest inference throughput.
 
