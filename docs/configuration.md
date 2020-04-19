@@ -65,6 +65,55 @@ redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
                BACKENDSPATH /usr/lib/backends
 ```
 
+
+### INTER_OP_PARALLELISM
+The **INTER_OP_PARALLELISM** configuration option sets the number of threads used for parallelism between independent operations, by backend libraries. By default, 0 means RedisAI will not enforce a configuration and use the default configuration for each backend library.
+
+_Expected Value_
+
+An Integer greater or equal than zero.
+
+_Default Value_
+
+0
+
+_Runtime Configurability_
+
+Not supported.
+
+**Examples**
+
+To set the number of threads used for parallelism between independent operations to 1, when loading the module from command line use the following:
+
+```sh
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               INTER_OP_PARALLELISM 1
+```
+
+### INTRA_OP_PARALLELISM
+The **INTRA_OP_PARALLELISM** configuration option sets the number of threads used within an individual operation, by backend libraries. By default, 0 means RedisAI will not enforce a configuration and use the default configuration for each backend library.
+
+_Expected Value_
+
+An Integer greater or equal than zero.
+
+_Default Value_
+
+0
+
+_Runtime Configurability_
+
+Not supported.
+
+**Examples**
+
+To set the number of threads used within an individual operation to 1, when loading the module from command line use the following:
+
+```sh
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               INTRA_OP_PARALLELISM 1
+```
+
 ### TF, TFLITE, TORCH and ONNX
 The **TF**, **TFLITE**, **TORCH** and **ONNX** configuration options load the TensorFlow, TensorFlow Lite, PyTorch and ONNXRuntime backend libraries, respectively.
 
