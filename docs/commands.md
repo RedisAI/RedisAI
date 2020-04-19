@@ -41,20 +41,76 @@ AI.TENSORSET foo FLOAT 2 2 VALUES 1 2 3 4
 Get a tensor.
 
 ```sql
-AI.TENSORGET tensor_key [BLOB | VALUES | META]
+AI.TENSORGET tensor_key [META] [BLOB | VALUES]
 ```
 
 * tensor_key - Key for the tensor
+* META - Return tensor meta data (data type and shape)
 * BLOB - Return tensor content as a binary buffer
 * VALUES - Return tensor content as a list of values
-* META - Only return tensor meta data (datat type and shape)
 
 ### TENSORGET Example
+
+Get binary data for tensor at `foo` as a buffer.
+
+```sql
+AI.TENSORGET foo BLOB
+
+> ...
+```
+
+Get tensor values for tensor at `foo` as a list of numbers.
+
+```sql
+AI.TENSORGET foo VALUES
+
+>  1) 1.1234
+>  2) 2.5135
+>  3) 5.5425
+>  4) 4.1524
+```
+
+Get meta data about tensor at `foo`
+
+```sql
+AI.TENSORGET foo META
+
+>  1) "dtype"
+>  2) "FLOAT"
+>  3) "shape"
+>  4) 1) 4
+>  4) 2) 5
+```
+
+Get meta data as well as binary data for tensor at `foo`
+
+```sql
+AI.TENSORGET foo META BLOB
+
+>  1) "dtype"
+>  2) "FLOAT"
+>  3) "shape"
+>  4) 1) 4
+>  4) 2) 5
+>  5) "blob"
+>  6) ...
+```
 
 Get binary data for tensor at `foo`. Meta data is also returned.
 
 ```sql
-AI.TENSORGET foo BLOB
+AI.TENSORGET foo META VALUES
+
+>  1) "dtype"
+>  2) "FLOAT"
+>  3) "shape"
+>  4) 1) 4
+>  4) 2) 5
+>  5) "values"
+>  6) 1) 1.1234
+>  6) 2) 2.5135
+>  6) 3) 5.5425
+>  6) 4) 4.1524
 ```
 
 !!! warning "Overhead of `AI.TENSORGET` with the optional arg VALUES"
@@ -115,15 +171,46 @@ AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linea
 Get model metadata and optionally its binary blob.
 
 ```sql
-AI.MODELGET model_key [META | BLOB]
+AI.MODELGET model_key [META] [BLOB]
 ```
 
 * model_key - Key for the model
-* META - Only return information on backend, device and tag
-* BLOB - Return information on backend, device and tag, as well as a binary blob containing the serialized model
+* META - Return information on backend, device and tag
+* BLOB - Return binary blob containing the serialized model
 
-The command returns a list of key-value strings, namely `BACKEND backend DEVICE device TAG tag [BLOB blob]`.
+If META is specified, command returns a list of key-value strings, namely `backend <backend> device <device> tag <tag> [blob <blob>]`.
 
+### AI.MODELGET Example
+
+```sql
+AI.MODELGET mnist_net META
+
+> 1) "backend"
+> 2) "TORCH"
+> 3) "device"
+> 4) "CPU"
+> 5) "tag"
+> 6) "mnist"
+```
+
+```sql
+AI.MODELGET mnist_net BLOB
+
+> ...
+```
+
+```sql
+AI.MODELGET mnist_net META BLOB
+
+> 1) "backend"
+> 2) "TORCH"
+> 3) "device"
+> 4) "CPU"
+> 5) "tag"
+> 6) "mnist"
+> 7) "blob"
+> 8) ...
+```
 
 ## AI.MODELDEL
 
@@ -165,23 +252,23 @@ AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
 ---
 
-## AI._MODELLIST
+## AI._MODELSCAN
 
-NOTE: `_MODELLIST` is EXPERIMENTAL and might be removed in future versions.
+NOTE: `_MODELSCAN` is EXPERIMENTAL and might be removed in future versions.
 
 List all models. Returns a list of (key, tag) pairs.
 
 ```sql
-AI._MODELLIST
+AI._MODELSCAN
 ```
 
-### _MODELLIST Example
+### _MODELSCAN Example
 
 ```sql
 AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
 AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
 
-AI._MODELLIST
+AI._MODELSCAN
 
 >  1) 1) "model1"
 >  1) 2) "resnet18:v1"
@@ -227,12 +314,43 @@ AI.SCRIPTSET addscript GPU TAG myscript:v0.1 < addtwo.txt
 Get script metadata and source.
 
 ```sql
-AI.SCRIPTGET script_key
+AI.SCRIPTGET script_key [META] [SOURCE]
 ```
 
 * script_key - key for the script
+* META - Return information on backend, device and tag
+* SOURCE - Return string containing the source code for the script
 
-The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
+The command returns a list of key-value strings, namely `device <device> tag <tag> [source <source>]`.
+
+### SCRIPTGET Example
+
+```sql
+AI.SCRIPTGET addtwo META
+
+> 1) "device"
+> 2) "CPU"
+> 3) "tag"
+> 4) "v1.0"
+```
+
+```sql
+AI.SCRIPTGET addtwo SOURCE
+
+> ...
+```
+
+```sql
+AI.SCRIPTGET addtwo META SOURCE
+
+> 3) "device"
+> 4) "CPU"
+> 5) "tag"
+> 6) "v1.0"
+> 7) "source"
+> 8) ...
+```
+
 
 ## AI.SCRIPTDEL
 
@@ -246,12 +364,6 @@ AI.SCRIPTDEL script_key
 
 Currently, the command is fully equivalent to calling `DEL` on `script_key`.
 
-
-### SCRIPTGET Example
-
-```sql
-AI.SCRIPTGET addscript
-```
 
 ## AI.SCRIPTRUN
 
@@ -279,23 +391,23 @@ AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
 ---
 
-## AI._SCRIPTLIST
+## AI._SCRIPTSCAN
 
-NOTE: `_SCRIPTLIST` is EXPERIMENTAL and might be removed in future versions.
+NOTE: `_SCRIPTSCAN` is EXPERIMENTAL and might be removed in future versions.
 
 List all scripts. Returns a list of (key, tag) pairs.
 
 ```sql
-AI._SCRIPTLIST
+AI._SCRIPTSCAN
 ```
 
-### _SCRIPTLIST Example
+### _SCRIPTSCAN Example
 
 ```sql
 AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
 AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
 
-AI._SCRIPTLIST
+AI._SCRIPTSCAN
 
 >  1) 1) "script1"
 >  1) 2) "addtwo:v0.1"
@@ -312,14 +424,14 @@ At each `MODELRUN` or `SCRIPTRUN`, RedisAI will collect statistcs specific for e
 specific for the node (hence nodes in a cluster will have to be queried individually for their info).
 The following information is collected:
 
-- `KEY`: the key being run
-- `TYPE`: either `MODEL` or `SCRIPT`
-- `BACKEND`: the type of backend (always `TORCH` for `SCRIPT`)
-- `DEVICE`: the device where the run has been executed
-- `DURATION`: cumulative duration in microseconds
-- `SAMPLES`: cumulative number of samples obtained from the 0-th (batch) dimension (for `MODEL` only)
-- `CALLS`: number of calls
-- `ERRORS`: number of errors generated after the run has been submitted (i.e. excluding errors generated during parsing of the command)
+- `key`: the key being run
+- `type`: either `MODEL` or `SCRIPT`
+- `backend`: the type of backend (always `TORCH` for `SCRIPT`)
+- `device`: the device where the run has been executed
+- `duration`: cumulative duration in microseconds
+- `samples`: cumulative number of samples obtained from the 0-th (batch) dimension (for `MODEL` only)
+- `calls`: number of calls
+- `errors`: number of errors generated after the run has been submitted (i.e. excluding errors generated during parsing of the command)
 
 ```sql
 AI.INFO <model_or_script_key>
@@ -338,21 +450,21 @@ The command can be called on a key until that key is removed using `MODELDEL` or
 ```sql
 AI.INFO amodel
 
->  1) KEY
+>  1) key
 >  2) "amodel"
->  3) TYPE
+>  3) type
 >  4) MODEL
->  5) BACKEND
+>  5) backend
 >  6) TORCH
->  7) DEVICE
+>  7) device
 >  8) CPU
->  9) DURATION
+>  9) duration
 > 10) (integer) 6511
-> 11) SAMPLES
+> 11) samples
 > 12) (integer) 2
-> 13) CALLS
+> 13) calls
 > 14) (integer) 1
-> 15) ERRORS
+> 15) errors
 > 16) (integer) 0
 ```
 
@@ -363,20 +475,20 @@ AI.INFO amodel RESETSTAT
 
 AI.INFO amodel
 
->  1) KEY
+>  1) key
 >  2) "amodel"
->  3) TYPE
+>  3) type
 >  4) MODEL
->  5) BACKEND
+>  5) backend
 >  6) TORCH
->  7) DEVICE
+>  7) device
 >  8) CPU
->  9) DURATION
+>  9) duration
 > 10) (integer) 0
-> 11) SAMPLES
+> 11) samples
 > 12) (integer) 0
-> 13) CALLS
+> 13) calls
 > 14) (integer) 0
-> 15) ERRORS
+> 15) errors
 > 16) (integer) 0
 ```

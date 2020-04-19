@@ -35,7 +35,7 @@ def test_onnx_modelrun_mnist(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
@@ -44,7 +44,7 @@ def test_onnx_modelrun_mnist(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'asdf')
  
@@ -135,16 +135,15 @@ def test_onnx_modelrun_mnist(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
     argmax = max(range(len(values)), key=lambda i: values[i])
 
     env.assertEqual(argmax, 1)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
-        env.assertEqual(tensor2, tensor)
+        values2 = con2.execute_command('AI.TENSORGET', 'b', 'VALUES')
+        env.assertEqual(values2, values)
 
 
 def test_onnx_modelrun_mnist_autobatch(env):
@@ -186,14 +185,12 @@ def test_onnx_modelrun_mnist_autobatch(env):
     import time
     time.sleep(1)
 
-    tensor = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
     argmax = max(range(len(values)), key=lambda i: values[i])
 
     env.assertEqual(argmax, 1)
 
-    tensor = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'd', 'VALUES')
     argmax = max(range(len(values)), key=lambda i: values[i])
 
     env.assertEqual(argmax, 1)
@@ -234,8 +231,8 @@ def test_onnx_modelrun_iris(env):
     linear_out = con.execute_command('AI.TENSORGET', 'linear_out', 'VALUES')
     logreg_out = con.execute_command('AI.TENSORGET', 'logreg_out', 'VALUES')
 
-    env.assertEqual(float(linear_out[2][0]), -0.090524077415466309)
-    env.assertEqual(logreg_out[2][0], 0)
+    env.assertEqual(float(linear_out[0]), -0.090524077415466309)
+    env.assertEqual(logreg_out[0], 0)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
@@ -260,14 +257,14 @@ def test_onnx_modelinfo(env):
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
     env.assertEqual(ret, b'OK')
 
-    model_serialized_master = con.execute_command('AI.MODELGET', 'linear')
+    model_serialized_master = con.execute_command('AI.MODELGET', 'linear', 'META')
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
     ensureSlaveSynced(con, env)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear')
+        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear', 'META')
         env.assertEqual(len(model_serialized_master), len(model_serialized_slave))
     previous_duration = 0
     for call in range(1, 10):
@@ -278,26 +275,26 @@ def test_onnx_modelinfo(env):
         info = con.execute_command('AI.INFO', 'linear')
         info_dict_0 = info_to_dict(info)
 
-        env.assertEqual(info_dict_0['KEY'], 'linear')
-        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
-        env.assertEqual(info_dict_0['BACKEND'], 'ONNX')
-        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
-        env.assertEqual(info_dict_0['SAMPLES'], call)
-        env.assertEqual(info_dict_0['CALLS'], call)
-        env.assertEqual(info_dict_0['ERRORS'], 0)
+        env.assertEqual(info_dict_0['key'], 'linear')
+        env.assertEqual(info_dict_0['type'], 'MODEL')
+        env.assertEqual(info_dict_0['backend'], 'ONNX')
+        env.assertEqual(info_dict_0['device'], DEVICE)
+        env.assertTrue(info_dict_0['duration'] > previous_duration)
+        env.assertEqual(info_dict_0['samples'], call)
+        env.assertEqual(info_dict_0['calls'], call)
+        env.assertEqual(info_dict_0['errors'], 0)
 
-        previous_duration = info_dict_0['DURATION']
+        previous_duration = info_dict_0['duration']
 
     res = con.execute_command('AI.INFO', 'linear', 'RESETSTAT')
     env.assertEqual(res, b'OK')
 
     info = con.execute_command('AI.INFO', 'linear')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'], 0)
-    env.assertEqual(info_dict_0['SAMPLES'], 0)
-    env.assertEqual(info_dict_0['CALLS'], 0)
-    env.assertEqual(info_dict_0['ERRORS'], 0)
+    env.assertEqual(info_dict_0['duration'], 0)
+    env.assertEqual(info_dict_0['samples'], 0)
+    env.assertEqual(info_dict_0['calls'], 0)
+    env.assertEqual(info_dict_0['errors'], 0)
 
 
 def test_onnx_modelrun_disconnect(env):
@@ -315,14 +312,14 @@ def test_onnx_modelrun_disconnect(env):
     ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
     env.assertEqual(ret, b'OK')
 
-    model_serialized_master = con.execute_command('AI.MODELGET', 'linear')
+    model_serialized_master = con.execute_command('AI.MODELGET', 'linear', 'META')
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
 
     ensureSlaveSynced(con, env)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear')
+        model_serialized_slave = con2.execute_command('AI.MODELGET', 'linear', 'META')
         env.assertEqual(len(model_serialized_master), len(model_serialized_slave))
 
     ret = send_and_disconnect(('AI.MODELRUN', 'linear', 'INPUTS', 'features', 'OUTPUTS', 'linear_out'), con)
@@ -355,9 +352,9 @@ def test_onnx_model_rdb_save_load(env):
     con = env.getConnection()
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
     env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload[7]))
+    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload))
     # Assert in memory model binary is equal to loaded model binary
     env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
     # Assert input model binary is equal to loaded model binary
-    env.assertTrue(model_pb == model_serialized_after_rdbload[7])
+    env.assertTrue(model_pb == model_serialized_after_rdbload)
 
