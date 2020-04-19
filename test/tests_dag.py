@@ -161,8 +161,8 @@ def test_dag_local_tensorset_persist(env):
     ret = con.execute_command("EXISTS tensor1")
     env.assertEqual(ret, 1 )
 
-    ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
-    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
+    ret = con.execute_command("AI.TENSORGET tensor1 META VALUES")
+    env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
 
 
 def test_dag_multilocal_tensorset_persist(env):
@@ -194,8 +194,8 @@ def test_dag_multilocal_tensorset_persist(env):
     ret = con.execute_command("EXISTS tensor4")
     env.assertEqual(ret, 0 )
 
-    ret = con.execute_command("AI.TENSORGET tensor3 VALUES")
-    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
+    ret = con.execute_command("AI.TENSORGET tensor3 META VALUES")
+    env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
 
 def test_dag_local_tensorset_tensorget_persist(env):
     con = env.getConnection()
@@ -205,10 +205,10 @@ def test_dag_local_tensorset_tensorget_persist(env):
         "AI.TENSORGET tensor1 VALUES"
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
+    env.assertEqual(ret, [b'OK', [b'5', b'10']])
 
     ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
-    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
+    env.assertEqual(ret, [b'5', b'10'])
 
 
 def test_dag_local_multiple_tensorset_on_same_tensor(env):
@@ -217,20 +217,20 @@ def test_dag_local_multiple_tensorset_on_same_tensor(env):
     command = "AI.DAGRUN "\
                      "PERSIST 1 tensor1 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
-        "AI.TENSORGET tensor1 VALUES |> "\
+        "AI.TENSORGET tensor1 META VALUES |> "\
         "AI.TENSORSET tensor1 FLOAT 1 4 VALUES 20 40 60 80 |> "\
-        "AI.TENSORGET tensor1 VALUES"
+        "AI.TENSORGET tensor1 META VALUES"
 
     ret = con.execute_command(command)
     env.assertEqual([
                      b'OK', 
-                    [b'FLOAT', [1, 2], [b'5', b'10']],
+                    [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']],
                      b'OK', 
-                    [b'FLOAT', [1, 4], [b'20', b'40', b'60', b'80']]
+                    [b'dtype', b'FLOAT', b'shape', [1, 4], b'values', [b'20', b'40', b'60', b'80']]
                     ], ret)
 
-    ret = con.execute_command("AI.TENSORGET tensor1 VALUES")
-    env.assertEqual([b'FLOAT', [1, 4], [b'20', b'40',b'60',b'80']],ret)
+    ret = con.execute_command("AI.TENSORGET tensor1 META VALUES")
+    env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 4], b'values', [b'20', b'40',b'60',b'80']],ret)
 
 
 def test_dag_load_persist_tensorset_tensorget(env):
@@ -246,15 +246,15 @@ def test_dag_load_persist_tensorset_tensorget(env):
 
     command = "AI.DAGRUN LOAD 2 persisted_tensor_1 persisted_tensor_2 PERSIST 1 volatile_tensor_persisted |> "\
         "AI.TENSORSET volatile_tensor_persisted FLOAT 1 2 VALUES 5 10 |> "\
-        "AI.TENSORGET persisted_tensor_1 VALUES |> "\
-        "AI.TENSORGET persisted_tensor_2 VALUES "
+        "AI.TENSORGET persisted_tensor_1 META VALUES |> "\
+        "AI.TENSORGET persisted_tensor_2 META VALUES "
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
-                    b'FLOAT', [1, 3], [b'0', b'0', b'0']]])
+    env.assertEqual(ret, [b'OK', [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']], [
+                    b'dtype', b'FLOAT', b'shape', [1, 3], b'values', [b'0', b'0', b'0']]])
 
-    ret = con.execute_command("AI.TENSORGET volatile_tensor_persisted VALUES")
-    env.assertEqual(ret, [b'FLOAT', [1, 2], [b'5', b'10']])
+    ret = con.execute_command("AI.TENSORGET volatile_tensor_persisted META VALUES")
+    env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
 
 
 def test_dag_local_tensorset_tensorget(env):
@@ -262,10 +262,10 @@ def test_dag_local_tensorset_tensorget(env):
 
     command = "AI.DAGRUN "\
         "AI.TENSORSET volatile_tensor FLOAT 1 2 VALUES 5 10 |> "\
-        "AI.TENSORGET volatile_tensor VALUES"
+        "AI.TENSORGET volatile_tensor META VALUES"
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']]])
+    env.assertEqual(ret, [b'OK', [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']]])
 
 
 def test_dag_keyspace_tensorget(env):
@@ -279,7 +279,7 @@ def test_dag_keyspace_tensorget(env):
         "AI.TENSORGET persisted_tensor VALUES"
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [[b'FLOAT', [1, 2], [b'5', b'10']]])
+    env.assertEqual(ret, [[b'5', b'10']])
 
 
 def test_dag_keyspace_and_localcontext_tensorget(env):
@@ -295,8 +295,7 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
         "AI.TENSORGET volatile_tensor VALUES"
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [b'OK', [b'FLOAT', [1, 2], [b'5', b'10']], [
-                    b'FLOAT', [1, 2], [b'5', b'10']]])
+    env.assertEqual(ret, [b'OK', [b'5', b'10'], [b'5', b'10']])
 
 
 def test_dag_modelrun_financialNet_separate_tensorget(env):
@@ -310,7 +309,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata[:5]:
-        ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -330,7 +329,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
 
         ret = con.execute_command("AI.TENSORGET classificationTensor:{} META".format(
             tensor_number))
-        env.assertEqual([b'FLOAT', [1, 2]],ret)
+        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret)
 
         # assert that transaction tensor does not exist
         ret = con.execute_command("EXISTS transactionTensor:{} META".format(
@@ -349,7 +348,7 @@ def test_dag_modelrun_financialNet(env):
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata[:5]:
-        ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -366,7 +365,7 @@ def test_dag_modelrun_financialNet(env):
                            'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META',
         )
-        env.assertEqual([b'OK',b'OK',[b'FLOAT', [1, 2]]],ret)
+        env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
 
         # assert that transaction tensor does not exist
         ret = con.execute_command("EXISTS transactionTensor:{}".format(
@@ -385,7 +384,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata:
-        ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -404,9 +403,9 @@ def test_dag_modelrun_financialNet_no_writes(env):
                 'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'VALUES'
             )
             env.assertEqual(4, len(ret))
-            env.assertEqual([b'OK',b'OK'], ret[:2])
-            env.assertEqual([b'FLOAT', [1, 2]], ret[2])
-            dtype, shape, values = ret[3]
+            env.assertEqual([b'OK', b'OK'], ret[:2])
+            env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[2])
+            values = ret[3]
             # Assert that resulting classification is within [0,1]
             env.assertEqual(True, 0 <= float(values[0]) <= 1)
             env.assertEqual(True, 0 <= float(values[1]) <= 1)
@@ -434,7 +433,7 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata:
-        ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -448,18 +447,18 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
                            'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
-            'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'VALUES',  '|>',
+            'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META', 'VALUES', '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
                            'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
-            'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'VALUES', 
+            'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META', 'VALUES', 
         )
         env.assertEqual(5, len(ret))
-        env.assertEqual([b'OK',b'OK'],ret[:2])
-        env.assertEqual([b'FLOAT', [1, 2]],ret[2][:2])
-        env.assertEqual(b'OK',ret[3])
-        env.assertEqual([b'FLOAT', [1, 2]],ret[4][:2])
-        for dtype, shape, values in [ret[2], ret[4]]:
+        env.assertEqual([b'OK', b'OK'], ret[:2])
+        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[2][:4])
+        env.assertEqual(b'OK', ret[3])
+        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[4][:4])
+        for _, dtype, _, shape, _, values in [ret[2], ret[4]]:
             # Assert that resulting classification is within [0,1]
             env.assertEqual(True, 0 <= float(values[0]) <= 1)
             env.assertEqual(True, 0 <= float(values[1]) <= 1)
@@ -467,10 +466,10 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
         # assert that transactionTensor does not exist
         ret = con.execute_command("EXISTS transactionTensor:{}".format(
             tensor_number))
-        env.assertEqual(ret, 0 )
+        env.assertEqual(ret, 0)
 
         # assert that classificationTensor does not exist
         ret = con.execute_command("EXISTS classificationTensor:{}".format(
             tensor_number))
-        env.assertEqual(ret, 0 )
+        env.assertEqual(ret, 0)
         tensor_number = tensor_number + 1
