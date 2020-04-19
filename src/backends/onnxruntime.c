@@ -285,11 +285,6 @@ error:
   return NULL;
 }
 
-typedef struct RAI_ONNXBuffer {
-  char* data;
-  size_t len;
-} RAI_ONNXBuffer;
-
 OrtEnv* env = NULL;
 
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
@@ -368,10 +363,6 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr, RAI_Mo
   char* buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
   memcpy(buffer, modeldef, modellen);
 
-  RAI_ONNXBuffer* onnxbuffer = RedisModule_Calloc(1, sizeof(*onnxbuffer));
-  onnxbuffer->data = buffer;
-  onnxbuffer->len = modellen;
-
   RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = NULL;
   ret->session = session;
@@ -379,7 +370,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr, RAI_Mo
   ret->devicestr = RedisModule_Strdup(devicestr);
   ret->refCount = 1;
   ret->opts = opts;
-  ret->data = onnxbuffer;
+  ret->data = buffer;
+  ret->datalen = modellen;
 
   return ret;
 
@@ -392,7 +384,6 @@ error:
 void RAI_ModelFreeORT(RAI_Model* model, RAI_Error* error) {
   const OrtApi* ort = OrtGetApiBase()->GetApi(1);
 
-  RedisModule_Free(((RAI_ONNXBuffer*)(model->data))->data);
   RedisModule_Free(model->data);
   RedisModule_Free(model->devicestr);
   ort->ReleaseSession(model->session);
@@ -570,10 +561,9 @@ error:
 }
 
 int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
-  RAI_ONNXBuffer* onnxbuffer = (RAI_ONNXBuffer*)model->data;
-  *buffer = RedisModule_Calloc(onnxbuffer->len, sizeof(char));
-  memcpy(*buffer, onnxbuffer->data, onnxbuffer->len);
-  *len = onnxbuffer->len;
+  *buffer = RedisModule_Calloc(model->datalen, sizeof(char));
+  memcpy(*buffer, model->data, model->datalen);
+  *len = model->datalen;
 
   return 0;
 }

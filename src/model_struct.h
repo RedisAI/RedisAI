@@ -29,7 +29,8 @@ typedef struct RAI_Model {
   char **outputs;
   size_t noutputs;
   long long refCount;
-  void* data;
+  char* data;
+  long long datalen;
   void* infokey;
 } RAI_Model;
 
