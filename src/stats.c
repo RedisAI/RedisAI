@@ -1,10 +1,25 @@
 #include "stats.h"
 
-void* RAI_AddStatsEntry(RedisModuleCtx* ctx, RedisModuleString* key, RAI_RunType runtype,
-                        RAI_Backend backend, const char* devicestr, const char* tag) {
+#include <sys/time.h>
+
+long long ustime(void) {
+  struct timeval tv;
+  long long ust;
+
+  gettimeofday(&tv, NULL);
+  ust = ((long long)tv.tv_sec) * 1000000;
+  ust += tv.tv_usec;
+  return ust;
+}
+
+mstime_t mstime(void) { return ustime() / 1000; }
+
+void* RAI_AddStatsEntry(RedisModuleCtx* ctx, RedisModuleString* key,
+                        RAI_RunType runtype, RAI_Backend backend,
+                        const char* devicestr, const char* tag) {
   const char* infokey = RedisModule_StringPtrLen(key, NULL);
 
-  struct RedisAI_RunStats *rstats = NULL;
+  struct RedisAI_RunStats* rstats = NULL;
   rstats = RedisModule_Calloc(1, sizeof(struct RedisAI_RunStats));
   RedisModule_RetainString(ctx, key);
   rstats->key = key;
@@ -18,9 +33,9 @@ void* RAI_AddStatsEntry(RedisModuleCtx* ctx, RedisModuleString* key, RAI_RunType
   return (void*)infokey;
 }
 
-void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys, RedisModuleString*** keys,
-                          const char*** tags) {
-  AI_dictIterator *stats_iter = AI_dictGetSafeIterator(run_stats);
+void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys,
+                          RedisModuleString*** keys, const char*** tags) {
+  AI_dictIterator* stats_iter = AI_dictGetSafeIterator(run_stats);
 
   long long stats_size = AI_dictSize(run_stats);
 
@@ -29,8 +44,8 @@ void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys, RedisModuleString*
 
   *nkeys = 0;
 
-  AI_dictEntry *stats_entry = AI_dictNext(stats_iter);
-  struct RedisAI_RunStats *rstats = NULL;
+  AI_dictEntry* stats_entry = AI_dictNext(stats_iter);
+  struct RedisAI_RunStats* rstats = NULL;
 
   while (stats_entry) {
     rstats = AI_dictGetVal(stats_entry);
@@ -48,18 +63,23 @@ void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys, RedisModuleString*
 }
 
 void RAI_RemoveStatsEntry(void* infokey) {
-  AI_dictEntry *stats_entry = AI_dictFind(run_stats, infokey);
+  AI_dictEntry* stats_entry = AI_dictFind(run_stats, infokey);
 
   if (stats_entry) {
-    struct RedisAI_RunStats *rstats = AI_dictGetVal(stats_entry);
+    struct RedisAI_RunStats* rstats = AI_dictGetVal(stats_entry);
     AI_dictDelete(run_stats, infokey);
     RAI_FreeRunStats(rstats);
     RedisModule_Free(rstats);
   }
 }
 
-void RAI_FreeRunStats(struct RedisAI_RunStats *rstats) {
+void RAI_FreeRunStats(struct RedisAI_RunStats* rstats) {
   RedisModule_Free(rstats->devicestr);
   RedisModule_Free(rstats->tag);
 }
 
+void RedisAI_FreeRunStats(RedisModuleCtx* ctx,
+                          struct RedisAI_RunStats* rstats) {
+  RedisModule_FreeString(ctx, rstats->key);
+  RedisModule_Free(rstats->devicestr);
+}

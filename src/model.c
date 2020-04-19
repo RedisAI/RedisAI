@@ -2,9 +2,12 @@
 #include "model_struct.h"
 #include "backends.h"
 #include "stats.h"
+#include "backends/util.h"
 
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
+#include "util/dict.h"
+#include "run_info.h"
 
 RedisModuleType *RedisAI_ModelType = NULL;
 
@@ -40,7 +43,9 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   RAI_ModelOpts opts = {
     .batchsize = batchsize,
-    .minbatchsize = minbatchsize
+    .minbatchsize = minbatchsize,
+    .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
+    .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
   };
 
   size_t len;
@@ -188,6 +193,28 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
   array_free(outputs_);
 }
 
+
+/* Return REDISMODULE_ERR if there was an error getting the Model.
+ * Return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable. */
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key, RAI_Model **model,
+                              int mode) {
+  *key = RedisModule_OpenKey(ctx, keyName, mode);
+  if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, "ERR model key is empty");
+    return REDISMODULE_ERR;
+  }
+  if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ModelType) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    return REDISMODULE_ERR;
+  }
+  *model = RedisModule_ModuleTypeGetValue(*key);
+  return REDISMODULE_OK;
+}
+
 // TODO: pass err in?
 static void RAI_Model_DTFree(void *value) {
   RAI_Error err = {0};
@@ -220,34 +247,34 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const cha
   RAI_Model *model;
   if (backend == RAI_BACKEND_TENSORFLOW) {
     if (!RAI_backends.tf.model_create_with_nodes) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
       return NULL;
     }
     model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TFLITE) {
     if (!RAI_backends.tflite.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
       return NULL;
     }
     model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
       return NULL;
     }
     model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
   }
   else if (backend == RAI_BACKEND_ONNXRUNTIME) {
     if (!RAI_backends.onnx.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
       return NULL;
     }
     model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
   }
   else {
-    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend\n");
     return NULL;
   }
 
@@ -265,28 +292,28 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
 
   if (model->backend == RAI_BACKEND_TENSORFLOW) {
     if (!RAI_backends.tf.model_free) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF\n");
       return;
     }
     RAI_backends.tf.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_TFLITE) {
     if (!RAI_backends.tflite.model_free) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
       return;
     }
     RAI_backends.tflite.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_TORCH) {
     if (!RAI_backends.torch.model_free) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
       return;
     }
     RAI_backends.torch.model_free(model, err);
   }
   else if (model->backend == RAI_BACKEND_ONNXRUNTIME) {
     if (!RAI_backends.onnx.model_free) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
       return;
     }
     RAI_backends.onnx.model_free(model, err);
@@ -304,12 +331,13 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
 }
 
 RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model) {
-#define BATCH_INITIAL_SIZE 10
+#define PARAM_INITIAL_SIZE 10
   RAI_ModelRunCtx* mctx = RedisModule_Calloc(1, sizeof(*mctx));
   mctx->model = RAI_ModelGetShallowCopy(model);
-  mctx->batches = array_new(RAI_ModelCtxBatch, BATCH_INITIAL_SIZE);
-#undef BATCH_INITIAL_SIZE
+  mctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
+  mctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
   return mctx;
+#undef PARAM_INITIAL_SIZE
 }
 
 static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** paramArr,
@@ -323,93 +351,44 @@ static int Model_RunCtxAddParam(RAI_ModelRunCtx* mctx, RAI_ModelCtxParam** param
   return 1;
 }
 
-int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, size_t id, const char* inputName, RAI_Tensor* inputTensor) {
-  if (id >= RAI_ModelRunCtxNumBatches(mctx)) {
-    // TODO error
-    return 0;
-  }
-  return Model_RunCtxAddParam(mctx, &mctx->batches[id].inputs, inputName, inputTensor);
+int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName, RAI_Tensor* inputTensor) {
+  return Model_RunCtxAddParam(mctx, &mctx->inputs, inputName, inputTensor);
 }
 
-int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, size_t id, const char* outputName) {
-  if (id >= RAI_ModelRunCtxNumBatches(mctx)) {
-    // TODO error
-    return 0;
-  }
-  return Model_RunCtxAddParam(mctx, &mctx->batches[id].outputs, outputName, NULL);
+int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName) {
+  return Model_RunCtxAddParam(mctx, &mctx->outputs, outputName, NULL);
 }
 
 size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx* mctx) {
-  if (RAI_ModelRunCtxNumBatches(mctx) == 0) {
-    return 0;
-  }
-  // Here we assume batch is well-formed (i.e. number of outputs is equal in all batches)
-  return array_len(mctx->batches[0].inputs);
+  return array_len(mctx->inputs);
 }
 
 size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx) {
-  if (RAI_ModelRunCtxNumBatches(mctx) == 0) {
-    return 0;
-  }
-  // Here we assume batch is well-formed (i.e. number of outputs is equal in all batches)
-  return array_len(mctx->batches[0].outputs);
+  return array_len(mctx->outputs);
 }
 
-int RAI_ModelRunCtxAddBatch(RAI_ModelRunCtx* mctx) {
-#define PARAM_INITIAL_SIZE 10
-  RAI_ModelCtxBatch batch = {
-    .inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE),
-    .outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE)
-  };
-#undef PARAM_INITIAL_SIZE
-  array_append(mctx->batches, batch);
-  return array_len(mctx->batches)-1;
-}
-
-size_t RAI_ModelRunCtxNumBatches(RAI_ModelRunCtx* mctx) {
-  return array_len(mctx->batches);
-}
-
-void RAI_ModelRunCtxCopyBatch(RAI_ModelRunCtx* dest, size_t id_dest, RAI_ModelRunCtx* src, size_t id_src) {
-  size_t ninputs = array_len(src->batches[id_src].inputs);
-  for (size_t i=0; i<ninputs; i++) {
-    RAI_ModelCtxParam param = src->batches[id_src].inputs[i];
-    RAI_ModelRunCtxAddInput(dest, id_dest, param.name, param.tensor);
-  }
-
-  size_t noutputs = array_len(src->batches[id_src].outputs);
-  for (size_t i=0; i<noutputs; i++) {
-    RAI_ModelCtxParam param = src->batches[id_src].outputs[i];
-    RAI_ModelRunCtxAddOutput(dest, id_dest, param.name);
-  }
-}
-
-RAI_Tensor* RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx* mctx, size_t id, size_t index) {
-  // TODO: add method to collect from batches?
+RAI_Tensor* RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx* mctx, size_t index) {
   assert(RAI_ModelRunCtxNumInputs(mctx) > index && index >= 0);
-  return mctx->batches[id].inputs[index].tensor;
+  return mctx->inputs[index].tensor;
 }
 
-RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t id, size_t index) {
-  // TODO: add method to collect from batches?
+RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index) {
   assert(RAI_ModelRunCtxNumOutputs(mctx) > index && index >= 0);
-  return mctx->batches[id].outputs[index].tensor;
+  return mctx->outputs[index].tensor;
 }
 
 void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
-  for (size_t b=0; b<array_len(mctx->batches); ++b) {
-    for (size_t i=0; i<array_len(mctx->batches[b].inputs); ++i) {
-      RAI_TensorFree(mctx->batches[b].inputs[i].tensor);
-    }
-    array_free(mctx->batches[b].inputs);
-
-    for (size_t i = 0 ; i < array_len(mctx->batches[b].outputs) ; ++i) {
-      if (mctx->batches[b].outputs[i].tensor) {
-        RAI_TensorFree(mctx->batches[b].outputs[i].tensor);
-      }
-    }
-    array_free(mctx->batches[b].outputs);
+  for (size_t i=0; i<array_len(mctx->inputs); ++i) {
+    RAI_TensorFree(mctx->inputs[i].tensor);
   }
+  array_free(mctx->inputs);
+
+  for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
+    if (mctx->outputs[i].tensor) {
+      RAI_TensorFree(mctx->outputs[i].tensor);
+    }
+  }
+  array_free(mctx->outputs);
 
   RAI_Error err = {0};
   RAI_ModelFree(mctx->model, &err);
@@ -422,40 +401,45 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
   RedisModule_Free(mctx);
 }
 
-int RAI_ModelRun(RAI_ModelRunCtx* mctx, RAI_Error* err) {
+int RAI_ModelRun(RAI_ModelRunCtx** mctxs, RAI_Error* err) {
   int ret;
 
-  switch (mctx->model->backend) {
+  if (array_len(mctxs) == 0) {
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Nothing to run");
+    return REDISMODULE_ERR;
+  }
+
+  switch (mctxs[0]->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
       if (!RAI_backends.tf.model_run) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.tf.model_run(mctx, err);
+      ret = RAI_backends.tf.model_run(mctxs, err);
       break;
     case RAI_BACKEND_TFLITE:
       if (!RAI_backends.tflite.model_run) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.tflite.model_run(mctx, err);
+      ret = RAI_backends.tflite.model_run(mctxs, err);
       break;
     case RAI_BACKEND_TORCH:
       if (!RAI_backends.torch.model_run) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.torch.model_run(mctx, err);
+      ret = RAI_backends.torch.model_run(mctxs, err);
       break;
     case RAI_BACKEND_ONNXRUNTIME:
       if (!RAI_backends.onnx.model_run) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.onnx.model_run(mctx, err);
+      ret = RAI_backends.onnx.model_run(mctxs, err);
       break;
     default:
-      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
+      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
       return REDISMODULE_ERR;
   }
 
@@ -473,36 +457,177 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
   switch (model->backend) {
     case RAI_BACKEND_TENSORFLOW:
       if (!RAI_backends.tf.model_serialize) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TF.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
         return REDISMODULE_ERR;
       }
       ret = RAI_backends.tf.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_TFLITE:
       if (!RAI_backends.tflite.model_serialize) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TFLITE.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
         return REDISMODULE_ERR;
       }
       ret = RAI_backends.tflite.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_TORCH:
       if (!RAI_backends.torch.model_serialize) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return REDISMODULE_ERR;
       }
       ret = RAI_backends.torch.model_serialize(model, buffer, len, err);
       break;
     case RAI_BACKEND_ONNXRUNTIME:
       if (!RAI_backends.onnx.model_serialize) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: ONNX.\n");
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
         return REDISMODULE_ERR;
       }
       ret = RAI_backends.onnx.model_serialize(model, buffer, len, err);
       break;
     default:
-      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend.\n");
+      RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
       return REDISMODULE_ERR;
   }
 
   return ret;
+}
+
+
+int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
+                                        RedisModuleString **argv, int argc,
+                                        // RedisAI_RunInfo **rinfo,
+                                        RAI_ModelRunCtx **mctx,
+                                        RedisModuleString ***outkeys,
+                                        RAI_Model **mto, int useLocalContext,
+                                        AI_dict **localContextDict, 
+                                        int use_chaining_operator,
+                                        const char *chaining_operator, RAI_Error *error) {
+  if (argc < 3) {
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_EMODELRUN,
+                   "ERR wrong number of arguments for 'AI.MODELRUN' command");
+    } else {
+      RedisModule_WrongArity(ctx);
+    }
+    return -1;
+  }
+
+  const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
+  if (strcasecmp(inputstr, "INPUTS")) {
+    if (ctx == NULL) {
+      RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
+    } else {
+      RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
+    }
+    return -1;
+  }
+
+  // parsing aux vars
+  int is_input = 0;
+  size_t ninputs = 0;
+  size_t noutputs = 0;
+  int outputs_flag_count = 0;
+  size_t argpos = 3;
+
+  for (; argpos <= argc - 1; argpos++) {
+    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (use_chaining_operator == 1) {
+      if (!strcasecmp(arg_string, chaining_operator)) {
+        break;
+      }
+    }
+    if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
+      is_input = 1;
+      outputs_flag_count = 1;
+      const size_t expected_noutputs = argc - argpos - 1;
+      // if (expected_noutputs > 0) {
+      //   *outkeys =
+      //       RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
+      // }
+    } else {
+      RedisModule_RetainString(ctx, argv[argpos]);
+      if (is_input == 0) {
+        RAI_Tensor *inputTensor;
+        if (useLocalContext == 0) {
+          RedisModuleKey *tensorKey;
+          const int status = RAI_GetTensorFromKeyspace(
+              ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
+          if (status == REDISMODULE_ERR) {
+            // TODO: free rinfo
+            return -1;
+          }
+          RedisModule_CloseKey(tensorKey);
+        } else {
+          const int get_result = RAI_getTensorFromLocalContext(
+              ctx, *localContextDict, arg_string, &inputTensor,error);
+          if (get_result == REDISMODULE_ERR) {
+            return -1;
+          }
+        }
+
+        // Opname here is passed without copying
+        const char *opname = NULL;
+        if ((*mto)->inputs) {
+          opname = (*mto)->inputs[ninputs];
+        }
+        if (!RAI_ModelRunCtxAddInput(*mctx, opname, inputTensor)) {
+          // todo free rinfo
+          if (ctx == NULL) {
+            RAI_SetError(error, RAI_EMODELRUN, "ERR Input key not found");
+          } else {
+            RedisModule_ReplyWithError(ctx, "ERR Input key not found");
+          }
+          return -1;
+        }
+        ninputs++;
+      } else {
+        // Opname here is passed without copying
+        const char *opname = NULL;
+        if ((*mto)->outputs) {
+          opname = (*mto)->outputs[noutputs];
+        }
+        if (!RAI_ModelRunCtxAddOutput(*mctx, opname)) {
+          // todo free rinfo
+          if (ctx == NULL) {
+            RAI_SetError(error, RAI_EMODELRUN, "ERR Output key not found");
+          } else {
+            RedisModule_ReplyWithError(ctx, "ERR Output key not found");
+          }
+        }
+        *outkeys=array_append(*outkeys,argv[argpos]);
+        // (*outkeys)[noutputs] = argv[argpos];
+        noutputs++;
+      }
+    }
+  }
+
+  if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
+    if (ctx == NULL) {
+      RAI_SetError(
+          error, RAI_EMODELRUN,
+          "Number of names given as INPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx,
+          "Number of names given as INPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    }
+    return -1;
+  }
+
+  if ((*mto)->outputs && array_len((*mto)->outputs) != noutputs) {
+    if (ctx == NULL) {
+      RAI_SetError(
+          error, RAI_EMODELRUN,
+          "Number of names given as OUTPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    } else {
+      RedisModule_ReplyWithError(
+          ctx,
+          "Number of names given as OUTPUTS during MODELSET and keys given as "
+          "INPUTS here do not match");
+    }
+    return -1;
+  }
+  return argpos;
 }

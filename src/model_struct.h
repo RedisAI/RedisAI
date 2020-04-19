@@ -7,6 +7,11 @@
 typedef struct RAI_ModelOpts {
   size_t batchsize;
   size_t minbatchsize;
+  long long backends_intra_op_parallelism;  //  number of threads used within an
+//  individual op for parallelism.
+long long
+    backends_inter_op_parallelism;  //  number of threads used for parallelism
+                                    //  between independent operations.
 } RAI_ModelOpts;
 
 typedef struct RAI_Model {
@@ -33,15 +38,11 @@ typedef struct RAI_ModelCtxParam {
   RAI_Tensor* tensor;
 } RAI_ModelCtxParam;
 
-typedef struct RAI_ModelCtxBatch {
-  RAI_ModelCtxParam* inputs;
-  RAI_ModelCtxParam* outputs;
-} RAI_ModelCtxBatch;
-
 typedef struct RAI_ModelRunCtx {
   size_t ctxtype;
   RAI_Model* model;
-  RAI_ModelCtxBatch* batches;
+  RAI_ModelCtxParam* inputs;
+  RAI_ModelCtxParam* outputs;
 } RAI_ModelRunCtx;
 
 #endif /* SRC_MODEL_STRUCT_H_ */

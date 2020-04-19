@@ -92,7 +92,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
+  backend.model_run = (int (*)(RAI_ModelRunCtx**, RAI_Error*))
                       (unsigned long) dlsym(handle, "RAI_ModelRunTF");
   if (backend.model_run == NULL) {
     dlclose(handle);
@@ -157,7 +157,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
+  backend.model_run = (int (*)(RAI_ModelRunCtx**, RAI_Error*))
                        (unsigned long) dlsym(handle, "RAI_ModelRunTFLite");
   if (backend.model_run == NULL) {
     dlclose(handle);
@@ -222,7 +222,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
+  backend.model_run = (int (*)(RAI_ModelRunCtx**, RAI_Error*))
                        (unsigned long) dlsym(handle, "RAI_ModelRunTorch");
   if (backend.model_run == NULL) {
     dlclose(handle);
@@ -311,7 +311,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     return REDISMODULE_ERR;
   }
 
-  backend.model_run = (int (*)(RAI_ModelRunCtx*, RAI_Error*))
+  backend.model_run = (int (*)(RAI_ModelRunCtx**, RAI_Error*))
                       (unsigned long) dlsym(handle, "RAI_ModelRunORT");
   if (backend.model_run == NULL) {
     dlclose(handle);

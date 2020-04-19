@@ -99,7 +99,7 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
 
 RAI_Script *RAI_ScriptCreate( const char* devicestr, const char* tag, const char *scriptdef, RAI_Error* err) {
   if (!RAI_backends.torch.script_create) {
-    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
     return NULL;
   }
   RAI_Script* script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
@@ -117,7 +117,7 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
   }
 
   if (!RAI_backends.torch.script_free) {
-    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
     return;
   }
 
@@ -196,7 +196,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
 
 int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
   if (!RAI_backends.torch.script_run) {
-    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "Backend not loaded: TORCH.\n");
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
     return REDISMODULE_ERR;
   }
  
@@ -206,4 +206,26 @@ int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {
   ++script->refCount;
   return script;
+}
+
+
+/* Return REDISMODULE_ERR if there was an error getting the Script.
+ * Return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable. */
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                              RedisModuleKey **key, RAI_Script **script,
+                              int mode) {
+  *key = RedisModule_OpenKey(ctx, keyName, mode);
+  if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, "ERR script key is empty");
+    return REDISMODULE_ERR;
+  }
+  if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ScriptType) {
+    RedisModule_CloseKey(*key);
+    RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    return REDISMODULE_ERR;
+  }
+  *script = RedisModule_ModuleTypeGetValue(*key);
+  return REDISMODULE_OK;
 }
