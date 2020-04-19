@@ -56,69 +56,6 @@ def test_run_tflite_model(env):
     # env.assertEqual(ret[0], b'TFLITE')
     # env.assertEqual(ret[1], b'CPU')
 
-    try:
-        con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
-    ensureSlaveSynced(con, env)
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_2', model_pb)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'a', 'b', 'c')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
 
     ensureSlaveSynced(con, env)
@@ -127,6 +64,133 @@ def test_run_tflite_model(env):
     value = tensor[-1][0]
 
     env.assertEqual(value, 1)
+
+
+def test_run_tflite_model_errors(env):
+    if not TEST_TFLITE:
+        env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(model_filename, 'rb') as f:
+        model_pb2 = f.read()
+
+    with open(wrong_model_filename, 'rb') as f:
+        wrong_model_pb = f.read()
+
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    try:
+        con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELSET', 'm_2', model_pb)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.MODELSET' command", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'EMPTY_TENSOR', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.MODELRUN' command", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'EMPTY', 'INPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("model key is empty", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'a', 'b', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Inconsistent number of inputs", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Inconsistent number of outputs", exception.__str__())
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Inconsistent number of outputs", exception.__str__())
 
 
 # TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch
@@ -153,7 +217,8 @@ def test_run_tflite_model_autobatch(env):
                                   'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
     except Exception as e:
         exception = e
-    env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Auto-batching not supported by the TFLITE backend", exception.__str__())
 
     # env.assertEqual(ret, b'OK')
 

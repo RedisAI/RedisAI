@@ -144,7 +144,7 @@ def test_del_tf_model(env):
     ensureSlaveSynced(con, env)
 
     con.execute_command('AI.MODELDEL', 'm')
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -157,7 +157,7 @@ def test_del_tf_model(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("no model at key", exception.__str__())
+        env.assertEqual("model key is empty", exception.__str__())
 
     # ERR wrong type
     try:
@@ -234,7 +234,7 @@ def test_run_tf_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     ensureSlaveSynced(con, env)
 
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -301,7 +301,7 @@ def test_run_tf2_model(env):
     con.execute_command('AI.MODELDEL', 'm')
     ensureSlaveSynced(con, env)
 
-    env.assertFalse(env.execute_command('EXISTS', 'm'))
+    env.assertFalse(con.execute_command('EXISTS', 'm'))
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -349,14 +349,14 @@ def test_run_tf_model_errors(env):
     # cleanup
     con.execute_command('DEL', 'NOT_MODEL')
 
-    # ERR cannot get model from empty key
+    # ERR model key is empty
     con.execute_command('DEL', 'DONT_EXIST')
     try:
         con.execute_command('AI.MODELGET', 'DONT_EXIST')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("cannot get model from empty key", exception.__str__())
+        env.assertEqual("model key is empty", exception.__str__())
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE,
@@ -364,6 +364,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_1', 'TF',
@@ -371,6 +372,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2', 'PORCH', DEVICE,
@@ -378,6 +380,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("unsupported backend", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_3', 'TORCH', DEVICE,
@@ -392,6 +395,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_5', 'TF', DEVICE,
@@ -399,6 +403,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_6', 'TF', DEVICE,
@@ -406,12 +411,14 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Output node named \"mult\" not found in TF graph", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_7', 'TF', DEVICE, model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -419,6 +426,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -426,6 +434,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8', 'TF', DEVICE,
@@ -433,6 +442,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid GraphDef", exception.__str__())
 
     # ERR Invalid GraphDef
     try:
@@ -441,19 +451,21 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(exception.__str__(), "Invalid GraphDef")
+        env.assertEqual("Invalid GraphDef",exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("tensor key is empty", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUTS not specified", exception.__str__())
 
 
 @skip_if_no_TF
@@ -605,7 +617,7 @@ def test_tensorflow_modelrun_disconnect(env):
 
 
 @skip_if_no_TF
-def test_with_batch_and_minbatch(env):
+def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     con = env.getConnection()
     batch_size = 2
     minbatch_size = 2
@@ -663,4 +675,78 @@ def test_with_batch_and_minbatch(env):
 
     p3.terminate()
 
+@skip_if_no_TF
+def test_tensorflow_modelrun_financialNet(env):
+    con = env.getConnection()
 
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
+
+    tensor_number = 1
+    for transaction_tensor in creditcard_transactions:
+        ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 30,
+                                  'BLOB', transaction_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    tensor_number = 1
+    for reference_tensor in creditcard_referencedata:
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 256,
+                                  'BLOB', reference_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    for tensor_number in range(1, 10001):
+        for repetition in range(0, 10):
+            ret = con.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
+                                      'transactionTensor:{}'.format(tensor_number),
+                                      'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                      'classificationTensor:{}_{}'.format(tensor_number, repetition))
+            env.assertEqual(ret, b'OK')
+
+
+def test_tensorflow_modelrun_financialNet_multiproc(env):
+    con = env.getConnection()
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
+
+    tensor_number = 1
+    for transaction_tensor in creditcard_transactions:
+        ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 30,
+                                  'BLOB', transaction_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    tensor_number = 1
+    for reference_tensor in creditcard_referencedata:
+        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                  'FLOAT', 1, 256,
+                                  'BLOB', reference_tensor.tobytes())
+        env.assertEqual(ret, b'OK')
+        tensor_number = tensor_number + 1
+
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    def functor_financialNet(env, key_max, repetitions):
+        for tensor_number in range(1, key_max):
+            for repetition in range(1, repetitions):
+                ret = env.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
+                                        'transactionTensor:{}'.format(tensor_number),
+                                        'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                        'classificationTensor:{}_{}'.format(tensor_number, repetition))
+    
+    t = time.time()
+    run_test_multiproc(env, 10,
+                       lambda env: functor_financialNet(env,len(transaction_tensor),100) )
+    elapsed_time = time.time() - t
+    total_ops = len(transaction_tensor)*100
+    avg_ops_sec = total_ops/elapsed_time
+    env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)

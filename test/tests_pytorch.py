@@ -18,6 +18,12 @@ def test_pytorch_modelrun(env):
     model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
     wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
 
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
@@ -64,9 +70,6 @@ def test_pytorch_modelrun(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1', 'INPUTS', 'a', 'b', 'OUTPUTS')
@@ -191,10 +194,10 @@ def test_pytorch_modelinfo(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ret = env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -320,7 +323,7 @@ def test_pytorch_scriptdel(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("no script at key", exception.__str__())
+        env.assertEqual("script key is empty", exception.__str__())
 
     # ERR wrong type from SCRIPTDEL
     try:
@@ -371,7 +374,7 @@ def test_pytorch_scriptrun(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("cannot get script from empty key", exception.__str__())
+        env.assertEqual("script key is empty", exception.__str__())
 
     # ERR wrong type from SCRIPTGET
     try:
@@ -407,7 +410,7 @@ def test_pytorch_scriptrun(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Input key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty", exception.__str__())
 
     # ERR Input key not tensor
     try:
@@ -461,6 +464,8 @@ def test_pytorch_scriptrun(env):
     tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     values = tensor[-1]
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    ensureSlaveSynced(con, env)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
@@ -575,10 +580,10 @@ def test_pytorch_modelrun_disconnect(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ret = env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -652,8 +657,8 @@ def test_pytorch_model_rdb_save_load(env):
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'm', 'BLOB')
 
-    env.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
     dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
 

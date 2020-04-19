@@ -16,7 +16,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
 
 void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunTF(RAI_ModelRunCtx *mctx, RAI_Error *error);
+int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 

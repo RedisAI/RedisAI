@@ -347,7 +347,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char* devicestr, RAI_Mo
 #else
   // TODO: Do dynamic device/provider check with GetExecutionProviderType or something on these lines
   if (device == RAI_DEVICE_GPU) {
-    RAI_SetError(error, RAI_EMODELCREATE, "GPU requested but ONNX couldn't find CUDA");
+    RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but ONNX couldn't find CUDA");
     return NULL;
   }
 #endif
@@ -401,28 +401,28 @@ void RAI_ModelFreeORT(RAI_Model* model, RAI_Error* error) {
   model->session = NULL;
 }
 
-int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
+int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error)
 {
   const OrtApi* ort = OrtGetApiBase()->GetApi(1);
 
-  OrtSession *session = mctx->model->session;
+  OrtSession *session = mctxs[0]->model->session;
 
   if (session == NULL) {
-    RAI_SetError(error, RAI_EMODELRUN, "ONNXRuntime session was not allocated\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR ONNXRuntime session was not allocated");
     return 1;
   }
 
-  const size_t nbatches = array_len(mctx->batches);
+  const size_t nbatches = array_len(mctxs);
   if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
  
   size_t batch_sizes[nbatches];
   size_t batch_offsets[nbatches];
-  if (array_len(mctx->batches[0].inputs) > 0) {
+  if (array_len(mctxs[0]->inputs) > 0) {
     for (size_t b=0; b<nbatches; ++b) {
-      batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
+      batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
     }
     batch_offsets[0] = 0;
     for (size_t b=1; b<nbatches; ++b) {
@@ -457,19 +457,19 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     OrtValue *inputs[n_input_nodes];
     OrtValue *outputs[n_output_nodes];
 
-    const size_t ninputs = array_len(mctx->batches[0].inputs);
-    const size_t noutputs = array_len(mctx->batches[0].outputs);
+    const size_t ninputs = array_len(mctxs[0]->inputs);
+    const size_t noutputs = array_len(mctxs[0]->outputs);
 
     if (ninputs != n_input_nodes) {
       char msg[70];
-      sprintf(msg, "Expected %li inputs but got %li", n_input_nodes, ninputs);
+      sprintf(msg, "ERR Expected %li inputs but got %li", n_input_nodes, ninputs);
       RAI_SetError(error, RAI_EMODELRUN, msg);
       return 1;
     }
 
     if (noutputs != n_output_nodes) {
       char msg[70];
-      sprintf(msg, "Expected %li outputs but got %li", n_output_nodes, noutputs);
+      sprintf(msg, "ERR Expected %li outputs but got %li", n_output_nodes, noutputs);
       RAI_SetError(error, RAI_EMODELRUN, msg);
       return 1;
     }
@@ -485,7 +485,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
 
       RAI_Tensor* batched_input_tensors[nbatches];
       for (size_t b=0; b<nbatches; b++) {
-        batched_input_tensors[b] = mctx->batches[b].inputs[i].tensor;
+        batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
       }
 
       inputs[i] = RAI_OrtValueFromTensors(batched_input_tensors, nbatches, error);
@@ -500,14 +500,14 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
     status = OrtSessionGetInputTypeInfo(session, i, &typeinfo);
     const OrtTensorTypeAndShapeInfo* tensor_info = OrtCastTypeInfoToTensorInfo(typeinfo);
     ONNXTensorElementDataType type = OrtGetTensorElementType(tensor_info);
-    // printf("Input %zu : type=%d\n", i, type);
+    // printf("Input %zu : type=%d", i, type);
 
     size_t num_dims = OrtGetDimensionsCount(tensor_info);
-    // printf("Input %zu : num_dims=%zu\n", i, num_dims);
+    // printf("Input %zu : num_dims=%zu", i, num_dims);
     input_node_dims.resize(num_dims);
     OrtGetDimensions(tensor_info, (int64_t*)input_node_dims.data(), num_dims);
     for (size_t j = 0; j < num_dims; j++) {
-      // printf("Input %zu : dim %zu=%jd\n", i, j, input_node_dims[j]);
+      // printf("Input %zu : dim %zu=%jd", i, j, input_node_dims[j]);
     }
 
     OrtReleaseTypeInfo(typeinfo);
@@ -545,11 +545,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx *mctx, RAI_Error *error)
           return 1;
         }
         if (output_tensor) {
-          mctx->batches[b].outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+          mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
           RAI_TensorFree(output_tensor);
         }
         else {
-          printf("ERR: non-tensor output from ONNX models, ignoring (currently unsupported).\n");
+          printf("ERR: non-tensor output from ONNX models, ignoring (currently unsupported)");
         }
       }
 

@@ -15,7 +15,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_
 
 void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx *mctx, RAI_Error *error);
+int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 

@@ -2,6 +2,7 @@
 #include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
+#include "model.h"
 
 #include "tensorflow/c/c_api.h"
 
@@ -256,8 +257,8 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     TF_Operation* oper = TF_GraphOperationByName(model, inputs[i]);
     if (oper == NULL) {
       size_t len = strlen(inputs[i]);
-      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
-      sprintf(msg, "Input node named \"%s\" not found in TF graph.", inputs[i]);
+      char* msg = RedisModule_Calloc(60 + len, sizeof(*msg));
+      sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
       RAI_SetError(error, RAI_EMODELIMPORT, msg);
       return NULL;
     }
@@ -267,8 +268,8 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     TF_Operation* oper = TF_GraphOperationByName(model, outputs[i]);
     if (oper == NULL) {
       size_t len = strlen(outputs[i]);
-      char* msg = RedisModule_Calloc(40 + len, sizeof(*msg));
-      sprintf(msg, "Output node named \"%s\" not found in TF graph.", outputs[i]);
+      char* msg = RedisModule_Calloc(60 + len, sizeof(*msg));
+      sprintf(msg, "ERR Output node named \"%s\" not found in TF graph", outputs[i]);
       RAI_SetError(error, RAI_EMODELIMPORT, msg);
       return NULL;
     }
@@ -292,16 +293,44 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
 
   if (device == RAI_DEVICE_CPU) {
     // Set number of GPU to 0 with
-    // config.device_count = {'GPU': 0} 
-    uint8_t config[9] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
-    TF_SetConfig(sessionOptions, (void *)config, 9, status);
-  }
-  else if (device == RAI_DEVICE_GPU) {
+    // config.device_count = {'GPU': 0}
+    uint8_t config[] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
+    TF_SetConfig(sessionOptions, (void *)config, sizeof(config), optionsStatus);
+
+    if (TF_GetCode(optionsStatus) != TF_OK) {
+      RAI_SetError(error, RAI_EMODELCONFIGURE,
+                   RedisModule_Strdup(TF_Message(optionsStatus)));
+      // TODO: free memory
+      return NULL;
+    }
+
+    if (opts.backends_intra_op_parallelism > 0) {
+      uint8_t proto[] = {0x10, (uint8_t)opts.backends_intra_op_parallelism};
+      TF_SetConfig(sessionOptions, proto, sizeof(proto), optionsStatus);
+      if (TF_GetCode(optionsStatus) != TF_OK) {
+        RAI_SetError(error, RAI_EMODELCONFIGURE,
+                     RedisModule_Strdup(TF_Message(optionsStatus)));
+        // TODO: free memory
+        return NULL;
+      }
+    }
+
+    if (opts.backends_inter_op_parallelism > 0) {
+      uint8_t proto1[] = {0x28, (uint8_t)opts.backends_inter_op_parallelism};
+      TF_SetConfig(sessionOptions, proto1, sizeof(proto1), optionsStatus);
+      if (TF_GetCode(optionsStatus) != TF_OK) {
+        RAI_SetError(error, RAI_EMODELCONFIGURE,
+                     RedisModule_Strdup(TF_Message(optionsStatus)));
+        // TODO: free memory
+        return NULL;
+      }
+    }
+  } else if (device == RAI_DEVICE_GPU) {
     if (deviceid == -1) {
       // Set
       // config.gpu_options.allow_growth = True
       uint8_t config[4] = {0x32, 0x02, 0x20, 0x01};
-      TF_SetConfig(sessionOptions, (void *)config, 4, status);
+      TF_SetConfig(sessionOptions, (void *)config, 4, optionsStatus);
     }
     else {
       // Set
@@ -309,12 +338,12 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
       // config.gpu_options.visible_device_list = '<deviceid>'
       uint8_t config[7] = {0x32, 0x05, 0x20, 0x01, 0x2a, 0x01, 0x30};
       config[6] += (uint8_t)deviceid;
-      TF_SetConfig(sessionOptions, (void *)config, 7, status);
+      TF_SetConfig(sessionOptions, (void *)config, 7, optionsStatus);
     }
   }
 
   if (TF_GetCode(optionsStatus) != TF_OK) {
-    RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
+    RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
     // TODO: free memory
     return NULL;
   }
@@ -336,7 +365,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     }
   }
   if (foundNoGPU == 1 && device == RAI_DEVICE_GPU) {
-    RAI_SetError(error, RAI_EMODELCREATE, "GPU requested but TF couldn't find CUDA");
+    RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but TF couldn't find CUDA");
     TF_DeleteDeviceList(deviceList);
     TF_DeleteStatus(deviceListStatus);
     // TODO: free other memory allocations
@@ -419,17 +448,17 @@ void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
   TF_DeleteStatus(status);
 }
 
-int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
+int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
   TF_Status *status = TF_NewStatus();
 
-  const size_t nbatches = array_len(mctx->batches);
+  const size_t nbatches = array_len(mctxs);
   if (nbatches == 0) {
-    RAI_SetError(error, RAI_EMODELRUN, "No batches to run\n");
+    RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
     return 1;
   }
   
-  const size_t ninputs = array_len(mctx->batches[0].inputs);
-  const size_t noutputs = array_len(mctx->batches[0].outputs);
+  const size_t ninputs = array_len(mctxs[0]->inputs);
+  const size_t noutputs = array_len(mctxs[0]->outputs);
   TF_Tensor* inputTensorsValues[ninputs];
   TF_Output inputs[ninputs];
   TF_Tensor* outputTensorsValues[noutputs];
@@ -437,9 +466,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   size_t batch_sizes[nbatches];
   size_t batch_offsets[nbatches];
-  if (array_len(mctx->batches[0].inputs) > 0) {
+  if (ninputs > 0) {
     for (size_t b=0; b<nbatches; ++b) {
-      batch_sizes[b] = RAI_TensorDim(mctx->batches[b].inputs[0].tensor, 0);
+      batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
     }
     batch_offsets[0] = 0;
     for (size_t b=1; b<nbatches; ++b) {
@@ -451,12 +480,11 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     RAI_Tensor* batched_input_tensors[nbatches];
 
     for (size_t b=0; b<nbatches; ++b) {
-      batched_input_tensors[b] = mctx->batches[b].inputs[i].tensor;
+      batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
     }
-    // inputTensorsValues[i] = RAI_TFTensorFromTensor(mctx->inputs[i].tensor);
     inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
     TF_Output port;
-    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->batches[0].inputs[i].name);
+    port.oper = TF_GraphOperationByName(mctxs[0]->model->model, mctxs[0]->inputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 1;
@@ -466,7 +494,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   for (size_t i=0 ; i<noutputs; ++i) {
     TF_Output port;
-    port.oper = TF_GraphOperationByName(mctx->model->model, mctx->batches[0].outputs[i].name);
+    port.oper = TF_GraphOperationByName(mctxs[0]->model->model, mctxs[0]->outputs[i].name);
     port.index = 0;
     if(port.oper == NULL){
       return 1;
@@ -474,7 +502,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
     outputs[i] = port;
   }
 
-  TF_SessionRun(mctx->model->session, NULL /* run_options */,
+  TF_SessionRun(mctxs[0]->model->session, NULL /* run_options */,
                 inputs, inputTensorsValues, ninputs,
                 outputs, outputTensorsValues, noutputs,
                 NULL /* target_opers */, 0 /* ntargets */,
@@ -495,20 +523,10 @@ int RAI_ModelRunTF(RAI_ModelRunCtx* mctx, RAI_Error *error) {
 
   for(size_t i=0; i<noutputs; ++i) {
     for (size_t b=0; b<nbatches; b++) {
-      RAI_Tensor* output_tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
-      mctx->batches[b].outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-      RAI_TensorFree(output_tensor);
+      mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
     }
     TF_DeleteTensor(outputTensorsValues[i]);
   }
-
-  // TODO: add (make sure we deallocate once)
-  // for (size_t i=0 ; i<array_len(mctx->inputs); ++i) {
-  //   TF_DeleteTensor(inputTensorsValues[i]);
-  // }
-  // for (size_t i=0 ; i<array_len(mctx->outputs); ++i) {
-  //   TF_DeleteTensor(outputTensorsValues[i]);
-  // }
 
   TF_DeleteStatus(status);
 
@@ -522,7 +540,7 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
   TF_GraphToGraphDef(model->model, tf_buffer, status);
 
   if (TF_GetCode(status) != TF_OK) {
-    RAI_SetError(error, RAI_EMODELSERIALIZE, "Error serializing TF model");
+    RAI_SetError(error, RAI_EMODELSERIALIZE, "ERR Error serializing TF model");
     TF_DeleteBuffer(tf_buffer);
     TF_DeleteStatus(status);
     return 1;
