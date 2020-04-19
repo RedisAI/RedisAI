@@ -1008,7 +1008,7 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   }
 
   if (!meta && values) {
-    int ret = RedisAI_TensorReplyWithValues(ctx, t);
+    int ret = RAI_TensorReplyWithValues(ctx, t);
     if (ret == -1) {
       return -1;
     }
@@ -1054,7 +1054,7 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   }
   else if (values) {
     RedisModule_ReplyWithCString(ctx, "values");
-    int ret = RedisAI_TensorReplyWithValues(ctx, t);
+    int ret = RAI_TensorReplyWithValues(ctx, t);
     if (ret != REDISMODULE_OK) {
       return -1;
     }
