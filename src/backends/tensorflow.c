@@ -238,13 +238,13 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
 
   TF_ImportGraphDefOptions* options = TF_NewImportGraphDefOptions();
 
-  TF_Buffer *buffer = TF_NewBuffer();
-  buffer->length = modellen;
-  buffer->data = modeldef;
+  TF_Buffer *tfbuffer = TF_NewBuffer();
+  tfbuffer->length = modellen;
+  tfbuffer->data = modeldef;
 
   TF_Status *status = TF_NewStatus();
 
-  TF_GraphImportGraphDef(model, buffer, options, status);
+  TF_GraphImportGraphDef(model, tfbuffer, options, status);
 
   if (TF_GetCode(status) != TF_OK) {
     char* errorMessage = RedisModule_Strdup(TF_Message(status));
@@ -276,7 +276,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
   }
 
   TF_DeleteImportGraphDefOptions(options);
-  TF_DeleteBuffer(buffer);
+  TF_DeleteBuffer(tfbuffer);
   TF_DeleteStatus(status);
 
   TF_Status *optionsStatus = TF_NewStatus();
@@ -394,6 +394,9 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
     array_append(outputs_, RedisModule_Strdup(outputs[i]));
   }
 
+  char* buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
+  memcpy(buffer, modeldef, modellen);
+
   RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = model;
   ret->session = session;
@@ -403,7 +406,9 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
   ret->outputs = outputs_;
   ret->opts = opts;
   ret->refCount = 1;
-  
+  ret->data = buffer;
+  ret->datalen = modellen;
+ 
   return ret;
 }
 
@@ -443,6 +448,10 @@ void RAI_ModelFreeTF(RAI_Model* model, RAI_Error* error) {
       RedisModule_Free(model->outputs[i]);
     }
     array_free(model->outputs);
+  }
+
+  if (model->data) {
+    RedisModule_Free(model->data);
   }
 
   TF_DeleteStatus(status);
@@ -534,24 +543,32 @@ int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
 }
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
-  TF_Buffer *tf_buffer = TF_NewBuffer();
-  TF_Status *status = TF_NewStatus();
 
-  TF_GraphToGraphDef(model->model, tf_buffer, status);
+  if (model->data) {
+    *buffer = RedisModule_Calloc(model->datalen, sizeof(char));
+    memcpy(*buffer, model->data, model->datalen);
+    *len = model->datalen;
+  }
+  else {
+    TF_Buffer *tf_buffer = TF_NewBuffer();
+    TF_Status *status = TF_NewStatus();
 
-  if (TF_GetCode(status) != TF_OK) {
-    RAI_SetError(error, RAI_EMODELSERIALIZE, "ERR Error serializing TF model");
+    TF_GraphToGraphDef(model->model, tf_buffer, status);
+
+    if (TF_GetCode(status) != TF_OK) {
+      RAI_SetError(error, RAI_EMODELSERIALIZE, "ERR Error serializing TF model");
+      TF_DeleteBuffer(tf_buffer);
+      TF_DeleteStatus(status);
+      return 1;
+    }
+
+    *buffer = RedisModule_Alloc(tf_buffer->length);
+    memcpy(*buffer, tf_buffer->data, tf_buffer->length);
+    *len = tf_buffer->length;
+
     TF_DeleteBuffer(tf_buffer);
     TF_DeleteStatus(status);
-    return 1;
   }
-
-  *buffer = RedisModule_Alloc(tf_buffer->length);
-  memcpy(*buffer, tf_buffer->data, tf_buffer->length);
-  *len = tf_buffer->length;
-
-  TF_DeleteBuffer(tf_buffer);
-  TF_DeleteStatus(status);
 
   return 0;
 }

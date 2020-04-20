@@ -48,6 +48,9 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_
     return NULL;
   }
 
+  char* buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
+  memcpy(buffer, modeldef, modellen);
+
   RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = model;
   ret->session = NULL;
@@ -57,13 +60,18 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_
   ret->outputs = NULL;
   ret->opts = opts;
   ret->refCount = 1;
-
+  ret->data = buffer;
+  ret->datalen = modellen;
+ 
   return ret;
 }
 
 void RAI_ModelFreeTorch(RAI_Model* model, RAI_Error *error) {
   if(model->devicestr){
     RedisModule_Free(model->devicestr);
+  }
+  if (model->data) {
+    RedisModule_Free(model->data);
   }
   torchDeallocContext(model->model);
 }
@@ -157,13 +165,21 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
 }
 
 int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
-  char* error_descr = NULL;
-  torchSerializeModel(model->model, buffer, len, &error_descr, RedisModule_Alloc);
 
-  if (*buffer == NULL) {
-    RAI_SetError(error, RAI_EMODELSERIALIZE, error_descr);
-    RedisModule_Free(error_descr);
-    return 1;
+  if (model->data) {
+    *buffer = RedisModule_Calloc(model->datalen, sizeof(char));
+    memcpy(*buffer, model->data, model->datalen);
+    *len = model->datalen;
+  }
+  else {
+    char* error_descr = NULL;
+    torchSerializeModel(model->model, buffer, len, &error_descr, RedisModule_Alloc);
+
+    if (*buffer == NULL) {
+      RAI_SetError(error, RAI_EMODELSERIALIZE, error_descr);
+      RedisModule_Free(error_descr);
+      return 1;
+    }
   }
 
   return 0;

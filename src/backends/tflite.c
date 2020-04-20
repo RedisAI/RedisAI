@@ -14,11 +14,6 @@ int RAI_InitBackendTFLite(int (*get_api_fn)(const char *, void *)) {
   return REDISMODULE_OK;
 }
 
-typedef struct RAI_TfLiteBuffer {
-  char* data;
-  size_t len;
-} RAI_TfLiteBuffer;
-
 RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
                                  const char *modeldef, size_t modellen,
                                  RAI_Error *error) {
@@ -55,10 +50,6 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
   char* buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
   memcpy(buffer, modeldef, modellen);
 
-  RAI_TfLiteBuffer* tflitebuffer = RedisModule_Calloc(1, sizeof(*tflitebuffer));
-  tflitebuffer->data = buffer;
-  tflitebuffer->len = modellen;
-
   RAI_Model* ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->model = model;
   ret->session = NULL;
@@ -68,13 +59,13 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI
   ret->outputs = NULL;
   ret->refCount = 1;
   ret->opts = opts;
-  ret->data = tflitebuffer;
+  ret->data = buffer;
+  ret->datalen = modellen;
 
   return ret;
 }
 
 void RAI_ModelFreeTFLite(RAI_Model* model, RAI_Error *error) {
-  RedisModule_Free(((RAI_TfLiteBuffer*)(model->data))->data);
   RedisModule_Free(model->data);
   RedisModule_Free(model->devicestr);
   tfliteDeallocContext(model->model);
@@ -178,10 +169,9 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
 }
 
 int RAI_ModelSerializeTFLite(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
-  RAI_TfLiteBuffer* tflitebuffer = (RAI_TfLiteBuffer*)model->data;
-  *buffer = RedisModule_Calloc(tflitebuffer->len, sizeof(char));
-  memcpy(*buffer, tflitebuffer->data, tflitebuffer->len);
-  *len = tflitebuffer->len;
+  *buffer = RedisModule_Calloc(model->datalen, sizeof(char));
+  memcpy(*buffer, model->data, model->datalen);
+  *len = model->datalen;
 
   return 0;
 }
