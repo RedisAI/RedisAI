@@ -411,21 +411,6 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
 /**
  * AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...
- *
- * The request is queued and evaded asynchronously from a separate thread. The
- * client blocks until the computation finishes.
- *
- * 1. clone inputs as needed in the main thread (only the alternative is to
- * lock)
- * 2. spawn the new thread for running the model
- * 3. have reply callback put the data back into the key
- * 
- * This way we avoid any race condition. The only gotcha is making sure no one
- * overwrites the model until it's done computing.
- * This means that setModel will decode on a candidate pointer, and will then
- * be picked up on the next round. We also need to signal when it's time to
- * dispose of the old model. The key is having a single thread looping
- * forexecution
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
