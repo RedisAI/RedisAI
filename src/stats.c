@@ -73,9 +73,45 @@ void RAI_RemoveStatsEntry(void* infokey) {
   }
 }
 
+int RAI_ResetRunStats(struct RedisAI_RunStats* rstats) {
+  rstats->duration_us = 0;
+  rstats->samples = 0;
+  rstats->calls = 0;
+  rstats->nerrors = 0;
+  return 0;
+}
+
+int RAI_SafeAddDataPoint(struct RedisAI_RunStats* rstats, long long duration,
+                         long long calls, long long errors, long long samples) {
+  int result = 1;
+  if (rstats == NULL) {
+    return result;
+  } else {
+    rstats->duration_us += duration;
+    rstats->calls += calls;
+    rstats->nerrors += errors;
+    rstats->samples += samples;
+    result = 0;
+  }
+  return result;
+}
+
 void RAI_FreeRunStats(struct RedisAI_RunStats* rstats) {
   RedisModule_Free(rstats->devicestr);
   RedisModule_Free(rstats->tag);
+}
+
+int RAI_GetRunStats(const char* runkey, struct RedisAI_RunStats** rstats) {
+  int result = 1;
+  if (run_stats == NULL) {
+    return result;
+  }
+  AI_dictEntry* entry = AI_dictFind(run_stats, runkey);
+  if (entry) {
+    *rstats = AI_dictGetVal(entry);
+    result = 0;
+  }
+  return result;
 }
 
 void RedisAI_FreeRunStats(RedisModuleCtx* ctx,

@@ -658,6 +658,7 @@ def test_pytorch_model_rdb_save_load(env):
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
     _, dtype_memory, _, shape_memory, _, data_memory = con.execute_command('AI.TENSORGET', 'c', 'META', 'VALUES')
 
+    ensureSlaveSynced(con, env)
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
 

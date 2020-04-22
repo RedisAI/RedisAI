@@ -693,7 +693,7 @@ def test_tensorflow_modelrun_financialNet(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -727,7 +727,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 

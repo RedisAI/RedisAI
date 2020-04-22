@@ -1,4 +1,6 @@
 import redis
+from functools import wraps
+import multiprocessing as mp
 
 from includes import *
 
@@ -135,6 +137,8 @@ def test_dagro_common_errors(env):
 
 
 def test_dag_modelrun_financialNet_errors(env):
+    if not TEST_TF:
+        return
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -379,6 +383,8 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
 
 
 def test_dag_modelrun_financialNet_separate_tensorget(env):
+    if not TEST_TF:
+        return
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -419,6 +425,8 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
 
 
 def test_dag_modelrun_financialNet(env):
+    if not TEST_TF:
+        return
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -456,6 +464,8 @@ def test_dag_modelrun_financialNet(env):
 
 
 def test_dag_modelrun_financialNet_no_writes(env):
+    if not TEST_TF:
+        return
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -505,11 +515,13 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
 
 def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
+    if not TEST_TF:
+        return
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -555,3 +567,28 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
             tensor_number))
         env.assertEqual(ret, 0)
         tensor_number = tensor_number + 1
+
+    info = con.execute_command('AI.INFO', 'financialNet')
+    financialNetRunInfo = info_to_dict(info)
+
+    env.assertEqual('financialNet', financialNetRunInfo['key'])
+    env.assertEqual('MODEL', financialNetRunInfo['type'])
+    env.assertEqual('TF', financialNetRunInfo['backend'])
+    env.assertEqual(DEVICE, financialNetRunInfo['device'])
+    env.assertTrue(financialNetRunInfo['duration'] > 0)
+    env.assertEqual(0, financialNetRunInfo['samples'])
+    env.assertEqual(2*len(creditcard_transactions), financialNetRunInfo['calls'])
+    env.assertEqual(0, financialNetRunInfo['errors'])
+
+    con.execute_command('AI.INFO', 'financialNet', 'RESETSTAT')
+    info = con.execute_command('AI.INFO', 'financialNet')
+    financialNetRunInfo = info_to_dict(info)
+
+    env.assertEqual('financialNet', financialNetRunInfo['key'])
+    env.assertEqual('MODEL', financialNetRunInfo['type'])
+    env.assertEqual('TF', financialNetRunInfo['backend'])
+    env.assertEqual(DEVICE, financialNetRunInfo['device'])
+    env.assertEqual(0, financialNetRunInfo['duration'])
+    env.assertEqual(0, financialNetRunInfo['samples'])
+    env.assertEqual(0, financialNetRunInfo['calls'])
+    env.assertEqual(0, financialNetRunInfo['errors'])
