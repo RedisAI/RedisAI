@@ -33,7 +33,8 @@ Here is an example of Python code that classifies ImageNet classes with ResNet50
 ```bash
 {{ include('notebooks/tensorflow_resnet50.output') }}
 ```
-![](images/cat_classified.jpg)
+
+<img src="/images/cat_classified.jpg" alt="cat_classified""/> 
 
 
 #### YOLO - You only look once
