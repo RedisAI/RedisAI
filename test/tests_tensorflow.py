@@ -35,13 +35,13 @@ def test_run_mobilenet(env):
     ensureSlaveSynced(con, env)
 
     mobilenet_model_serialized = con.execute_command(
-        'AI.MODELGET', 'mobilenet')
+        'AI.MODELGET', 'mobilenet', 'META')
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
         con2 = env.getSlaveConnection()
         slave_mobilenet_model_serialized = con2.execute_command(
-            'AI.MODELGET', 'mobilenet')
+            'AI.MODELGET', 'mobilenet', 'META')
         env.assertEqual(len(mobilenet_model_serialized),
                         len(slave_mobilenet_model_serialized))
 
@@ -52,7 +52,7 @@ def test_run_mobilenet(env):
     ensureSlaveSynced(con, env)
     input_tensor_meta = con.execute_command('AI.TENSORGET', 'input', 'META')
     env.assertEqual(
-        [b'FLOAT', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
+        [b'dtype', b'FLOAT', b'shape', [1, img.shape[1], img.shape[0], img.shape[2]]], input_tensor_meta)
 
     ensureSlaveSynced(con, env)
     if env.useSlaves:
@@ -66,7 +66,7 @@ def test_run_mobilenet(env):
 
     ensureSlaveSynced(con, env)
 
-    dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
+    _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'output', 'META', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
@@ -78,8 +78,8 @@ def test_run_mobilenet(env):
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_dtype, slave_shape, slave_data = con2.execute_command(
-            'AI.TENSORGET', 'output', 'BLOB')
+        _, slave_dtype, _, slave_shape, _, slave_data = con2.execute_command(
+            'AI.TENSORGET', 'output', 'META', 'BLOB')
         env.assertEqual(dtype, slave_dtype)
         env.assertEqual(shape, slave_shape)
         env.assertEqual(data, slave_data)
@@ -106,7 +106,7 @@ def test_run_mobilenet_multiproc(env):
 
     ensureSlaveSynced(con, env)
 
-    dtype, shape, data = con.execute_command('AI.TENSORGET', 'output', 'BLOB')
+    _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'output', 'META', 'BLOB')
 
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
@@ -120,8 +120,8 @@ def test_run_mobilenet_multiproc(env):
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        slave_dtype, slave_shape, slave_data = con2.execute_command(
-            'AI.TENSORGET', 'output', 'BLOB')
+        _, slave_dtype, _, slave_shape, _, slave_data = con2.execute_command(
+            'AI.TENSORGET', 'output', 'META', 'BLOB')
         env.assertEqual(dtype, slave_dtype)
         env.assertEqual(shape, slave_shape)
         env.assertEqual(data, slave_data)
@@ -186,7 +186,7 @@ def test_run_tf_model(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
@@ -196,7 +196,7 @@ def test_run_tf_model(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'asdf')
 
@@ -216,14 +216,13 @@ def test_run_tf_model(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        env.assertEqual(tensor2, tensor)
+        values2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(values2, values)
 
     for _ in env.reloadingIterator():
         env.assertExists('m')
@@ -258,7 +257,7 @@ def test_run_tf2_model(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
@@ -268,7 +267,7 @@ def test_run_tf2_model(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'asdf')
 
@@ -283,15 +282,14 @@ def test_run_tf2_model(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'y', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'y', 'VALUES')
     for value in values:
         env.assertAlmostEqual(float(value), 0.1, 1E-4)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'y', 'VALUES')
-        env.assertEqual(tensor2, tensor)
+        values2 = con2.execute_command('AI.TENSORGET', 'y', 'VALUES')
+        env.assertEqual(values2, values)
 
     for _ in env.reloadingIterator():
         env.assertExists('m')
@@ -511,12 +509,10 @@ def test_run_tf_model_autobatch(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
 
@@ -534,8 +530,8 @@ def test_tensorflow_modelinfo(env):
     env.assertEqual(ret, b'OK')
     info = con.execute_command('AI.INFO', 'm')  # Getting initial info before modelrun
     info_dict0 = info_to_dict(info)
-    expected = {'KEY': 'm', 'TYPE': 'MODEL', 'BACKEND': 'TF', 'DEVICE': DEVICE,
-                'TAG': '', 'DURATION': 0, 'SAMPLES': 0, 'CALLS': 0, 'ERRORS': 0}
+    expected = {'key': 'm', 'type': 'MODEL', 'backend': 'TF', 'device': DEVICE,
+                'tag': '', 'duration': 0, 'samples': 0, 'calls': 0, 'errors': 0}
     env.assertEqual(info_dict0, expected)
 
     # second modelset; a corner case
@@ -566,25 +562,25 @@ def test_tensorflow_modelinfo(env):
         info = con.execute_command('AI.INFO', 'm')
         info_dict_0 = info_to_dict(info)
 
-        env.assertEqual(info_dict_0['KEY'], 'm')
-        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
-        env.assertEqual(info_dict_0['BACKEND'], 'TF')
-        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
-        env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
-        env.assertEqual(info_dict_0['CALLS'], call)
-        env.assertEqual(info_dict_0['ERRORS'], 0)
+        env.assertEqual(info_dict_0['key'], 'm')
+        env.assertEqual(info_dict_0['type'], 'MODEL')
+        env.assertEqual(info_dict_0['backend'], 'TF')
+        env.assertEqual(info_dict_0['device'], DEVICE)
+        env.assertTrue(info_dict_0['duration'] > previous_duration)
+        env.assertEqual(info_dict_0['samples'], 2 * call)
+        env.assertEqual(info_dict_0['calls'], call)
+        env.assertEqual(info_dict_0['errors'], 0)
 
-        previous_duration = info_dict_0['DURATION']
+        previous_duration = info_dict_0['duration']
 
     res = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
     env.assertEqual(res, b'OK')
     info = con.execute_command('AI.INFO', 'm')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'], 0)
-    env.assertEqual(info_dict_0['SAMPLES'], 0)
-    env.assertEqual(info_dict_0['CALLS'], 0)
-    env.assertEqual(info_dict_0['ERRORS'], 0)
+    env.assertEqual(info_dict_0['duration'], 0)
+    env.assertEqual(info_dict_0['samples'], 0)
+    env.assertEqual(info_dict_0['calls'], 0)
+    env.assertEqual(info_dict_0['errors'], 0)
 
 
 @skip_if_no_TF
@@ -664,7 +660,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     time.sleep(3)
 
-    dtype, shape, data = con.execute_command('AI.TENSORGET', 'final1', 'BLOB')
+    _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'final1', 'META', 'BLOB')
     dtype_map = {b'FLOAT': np.float32}
     tensor = np.frombuffer(data, dtype=dtype_map[dtype]).reshape(shape)
     label_id = np.argmax(tensor) - 1

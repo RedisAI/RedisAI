@@ -35,7 +35,7 @@ def test_pytorch_modelrun(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
@@ -44,7 +44,7 @@ def test_pytorch_modelrun(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'asdf')
 
@@ -123,14 +123,13 @@ def test_pytorch_modelrun(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        env.assertEqual(tensor2, tensor)
+        values2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(values2, values)
 
 
 def test_pytorch_modelrun_autobatch(env):
@@ -169,12 +168,10 @@ def test_pytorch_modelrun_autobatch(env):
 
     ensureSlaveSynced(con, env)
 
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
-    tensor = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
 
@@ -211,26 +208,26 @@ def test_pytorch_modelinfo(env):
         info = con.execute_command('AI.INFO', 'm')
         info_dict_0 = info_to_dict(info)
 
-        env.assertEqual(info_dict_0['KEY'], 'm')
-        env.assertEqual(info_dict_0['TYPE'], 'MODEL')
-        env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
-        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertEqual(info_dict_0['TAG'], 'asdf')
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
-        env.assertEqual(info_dict_0['SAMPLES'], 2 * call)
-        env.assertEqual(info_dict_0['CALLS'], call)
-        env.assertEqual(info_dict_0['ERRORS'], 0)
+        env.assertEqual(info_dict_0['key'], 'm')
+        env.assertEqual(info_dict_0['type'], 'MODEL')
+        env.assertEqual(info_dict_0['backend'], 'TORCH')
+        env.assertEqual(info_dict_0['device'], DEVICE)
+        env.assertEqual(info_dict_0['tag'], 'asdf')
+        env.assertTrue(info_dict_0['duration'] > previous_duration)
+        env.assertEqual(info_dict_0['samples'], 2 * call)
+        env.assertEqual(info_dict_0['calls'], call)
+        env.assertEqual(info_dict_0['errors'], 0)
 
-        previous_duration = info_dict_0['DURATION']
+        previous_duration = info_dict_0['duration']
 
     res = con.execute_command('AI.INFO', 'm', 'RESETSTAT')
     env.assertEqual(res, b'OK')
     info = con.execute_command('AI.INFO', 'm')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'], 0)
-    env.assertEqual(info_dict_0['SAMPLES'], 0)
-    env.assertEqual(info_dict_0['CALLS'], 0)
-    env.assertEqual(info_dict_0['ERRORS'], 0)
+    env.assertEqual(info_dict_0['duration'], 0)
+    env.assertEqual(info_dict_0['samples'], 0)
+    env.assertEqual(info_dict_0['calls'], 0)
+    env.assertEqual(info_dict_0['errors'], 0)
 
 
 def test_pytorch_scriptset(env):
@@ -452,25 +449,24 @@ def test_pytorch_scriptrun(env):
     info = con.execute_command('AI.INFO', 'ket')
     info_dict_0 = info_to_dict(info)
 
-    env.assertEqual(info_dict_0['KEY'], 'ket')
-    env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
-    env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
-    env.assertEqual(info_dict_0['TAG'], 'asdf')
-    env.assertTrue(info_dict_0['DURATION'] > 0)
-    env.assertEqual(info_dict_0['SAMPLES'], -1)
-    env.assertEqual(info_dict_0['CALLS'], 4)
-    env.assertEqual(info_dict_0['ERRORS'], 3)
+    env.assertEqual(info_dict_0['key'], 'ket')
+    env.assertEqual(info_dict_0['type'], 'SCRIPT')
+    env.assertEqual(info_dict_0['backend'], 'TORCH')
+    env.assertEqual(info_dict_0['tag'], 'asdf')
+    env.assertTrue(info_dict_0['duration'] > 0)
+    env.assertEqual(info_dict_0['samples'], -1)
+    env.assertEqual(info_dict_0['calls'], 4)
+    env.assertEqual(info_dict_0['errors'], 3)
 
-    tensor = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     ensureSlaveSynced(con, env)
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
-        tensor2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        env.assertEqual(tensor2, tensor)
+        values2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(values2, values)
 
 
 def test_pytorch_scriptinfo(env):
@@ -508,25 +504,25 @@ def test_pytorch_scriptinfo(env):
         info = con.execute_command('AI.INFO', 'ket_script')
         info_dict_0 = info_to_dict(info)
 
-        env.assertEqual(info_dict_0['KEY'], 'ket_script')
-        env.assertEqual(info_dict_0['TYPE'], 'SCRIPT')
-        env.assertEqual(info_dict_0['BACKEND'], 'TORCH')
-        env.assertEqual(info_dict_0['DEVICE'], DEVICE)
-        env.assertTrue(info_dict_0['DURATION'] > previous_duration)
-        env.assertEqual(info_dict_0['SAMPLES'], -1)
-        env.assertEqual(info_dict_0['CALLS'], call)
-        env.assertEqual(info_dict_0['ERRORS'], 0)
+        env.assertEqual(info_dict_0['key'], 'ket_script')
+        env.assertEqual(info_dict_0['type'], 'SCRIPT')
+        env.assertEqual(info_dict_0['backend'], 'TORCH')
+        env.assertEqual(info_dict_0['device'], DEVICE)
+        env.assertTrue(info_dict_0['duration'] > previous_duration)
+        env.assertEqual(info_dict_0['samples'], -1)
+        env.assertEqual(info_dict_0['calls'], call)
+        env.assertEqual(info_dict_0['errors'], 0)
 
-        previous_duration = info_dict_0['DURATION']
+        previous_duration = info_dict_0['duration']
 
     res = con.execute_command('AI.INFO', 'ket_script', 'RESETSTAT')
     env.assertEqual(res, b'OK')
     info = con.execute_command('AI.INFO', 'ket_script')
     info_dict_0 = info_to_dict(info)
-    env.assertEqual(info_dict_0['DURATION'], 0)
-    env.assertEqual(info_dict_0['SAMPLES'], -1)
-    env.assertEqual(info_dict_0['CALLS'], 0)
-    env.assertEqual(info_dict_0['ERRORS'], 0)
+    env.assertEqual(info_dict_0['duration'], 0)
+    env.assertEqual(info_dict_0['samples'], -1)
+    env.assertEqual(info_dict_0['calls'], 0)
+    env.assertEqual(info_dict_0['errors'], 0)
 
 
 def test_pytorch_scriptrun_disconnect(env):
@@ -592,7 +588,7 @@ def test_pytorch_modelrun_disconnect(env):
     env.assertEqual(ret, None)
 
 
-def test_pytorch_modellist_scriptlist(env):
+def test_pytorch_modelscan_scriptscan(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -624,12 +620,12 @@ def test_pytorch_modellist_scriptlist(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI._MODELLIST')
+    ret = con.execute_command('AI._MODELSCAN')
 
     env.assertEqual(ret[0], [b'm1', b'm:v1'])
     env.assertEqual(ret[1], [b'm2', b'm:v1'])
 
-    ret = con.execute_command('AI._SCRIPTLIST')
+    ret = con.execute_command('AI._SCRIPTSCAN')
 
     env.assertEqual(ret[0], [b's1', b's:v1'])
     env.assertEqual(ret[1], [b's2', b's:v1'])
@@ -660,7 +656,7 @@ def test_pytorch_model_rdb_save_load(env):
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-    dtype_memory, shape_memory, data_memory = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    _, dtype_memory, _, shape_memory, _, data_memory = con.execute_command('AI.TENSORGET', 'c', 'META', 'VALUES')
 
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
@@ -670,7 +666,7 @@ def test_pytorch_model_rdb_save_load(env):
     con = env.getConnection()
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm', 'BLOB')
     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-    dtype_after_rdbload, shape_after_rdbload, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c', 'META', 'VALUES')
 
     # Assert in memory model metadata is equal to loaded model metadata
     env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])

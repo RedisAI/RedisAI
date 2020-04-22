@@ -19,15 +19,15 @@ def test_common_tensorset(env):
 
     # AI.TENSORGET in BLOB format and set in a new key
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
-                                                                    'BLOB')
+        _, tensor_dtype, _, tensor_dim, _, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+                                                                             'META', 'BLOB')
         ret = con.execute_command('AI.TENSORSET', 'tensor_blob_{0}'.format(datatype), datatype, 2, 'BLOB', tensor_blob)
         env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     reply_types = ["META", "VALUES", "BLOB"]
-    # Confirm that tensor_{0} and tensor_blog_{0} are equal for META VALUES BLOB
+    # Confirm that tensor_{0} and tensor_blob_{0} are equal for META VALUES BLOB
     for datatype in tested_datatypes:
         for reply_type in reply_types:
             tensor_1_reply = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype), reply_type)
@@ -167,8 +167,7 @@ def test_common_tensorget(env):
 
     # AI.TENSORGET in BLOB format and set in a new key
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
-                                                                    'BLOB')
+        tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype), 'BLOB')
         ret = con.execute_command('AI.TENSORSET', 'tensor_blob_{0}'.format(datatype), datatype, 2, 'BLOB', tensor_blob)
         env.assertEqual(ret, b'OK')
 
@@ -184,14 +183,14 @@ def test_common_tensorget(env):
 
     # Confirm that the output is the expected for META
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype), "META")
+        _, tensor_dtype, _, tensor_dim = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype), "META")
         env.assertEqual(datatype.encode('utf-8'), tensor_dtype)
         env.assertEqual([2], tensor_dim)
 
     # Confirm that the output is the expected for VALUES
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim, tensor_values = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
-                                                                      "VALUES")
+        _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+                                                                               'META', 'VALUES')
         env.assertEqual(datatype.encode('utf-8'), tensor_dtype)
         env.assertEqual([2], tensor_dim)
         if datatype in tested_datatypes_fp:
@@ -201,8 +200,8 @@ def test_common_tensorget(env):
 
     # Confirm that the output is the expected for BLOB
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim, tensor_blog = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
-                                                                    "BLOB")
+        _, tensor_dtype, _, tensor_dim, _, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+                                                                             'META', 'BLOB')
         env.assertEqual(datatype.encode('utf-8'), tensor_dtype)
         env.assertEqual([2], tensor_dim)
 
@@ -244,8 +243,7 @@ def test_common_tensorset_multiproc(env):
 
     con = env.getConnection()
     ensureSlaveSynced(con, env)
-    tensor = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
-    values = tensor[-1]
+    values = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     env.assertEqual(values, [b'2', b'3'])
 
 
@@ -261,10 +259,10 @@ def test_common_tensorset_multiproc_blob(env):
 
     # AI.TENSORGET in BLOB format and set in a new key
     for datatype in tested_datatypes:
-        tensor_dtype, tensor_dim, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+        tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
                                                                     'BLOB')
         ret = con.execute_command('AI.TENSORSET', 'tensor_blob_{0}'.format(datatype), datatype, 1, 256, 'BLOB', tensor_blob)
-        tested_datatypes_map[datatype]=tensor_blob
+        tested_datatypes_map[datatype] = tensor_blob
         env.assertEqual(ret, b'OK')
 
     def funcname(env, blob, repetitions, same_key):
@@ -291,5 +289,5 @@ def test_tensorget_disconnect(env):
     red = env.getConnection()
     ret = red.execute_command('AI.TENSORSET', 't_FLOAT', 'FLOAT', 2, 'VALUES', 2, 3)
     env.assertEqual(ret, b'OK')
-    ret = send_and_disconnect(('AI.TENSORGET', 't_FLOAT'), red)
+    ret = send_and_disconnect(('AI.TENSORGET', 't_FLOAT', 'META'), red)
     env.assertEqual(ret, None)
