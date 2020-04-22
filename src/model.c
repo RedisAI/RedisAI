@@ -494,7 +494,6 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
 
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RedisModuleString **argv, int argc,
-                                        // RedisAI_RunInfo **rinfo,
                                         RAI_ModelRunCtx **mctx,
                                         RedisModuleString ***outkeys,
                                         RAI_Model **mto, int useLocalContext,

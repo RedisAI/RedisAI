@@ -474,3 +474,28 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
             tensor_number))
         env.assertEqual(ret, 0 )
         tensor_number = tensor_number + 1
+
+    info = con.execute_command('AI.INFO', 'financialNet')
+    financialNetRunInfo = info_to_dict(info)
+
+    env.assertEqual('financialNet', financialNetRunInfo['KEY'])
+    env.assertEqual('MODEL', financialNetRunInfo['TYPE'])
+    env.assertEqual('TF', financialNetRunInfo['BACKEND'])
+    env.assertEqual(DEVICE, financialNetRunInfo['DEVICE'])
+    env.assertTrue(financialNetRunInfo['DURATION'] > 0)
+    env.assertEqual(0, financialNetRunInfo['SAMPLES'])
+    env.assertEqual(2*len(creditcard_transactions), financialNetRunInfo['CALLS'])
+    env.assertEqual(0, financialNetRunInfo['ERRORS'])
+
+    con.execute_command('AI.INFO', 'financialNet', 'RESETSTAT')
+    info = con.execute_command('AI.INFO', 'financialNet')
+    financialNetRunInfo = info_to_dict(info)
+
+    env.assertEqual('financialNet', financialNetRunInfo['KEY'])
+    env.assertEqual('MODEL', financialNetRunInfo['TYPE'])
+    env.assertEqual('TF', financialNetRunInfo['BACKEND'])
+    env.assertEqual(DEVICE, financialNetRunInfo['DEVICE'])
+    env.assertEqual(0, financialNetRunInfo['DURATION'])
+    env.assertEqual(0, financialNetRunInfo['SAMPLES'])
+    env.assertEqual(0, financialNetRunInfo['CALLS'])
+    env.assertEqual(0, financialNetRunInfo['ERRORS'])
