@@ -98,6 +98,42 @@ def test_dag_common_errors(env):
         env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
 
 
+def test_dagro_common_errors(env):
+    con = env.getConnection()
+
+    # ERR unsupported command within DAG
+    try:
+        command = "AI.DAGRUNRO |> "\
+                "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+
+    # ERR wrong number of arguments for 'AI.DAGRUN' command
+    try:
+        command = "AI.DAGRUNRO "
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for 'AI.DAGRUNRO' command",exception.__str__())
+
+    # ERR invalid or negative value found in number of keys to LOAD
+    try:
+        command = "AI.DAGRUNRO LOAD notnumber |> "\
+                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
+
+
 def test_dag_modelrun_financialNet_errors(env):
     con = env.getConnection()
 
@@ -112,7 +148,6 @@ def test_dag_modelrun_financialNet_errors(env):
                                   'FLOAT', 1, 256,
                                   'BLOB', creditcard_referencedata[0].tobytes())
     env.assertEqual(ret, b'OK')
-    
 
     # ERR wrong number of inputs
     try:
@@ -131,7 +166,6 @@ def test_dag_modelrun_financialNet_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("ERR unsupported command within DAG",exception.__str__())
 
-        
 
 def test_dag_local_tensorset(env):
     con = env.getConnection()
@@ -146,6 +180,22 @@ def test_dag_local_tensorset(env):
     # assert that transaction tensor does not exist
     ret = con.execute_command("EXISTS volatile_tensor")
     env.assertEqual(ret, 0 )
+
+
+def test_dagro_local_tensorset(env):
+    con = env.getConnection()
+
+    command = "AI.DAGRUNRO "\
+        "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
+        "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
+
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [b'OK',b'OK'])
+
+    # assert that transaction tensor does not exist
+    ret = con.execute_command("EXISTS volatile_tensor")
+    env.assertEqual(ret, 0 )
+
 
 def test_dag_local_tensorset_persist(env):
     con = env.getConnection()
@@ -163,6 +213,21 @@ def test_dag_local_tensorset_persist(env):
 
     ret = con.execute_command("AI.TENSORGET tensor1 META VALUES")
     env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
+
+
+def test_dagro_local_tensorset_persist(env):
+    con = env.getConnection()
+
+    command = "AI.DAGRUNRO "\
+        "PERSIST 1 tensor1 |> "\
+        "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+    try:
+        con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("PERSIST cannot be specified in a read-only DAG", exception.__str__())
 
 
 def test_dag_multilocal_tensorset_persist(env):
@@ -196,6 +261,7 @@ def test_dag_multilocal_tensorset_persist(env):
 
     ret = con.execute_command("AI.TENSORGET tensor3 META VALUES")
     env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
+
 
 def test_dag_local_tensorset_tensorget_persist(env):
     con = env.getConnection()
@@ -282,6 +348,20 @@ def test_dag_keyspace_tensorget(env):
     env.assertEqual(ret, [[b'5', b'10']])
 
 
+def test_dagro_keyspace_tensorget(env):
+    con = env.getConnection()
+
+    ret = con.execute_command(
+        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+    env.assertEqual(ret, b'OK')
+
+    command = "AI.DAGRUNRO LOAD 1 persisted_tensor |> "\
+        "AI.TENSORGET persisted_tensor VALUES"
+
+    ret = con.execute_command(command)
+    env.assertEqual(ret, [[b'5', b'10']])
+
+
 def test_dag_keyspace_and_localcontext_tensorget(env):
     con = env.getConnection()
 
@@ -337,6 +417,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
         env.assertEqual(ret, 0 )
         tensor_number = tensor_number + 1
 
+
 def test_dag_modelrun_financialNet(env):
     con = env.getConnection()
 
@@ -372,6 +453,7 @@ def test_dag_modelrun_financialNet(env):
             tensor_number))
         env.assertEqual(ret, 0 )
         tensor_number = tensor_number + 1
+
 
 def test_dag_modelrun_financialNet_no_writes(env):
     con = env.getConnection()
@@ -422,7 +504,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
         tensor_number = tensor_number + 1
 
 
-def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
+def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     con = env.getConnection()
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -442,7 +524,7 @@ def test_dag_modelrun_financialNet_no_writes_multiple_modelruns(env):
     tensor_number = 1
     for transaction_tensor in creditcard_transactions:
         ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
+            'AI.DAGRUNRO', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),
