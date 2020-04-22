@@ -464,7 +464,7 @@ redis> > AI._SCRIPTLIST
 ```
 
 ## AI.DAGRUN
-The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations ( for now we only allow chaining ) to run within RedisAI. 
+The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to run within RedisAI. 
 It accepts one or more operations, split by the pipe-forward operator (`|>`). 
 
 
