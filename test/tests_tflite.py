@@ -346,6 +346,7 @@ def test_tflite_model_rdb_save_load(env):
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
 
+    ensureSlaveSynced(con, env)
     ret = con.execute_command('SAVE')
     env.assertEqual(ret, True)
 
