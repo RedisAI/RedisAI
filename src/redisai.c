@@ -1047,7 +1047,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
             return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
         }
-        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos+1];
         rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
             RAI_ModelRunCtxCreate(mto);
       }
