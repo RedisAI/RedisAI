@@ -359,7 +359,7 @@ def test_dagro_keyspace_tensorget(env):
         "AI.TENSORGET persisted_tensor VALUES"
 
     ret = con.execute_command(command)
-    env.assertEqual(ret, [[b'FLOAT', [1, 2], [b'5', b'10']]])
+    env.assertEqual(ret, [[b'5', b'10']])
 
 
 def test_dag_keyspace_and_localcontext_tensorget(env):
