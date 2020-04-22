@@ -144,9 +144,15 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
       case REDISAI_DAG_CMD_MODELRUN: {
         rinfo->dagReplyLength++;
+        struct RedisAI_RunStats *rstats = NULL;
+        const char *runkey =
+            RedisModule_StringPtrLen(currentOp->runkey, NULL);
+        RAI_GetRunStats(runkey,&rstats);
         if (currentOp->result == REDISMODULE_ERR) {
+          RAI_SafeAddDataPoint(rstats,0,1,1,0);
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
         } else {
+          RAI_SafeAddDataPoint(rstats,currentOp->duration_us,1,0,0);
           RedisModule_ReplyWithSimpleString(ctx, "OK");
         }
         break;

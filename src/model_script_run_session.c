@@ -86,19 +86,12 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
   struct RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
 
   const char *runkey = RedisModule_StringPtrLen(rinfo->runkey, NULL);
-  AI_dictEntry *stats_entry = AI_dictFind(run_stats, runkey);
-
   struct RedisAI_RunStats *rstats = NULL;
-  if (stats_entry) {
-    rstats = AI_dictGetVal(stats_entry);
-  }
+  RAI_GetRunStats(runkey, &rstats);
 
   if (rinfo->result == REDISMODULE_ERR) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
-    if (rstats) {
-      rstats->calls += 1;
-      rstats->nerrors += 1;
-    }
+    RAI_SafeAddDataPoint(rstats,0,1,1,0);
     int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
     RAI_FreeRunInfo(ctx, rinfo);
     return ret;
@@ -119,10 +112,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
                                           REDISMODULE_READ | REDISMODULE_WRITE);
     if (status == REDISMODULE_ERR) {
       RAI_FreeRunInfo(ctx, rinfo);
-      if (rstats) {
-        rstats->calls += 1;
-        rstats->nerrors += 1;
-      }
+      RAI_SafeAddDataPoint(rstats,0,1,1,0);
       return REDISMODULE_ERR;
     }
     RAI_Tensor *t = NULL;
@@ -144,16 +134,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisAI_ReplicateTensorSet(ctx, rinfo->outkeys[i], t);
     }
   }
-
-  if (rstats) {
-    rstats->duration_us += rinfo->duration_us;
-    rstats->calls += 1;
-
-    if (rinfo->mctx) {
-      rstats->samples += batch_size;
-    }
-  }
-
+  RAI_SafeAddDataPoint(rstats,rinfo->duration_us,1,0,batch_size);
   RAI_FreeRunInfo(ctx, rinfo);
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }

@@ -772,37 +772,21 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
   return REDISMODULE_OK;
 }
 
-/** 
+/**
 * AI.INFO <model_or_script_key> [RESETSTAT]
 */
 int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  RedisModule_AutoMemory(ctx);
-
   if (argc != 2 && argc != 3) return RedisModule_WrongArity(ctx);
-
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  const char* runkey;
-  AC_GetString(&ac, &runkey, NULL, 0); 
-
-  AI_dictEntry *stats_entry = AI_dictFind(run_stats, runkey);
-
-  if (!stats_entry) {
+  const char *runkey = RedisModule_StringPtrLen(argv[1], NULL);
+  struct RedisAI_RunStats *rstats = NULL;
+  if (RAI_GetRunStats(runkey, &rstats) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR cannot find run info for key");
   }
 
-  struct RedisAI_RunStats *rstats = AI_dictGetVal(stats_entry);
-
-  if (!AC_IsAtEnd(&ac)) {
-    const char* opt;
-    AC_GetString(&ac, &opt, NULL, 0); 
-
-    if (strcasecmp(opt, "RESETSTAT") == 0) {
-      rstats->duration_us = 0;
-      rstats->samples = 0;
-      rstats->calls = 0;
-      rstats->nerrors = 0;
+  if(argc==3){
+    const char *subcommand = RedisModule_StringPtrLen(argv[2], NULL);
+    if (!strcasecmp(subcommand, "RESETSTAT")) {
+      RAI_ResetRunStats(rstats);
       RedisModule_ReplyWithSimpleString(ctx, "OK");
       return REDISMODULE_OK;
     }
@@ -953,7 +937,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
             return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
         }
-        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos+1];
         rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
             RAI_ModelRunCtxCreate(mto);
       }
@@ -1063,7 +1047,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
             return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
         }
-        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos];
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos+1];
         rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
             RAI_ModelRunCtxCreate(mto);
       }

@@ -147,7 +147,7 @@ def test_onnx_modelrun_mnist(env):
 
 
 def test_onnx_modelrun_mnist_autobatch(env):
-    if not TEST_PT:
+    if not TEST_ONNX:
         return
 
     con = env.getConnection()
