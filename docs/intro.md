@@ -268,7 +268,7 @@ We can create a RedisAI Script that performs the same computation as the 'graph.
 
 ```py
 def multiply(a, b):
-    TBD
+    return a * b
 ```
 
 Assuming that the script is stored in the 'myscript.py' file it can be uploaded via command line and the `AI.SCRIPTSET` command as follows:
@@ -286,6 +286,10 @@ AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
 !!! example "Example: running a script"
 
     ```
+    127.0.0.1:6379> AI.TENSORSET tA FLOAT 2 VALUES 2 3
+    OK
+    127.0.0.1:6379> AI.TENSORSET tB FLOAT 2 VALUES 3 5
+    OK
     127.0.0.1:6379> AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
     OK
     127.0.0.1:6379> AI.TENSORGET tScript VALUES
