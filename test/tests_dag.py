@@ -1,4 +1,6 @@
 import redis
+from functools import wraps
+import multiprocessing as mp
 
 from includes import *
 
@@ -509,7 +511,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 

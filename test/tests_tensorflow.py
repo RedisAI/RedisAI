@@ -693,7 +693,7 @@ def test_tensorflow_modelrun_financialNet(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -727,13 +727,13 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
     env.assertEqual(ret, b'OK')
 
     def functor_financialNet(env, key_max, repetitions):
         for tensor_number in range(1, key_max):
-            for repetition in range(1, repetitions):
+            for repetition in range(1, repetitions):"CPU"
                 ret = env.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
                                         'transactionTensor:{}'.format(tensor_number),
                                         'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
