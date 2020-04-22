@@ -103,7 +103,7 @@ def test_dagro_common_errors(env):
 
     # ERR unsupported command within DAG
     try:
-        command = "AI.DAGRUNRO |> "\
+        command = "AI.DAGRUN_RO |> "\
                 "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
@@ -114,17 +114,17 @@ def test_dagro_common_errors(env):
 
     # ERR wrong number of arguments for 'AI.DAGRUN' command
     try:
-        command = "AI.DAGRUNRO "
+        command = "AI.DAGRUN_RO "
 
         ret = con.execute_command(command)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.DAGRUNRO' command",exception.__str__())
+        env.assertEqual("wrong number of arguments for 'AI.DAGRUN_RO' command",exception.__str__())
 
     # ERR invalid or negative value found in number of keys to LOAD
     try:
-        command = "AI.DAGRUNRO LOAD notnumber |> "\
+        command = "AI.DAGRUN_RO LOAD notnumber |> "\
                 "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
@@ -185,7 +185,7 @@ def test_dag_local_tensorset(env):
 def test_dagro_local_tensorset(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUNRO "\
+    command = "AI.DAGRUN_RO "\
         "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -218,7 +218,7 @@ def test_dag_local_tensorset_persist(env):
 def test_dagro_local_tensorset_persist(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUNRO "\
+    command = "AI.DAGRUN_RO "\
         "PERSIST 1 tensor1 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
@@ -355,7 +355,7 @@ def test_dagro_keyspace_tensorget(env):
         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUNRO LOAD 1 persisted_tensor |> "\
+    command = "AI.DAGRUN_RO LOAD 1 persisted_tensor |> "\
         "AI.TENSORGET persisted_tensor VALUES"
 
     ret = con.execute_command(command)
@@ -524,7 +524,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     tensor_number = 1
     for transaction_tensor in creditcard_transactions:
         ret = con.execute_command(
-            'AI.DAGRUNRO', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
+            'AI.DAGRUN_RO', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet', 
                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{}'.format(tensor_number),

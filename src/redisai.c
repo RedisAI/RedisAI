@@ -971,7 +971,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 /**
- * AI.DAGRUNRO [LOAD <nkeys> key1 key2... ] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
+ * AI.DAGRUN_RO [LOAD <nkeys> key1 key2... ] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
  *
  * Read-only (no PERSIST) DAG execution.
  * The request is queued and evaded asynchronously from a separate thread. The
@@ -1079,6 +1079,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   return REDISMODULE_OK;
 }
+
 #define EXECUTION_PLAN_FREE_MSG 100
 
 #define REGISTER_API(name, ctx) \
@@ -1228,7 +1229,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.dagrunro", RedisAI_DagRunRO_RedisCommand, "readonly", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
