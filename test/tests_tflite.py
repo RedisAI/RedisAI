@@ -31,14 +31,14 @@ def test_run_tflite_model(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
@@ -89,10 +89,10 @@ def test_run_tflite_model_errors(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', model_pb2)
+    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', 'BLOB', model_pb2)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -108,11 +108,11 @@ def test_run_tflite_model_errors(env):
         env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELSET', 'm_2', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.MODELSET' command", exception.__str__())
+        env.assertEqual("unsupported backend", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'EMPTY_TENSOR', 'OUTPUTS')
@@ -213,7 +213,7 @@ def test_run_tflite_model_autobatch(env):
 
     try:
         ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU',
-                                  'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+                                  'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -262,7 +262,7 @@ def test_tflite_modelinfo(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -316,7 +316,7 @@ def test_tflite_modelrun_disconnect(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = red.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    ret = red.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = red.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -341,7 +341,7 @@ def test_tflite_model_rdb_save_load(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')

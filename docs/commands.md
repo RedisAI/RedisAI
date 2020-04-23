@@ -123,7 +123,7 @@ AI.TENSORGET foo META VALUES
 Set a model.
 
 ```sql
-AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
+AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
 ```
 
 * model_key - Key for storing the model
@@ -142,28 +142,29 @@ AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [I
                    Default is 0 (no minimum batch size).
 * INPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to inputs [`TF` backend only]
 * OUTPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to outputs [`TF` backend only]
-* model_blob - Binary buffer containing the model protobuf saved from a supported backend
+* BLOB model_blob - Binary buffer containing the model protobuf saved from a supported backend. Since Redis supports strings
+                    up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
 
 ### MODELSET Example
 
 ```sql
-AI.MODELSET resnet18 TORCH GPU < foo.pt
+AI.MODELSET resnet18 TORCH GPU BLOB < foo.pt
 ```
 
 ```sql
-AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 < foo.pb
+AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 BLOB < foo.pb
 ```
 
 ```sql
-AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 < mnist.onnx
+AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 BLOB < mnist.onnx
 ```
 
 ```sql
-AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 < mnist.onnx
+AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 BLOB < mnist.onnx
 ```
 
 ```sql
-AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 < foo.pb
+AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 BLOB < foo.pb
 ```
 
 ## AI.MODELGET
@@ -284,13 +285,13 @@ AI._MODELSCAN
 Set a script.
 
 ```sql
-AI.SCRIPTSET script_key device [TAG tag] script_source
+AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
 ```
 
 * script_key - Key for storing the script
 * device - The device where the script will execute
 * TAG tag - Optional string tagging the script, such as a version number or other identifier
-* script_source - A string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+* SOURCE script_source - A string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 ### SCRIPTSET Example
 
@@ -302,11 +303,11 @@ def addtwo(a, b):
 ```
 
 ```sql
-AI.SCRIPTSET addscript GPU < addtwo.txt
+AI.SCRIPTSET addscript GPU SOURCE < addtwo.txt
 ```
 
 ```sql
-AI.SCRIPTSET addscript GPU TAG myscript:v0.1 < addtwo.txt
+AI.SCRIPTSET addscript GPU TAG myscript:v0.1 SOURCE < addtwo.txt
 ```
 
 ## AI.SCRIPTGET

@@ -30,7 +30,7 @@ def test_onnx_modelrun_mnist(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -39,7 +39,7 @@ def test_onnx_modelrun_mnist(env):
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'asdf', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -53,14 +53,14 @@ def test_onnx_modelrun_mnist(env):
     # env.assertEqual(ret[1], b'CPU')
 
     try:
-        con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, wrong_model_pb)
+        con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'BLOB', wrong_model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("No graph was found in the protobuf.", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELSET', 'm_1', 'ONNX', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1', 'ONNX', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -163,7 +163,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
         sample_raw = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
-                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, model_pb)
+                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -213,10 +213,10 @@ def test_onnx_modelrun_iris(env):
     with open(logreg_model_filename, 'rb') as f:
         logreg_model = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', DEVICE, logreg_model)
+    ret = con.execute_command('AI.MODELSET', 'logreg', 'ONNX', DEVICE, 'BLOB', logreg_model)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'features', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
@@ -254,7 +254,7 @@ def test_onnx_modelinfo(env):
     with open(linear_model_filename, 'rb') as f:
         linear_model = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
 
     model_serialized_master = con.execute_command('AI.MODELGET', 'linear', 'META')
@@ -309,7 +309,7 @@ def test_onnx_modelrun_disconnect(env):
     with open(linear_model_filename, 'rb') as f:
         linear_model = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, linear_model)
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
 
     model_serialized_master = con.execute_command('AI.MODELGET', 'linear', 'META')
@@ -338,7 +338,7 @@ def test_onnx_model_rdb_save_load(env):
         model_pb = f.read()
 
     con = env.getConnection()
-    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'linear', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'linear', 'BLOB')
