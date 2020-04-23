@@ -86,7 +86,7 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 /**
-* AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] model_blob
+* AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
 */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
@@ -121,7 +121,14 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   const char* devicestr;
   AC_GetString(&ac, &devicestr, NULL, 0); 
 
-  if (strlen(devicestr) > 10) {
+  if (strlen(devicestr) > 10 ||
+      strcasecmp(devicestr, "INPUTS") == 0 ||
+      strcasecmp(devicestr, "OUTPUTS") == 0 ||
+      strcasecmp(devicestr, "TAG") == 0 ||
+      strcasecmp(devicestr, "BATCHSIZE") == 0 ||
+      strcasecmp(devicestr, "MINBATCHSIZE") == 0 ||
+      strcasecmp(devicestr, "BLOB") == 0
+      ) {
     return RedisModule_ReplyWithError(ctx, "ERR Invalid DEVICE");
   }
 
@@ -150,13 +157,13 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
-
   if (AC_IsAtEnd(&ac)) {
     return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
   }
 
   ArgsCursor optionsac;
-  AC_GetSliceToOffset(&ac, &optionsac, argc-2);
+  const char* blob_matches[] = {"BLOB"};
+  AC_GetSliceUntilMatches(&ac, &optionsac, 1, blob_matches);
 
   if (optionsac.argc == 0 && backend == RAI_BACKEND_TENSORFLOW) {
     return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, INPUTS and OUTPUTS not specified");
@@ -164,7 +171,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   ArgsCursor inac = {0};
   ArgsCursor outac = {0};
-  if (optionsac.argc > 0) {
+  if (optionsac.argc > 0 && backend == RAI_BACKEND_TENSORFLOW) {
     if (!AC_AdvanceIfMatch(&optionsac, "INPUTS")) {
       return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
     }
@@ -202,9 +209,39 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *model = NULL;
 
+  AC_AdvanceUntilMatches(&ac, 1, blob_matches);
+
+  if (AC_IsAtEnd(&ac)) {
+    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
+  }
+
+  AC_Advance(&ac);
+
+  ArgsCursor blobsac;
+  AC_GetSliceToEnd(&ac, &blobsac);
+
   size_t modellen;
-  const char *modeldef;
-  AC_GetString(&ac, &modeldef, &modellen, 0); 
+  char *modeldef;
+
+  if (blobsac.argc == 1) {
+    AC_GetString(&blobsac, (const char**)&modeldef, &modellen, 0); 
+  }
+  else {
+    const char *chunks[blobsac.argc];
+    size_t chunklens[blobsac.argc];
+    modellen = 0;
+    while (!AC_IsAtEnd(&blobsac)) {
+      AC_GetString(&blobsac, &chunks[blobsac.offset], &chunklens[blobsac.offset], 0); 
+      modellen += chunklens[blobsac.offset-1];
+    }
+    
+    modeldef = RedisModule_Calloc(modellen, sizeof(char));
+    size_t offset = 0;
+    for (size_t i=0; i<blobsac.argc; i++) {
+      memcpy(modeldef + offset, chunks[i], chunklens[i]);
+      offset += chunklens[i];
+    }
+  }
 
   RAI_Error err = {0};
 
@@ -221,6 +258,10 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
     RAI_ClearError(&err);
     model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
+  }
+
+  if (blobsac.argc > 1) {
+    RedisModule_Free(modeldef);
   }
 
   if (err.code != RAI_OK) {
@@ -502,14 +543,14 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   ArgsCursor outac = {0};
 
   if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "INPUTS not specified");
+    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, INPUTS not specified");
   }
 
   const char* matches[] = {"OUTPUTS"};
   AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
 
   if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "OUTPUTS not specified");
+    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, OUTPUTS not specified");
   }
 
   AC_GetSliceToEnd(&ac, &outac);
@@ -541,7 +582,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, t)) {
       RAI_FreeRunInfo(ctx,rinfo);
       RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "Input key not found");
+      return RedisModule_ReplyWithError(ctx, "ERR Input key not found");
     }
   }
 
@@ -549,7 +590,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (!RAI_ScriptRunCtxAddOutput(rinfo->sctx)) {
       RAI_FreeRunInfo(ctx,rinfo);
       RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "Output key not found");
+      return RedisModule_ReplyWithError(ctx, "ERR Output key not found");
     }
     RedisModule_RetainString(ctx, outputs[i]);
     array_append(rinfo->outkeys,outputs[i]);
@@ -651,12 +692,12 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 /** 
-* AI.SCRIPTSET script_key device [TAG tag] script_source
+* AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
 */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   RedisModule_AutoMemory(ctx);
 
-  if (argc != 4 && argc != 6) return RedisModule_WrongArity(ctx);
+  if (argc != 5 && argc != 7) return RedisModule_WrongArity(ctx);
 
   ArgsCursor ac;
   ArgsCursor_InitRString(&ac, argv+1, argc-1);
@@ -673,14 +714,21 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   }
 
   if (AC_IsAtEnd(&ac)) {
-    return RedisModule_ReplyWithError(ctx, "Insufficient arguments, missing script definition");
+    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
+  }
+
+  size_t scriptlen;
+  const char *scriptdef = NULL;
+
+  if (AC_AdvanceIfMatch(&ac, "SOURCE")) {
+    AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
+  }
+
+  if (scriptdef == NULL) {
+    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
   }
 
   RAI_Script *script = NULL;
-
-  size_t scriptlen;
-  const char *scriptdef;
-  AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
 
   RAI_Error err = {0};
   script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
