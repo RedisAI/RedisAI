@@ -636,7 +636,7 @@ def test_pytorch_model_rdb_save_load(env):
     if env.useAof or not TEST_PT:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
-    if DEVICE == "GPU":
+    if DEVICE == "GPU" or COV:
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
