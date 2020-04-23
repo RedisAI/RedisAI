@@ -7,6 +7,32 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 
+def test_pytorch_chunked_modelset(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model = f.read()
+
+    chunk_size = len(model) // 3
+
+    model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
+
+    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'BLOB', model)
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'BLOB', *model_chunks)
+
+    model1 = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+
+    env.assertEqual(model1, model2)
+
+
 def test_pytorch_modelrun(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
