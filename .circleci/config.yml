@@ -93,7 +93,7 @@ jobs:
       - run:
           name: Test with coverage
           command: |
-            make -C opt test SHOW=1 COV=1 AOF=0 SLAVES=0
+            make -C opt test SHOW=1 COV=1
             make -C opt cov-upload
 
   build-macos:
