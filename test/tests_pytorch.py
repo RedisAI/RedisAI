@@ -7,6 +7,32 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 
+def test_pytorch_chunked_modelset(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+
+    with open(model_filename, 'rb') as f:
+        model = f.read()
+
+    chunk_size = len(model) // 3
+
+    model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
+
+    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'BLOB', model)
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'BLOB', *model_chunks)
+
+    model1 = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+
+    env.assertEqual(model1, model2)
+
+
 def test_pytorch_modelrun(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -30,7 +56,7 @@ def test_pytorch_modelrun(env):
     with open(wrong_model_filename, 'rb') as f:
         wrong_model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -39,7 +65,7 @@ def test_pytorch_modelrun(env):
     env.assertEqual(len(ret), 6)
     env.assertEqual(ret[-1], b'')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -54,19 +80,19 @@ def test_pytorch_modelrun(env):
     # env.assertEqual(ret[1], b'CPU')
 
     try:
-        con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, wrong_model_pb)
+        con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', wrong_model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_1', 'TORCH', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1', 'TORCH', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_2', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -145,7 +171,7 @@ def test_pytorch_modelrun_autobatch(env):
         model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, model_pb)
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -188,7 +214,7 @@ def test_pytorch_modelinfo(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -238,13 +264,19 @@ def test_pytorch_scriptset(env):
     con = env.getConnection()
 
     try:
-        con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'return 1')
+        con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'SOURCE', 'return 1')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.SCRIPTSET', 'nope')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.SCRIPTSET', 'nope', 'SOURCE')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -261,7 +293,7 @@ def test_pytorch_scriptset(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -269,7 +301,7 @@ def test_pytorch_scriptset(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -297,7 +329,7 @@ def test_pytorch_scriptdel(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -345,7 +377,7 @@ def test_pytorch_scriptrun(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -485,7 +517,7 @@ def test_pytorch_scriptinfo(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket_script', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket_script', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -542,7 +574,7 @@ def test_pytorch_scriptrun_disconnect(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket_script', DEVICE, script)
+    ret = con.execute_command('AI.SCRIPTSET', 'ket_script', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -573,7 +605,7 @@ def test_pytorch_modelrun_disconnect(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -601,10 +633,10 @@ def test_pytorch_modelscan_scriptscan(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script_filename = os.path.join(test_data_path, 'script.txt')
@@ -612,10 +644,10 @@ def test_pytorch_modelscan_scriptscan(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', script)
+    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', script)
+    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -648,7 +680,7 @@ def test_pytorch_model_rdb_save_load(env):
 
     con = env.getConnection()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'm', 'BLOB')

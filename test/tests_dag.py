@@ -144,7 +144,7 @@ def test_dag_modelrun_financialNet_errors(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number=1
@@ -390,7 +390,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
@@ -432,7 +432,7 @@ def test_dag_modelrun_financialNet(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
@@ -471,7 +471,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', "CPU",
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
@@ -522,7 +522,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     ret = con.execute_command('AI.MODELSET', 'financialNet', 'TF', DEVICE,
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', model_pb)
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1

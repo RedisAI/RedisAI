@@ -47,7 +47,7 @@ Note that Redis config is located at `/usr/local/etc/redis/redis.conf` which can
 
 On the client, set the model
 ```sh
-redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c < test/test_data/graph.pb
+redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c BLOB < test/test_data/graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
