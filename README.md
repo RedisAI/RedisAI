@@ -1,7 +1,7 @@
 [![GitHub issues](https://img.shields.io/github/release/RedisAI/RedisAI.svg?sort=semver)](https://github.com/RedisAI/RedisAI/releases/latest)
 [![CircleCI](https://circleci.com/gh/RedisAI/RedisAI/tree/master.svg?style=svg)](https://circleci.com/gh/RedisAI/RedisAI/tree/master)
 [![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/redisai/redisai.svg)](https://hub.docker.com/r/redisai/redisai/builds/)
-[![Mailing List](https://img.shields.io/badge/Mailing%20List-RedisAI-blue)](https://groups.google.com/forum/#!forum/redisai)
+[![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
 [![Gitter](https://badges.gitter.im/RedisLabs/RedisAI.svg)](https://gitter.im/RedisLabs/RedisAI?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 [![codecov](https://codecov.io/gh/RedisAI/RedisAI/branch/master/graph/badge.svg)](https://codecov.io/gh/RedisAI/RedisAI)
 
@@ -136,9 +136,9 @@ Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this s
 
 Read the docs at [redisai.io](http://redisai.io). Checkout our [showcase repo](https://github.com/RedisAI/redisai-examples) for a lot of examples written using different client libraries.
 
-## Mailing List
+## Mailing List / Forum
 
-[RedisAI Google group](https://groups.google.com/forum/#!forum/redisai)
+Got questions? Feel free to ask at the [RedisAI Forum](https://forum.redislabs.com/c/modules/redisai)
 
 ## License
 
