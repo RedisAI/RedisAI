@@ -4,7 +4,10 @@ The following sections discusses topics relevant to the development of the Redis
 
 ## General Design
 
-RedisAI bundles together best-of-breed technologies for delivering stable and performant graph serving. To do so, we need to abstract from what each specific DL/ML framework offers and provide common data structures and APIs to the DL/ML domain.
+RedisAI bundles together best-of-breed technologies for delivering stable and performant model serving. To do so, we need to abstract from what each specific DL/ML framework offers and provide common data structures and APIs to the DL/ML domain. 
+
+
+As a way of representing tensor data we've embraced [dlpack](https://github.com/dmlc/dlpack) - a community effort to define a common tensor data structure that can be shared by different frameworks, supported by cuPy, cuDF, DGL, TGL, PyTorch, and MxNet.
 
 ### Data Structures
 RedisAI provides the following data structures:
