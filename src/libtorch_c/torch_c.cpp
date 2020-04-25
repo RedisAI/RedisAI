@@ -162,9 +162,10 @@ void deleter(DLManagedTensor * arg) {
   delete static_cast<ATenDLMTensor*>(arg->manager_ctx);
 }
 
-DLManagedTensor* toManagedDLPack(const torch::Tensor& src) {
+DLManagedTensor* toManagedDLPack(const torch::Tensor& src_) {
   ATenDLMTensor * atDLMTensor(new ATenDLMTensor);
-  atDLMTensor->handle = src;
+  atDLMTensor->handle = src_;
+  auto& src = atDLMTensor->handle;
   atDLMTensor->tensor.manager_ctx = atDLMTensor;
   atDLMTensor->tensor.deleter = &deleter;
   atDLMTensor->tensor.dl_tensor.data = src.data_ptr();
@@ -238,19 +239,19 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
     }
 
     if (stack[i].isTensor()) {
-      outputs[count++] = toManagedDLPack(stack[i].toTensor().to(output_device));
+      outputs[count++] = toManagedDLPack(stack[i].toTensor().contiguous().to(output_device));
     }
     else if (stack[i].isTensorList()) {
       auto list = stack[i].toTensorList();
       for (size_t j=0; j<list.size(); j++) {
-        outputs[count++] = toManagedDLPack(list.get(j).to(output_device));
+        outputs[count++] = toManagedDLPack(list.get(j).contiguous().to(output_device));
       }
     }
     else if (stack[i].isTuple()) {
       auto& elements = stack[i].toTuple()->elements();
       for (size_t j=0; j<elements.size(); j++) {
         if (elements[j].isTensor()) {
-          outputs[count++] = toManagedDLPack(elements[j].toTensor().to(output_device));
+          outputs[count++] = toManagedDLPack(elements[j].toTensor().contiguous().to(output_device));
         }
         else {
           throw std::runtime_error(std::string("Function returned non-tensor values") + fnName);
