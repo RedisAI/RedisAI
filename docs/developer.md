@@ -23,65 +23,100 @@ TBD
 Inside the root are the following important directories:
 
 * `src`: contains the RedisAI implementation, written in C.
-* `opt`: contains the helper scriptsto setup the development environment.
+* `opt`: contains the helper scripts to setup the development environment.
 * `tests`: contains the unit and flow tests, implemented with python and RLTest.
 * `deps`: contains libraries RedisAI uses.
 
 We'll focus mostly on `src`, where the RedisAI implementation is contained,
 exploring what there is inside each file. The order in which files are
 exposed is the logical one to follow in order to disclose different layers
-of complexity incrementally.
-
-### redisai.h
----
-TBD...
+of complexity incrementally. 
 
 ### redisai.c 
 ---
 
-This is the entry point of the RedisAI module, TBD...
+This is the entry point of the RedisAI module, responsible for registering the new commands in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of Tensor, Script and Model APIs to other Modules.
 
-### tensor.c
+### tensor.h
 ---
-Contains the helper methods for both creating, populating, managing and destructing the RedisAI_TensorType, and methods to manage parsing and replying of tensor related commands or operations.
+Contains the helper methods for both creating, populating, managing and destructing the Tensor data structure, and methods to manage parsing and replying of tensor related commands or operations.
 
-### model.c
+### model.h
 ---
-TBD...
+Contains the helper methods for both creating, populating, managing and destructing the Model data structure.
+Contains also methods to manage parsing and replying of model related commands or operations, that take place in the context of the Redis Main thread.
+The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
 
-### script.c
+### script.h
 ---
-TBD...
+Contains the helper methods for both creating, populating, managing and destructing the Script data structure.
+Contains also methods to manage parsing and replying of script related commands or operations, that take place in the context of the Redis Main thread.
+The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
 
-### dag.c
+### dag.h
 ---
- Contains the helper methods for both parsing, running the command in the background, and replying DAG structured commands.
+Contains the helper methods for both parsing, running the command in the background, and replying DAG structured commands.
 
-
-### run_info.c
----
-TBD...
-
-### model_script_run_session.c
----
-TBD...
-
-### background_workers.c
+### run_info.h
 ---
 TBD...
 
-### err.c
+### model_script_run_session.h
+---
+Contains the methods that are related to async background work that 
+was triggered by either MODELRUN or SCRIPTRUN Command and Called within `RedisAI_Run_ThreadMain`.
+This file also contains the function signatures of the reply callbacks to be called in order to reply to the clients, after the background work on MODELRUN and SCRIPTRUN is done.
+
+### background_workers.h
+---
+TBD...
+
+### err.h
 ---
 Contains the structure and headers for a formal API to create, initialize, get, reset, and free errors among different backends.
 
-### Backends directory
+### backends.h and backends directory
 ---
-TBD...
+Contains the structure and headers methods required register a new backend to be loaded by the module. 
+ To do so, the backend needs to implement and export the following methods:
+ 
+  * `model_create_with_nodes`:  A callback function pointer that creates a
+  model given the RAI_ModelOpts and input and output nodes.
+ 
+  * `model_create`:  A callback function pointer that creates a model given
+  the RAI_ModelOpts.
+ 
+  * `model_run`:  A callback function pointer that runs a model given the
+  RAI_ModelRunCtx pointer.
+ 
+  * `model_serialize`:  A callback function pointer that serializes a model
+  given the RAI_Model pointer.
+ 
+  * `script_create`:  A callback function pointer that creates a script.
+ 
+  * `script_free`:  A callback function pointer that frees a script given
+  the RAI_Script pointer.
+ 
+  * `script_run`:  A callback function pointer that runs a model given the
+  RAI_ScriptRunCtx pointer.
+
+
+Within the `backends` folder you will find the implementations code required to support the following DL/ML identifiers and respective backend libraries:
+
+* **TF**: `tensorflow.h` and `tensorflow.c` exporting the functions to to register the TensorFlow backend
+* **TFLITE**: `tflite.h` and `tflite.c` exporting the functions to to register the TensorFlow Lite backend
+* **TORCH**: `torch.h` and `torch.c` exporting the functions to to register the PyTorch backend
+* **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
 
 ### Other C files
 ---
 
 TBD...
+
+
+### backends subfolder
+
+Apart from the files within the `src` folder, the subfolder `src/backends`
 
 
 ## Building and Testing
