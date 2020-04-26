@@ -9,14 +9,12 @@ RedisAI bundles together best-of-breed technologies for delivering stable and pe
 
 As a way of representing tensor data we've embraced [dlpack](https://github.com/dmlc/dlpack) - a community effort to define a common tensor data structure that can be shared by different frameworks, supported by cuPy, cuDF, DGL, TGL, PyTorch, and MxNet.
 
-### Data Structures
+**Data Structures
 RedisAI provides the following data structures:
 
-* **Tensor**: represents an n-dimensional array of values
-* **Model**: represents a frozen graph by one of the supported DL/ML framework backends
-* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
-
-TBD
+***Tensor**: represents an n-dimensional array of values
+***Model**: represents a frozen graph by one of the supported DL/ML framework backends
+***Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
 
 ## Source code layout
 
@@ -32,52 +30,52 @@ exploring what there is inside each file. The order in which files are
 exposed is the logical one to follow in order to disclose different layers
 of complexity incrementally. 
 
-### redisai.c 
+**redisai.c**
 ---
 
 This is the entry point of the RedisAI module, responsible for registering the new commands in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of Tensor, Script and Model APIs to other Modules.
 
-### tensor.h
+**tensor.h**
 ---
 Contains the helper methods for both creating, populating, managing and destructing the Tensor data structure, and methods to manage parsing and replying of tensor related commands or operations.
 
-### model.h
+**model.h**
 ---
 Contains the helper methods for both creating, populating, managing and destructing the Model data structure.
 Contains also methods to manage parsing and replying of model related commands or operations, that take place in the context of the Redis Main thread.
 The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
 
-### script.h
+**script.h**
 ---
 Contains the helper methods for both creating, populating, managing and destructing the Script data structure.
 Contains also methods to manage parsing and replying of script related commands or operations, that take place in the context of the Redis Main thread.
 The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
 
-### dag.h
+**dag.h**
 ---
 Contains the helper methods for both parsing, running the command in the background, and replying DAG structured commands.
 
-### run_info.h
+**run_info.h**
 ---
-TBD...
+Contains the structure and headers to create, initialize, get, reset, and free the structures that represent the context in which RedisAI blocking commands operate, namely `RedisAI_RunInfo` and the newly added `RAI_DagOp`. 
 
-### model_script_run_session.h
+**model_script_run_session.h**
 ---
 Contains the methods that are related to async background work that 
 was triggered by either MODELRUN or SCRIPTRUN Command and Called within `RedisAI_Run_ThreadMain`.
 This file also contains the function signatures of the reply callbacks to be called in order to reply to the clients, after the background work on MODELRUN and SCRIPTRUN is done.
 
-### background_workers.h
+**background_workers.h**
 ---
-TBD...
+Contains the structure to manage the per-device queues, used for decoupling the work from the main thread to the background worker threads. For each of the incoming ModelRun, ScriptRun, and DagRun commands, The request is queued and evaded asynchronously to one the device queues.
 
-### err.h
+**err.h**
 ---
 Contains the structure and headers for a formal API to create, initialize, get, reset, and free errors among different backends.
 
-### backends.h and backends directory
+**backends.h and backends directory**
 ---
-Contains the structure and headers methods required register a new backend to be loaded by the module. 
+Contains the structure and headers methods required to register a new backend to be loaded by the module. 
  To do so, the backend needs to implement and export the following methods:
  
   * `model_create_with_nodes`:  A callback function pointer that creates a
@@ -103,31 +101,26 @@ Contains the structure and headers methods required register a new backend to be
 
 Within the `backends` folder you will find the implementations code required to support the following DL/ML identifiers and respective backend libraries:
 
-* **TF**: `tensorflow.h` and `tensorflow.c` exporting the functions to to register the TensorFlow backend
-* **TFLITE**: `tflite.h` and `tflite.c` exporting the functions to to register the TensorFlow Lite backend
-* **TORCH**: `torch.h` and `torch.c` exporting the functions to to register the PyTorch backend
-* **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
+***TF**: `tensorflow.h` and `tensorflow.c` exporting the functions to to register the TensorFlow backend
+***TFLITE**: `tflite.h` and `tflite.c` exporting the functions to to register the TensorFlow Lite backend
+***TORCH**: `torch.h` and `torch.c` exporting the functions to to register the PyTorch backend
+***ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
 
-### Other C files
+**Other C files
 ---
 
 TBD...
 
 
-### backends subfolder
-
-Apart from the files within the `src` folder, the subfolder `src/backends`
-
-
 ## Building and Testing
 You can compile and build the module from its source code.
 
-### Prerequisites
+**Prerequisites
 * CUDA needs to be installed for GPU support.
 * CMake 3.0 or higher needs to be installed.
 * Redis v4.0.9 or greater.
 
-### Get the Source Code
+**Get the Source Code
 You can obtain the module's source code by cloning the project's repository using git like so:
 
 ```sh
@@ -140,7 +133,7 @@ Switch to the project's directory with:
 cd RedisAI
 ```
 
-### Building the Dependencies
+**Building the Dependencies
 Use the following script to download and build the libraries of the various RedisAI backends (TensorFlow, PyTorch, ONNXRuntime) for your platform with GPU support:
 
 ```sh
@@ -153,14 +146,14 @@ Alternatively, you can run the following to fetch the CPU-only backends.
 bash get_deps.sh cpu
 ```
 
-### Building the Module
+**Building the Module
 Once the dependencies have been built, you can build the RedisAI module with:
 
 ```sh
 make -C opt build
 ```
 
-### Running Tests
+**Running Tests
 
 The module includes a basic set of unit tests and integration tests, split across common and backend specific files. To run
 them you'll need:
@@ -180,13 +173,11 @@ To run tests in a Python virtualenv, follow these steps:
 Integration tests are based on RLTest, and specific setup parameters can be provided
 to configure tests.
 
-For example, ... ( TBD )
+For example, to run the tests strictly designed for the TensorFlow backend, follow these steps:
 
-### Unit Test Coverage
+    $ make -C opt tests TEST=tests_tensorflow.py
 
-TBD
-
-### Integration Tests Coverage
+**Integration Tests Coverage
 
 TBD 
 
