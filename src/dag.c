@@ -56,7 +56,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         if (currentOp->result == REDISMODULE_OK) {
           RAI_Tensor *outTensor = NULL;
           // TODO: check tensor copy return value
-          RAI_TensorCopyTensor(t, &outTensor);
+            RAI_TensorDeepCopy(t, &outTensor);
           array_append(currentOp->outTensors, outTensor);
           currentOp->result = REDISMODULE_OK;
         }
