@@ -1,3 +1,12 @@
+/**
+ * tensor.c
+ *
+ * Contains the helper methods for both creating, populating,
+ * managing and destructing the RedisAI_TensorType, and methods to manage
+ * parsing and replying of tensor related commands or operations.
+ *
+ */
+
 #include "tensor.h"
 #include "err.h"
 #include "tensor_struct.h"

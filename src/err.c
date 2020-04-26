@@ -1,3 +1,9 @@
+/**
+ * err.c
+ *
+ * Contains a formal API to create, initialize, get, reset, and free errors among different backends.
+ */
+
 #include "err.h"
 #include "stdlib.h"
 #include "assert.h"

@@ -1,3 +1,9 @@
+/**
+ * err.h
+ *
+ * Contains the structure and headers for a formal API to create, initialize, get, reset, and free errors among different backends.
+ */
+
 #ifndef SRC_ERR_H_
 #define SRC_ERR_H_
 
@@ -35,10 +41,24 @@ typedef struct RAI_Error {
  */
 int RAI_InitError(RAI_Error **err);
 
+/**
+ * Populates the RAI_Error data structure with the error details
+ * @param err
+ * @param code
+ * @param detail
+ */
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail);
 
+/**
+ * Resets an previously used/allocated RAI_Error
+ * @param err
+ */
 void RAI_ClearError(RAI_Error *err);
 
+/**
+ * Frees the memory of the RAI_Error
+ * @param err
+ */
 void RAI_FreeError(RAI_Error *err);
 
 #endif

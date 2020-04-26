@@ -1,3 +1,10 @@
+/**
+ * dag.c
+ *
+ * Contains the helper methods for both parsing, running the command in the
+ * background, and replying DAG structured commands.
+ */
+
 #include "dag.h"
 
 #include <pthread.h>

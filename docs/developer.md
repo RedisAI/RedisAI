@@ -43,7 +43,7 @@ This is the entry point of the RedisAI module, TBD...
 
 ### tensor.c
 ---
-TBD...
+Contains the helper methods for both creating, populating, managing and destructing the RedisAI_TensorType, and methods to manage parsing and replying of tensor related commands or operations.
 
 ### model.c
 ---
@@ -55,7 +55,7 @@ TBD...
 
 ### dag.c
 ---
-TBD...
+ Contains the helper methods for both parsing, running the command in the background, and replying DAG structured commands.
 
 
 ### run_info.c
@@ -69,6 +69,10 @@ TBD...
 ### background_workers.c
 ---
 TBD...
+
+### err.c
+---
+Contains the structure and headers for a formal API to create, initialize, get, reset, and free errors among different backends.
 
 ### Backends directory
 ---
