@@ -20,7 +20,65 @@ TBD
 
 ## Source code layout
 
-TBD
+Inside the root are the following important directories:
+
+* `src`: contains the RedisAI implementation, written in C.
+* `opt`: contains the helper scriptsto setup the development environment.
+* `tests`: contains the unit and flow tests, implemented with python and RLTest.
+* `deps`: contains libraries RedisAI uses.
+
+We'll focus mostly on `src`, where the RedisAI implementation is contained,
+exploring what there is inside each file. The order in which files are
+exposed is the logical one to follow in order to disclose different layers
+of complexity incrementally.
+
+### redisai.h
+---
+TBD...
+
+### redisai.c 
+---
+
+This is the entry point of the RedisAI module, TBD...
+
+### tensor.c
+---
+TBD...
+
+### model.c
+---
+TBD...
+
+### script.c
+---
+TBD...
+
+### dag.c
+---
+TBD...
+
+
+### run_info.c
+---
+TBD...
+
+### model_script_run_session.c
+---
+TBD...
+
+### background_workers.c
+---
+TBD...
+
+### Backends directory
+---
+TBD...
+
+### Other C files
+---
+
+TBD...
+
 
 ## Building and Testing
 You can compile and build the module from its source code.
