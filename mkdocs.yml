@@ -33,6 +33,7 @@ nav:
   - 'Commands': commands.md
   - 'Clients': clients.md
   - 'Configuration': configuration.md
+  - 'Developer': developer.md
   - 'Performance': performance.md
   - 'Examples': examples.md
 
