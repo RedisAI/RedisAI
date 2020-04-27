@@ -1,7 +1,8 @@
 /**
  * err.h
  *
- * Contains the structure and headers for a formal API to create, initialize, get, reset, and free errors among different backends.
+ * Contains the structure and headers for a formal API to create, initialize,
+ * get, reset, and free errors among different backends.
  */
 
 #ifndef SRC_ERR_H_
@@ -29,8 +30,8 @@ typedef enum {
 
 typedef struct RAI_Error {
   RAI_ErrorCode code;
-  char* detail;
-  char* detail_oneline;
+  char *detail;
+  char *detail_oneline;
 } RAI_Error;
 
 /**
