@@ -487,7 +487,7 @@ _Arguments_
 
 * **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of the supported RedisAI commands ( for now `AI.TENSORGET`, `AI.TENSORGET`, and `AI.MODELRUN` ). Command spliting is done by the presence of another `|>`.
+* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of the supported RedisAI commands ( for now `AI.TENSORSET`, `AI.TENSORGET`, and `AI.MODELRUN` ). Command spliting is done by the presence of another `|>`.
 
 _Return_
 
