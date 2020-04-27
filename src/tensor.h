@@ -291,7 +291,7 @@ char* RAI_TensorData(RAI_Tensor* t);
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key tensor's key handle. On sucess it contains an handle representing
+ * @param key tensor's key handle. On success it contains an handle representing
  * a Redis key with the requested access mode
  * @param mode key access mode
  * @return REDISMODULE_OK if it's possible to store at the specified key handle
@@ -307,7 +307,7 @@ int RAI_OpenKey_Tensor(RedisModuleCtx* ctx, RedisModuleString* keyName,
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key tensor's key handle. On sucess it contains an handle representing
+ * @param key tensor's key handle. On success it contains an handle representing
  * a Redis key with the requested access mode
  * @param tensor destination tensor structure
  * @param mode key access mode
@@ -357,7 +357,7 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx* ctx, RedisModuleString* key,
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @param t Destination tensor to store the parsed data
- * @param enforceArity flag wether to enforce arity checking
+ * @param enforceArity flag whether to enforce arity checking
  * @param error error data structure to store error message in the case of
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed

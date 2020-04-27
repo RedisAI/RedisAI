@@ -1,3 +1,12 @@
+/**
+ * stats.c
+ *
+ * Contains the helper methods to create,
+ * initialize, get, reset, and free run-time statics, like call count, error
+ * count, and aggregate durations of ModelRun and ScriptRun sessions.
+ *
+ */
+
 #include "stats.h"
 
 #include <sys/time.h>
@@ -69,17 +78,23 @@ void RAI_RemoveStatsEntry(void* infokey) {
     struct RedisAI_RunStats* rstats = AI_dictGetVal(stats_entry);
     AI_dictDelete(run_stats, infokey);
     RAI_FreeRunStats(rstats);
-    RedisModule_Free(rstats);
   }
 }
 
 void RAI_FreeRunStats(struct RedisAI_RunStats* rstats) {
-  RedisModule_Free(rstats->devicestr);
-  RedisModule_Free(rstats->tag);
+  if (rstats) {
+    if (rstats->devicestr) {
+      RedisModule_Free(rstats->devicestr);
+    }
+    if (rstats->tag) {
+      RedisModule_Free(rstats->tag);
+    }
+    RedisModule_Free(rstats);
+  }
 }
 
 void RedisAI_FreeRunStats(RedisModuleCtx* ctx,
                           struct RedisAI_RunStats* rstats) {
   RedisModule_FreeString(ctx, rstats->key);
-  RedisModule_Free(rstats->devicestr);
+  RAI_FreeRunStats(rstats);
 }

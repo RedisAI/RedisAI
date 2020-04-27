@@ -20,7 +20,7 @@ Bellow, are the current DL solutions supported:
 
 ### Transaction data dataset characteristics
 
-Currently, aibench supports one use case -- creditcard-fraud from [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud) with the extension of reference data. This use-case aims to detect a fraudulent transaction based on anonymized credit card transactions and reference data.
+Currently, aibench supports one use case -- creditcard-fraud from [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud) with the extension of reference data. This use-case aims to detect a fraudulent transaction based on anonymize credit card transactions and reference data.
 
 
 We've decided to extend the initial dataset in the sense that for each Transaction data, we generate random deterministic Reference data, commonly used to enrich financial transactions information. In the financial service industry and regulatory agencies, the reference data that defines and describes such financial transactions, can cover all relevant particulars for highly complex transactions with multiple dependencies, entities, and contingencies, thus resulting in a larger numerical value input tensor of size 1 x 256.
@@ -99,14 +99,14 @@ cd ../aibench_run_inference_flask_tensorflow && go install
 
 As stated previously we encourage the community to to run and request for PR with regards to showcasing the obtained results for any Model Server. With regards to the results methodology we expected that for each tested version/variation:
 
-- A minimum of 3 distinct full repetitions, and reported as a result the median (q50), q95, q99, overall achievable inference throughput, and if possible ( and recomended ) the referal to the full spectrum of latencies.
+- A minimum of 3 distinct full repetitions, and reported as a result the median (q50), q95, q99, overall achievable inference throughput, and if possible ( and recommended ) the referral to the full spectrum of latencies.
 - A full platform description. Ideally you should run the the benchmark and Model Serving instances in separate machines, placed in an optimal networking scenario. 
 - Considering the weight of the network performance in the overall performance of the Model Serving solution we recommend that in addition to the aibench performance runs described above, to also run baseline netperf TCP_RR, in order to understand the underlying network characteristics. 
 
 
 ### What the benchmark suite does not account for
 
-As important as understanding the metrics and takeways that this benchmark provides is to understand what is considered out of scope. This benchmark suite was not designed to test some key aspects of observability, operational and model-lifecycle management, fault tolerance, and high availability of the Model Server. **As important as performance**, these factors should be part of a prudent decision on which solution to adopt, and we hope to provide further guidance on them in other sections of the documentation. 
+As important as understanding the metrics and takeaways that this benchmark provides is to understand what is considered out of scope. This benchmark suite was not designed to test some key aspects of observability, operational and model-lifecycle management, fault tolerance, and high availability of the Model Server. **As important as performance**, these factors should be part of a prudent decision on which solution to adopt, and we hope to provide further guidance on them in other sections of the documentation. 
 
 ### Latest benchmark results
 

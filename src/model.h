@@ -56,7 +56,7 @@ RAI_Model* RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
                            size_t modellen, RAI_Error* err);
 
 /**
- *  Frees the memory of the RAI_Tensor when the tensor reference count reaches
+ * Frees the memory of the RAI_Model when the model reference count reaches
  * 0. It is safe to call this function with a NULL input model.
  *
  * @param model input model to be freed
@@ -107,10 +107,10 @@ int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName,
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName);
 
 /**
- * Returns the total number of input tensors of the RAI_ModelCtxParam
+ * Returns the total number of input tensors of the RAI_ModelRunCtx
  *
  * @param mctx RAI_ModelRunCtx
- * @return the total number of input tensors of the RAI_ModelCtxParam
+ * @return the total number of input tensors of the RAI_ModelRunCtx
  */
 size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx* mctx);
 
@@ -141,15 +141,19 @@ RAI_Tensor* RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx* mctx, size_t index);
 RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index);
 
 /**
- * Given the input array of mctxs, run associated the associated backend
- * session. On success, the tensors corresponding to outputs[0,noutputs-1] are
- * placed in each RAI_ModelRunCtx output tensors array
+ * Given the input array of mctxs, run the associated backend
+ * session. If the input array of model context runs is larger than one, then
+ * each backend's `model_run` is responsible for concatenating tensors, and run
+ * the model in batches with the size of the input array. On success, the
+ * tensors corresponding to outputs[0,noutputs-1] are placed in each
+ * RAI_ModelRunCtx output tensors array. Relies on each backend's `model_run`
+ * definition.
  *
- * @param mctxs
+ * @param mctxs array on input model contexts
  * @param error error data structure to store error message in the case of
  * failures
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
- * sucessfully, or REDISMODULE_ERR if failed.
+ * successfully, or REDISMODULE_ERR if failed.
  */
 int RAI_ModelRun(RAI_ModelRunCtx** mctxs, RAI_Error* err);
 
@@ -172,7 +176,7 @@ RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model);
  * @param len pointer to the variable to save the output buffer length
  * @param error error data structure to store error message in the case of
  * failures
- * @return REDISMODULE_OK if the underlying backend `model_serialize` runned
+ * @return REDISMODULE_OK if the underlying backend `model_serialize` ran
  * successfully, or REDISMODULE_ERR if failed.
  * */
 int RAI_ModelSerialize(RAI_Model* model, char** buffer, size_t* len,
@@ -184,7 +188,7 @@ int RAI_ModelSerialize(RAI_Model* model, char** buffer, size_t* len,
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key models's key handle. On sucess it contains an handle representing
+ * @param key models's key handle. On success it contains an handle representing
  * a Redis key with the requested access mode
  * @param model destination model structure
  * @param mode key access mode

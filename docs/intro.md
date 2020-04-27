@@ -336,5 +336,5 @@ AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
 This covers the basics of RedisAI's data structures and capabilities. For more information refer to:
 
 * The [Commands page](commands.md) provides a reference of the RedisAI API
-* The [Clients page](clients.md) lists RdisAI clients in several programming languages
+* The [Clients page](clients.md) lists RedisAI clients in several programming languages
 * The [Examples page](examples.md) showcases several examples that can be extended
