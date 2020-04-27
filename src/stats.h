@@ -71,20 +71,35 @@ void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys,
                           RedisModuleString*** keys, const char*** tags);
 
 /**
- * Frees the memory of the RedisAI_RunStats, excluding the one managed by the
- * Context in which Redis modules operate
  *
  * @param rstats
+ * @return 0 on success, or 1 if the reset failed
  */
+int RAI_ResetRunStats(struct RedisAI_RunStats* rstats);
+
+/**
+ * Safely add datapoint to the run stats. Protected against null pointer
+ * runstats
+ * @param rstats
+ * @param duration
+ * @param calls
+ * @param errors
+ * @param samples
+ * @return 0 on success, or 1 if the addition failed
+ */
+int RAI_SafeAddDataPoint(struct RedisAI_RunStats* rstats, long long duration,
+                         long long calls, long long errors, long long samples);
+
 void RAI_FreeRunStats(struct RedisAI_RunStats* rstats);
 
 /**
- * Frees the memory of the RedisAI_RunStats, including the one managed by the
- * Context in which Redis modules operate
  *
- * @param ctx Context in which Redis modules operate
+ * @param runkey
  * @param rstats
+ * @return 0 on success, or 1 if the the run stats with runkey does not exist
  */
+int RAI_GetRunStats(const char* runkey, struct RedisAI_RunStats** rstats);
+
 void RedisAI_FreeRunStats(RedisModuleCtx* ctx, struct RedisAI_RunStats* rstats);
 
 #endif /* SRC_SATTS_H_ */

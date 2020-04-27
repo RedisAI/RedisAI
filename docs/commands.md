@@ -60,32 +60,27 @@ The **`AI.TENSORGET`** command returns a tensor stored as key's value.
 **Redis API**
 
 ```
-AI.TENSORGET <key> <format>
+AI.TENSORGET <key> [META] [format]
 ```
 
 _Arguments_
 
 * **key**: the tensor's key name
-* **format**: the reply's format can be on of the following:
+* **META**: returns the tensor's meta data
+* **format**: the tensor's reply format can be one of the following:
     * **BLOB**: returns the binary representation of the tensor's data
     * **VALUES**: returns the numerical representation of the tensor's data
-    * **META**: returns the tensor's meta data exclusively
 
 _Return_
 
-Array containing the tensor's data.
+Depending on the specified reply format:
+ * **META**: Array containing the tensor's meta data exclusively. The returned array consists of the following elements:
+    1. The tensor's data type as a String
+    1. The tensor's shape as an Array consisting of an item per dimension
+ * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the meta data in the array reply. 
+ * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the meta data in the array reply. 
 
-The returned array consists of the following elements:
 
-1. The tensor's data type as a String
-1. The tensor's shape as an Array consisting of an item per dimension
-1. The tensor's data when called with the `BLOB` or `VALUES` arguments
-
-The reply's third element type, that is the tensor's data, depends on the given argument:
-
-* **BLOB**: the tensor's binary data as a String
-* **VALUES**: the tensor's values an Array
-* **META**: when used no data is returned
 
 **Examples**
 
@@ -96,14 +91,62 @@ redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
 OK
 ```
 
-The following shows how the tensor's binary data is read:
+The following shows how to retrieve the tensor's metadata:
+
+```
+redis> AI.TENSORGET mytensor META
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+```
+
+The following shows how to retrieve the tensor's values as an Array:
+
+```
+redis> AI.TENSORGET mytensor VALUES
+1) "1"
+2) "2"
+3) "3"
+4) "4"
+```
+
+The following shows how to retrieve the tensor's binary data as a String:
 
 ```
 redis> AI.TENSORGET mytensor BLOB
-1) FLOAT
-2) 1) (integer) 2
+"\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+```
+
+
+The following shows how the combine the retrieval of the tensor's meta data, and the tensor's values as an Array:
+
+```
+redis> AI.TENSORGET mytensor META VALUES
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
    2) (integer) 2
-3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+5) "values"
+6) 1) "1"
+   2) "2"
+   3) "3"
+   4) "4"
+```
+
+The following shows how the combine the retrieval of the tensor's meta data, and binary data as a String:
+
+```
+redis> AI.TENSORGET mytensor META BLOB
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "blob"
+6) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
@@ -117,7 +160,7 @@ The **`AI.MODELSET`** commands stores a model as the value of a key.
 ```
 AI.MODELSET <key> <backend> <device>
     [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
-    [INPUTS <name> ...] [OUTPUTS name ...] <model>
+    [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
 ```
 
 _Arguments_
@@ -135,7 +178,7 @@ _Arguments_
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (defai;t value: 0).
 * **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
 * **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
-* **model**: the Protobuf-serialized model
+* **model**: the Protobuf-serialized model.Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
 
 _Return_
 
@@ -146,7 +189,7 @@ A simple 'OK' string or an error.
 This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choice that are native to your programming language:
 
 ```
-$ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output
+$ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output BLOB
 OK
 ```
 
@@ -156,14 +199,14 @@ The **`AI.MODELGET`** command returns a model's meta data and blob stored as a k
 **Redis API**
 
 ```
-AI.MODELGET <key> [META | BLOB]
+AI.MODELGET <key> [META] [BLOB]
 ```
 
 _Arguments
 
 * **key**: the model's key name
-* **META**: will only return the model's meta information (default)
-* **BLOB**: will return the model's meta information and a blob containing the serialized model
+* **META**: will return the model's meta information on backend, device and tag
+* **BLOB**: will return the model's blob containing the serialized model
 
 _Return_
 
@@ -179,11 +222,12 @@ An array of alternating key-value pairs as follows:
 Assuming that your model is stored under the 'mymodel' key, you can obtain its metadata with:
 
 ```
-redis> 1) BACKEND
+redis> AI.MODELGET mymodel META
+1) "backend"
 2) TF
-3) DEVICE
+3) "device"
 4) CPU
-5) TAG
+5) "tag"
 6) imagenet:5.0
 ```
 
@@ -255,16 +299,16 @@ redis> AI.MODELRUN mymodel INPUTS mytensor OUTPUTS classes predictions
 OK
 ```
 
-## AI._MODELLIST
-The **AI._MODELLIST** command returns all the models in the database.
+## AI._MODELSCAN
+The **AI._MODELSCAN** command returns all the models in the database.
 
 !!! warning "Experimental API"
-    `AI._MODELLIST` is an EXPERIMENTAL command that may be removed in future versions.
+    `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
 
 **Redis API**
 
 ```
-AI._MODELLIST
+AI._MODELSCAN
 ```
 
 _Arguments_
@@ -281,7 +325,7 @@ An array with an entry per model. Each entry is a an array with two entries:
 **Examples**
 
 ```
-redis> > AI._MODELLIST
+redis> > AI._MODELSCAN
 1) 1) "mymodel"
    2) imagenet:5.0
 ```
@@ -292,7 +336,7 @@ The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/s
 **Redis API**
 
 ```
-AI.SCRIPTSET <key> <device> [TAG tag] "<script>"
+AI.SCRIPTSET <key> <device> [TAG tag] SOURCE "<script>"
 ```
 
 _Arguments_
@@ -303,7 +347,7 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
-* **script**: the script's source code
+* **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
 
@@ -321,7 +365,7 @@ def addtwo(a, b):
 It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
 ```
-$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG myscript:v0.1
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG SOURCE myscript:v0.1
 OK
 ```
 
@@ -333,12 +377,14 @@ The **`AI.SCRIPTGET`** command returns the [TorchScript](https://pytorch.org/doc
 Get script metadata and source.
 
 ```
-AI.SCRIPTGET <key>
+AI.SCRIPTGET <key> [META] [SOURCE]
 ```
 
 _Arguments_
 
 * **key**: the script's key name
+* **TAG**: an optional string information on backend, device and tag
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
 
 _Return_
 
@@ -355,11 +401,11 @@ The following shows how to read the script stored at the 'myscript' key:
 
 ```
 redis> AI.SCRIPTGET myscript
-1) DEVICE
+1) "device"
 2) CPU
-3) TAG
+3) "tag"
 4) "myscript:v0.1"
-5) SOURCE
+5) "source"
 6) def addtwo(a, b):
     return a + b
 ```
@@ -432,16 +478,16 @@ redis> AI.TENSORGET result VALUES
 !!! warning "Intermediate memory overhead"
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
-## AI._SCRIPTLIST
-The **AI._SCRIPTLIST** command returns all the scripts in the database.
+## AI._SCRIPTSCAN
+The **AI._SCRIPTSCAN** command returns all the scripts in the database.
 
 !!! warning "Experimental API"
-    `AI._MODELLIST` is an EXPERIMENTAL command that may be removed in future versions.
+    `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
 
 **Redis API**
 
 ```
-AI._SCRIPTLIST
+AI._SCRIPTSCAN
 ```
 
 _Arguments_
@@ -458,7 +504,7 @@ An array with an entry per script. Each entry is a an array with two entries:
 **Examples**
 
 ```
-redis> > AI._SCRIPTLIST
+redis> > AI._SCRIPTSCAN
 1) 1) "myscript"
    2) "myscript:v0.1"
 ```
@@ -492,6 +538,13 @@ _Arguments_
 _Return_
 
 An array with an entry reply per command. Each entry format respects the specified command reply.
+
+_Read Only Variant_
+
+Since **AI.DAGRUN** have a **PERSIST** option it is technically flagged as writing commands in the Redis command table. For this reason read-only replicas will flag them, and Redis Cluster replicas will redirect them to the master instance even if the connection is in read only mode (See the READONLY command of Redis Cluster).
+
+**AI.DAGRUN_RO** is exactly like the original commands but refuse the **PERSIST** option, and can safely be used in replicas.
+
 
 **Examples**
 

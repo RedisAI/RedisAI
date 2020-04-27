@@ -1,5 +1,5 @@
 # <img src="images/logo.svg" alt="logo" style="width: 2em; vertical-align: middle;"/> RedisAI
-[![Mailing List](https://img.shields.io/badge/Mailing%20List-RedisAI-blue)](https://groups.google.com/forum/#!forum/redisai)
+[![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
 [![Gitter](https://badges.gitter.im/RedisLabs/RedisAI.svg)](https://gitter.im/RedisLabs/RedisAI?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
 RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. RedisAI both simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure, as well as maximizes computation throughput by adhering to the principle of data locality.
@@ -21,7 +21,7 @@ RedisAI is a Redis module for executing Deep Learning/Machine Learning models an
 ## Contact Us
 If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
-  * [Mailing list](https://groups.google.com/forum/#!forum/redisai)
+  * [![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
   * [Gitter chatroom](https://gitter.im/RedisLabs/RedisAI)
   * [Repository](https://github.com/RedisAI/RedisAI/issues)
 
