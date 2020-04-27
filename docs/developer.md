@@ -13,9 +13,9 @@ As a way of representing tensor data we've embraced [dlpack](https://github.com/
 
 RedisAI provides the following data structures:
 
-***Tensor**: represents an n-dimensional array of values
-***Model**: represents a frozen graph by one of the supported DL/ML framework backends
-***Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
+* **Tensor**: represents an n-dimensional array of values
+* **Model**: represents a frozen graph by one of the supported DL/ML framework backends
+* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
 
 ## Source code layout
 
@@ -117,11 +117,13 @@ Within the `backends` folder you will find the implementations code required to 
 You can compile and build the module from its source code.
 
 **Prerequisites**
+
 * CUDA needs to be installed for GPU support.
 * CMake 3.0 or higher needs to be installed.
 * Redis v4.0.9 or greater.
 
-**Get the Source Code
+**Get the Source Code**
+
 You can obtain the module's source code by cloning the project's repository using git like so:
 
     $ git clone https://github.com/RedisAI/RedisAI
@@ -131,6 +133,7 @@ Switch to the project's directory with:
     $ cd RedisAI
 
 **Building the Dependencies**
+
 Use the following script to download and build the libraries of the various RedisAI backends (TensorFlow, PyTorch, ONNXRuntime) for your platform with GPU support:
 
     $ bash get_deps.sh
@@ -140,7 +143,9 @@ Alternatively, you can run the following to fetch the CPU-only backends.
     $ bash get_deps.sh cpu
 
 **Building the Module**
+
 Once the dependencies have been built, you can build the RedisAI module with:
+
     $ make -C opt build
     
 **Running Tests**
@@ -158,16 +163,20 @@ To run tests in a Python virtualenv, follow these steps:
     $ virtualenv .env
     $ . .env/bin/active
     $ pip install -r tests/tests_requirements.txt
-    $ make -C opt tests
+    $ make -C opt test
 
 Integration tests are based on RLTest, and specific setup parameters can be provided
 to configure tests.
 
 For example, to run the tests strictly designed for the TensorFlow backend, follow these steps:
 
-    $ make -C opt tests TEST=tests_tensorflow.py
+    $ make -C opt test TEST=tests_tensorflow.py
 
 **Integration Tests Coverage**
 
-TBD 
+For coverage analysis we rely on lcov, and you can easily run the tests on your local machine following these steps:
 
+    $ make -C opt build COV=1 SHOW=1
+    $ make -C opt test COV=1 SHOW=1 AOF=0 SLAVES=0
+
+Setting `AOF=0 SLAVES=0` is not mandatory but will not run AOF and replication tests, thus getting us results faster.
