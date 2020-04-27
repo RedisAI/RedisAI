@@ -28,8 +28,6 @@ commands:
           name: Test
           command: make -C opt test <<parameters.test_params>>
           no_output_timeout: 20m
-      - store_artifacts:
-          path: pytest/logs
 
   package_steps:
     parameters:
