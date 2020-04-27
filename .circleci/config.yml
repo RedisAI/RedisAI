@@ -1,7 +1,7 @@
 version: 2.1
 
 commands:
-  ci_steps:
+  setup_steps:
     parameters:
       platform:
         type: string
@@ -29,6 +29,13 @@ commands:
           command: |
             mkdir -p ~/workspace
             chown `whoami` ~/workspace
+
+  test_steps:
+    parameters:
+      platform:
+        type: string
+    steps:
+      - checkout
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -66,24 +73,26 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - ci_steps:
+      - setup_steps:
+          platform: debian
+      - test_steps:
           platform: debian
 
   coverage:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - ci_steps:
+      - setup_steps:
           platform: debian
       - run:
-          name: Build
+          name: Build for coverage
           command: |
             # make fetch SHOW=1
             make -C opt build COV=1 SHOW=1
       - run:
           name: Test with coverage
           command: |
-            make -C opt test SHOW=1 COV=1
+            make -C opt test SHOW=1 COV=1 AOF=0 SLAVES=0
             make -C opt cov-upload
 
   build-macos:
@@ -94,7 +103,9 @@ jobs:
           name: Fix macOS Python installation
           command: |
             brew reinstall -f python2
-      - ci_steps:
+      - setup_steps:
+          platform: macosx
+      - test_steps:
           platform: macosx
 
   build-multiarch-docker:
