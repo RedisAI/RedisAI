@@ -73,18 +73,8 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - checkout
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
-            # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+      - ci_steps:
+          platform: debian
       - run:
           name: Build
           command: |
@@ -189,8 +179,8 @@ workflows:
             tags:
               only: /.*/
       - coverage:
-          requires:
-            - build
+          # requires:
+          #   - build
           filters:
             branches:
               only: /.*/

@@ -9,7 +9,8 @@ RedisAI bundles together best-of-breed technologies for delivering stable and pe
 
 As a way of representing tensor data we've embraced [dlpack](https://github.com/dmlc/dlpack) - a community effort to define a common tensor data structure that can be shared by different frameworks, supported by cuPy, cuDF, DGL, TGL, PyTorch, and MxNet.
 
-**Data Structures
+**Data Structures**
+
 RedisAI provides the following data structures:
 
 ***Tensor**: represents an n-dimensional array of values
@@ -67,7 +68,7 @@ This file also contains the function signatures of the reply callbacks to be cal
 
 **background_workers.h**
 ---
-Contains the structure to manage the per-device queues, used for decoupling the work from the main thread to the background worker threads. For each of the incoming ModelRun, ScriptRun, and DagRun commands, The request is queued and evaded asynchronously to one the device queues.
+Contains the structure to manage the per-device queues, used for decoupling the work from the main thread to the background worker threads. For each of the incoming ModelRun, ScriptRun, and DagRun commands, the request is queued and evaded asynchronously to one the device queues.
 
 **err.h**
 ---
@@ -105,11 +106,6 @@ Within the `backends` folder you will find the implementations code required to 
 ***TFLITE**: `tflite.h` and `tflite.c` exporting the functions to to register the TensorFlow Lite backend
 ***TORCH**: `torch.h` and `torch.c` exporting the functions to to register the PyTorch backend
 ***ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
-
-**Other C files
----
-
-TBD...
 
 
 ## Building and Testing
@@ -153,7 +149,7 @@ Once the dependencies have been built, you can build the RedisAI module with:
 make -C opt build
 ```
 
-**Running Tests
+**Running Tests**
 
 The module includes a basic set of unit tests and integration tests, split across common and backend specific files. To run
 them you'll need:
@@ -177,7 +173,7 @@ For example, to run the tests strictly designed for the TensorFlow backend, foll
 
     $ make -C opt tests TEST=tests_tensorflow.py
 
-**Integration Tests Coverage
+**Integration Tests Coverage**
 
 TBD 
 

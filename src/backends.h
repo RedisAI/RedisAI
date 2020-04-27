@@ -1,7 +1,7 @@
 /**
  * backends.h
  *
- * Contains the structure and methods signatures required to register a new
+ * Contains the structure and method signatures required to register a new
  * backend to be loaded by the module.
  *
  */
