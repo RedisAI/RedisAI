@@ -1,43 +1,42 @@
 version: 2.1
 
 commands:
-  ci_steps:
+  build-steps:
     parameters:
       platform:
         type: string
+      build_params:
+        type: string
+        default: ""
+      test_params:
+        type: string
+        default: ""
     steps:
       - checkout
-#      - restore_cache:
-#          keys:
-#          - v1-dependencies-{{ checksum "get_deps.sh" }}
-#          # fallback to using the latest cache if no exact match is found
-#          # - v1-dependencies-
       - run:
           name: Install dependencies
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
-            ./get_deps.sh cpu
-      - save_cache:
-          paths:
-            - deps
-            - /usr/local
-          key: build-dependencies-{{ checksum "get_deps.sh" }}
-      - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
       - run:
           name: Build
-          command: make -C opt all SHOW=1
+          command: |
+            make fetch
+            make -C opt all <<parameters.build_params>> SHOW=1
       - run:
           name: Test
-          command: |
-            mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1
+          command: make -C opt test <<parameters.test_params>>
           no_output_timeout: 20m
+      - store_artifacts:
+          path: pytest/logs
+
+  package_steps:
+    parameters:
+      platform:
+        type: string
+    steps:
+      - checkout
       - run:
           name: Package
           command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
@@ -66,34 +65,22 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - ci_steps:
+      - build-steps:
+          platform: debian
+      - package_steps:
           platform: debian
 
   coverage:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - checkout
+      - build-steps:
+          platform: debian
+          build_params: COV=1
+          test_params: COV=1
       - run:
-          name: Install dependencies
+          name: Upload coverage
           command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
-            # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
-      - run:
-          name: Build
-          command: |
-            # make fetch SHOW=1
-            make -C opt build COV=1 SHOW=1
-      - run:
-          name: Test with coverage
-          command: |
-            make -C opt test SHOW=1 COV=1
             make -C opt cov-upload
 
   build-macos:
@@ -104,7 +91,7 @@ jobs:
           name: Fix macOS Python installation
           command: |
             brew reinstall -f python2
-      - ci_steps:
+      - build-steps:
           platform: macosx
 
   build-multiarch-docker:
@@ -189,8 +176,6 @@ workflows:
             tags:
               only: /.*/
       - coverage:
-          requires:
-            - build
           filters:
             branches:
               only: /.*/
@@ -235,13 +220,14 @@ workflows:
             branches:
               only: master
 
-  #nightly:
-  #  triggers:
-  #   - schedule:
-  #        cron: "20 17 * * *"
-  #        filters:
-  #           branches:
-  #             only:
-  #              - master
-  #  jobs:
-  #    - build-macos
+  nightly:
+   triggers:
+    - schedule:
+         cron: "20 17 * * *"
+         filters:
+            branches:
+              only:
+               - master
+   jobs:
+     - build
+     - build-gpu
