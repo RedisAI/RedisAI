@@ -22,7 +22,7 @@ commands:
       - run:
           name: Build
           command: |
-            make fetch
+            make -C opt fetch
             make -C opt all <<parameters.build_params>> SHOW=1
       - run:
           name: Test
