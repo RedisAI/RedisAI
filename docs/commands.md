@@ -74,6 +74,7 @@ _Arguments_
 _Return_
 
 Depending on the specified reply format:
+
  * **META**: Array containing the tensor's meta data exclusively. The returned array consists of the following elements:
     1. The tensor's data type as a String
     1. The tensor's shape as an Array consisting of an item per dimension
@@ -178,7 +179,7 @@ _Arguments_
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (defai;t value: 0).
 * **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
 * **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
-* **model**: the Protobuf-serialized model.Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
+* **model**: the Protobuf-serialized model. Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
 
 _Return_
 
