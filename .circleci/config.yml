@@ -19,11 +19,11 @@ commands:
             BREW_NO_UPDATE=1 ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
             ./get_deps.sh cpu
-      - save_cache:
-          paths:
-            - deps
-            - /usr/local
-          key: build-dependencies-{{ checksum "get_deps.sh" }}
+      # - save_cache:
+      #     paths:
+      #       - deps
+      #       - /usr/local
+      #     key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Set up workspace
           command: |
@@ -80,16 +80,22 @@ jobs:
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            ./get_deps.sh cpu
+      # - restore_cache:
+      #     keys:
+      #     - build-dependencies-{{ checksum "get_deps.sh" }}
+      #     # fallback to using the latest cache if no exact match is found
+      #     - v1-dependencies-
+      - run:
+          name: Set up workspace
+          command: |
+            mkdir -p ~/workspace
+            chown `whoami` ~/workspace
       - run:
           name: Build
           command: |
             # make fetch SHOW=1
-            make -C opt build COV=1 SHOW=1
+            make -C opt all COV=1 SHOW=1
       - run:
           name: Test with coverage
           command: |
@@ -189,8 +195,6 @@ workflows:
             tags:
               only: /.*/
       - coverage:
-          requires:
-            - build
           filters:
             branches:
               only: /.*/

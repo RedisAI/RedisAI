@@ -8,6 +8,7 @@ python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 
 
 def test_run_tflite_model(env):
+    
     if not TEST_TFLITE:
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -196,7 +197,7 @@ def test_run_tflite_model_errors(env):
 #       size. At least we should constrain MINBATCHSIZE according to the
 #       hard-coded dims in the tflite model.
 def test_run_tflite_model_autobatch(env):
-    if not TEST_PT:
+    if not TEST_TFLITE:
         return
 
     con = env.getConnection()
