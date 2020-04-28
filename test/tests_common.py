@@ -273,10 +273,10 @@ def test_common_tensorset_multiproc_blob(env):
     tensor_blob = tested_datatypes_map["FLOAT"]
     t = time.time()
     run_test_multiproc(env, 10,
-                       lambda env: funcname(env,tensor_blob,10000,10) )
+                       lambda env: funcname(env,tensor_blob,MAX_TRANSACTIONS,10) )
     elapsed_time = time.time() - t
     avg_ops_sec = 100000*10/elapsed_time
-    env.debugPrint("AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec), True)
+    # env.debugPrint("AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec), True)
 
 
 def test_tensorset_disconnect(env):

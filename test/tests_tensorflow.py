@@ -677,7 +677,7 @@ def test_tensorflow_modelrun_financialNet(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 30,
                                   'BLOB', transaction_tensor.tobytes())
@@ -685,7 +685,7 @@ def test_tensorflow_modelrun_financialNet(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -696,7 +696,7 @@ def test_tensorflow_modelrun_financialNet(env):
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    for tensor_number in range(1, 10001):
+    for tensor_number in range(1, MAX_TRANSACTIONS):
         for repetition in range(0, 10):
             ret = con.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
                                       'transactionTensor:{}'.format(tensor_number),
@@ -711,7 +711,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'transactionTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 30,
                                   'BLOB', transaction_tensor.tobytes())
@@ -719,7 +719,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -737,11 +737,11 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
                                         'transactionTensor:{}'.format(tensor_number),
                                         'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
                                         'classificationTensor:{}_{}'.format(tensor_number, repetition))
-    
+
     t = time.time()
     run_test_multiproc(env, 10,
-                       lambda env: functor_financialNet(env,len(transaction_tensor),100) )
+                       lambda env: functor_financialNet(env,MAX_TRANSACTIONS,100) )
     elapsed_time = time.time() - t
     total_ops = len(transaction_tensor)*100
     avg_ops_sec = total_ops/elapsed_time
-    env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)
+    # env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)

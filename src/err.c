@@ -1,14 +1,14 @@
 #include "err.h"
-#include "stdlib.h"
+
 #include "assert.h"
+#include "redismodule.h"
+#include "stdlib.h"
 #include "string.h"
 
-#include "redismodule.h"
-
 char *RAI_Chomp(const char *src) {
-  char* str = RedisModule_Strdup(src);
+  char *str = RedisModule_Strdup(src);
   size_t len = strlen(src);
-  for (size_t i=0; i<len; i++) {
+  for (size_t i = 0; i < len; i++) {
     if (str[i] == '\n' || str[i] == '\r') {
       str[i] = ' ';
     }
@@ -17,6 +17,9 @@ char *RAI_Chomp(const char *src) {
 }
 
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
+  if(!err){
+    return;
+  }
   if (err->code != RAI_OK) {
     return;
   }
@@ -37,29 +40,31 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
  * @return 0 on success, or 1 if the allocation
  * failed.
  */
-int RAI_InitError(RAI_Error** result) {
-  RAI_Error* err;
-  err = (RAI_Error*)RedisModule_Calloc(1, sizeof(RAI_Error));
+int RAI_InitError(RAI_Error **result) {
+  RAI_Error *err;
+  err = (RAI_Error *)RedisModule_Calloc(1, sizeof(RAI_Error));
   if (!err) {
     return 1;
   }
-  err->code=0;
-  err->detail=NULL;
-  err->detail_oneline=NULL;
+  err->code = 0;
+  err->detail = NULL;
+  err->detail_oneline = NULL;
   *result = err;
   return 0;
 }
 
 void RAI_ClearError(RAI_Error *err) {
-  if (err->detail) {
-    RedisModule_Free(err->detail);
-    err->detail = NULL;
+  if (err) {
+    if (err->detail) {
+      RedisModule_Free(err->detail);
+      err->detail = NULL;
+    }
+    if (err->detail_oneline) {
+      RedisModule_Free(err->detail_oneline);
+      err->detail_oneline = NULL;
+    }
+    err->code = RAI_OK;
   }
-  if (err->detail_oneline) {
-    RedisModule_Free(err->detail_oneline);
-    err->detail_oneline = NULL;
-  }
-  err->code = RAI_OK;
 }
 
 void RAI_FreeError(RAI_Error *err) {
