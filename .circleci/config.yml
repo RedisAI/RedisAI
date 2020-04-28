@@ -7,11 +7,10 @@ commands:
         type: string
     steps:
       - checkout
-#      - restore_cache:
-#          keys:
-#          - v1-dependencies-{{ checksum "get_deps.sh" }}
-#          # fallback to using the latest cache if no exact match is found
-#          # - v1-dependencies-
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
       - run:
           name: Install dependencies
           command: |
@@ -19,11 +18,11 @@ commands:
             BREW_NO_UPDATE=1 ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
             ./get_deps.sh cpu
-      # - save_cache:
-      #     paths:
-      #       - deps
-      #       - /usr/local
-      #     key: build-dependencies-{{ checksum "get_deps.sh" }}
+      - save_cache:
+          paths:
+            - deps
+            - /usr/local
+          key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Set up workspace
           command: |
@@ -74,6 +73,10 @@ jobs:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - checkout
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
       - run:
           name: Install dependencies
           command: |
@@ -81,11 +84,6 @@ jobs:
             ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
             ./get_deps.sh cpu
-      # - restore_cache:
-      #     keys:
-      #     - build-dependencies-{{ checksum "get_deps.sh" }}
-      #     # fallback to using the latest cache if no exact match is found
-      #     - v1-dependencies-
       - run:
           name: Set up workspace
           command: |
