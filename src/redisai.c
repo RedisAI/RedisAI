@@ -248,10 +248,10 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs, modeldef, modellen, &err);
 
   if (err.code == RAI_EBACKENDNOTLOADED) {
-    RedisModule_Log(ctx, "warning", "backend %s not loaded, will try loading default backend\n", bckstr);
+    RedisModule_Log(ctx, "warning", "backend %s not loaded, will try loading default backend", bckstr);
     int ret = RAI_LoadDefaultBackend(ctx, backend);
     if (ret == REDISMODULE_ERR) {
-      RedisModule_Log(ctx, "error", "could not load %s default backend\n", bckstr);
+      RedisModule_Log(ctx, "error", "could not load %s default backend", bckstr);
       int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
       RAI_ClearError(&err);
       return ret;
@@ -265,9 +265,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   if (err.code != RAI_OK) {
-    #ifdef RAI_PRINT_BACKEND_ERRORS
-    printf("ERR: %s\n", err.detail);
-    #endif
+    RedisModule_Log(ctx, "error", err.detail);
     int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
@@ -278,9 +276,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (ensureRunQueue(devicestr,&run_queue_info) != REDISMODULE_OK){
     RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
-      #ifdef RAI_PRINT_BACKEND_ERRORS
-      printf("ERR: %s\n", err.detail);
-      #endif
+      RedisModule_Log(ctx, "error", err.detail);
       int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
       RAI_ClearError(&err);
       return ret;
@@ -297,9 +293,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_CloseKey(key);
     RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
-      #ifdef RAI_PRINT_BACKEND_ERRORS
-      printf("ERR: %s\n", err.detail);
-      #endif
+      RedisModule_Log(ctx, "error", err.detail);
       int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
       RAI_ClearError(&err);
       return ret;

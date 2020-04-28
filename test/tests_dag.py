@@ -1,13 +1,14 @@
 import redis
 from functools import wraps
 import multiprocessing as mp
-
 from includes import *
 
 '''
 python -m RLTest --test tests_dag.py --module path/to/redisai.so
 '''
 
+# change this to make inference tests longer
+MAX_TRANSACTIONS=100
 
 def test_dag_load(env):
     con = env.getConnection()
@@ -394,7 +395,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:5]:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -402,7 +403,7 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:5]:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         ret = con.execute_command(
             'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
             'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
@@ -436,7 +437,7 @@ def test_dag_modelrun_financialNet(env):
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:5]:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -444,7 +445,7 @@ def test_dag_modelrun_financialNet(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:5]:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         ret = con.execute_command(
             'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
                          'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
@@ -475,7 +476,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -483,7 +484,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         for run_number in range(1,10):
             ret = con.execute_command(
                 'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
@@ -526,7 +527,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
-    for reference_tensor in creditcard_referencedata:
+    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
         ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
@@ -534,7 +535,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
         tensor_number = tensor_number + 1
 
     tensor_number = 1
-    for transaction_tensor in creditcard_transactions:
+    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         ret = con.execute_command(
             'AI.DAGRUN_RO', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), '|>',
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
@@ -577,7 +578,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     env.assertEqual(DEVICE, financialNetRunInfo['device'])
     env.assertTrue(financialNetRunInfo['duration'] > 0)
     env.assertEqual(0, financialNetRunInfo['samples'])
-    env.assertEqual(2*len(creditcard_transactions), financialNetRunInfo['calls'])
+    env.assertEqual(2*MAX_TRANSACTIONS, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
 
     con.execute_command('AI.INFO', 'financialNet', 'RESETSTAT')

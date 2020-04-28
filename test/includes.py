@@ -25,6 +25,8 @@ DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decod
 VALGRIND = os.environ.get("VALGRIND") == "1"
 print(f"Running tests on {DEVICE}\n")
 
+# change this to make inference tests longer
+MAX_TRANSACTIONS=100
 
 def ensureSlaveSynced(con, env, timeout_ms=5000):
     if env.useSlaves:

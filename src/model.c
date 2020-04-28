@@ -70,7 +70,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
     int ret = RAI_LoadDefaultBackend(ctx, backend);
     if (ret == REDISMODULE_ERR) {
-      RedisModule_Log(ctx, "error", "Could not load default backend\n");
+      RedisModule_Log(ctx, "error", "Could not load default backend");
       RAI_ClearError(&err);
       return NULL;
     }
@@ -79,7 +79,8 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   }
  
   if (err.code != RAI_OK) {
-    printf("ERR: %s\n", err.detail);
+    RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
+    RedisModule_Log(ctx, "error", err.detail);
     RAI_ClearError(&err);
     if (buffer) {
       RedisModule_Free(buffer);
@@ -113,6 +114,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
   if (err.code != RAI_OK) {
+    RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
     if (buffer) {
@@ -151,6 +153,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
   int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
 
   if (err.code != RAI_OK) {
+    
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
     if (buffer) {
@@ -283,7 +286,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const cha
     model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
   }
   else {
-    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend\n");
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
     return NULL;
   }
 
@@ -301,7 +304,7 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
 
   if (model->backend == RAI_BACKEND_TENSORFLOW) {
     if (!RAI_backends.tf.model_free) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF\n");
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
       return;
     }
     RAI_backends.tf.model_free(model, err);
@@ -328,7 +331,7 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
     RAI_backends.onnx.model_free(model, err);
   }
   else {
-    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend\n");
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend");
     return;
   }
 

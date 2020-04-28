@@ -627,6 +627,9 @@ def test_pytorch_modelscan_scriptscan(env):
 
     con = env.getConnection()
 
+    # ensure cleaned DB
+    # env.flush()
+
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
 
@@ -653,14 +656,13 @@ def test_pytorch_modelscan_scriptscan(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI._MODELSCAN')
-
-    env.assertEqual(ret[0], [b'm1', b'm:v1'])
-    env.assertEqual(ret[1], [b'm2', b'm:v1'])
+    env.assertEqual(2, len(ret[0]))
+    env.assertEqual(2, len(ret[1]))
 
     ret = con.execute_command('AI._SCRIPTSCAN')
 
-    env.assertEqual(ret[0], [b's1', b's:v1'])
-    env.assertEqual(ret[1], [b's2', b's:v1'])
+    env.assertEqual(2, len(ret[0]))
+    env.assertEqual(2, len(ret[1]))
 
 
 def test_pytorch_model_rdb_save_load(env):
@@ -668,7 +670,7 @@ def test_pytorch_model_rdb_save_load(env):
     if env.useAof or not TEST_PT:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
-    if DEVICE == "GPU" or COV:
+    if DEVICE == "GPU":
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 

@@ -34,7 +34,7 @@ int RAI_InitDagOp(RAI_DagOp **result) {
   if (!(dagOp->outkeys)) {
     return REDISMODULE_ERR;
   }
-  dagOp->outTensors = (RAI_Tensor **)array_new(RAI_Tensor*, 1);
+  dagOp->outTensors = (RAI_Tensor **)array_new(RAI_Tensor *, 1);
   if (!(dagOp->outTensors)) {
     return REDISMODULE_ERR;
   }
@@ -121,6 +121,9 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
 }
 
 void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
+  if (!rinfo) {
+    return;
+  }
   if (rinfo->mctx) {
     RAI_ModelRunCtxFree(rinfo->mctx);
   }
@@ -138,35 +141,21 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
       tensor = AI_dictGetVal(stats_entry);
       char *key = (char *)AI_dictGetKey(stats_entry);
 
-      if (tensor) {
+      if (tensor&&key!=NULL) {
         // if the key is persistent then we should not delete it
         AI_dictEntry *persistent_entry =
             AI_dictFind(rinfo->dagTensorsPersistentContext, key);
-        // if the key was loaded from the keyspace then we should not delete it
+        // if the key was loaded from the keyspace then we should not delete
+        // it
         AI_dictEntry *loaded_entry =
             AI_dictFind(rinfo->dagTensorsLoadedContext, key);
         if (persistent_entry == NULL && loaded_entry == NULL) {
           RAI_TensorFree(tensor);
         }
       }
-      RedisModule_Free(key);
       stats_entry = AI_dictNext(iter);
     }
     AI_dictReleaseIterator(iter);
-    RedisModule_Free(rinfo->dagTensorsContext);
-  }
-
-  if (rinfo->dagTensorsPersistentContext) {
-    AI_dictIterator *iter =
-        AI_dictGetSafeIterator(rinfo->dagTensorsPersistentContext);
-    AI_dictEntry *stats_entry = AI_dictNext(iter);
-    while (stats_entry) {
-      char *key = (char *)AI_dictGetKey(stats_entry);
-      RedisModule_Free(key);
-      stats_entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-    RedisModule_Free(rinfo->dagTensorsPersistentContext);
   }
 
   if (rinfo->dagOps) {
@@ -182,7 +171,6 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     }
     array_free(rinfo->outkeys);
   }
-
   RedisModule_Free(rinfo);
 }
 
@@ -218,7 +206,6 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
 
 int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
                          struct RedisAI_RunInfo *rinfo2) {
-
   // DAG case
   if (rinfo1->use_local_context == 1 || rinfo2->use_local_context == 1) {
     return 0;

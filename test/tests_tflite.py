@@ -196,7 +196,7 @@ def test_run_tflite_model_errors(env):
 #       size. At least we should constrain MINBATCHSIZE according to the
 #       hard-coded dims in the tflite model.
 def test_run_tflite_model_autobatch(env):
-    if not TEST_PT:
+    if not TEST_TFLITE:
         return
 
     con = env.getConnection()
