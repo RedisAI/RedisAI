@@ -150,33 +150,36 @@ Once the dependencies have been built, you can build the RedisAI module with:
     
 **Running Tests**
 
-The module includes a basic set of unit tests and integration tests, split across common and backend specific files. To run
-them you'll need:
+The module includes a basic set of unit tests and integration tests, split across common and backend specific files. To run them you'll need:
 
 * lcov (for coverage analysis, on Linux)
 * Python and a few packages (e.g. pytest, redis, etc.)
 * redis-server in your PATH, or in `../redis/src`.
 
-To run tests in a Python virtualenv, follow these steps:
+To run all tests in a Python virtualenv, follow these steps:
 
     $ mkdir -p .env
     $ virtualenv .env
-    $ . .env/bin/active
-    $ pip install -r tests/tests_requirements.txt
+    $ source .env/bin/activate
+    $ pip install -r test/test_requirements.txt
     $ make -C opt test
 
+**Integration tests**
+
 Integration tests are based on RLTest, and specific setup parameters can be provided
-to configure tests.
+to configure tests. By default the tests will be ran for all backends and common commands, and with variation of persistency and replication. 
+To fully understand what test options are available simply run:
+
+    $ make -C opt help
 
 For example, to run the tests strictly designed for the TensorFlow backend, follow these steps:
 
     $ make -C opt test TEST=tests_tensorflow.py
 
-**Integration Tests Coverage**
+**Coverage**
 
 For coverage analysis we rely on lcov, and you can easily run the tests on your local machine following these steps:
 
     $ make -C opt build COV=1 SHOW=1
     $ make -C opt test COV=1 SHOW=1 AOF=0 SLAVES=0
 
-Setting `AOF=0 SLAVES=0` is not mandatory but will not run AOF and replication tests, thus getting us results faster.

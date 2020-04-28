@@ -5,6 +5,8 @@
 /test/venv/
 logs/
 /test/logs/
+.env/
+env*/
 .venv/
 venv*/
 /install
