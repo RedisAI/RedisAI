@@ -4,14 +4,21 @@ RedisAI is a Redis module. To run it you'll need a Redis server (v4.0.9 or great
 The following sections describe how to get started with RedisAI.
 
 ## Docker
-The quickest way to try RedisAI is by launching its official Docker container image:
+The quickest way to try RedisAI is by launching its official Docker container images:
 
+### On a CPU only machine
 ```
 docker run -p 6379:6379 redisai/redisai:latest
 ```
 
+### On a GPU machine
+
+```
+docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
+```
+
 ## Building and Running
-You can compile and build the module from its source code.
+You can compile and build the module from its source code. The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module and how to contribute.
 
 ### Prerequisites
 * CUDA needs to be installed for GPU support.
@@ -48,11 +55,7 @@ bash get_deps.sh cpu
 Once the dependencies have been built, you can build the RedisAI module with:
 
 ```sh
-mkdir build
-cd build
-cmake -DDEPS_PATH=../deps/install ..
-make && make install
-cd ..
+make -C opt build
 ```
 
 ### Loading the Module
@@ -61,5 +64,5 @@ To load the module on the same server is was compiled on simply use the `--loadm
 For example, to load the module from the project's path with a server command line switch use the following:
 
 ```sh
-redis-server --loadmodule ./install/redisai.so
+redis-server --loadmodule ./install-cpu/redisai.so
 ```
