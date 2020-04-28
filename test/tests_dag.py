@@ -384,7 +384,6 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
 
 
 def test_dag_modelrun_financialNet_separate_tensorget(env):
-    
     if not TEST_TF:
         return
     con = env.getConnection()
@@ -427,7 +426,6 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
 
 
 def test_dag_modelrun_financialNet(env):
-    
     if not TEST_TF:
         return
     con = env.getConnection()
@@ -467,7 +465,6 @@ def test_dag_modelrun_financialNet(env):
 
 
 def test_dag_modelrun_financialNet_no_writes(env):
-    
     if not TEST_TF:
         return
     con = env.getConnection()
@@ -519,7 +516,6 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
 
 def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
-    
     if not TEST_TF:
         return
     con = env.getConnection()

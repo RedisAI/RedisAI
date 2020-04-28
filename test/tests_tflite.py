@@ -8,7 +8,6 @@ python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 
 
 def test_run_tflite_model(env):
-    
     if not TEST_TFLITE:
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return

@@ -243,7 +243,6 @@ def test_onnx_modelrun_iris(env):
 
 
 def test_onnx_modelinfo(env):
-    
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
