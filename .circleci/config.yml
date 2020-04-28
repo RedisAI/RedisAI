@@ -21,7 +21,6 @@ commands:
       - save_cache:
           paths:
             - deps
-            - /usr/local
           key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Set up workspace
