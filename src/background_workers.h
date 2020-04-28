@@ -1,4 +1,7 @@
+#if defined(__linux__)
 #define _GNU_SOURCE
+#endif
+
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
 
