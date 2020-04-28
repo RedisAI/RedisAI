@@ -7,11 +7,10 @@ commands:
         type: string
     steps:
       - checkout
-#      - restore_cache:
-#          keys:
-#          - v1-dependencies-{{ checksum "get_deps.sh" }}
-#          # fallback to using the latest cache if no exact match is found
-#          # - v1-dependencies-
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
       - run:
           name: Install dependencies
           command: |
@@ -22,7 +21,6 @@ commands:
       - save_cache:
           paths:
             - deps
-            - /usr/local
           key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Set up workspace
@@ -74,27 +72,32 @@ jobs:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
       - checkout
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
       - run:
           name: Install dependencies
           command: |
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
             # git clone git://github.com/antirez/redis.git --branch 5.0.7; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # fallback to using the latest cache if no exact match is found
-          - v1-dependencies-
+            ./get_deps.sh cpu
+      - run:
+          name: Set up workspace
+          command: |
+            mkdir -p ~/workspace
+            chown `whoami` ~/workspace
       - run:
           name: Build
           command: |
-            # make fetch SHOW=1
-            make -C opt build COV=1 SHOW=1
+            make -C opt all COV=1 SHOW=1
       - run:
           name: Test with coverage
           command: |
             make -C opt test SHOW=1 COV=1
             make -C opt cov-upload
+          no_output_timeout: 20m
 
   build-macos:
     macos:
@@ -189,8 +192,6 @@ workflows:
             tags:
               only: /.*/
       - coverage:
-          requires:
-            - build
           filters:
             branches:
               only: /.*/
