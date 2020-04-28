@@ -181,5 +181,5 @@ For example, to run the tests strictly designed for the TensorFlow backend, foll
 For coverage analysis we rely on lcov, and you can easily run the tests on your local machine following these steps:
 
     $ make -C opt build COV=1 SHOW=1
-    $ make -C opt test COV=1 SHOW=1 AOF=0 SLAVES=0
+    $ make -C opt test COV=1 SHOW=1
 
