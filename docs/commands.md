@@ -51,7 +51,7 @@ OK
     As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor.
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
-    While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires less resources and performs better compared to specifying the values discretely.
+    While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to specifying the values discretely.
 
 ## AI.TENSORGET
 The **`AI.TENSORGET`** command returns a tensor stored as key's value.
@@ -65,7 +65,7 @@ AI.TENSORGET <key> [META] [format]
 _Arguments_
 
 * **key**: the tensor's key name
-* **META**: returns the tensor's meta data
+* **META**: returns the tensor's metadata
 * **format**: the tensor's reply format can be one of the following:
     * **BLOB**: returns the binary representation of the tensor's data
     * **VALUES**: returns the numerical representation of the tensor's data
@@ -74,11 +74,11 @@ _Return_
 
 Depending on the specified reply format:
 
- * **META**: Array containing the tensor's meta data exclusively. The returned array consists of the following elements:
+ * **META**: Array containing the tensor's metadata exclusively. The returned array consists of the following elements:
     1. The tensor's data type as a String
     1. The tensor's shape as an Array consisting of an item per dimension
- * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the meta data in the array reply. 
- * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the meta data in the array reply. 
+ * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
+ * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
 
 
 
@@ -120,7 +120,7 @@ redis> AI.TENSORGET mytensor BLOB
 ```
 
 
-The following shows how the combine the retrieval of the tensor's meta data, and the tensor's values as an Array:
+The following shows how the combine the retrieval of the tensor's metadata, and the tensor's values as an Array:
 
 ```
 redis> AI.TENSORGET mytensor META VALUES
@@ -136,7 +136,7 @@ redis> AI.TENSORGET mytensor META VALUES
    4) "4"
 ```
 
-The following shows how the combine the retrieval of the tensor's meta data, and binary data as a String:
+The following shows how the combine the retrieval of the tensor's metadata, and binary data as a String:
 
 ```
 redis> AI.TENSORGET mytensor META BLOB
@@ -150,7 +150,7 @@ redis> AI.TENSORGET mytensor META BLOB
 ```
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
-    While it is possible to get the tensor as binary data or numerical values, it is recommended that you use the `BLOB` option. It requires less resources and performs better compared to returning the values discretely.
+    While it is possible to get the tensor as binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to returning the values discretely.
 
 ## AI.MODELSET
 The **`AI.MODELSET`** commands stores a model as the value of a key.
@@ -175,7 +175,7 @@ _Arguments_
     * **GPU**: a GPU device
 * **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
 * **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
-* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (defai;t value: 0).
+* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0).
 * **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
 * **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
 * **model**: the Protobuf-serialized model. Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
@@ -186,7 +186,7 @@ A simple 'OK' string or an error.
 
 **Examples**
 
-This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choice that are native to your programming language:
+This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choices that are native to your programming language:
 
 ```
 $ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output BLOB
@@ -194,7 +194,7 @@ OK
 ```
 
 ## AI.MODELGET
-The **`AI.MODELGET`** command returns a model's meta data and blob stored as a key's value.
+The **`AI.MODELGET`** command returns a model's metadata and blob stored as a key's value.
 
 **Redis API**
 
@@ -317,7 +317,7 @@ None.
 
 _Return_
 
-An array with an entry per model. Each entry is a an array with two entries:
+An array with an entry per model. Each entry is an array with two entries:
 
 1. The model's key name as a String
 1. The model's tag as a String
@@ -496,7 +496,7 @@ None.
 
 _Return_
 
-An array with an entry per script. Each entry is a an array with two entries:
+An array with an entry per script. Each entry is an array with two entries:
 
 1. The script's key name as a String
 1. The script's tag as a String
@@ -510,41 +510,37 @@ redis> > AI._SCRIPTSCAN
 ```
 
 ## AI.DAGRUN
-The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to run within RedisAI. 
-It accepts one or more operations, split by the pipe-forward operator (`|>`). 
+The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to run within RedisAI.
 
+It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
 By default, the DAG execution context is local, meaning that loading and persisting tensors should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
 
 When `PERSIST` is not present, object savings are done locally and kept only during the context of the DAG meaning that no output keys are open.
 
-As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining. 
+As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
 
 **Redis API**
 
 ```
-AI.DAGRUN [LOAD <number keys> <key 1> ... <key n>]
-          [PERSIST <number keys> <key 1> ... <key n>] |>
-          [command 1] |>  [command 2] |> [command n]
+AI.DAGRUN [LOAD <n> <key-1> <key-2> ... <key-n>]
+          [PERSIST <n> <key-1> <key-2> ... <key-n>]
+          |> <command> [|>  command ...]
 ```
 
 _Arguments_
 
 * **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of the supported RedisAI commands ( for now `AI.TENSORSET`, `AI.TENSORGET`, and `AI.MODELRUN` ). Command spliting is done by the presence of another `|>`.
+* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
+    * `AI.TENSORSET`
+    * `AI.TENSORGET`
+    * `AI.MODELRUN`
 
 _Return_
 
-An array with an entry reply per command. Each entry format respects the specified command reply.
-
-_Read Only Variant_
-
-Since **AI.DAGRUN** have a **PERSIST** option it is technically flagged as writing commands in the Redis command table. For this reason read-only replicas will flag them, and Redis Cluster replicas will redirect them to the master instance even if the connection is in read only mode (See the READONLY command of Redis Cluster).
-
-**AI.DAGRUN_RO** is exactly like the original commands but refuse the **PERSIST** option, and can safely be used in replicas.
-
+An array with an entry per command's reply. Each entry format respects the specified command reply.
 
 **Examples**
 
@@ -567,6 +563,16 @@ redis> AI.DAGRUN PERSIST 1 predictions |>
 !!! warning "Intermediate memory overhead"
     The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
+## AI.DAGRUN_RO
+
+The **`AI.DAGRUN_RO`** command is a read-only variant of `AI.DAGRUN`.
+
+Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' command in the Redis command table. However, even when `PERSIST` isn't used, read-only cluster replicas will refuse tp run the command and it will be redirected to the master even if the connection is using read-only mode.
+
+`AI.DAGRUN_RO` behaves exactly like the original command, excluding the `PERSIST` option. It is a read-only command that can safely be with read-only replicas.
+
+!!! info "Further reference"
+    Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
 
 ## AI.INFO
 The **`AI.INFO`** command returns information about the execution a model or a script.

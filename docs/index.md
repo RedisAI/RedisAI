@@ -10,7 +10,7 @@ RedisAI is a Redis module for executing Deep Learning/Machine Learning models an
   * The [Commands](commands.md) page is a reference of RedisAI's API
   * The [Clients](clients.md) page lists RedisAI clients by programming language
   * The [Configuration](configuration.md) page explains how to configure RedisAI
-  * The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module and how to contribute.
+  * The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module
 
 
 ## Quick Links
@@ -21,7 +21,7 @@ RedisAI is a Redis module for executing Deep Learning/Machine Learning models an
 ## Contact Us
 If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
-  * [![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
+  * [Forum](https://forum.redislabs.com/c/modules/redisai)
   * [Gitter chatroom](https://gitter.im/RedisLabs/RedisAI)
   * [Repository](https://github.com/RedisAI/RedisAI/issues)
 

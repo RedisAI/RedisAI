@@ -1,5 +1,5 @@
 # RedisAI Quickstart
-RedisAI is a Redis module. To run it you'll need a Redis server (v4.0.9 or greater), the module's shared library and its dependencies.
+RedisAI is a Redis module. To run it you'll need a Redis server (v4.0.9 or greater), the module's shared library, and its dependencies.
 
 The following sections describe how to get started with RedisAI.
 
