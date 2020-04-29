@@ -42,7 +42,7 @@ Benchmarking inference performance has four phases:
 
 ### Inference query execution diagrams per Model Serving Solution
 
-The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis).
+The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/tfserving_and_redis.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/restapi_and_redis.md).
   
 Bellow you can find a simplified version of the diagrams, including both tests cases ( with and without reference data).
 
