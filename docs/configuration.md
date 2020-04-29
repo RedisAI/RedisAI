@@ -58,7 +58,7 @@ Supported.
 
 **Examples**
 
-To set the default backends path to '/usr/lib/backends' when loading the module from command line use the following:
+To set the default backends path to '/usr/lib/backends' when loading the module from the command line use the following:
 
 ```sh
 redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
@@ -71,7 +71,7 @@ The **INTER_OP_PARALLELISM** configuration option sets the number of threads use
 
 _Expected Value_
 
-An Integer greater or equal than zero.
+An Integer equal or greater than zero.
 
 _Default Value_
 
@@ -83,7 +83,7 @@ Not supported.
 
 **Examples**
 
-To set the number of threads used for parallelism between independent operations to 1, when loading the module from command line use the following:
+To set the number of threads used for parallelism between independent operations to 1, when loading the module from the command line use the following:
 
 ```sh
 redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
@@ -167,7 +167,7 @@ Not supported.
 
 **Examples**
 
-To set the number of threads per queue to 4 when loading the module from command line use the following:
+To set the number of threads per queue to 4 when loading the module from the command line use the following:
 
 ```
 redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
