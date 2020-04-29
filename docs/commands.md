@@ -49,7 +49,6 @@ OK
 
 !!! note "Uninitialized Tensor Values"
     As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor.
-    TBD: why is that useful?
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
     While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires less resources and performs better compared to specifying the values discretely.

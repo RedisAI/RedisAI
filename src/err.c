@@ -24,6 +24,9 @@ char *RAI_Chomp(const char *src) {
 }
 
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
+  if(!err){
+    return;
+  }
   if (err->code != RAI_OK) {
     return;
   }
@@ -58,15 +61,17 @@ int RAI_InitError(RAI_Error **result) {
 }
 
 void RAI_ClearError(RAI_Error *err) {
-  if (err->detail) {
-    RedisModule_Free(err->detail);
-    err->detail = NULL;
+  if (err) {
+    if (err->detail) {
+      RedisModule_Free(err->detail);
+      err->detail = NULL;
+    }
+    if (err->detail_oneline) {
+      RedisModule_Free(err->detail_oneline);
+      err->detail_oneline = NULL;
+    }
+    err->code = RAI_OK;
   }
-  if (err->detail_oneline) {
-    RedisModule_Free(err->detail_oneline);
-    err->detail_oneline = NULL;
-  }
-  err->code = RAI_OK;
 }
 
 void RAI_FreeError(RAI_Error *err) {

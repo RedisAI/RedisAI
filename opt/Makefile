@@ -85,9 +85,7 @@ SRCDIR=..
 BINDIR=$(BINROOT)/src
 DEPS_DIR=$(ROOT)/deps/$(OS)-$(ARCH)-$(DEVICE)
 INSTALL_DIR=$(BINROOT)/install-$(DEVICE)
-COV_EXCLUDE=\
-    './rmutil/*'\
-    './util/*'
+COV_EXCLUDE= "*/rmutil/*" "*src/util/*" "*/deps/*"
 
 TARGET=$(BINDIR)/redisai.so
 INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
