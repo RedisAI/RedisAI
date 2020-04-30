@@ -1,11 +1,12 @@
 #include "torch_c.h"
-#include <torch/torch.h>
-#include <torch/csrc/jit/import.h>
-#include <torch/csrc/jit/script/compilation_unit.h>
+#include "torch/torch.h"
+#include "torch/csrc/jit/serialization/import.h"
+#include "torch/csrc/jit/api/compilation_unit.h"
+#include "ATen/Functions.h"
+
 #include <iostream>
 #include <sstream>
 
-#include <ATen/Functions.h>
 
 namespace {
 
