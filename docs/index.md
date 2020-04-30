@@ -12,7 +12,6 @@ RedisAI is a Redis module for executing Deep Learning/Machine Learning models an
   * The [Configuration](configuration.md) page explains how to configure RedisAI
   * The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module
 
-
 ## Quick Links
   * [Source code repository](https://github.com/RedisAI/RedisAI)
   * [Releases](https://github.com/RedisAI/RedisAI/releases)
