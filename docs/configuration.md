@@ -25,7 +25,7 @@ Configuration options can be set when the module is loaded. The options are pass
     For setting the module's configuration with the [`MODULE LOAD`](https://redis.io/commands/module-load) command use:
 
     ```
-    redis> loadmodule /usr/lib/redis/modules/redisai.so <opt1> <val1> ...
+    redis> MODULE LOAD /usr/lib/redis/modules/redisai.so <opt1> <val1> ...
     ```
 
 **Runtime Configuration**
