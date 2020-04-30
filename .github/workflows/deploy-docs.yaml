@@ -29,8 +29,8 @@ jobs:
       with:
         args: --acl public-read --follow-symlinks --delete
       env:
-        AWS_S3_ENDPOINT: ${{ secrets.DOCS_AWS_S3_ENDPOINT }}
         AWS_S3_BUCKET: ${{ secrets.DOCS_AWS_S3_BUCKET }}
         AWS_ACCESS_KEY_ID: ${{ secrets.DOCS_AWS_ACCESS_KEY_ID }}
         AWS_SECRET_ACCESS_KEY: ${{ secrets.DOCS_AWS_SECRET_ACCESS_KEY }}
+        DEST_DIR: ${{ secrets.DOCS_AWS_S3_DIR }}
         SOURCE_DIR: 'site'
