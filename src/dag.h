@@ -1,3 +1,10 @@
+/**
+ * dag.h
+ *
+ * Contains headers for the helper methods for both parsing, running the command in the
+ * background, and replying DAG structured commands.
+ */
+
 #ifndef SRC_DAG_H_
 #define SRC_DAG_H_
 

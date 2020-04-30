@@ -1,99 +1,29 @@
-<img src="images/logo.svg" alt="logo" width="200"/>
-
-# RedisAI
+# <img src="images/logo.svg" alt="logo" style="width: 2em; vertical-align: middle;"/> RedisAI
 [![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
 [![Gitter](https://badges.gitter.im/RedisLabs/RedisAI.svg)](https://gitter.im/RedisLabs/RedisAI?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
 
-RedisAI is a Redis module for serving tensors and executing deep learning models.
+RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. RedisAI both simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure, as well as maximizes computation throughput by adhering to the principle of data locality.
 
-## Quickstart
+## Where Next?
+  * The [Introduction](intro.md) is the recommended starting point
+  * The [Quickstart](quickstart.md) page provides information about building, installing and running RedisAI
+  * The [Commands](commands.md) page is a reference of RedisAI's API
+  * The [Clients](clients.md) page lists RedisAI clients by programming language
+  * The [Configuration](configuration.md) page explains how to configure RedisAI
+  * The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module
 
-1. [Docker](#docker)
-2. [Build](#building)
 
-## Docker
+## Quick Links
+  * [Source code repository](https://github.com/RedisAI/RedisAI)
+  * [Releases](https://github.com/RedisAI/RedisAI/releases)
+  * [Docker image](https://hub.docker.com/r/redisai/redisai/)
 
-To quickly tryout RedisAI, launch an instance using docker:
+## Contact Us
+If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
-```sh
-docker run -p 6379:6379 -it --rm redisai/redisai
-```
-
-### Give it a try
-
-On the client, load a backend (TF, TORCH or ONNX), and set the model
-```sh
-redis-cli AI.CONFIG LOADBACKEND TF install/backends/redisai_tensorflow/redisai_tensorflow.so
-redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c BLOB < test/test_data/graph.pb
-```
-
-Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
-* `AI.TENSORSET tensor_key data_type dim1..dimN [BLOB data | VALUES val1..valN]`
-* `AI.MODELRUN graph_key INPUTS input_key1 ... OUTPUTS output_key1 ...`
-```sh
-redis-cli
-> AI.TENSORSET bar FLOAT 2 VALUES 2 3
-> AI.TENSORSET baz FLOAT 2 VALUES 2 3
-> AI.MODELRUN foo INPUTS bar baz OUTPUTS jez
-> AI.TENSORGET jez VALUES
-1) FLOAT
-2) 1) (integer) 2
-3) 1) "4"
-   2) "9"
-```
-
-## Building
-This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform.  Note that this requires CUDA to be installed.
-```sh
-bash get_deps.sh
-```
-Alternatively, run the following to only fetch the CPU-only backends.
-```sh
-bash get_deps.sh cpu
-```
-
-After the dependencies are downloaded, build the module itself. Note that
-CMake 3.0 or higher is required.
-
-```sh
-mkdir build
-cd build
-cmake -DDEPS_PATH=../deps/install ..
-make && make install
-cd ..
-```
-
-### Running the server
-
-You must have a redis-server version 4.0.9 or greater, available in most recent distributions:
-
-```sh
-redis-server --version
-Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
-```
-
-To start Redis with the RedisAI module loaded:
-
-```
-redis-server --loadmodule install/redisai.so
-```
-
-## Client libraries
-
-Some languages have client libraries that provide support for RedisAI's commands:
-
-| Project | Language | License | Author | URL |
-| ------- | -------- | ------- | ------ | --- |
-| JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
-| redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
-| redisai-go | Go | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-go) |
-
-Full documentation of the api can be found [here](commands.md).
-
-## Mailing List / Forum
-
-Got questions? Feel free to ask at the [RedisAI forum](https://forum.redislabs.com/c/modules/redisai).
+  * [Forum](https://forum.redislabs.com/c/modules/redisai)
+  * [Gitter chatroom](https://gitter.im/RedisLabs/RedisAI)
+  * [Repository](https://github.com/RedisAI/RedisAI/issues)
 
 ## License
-
-Redis Source Available License Agreement - see [LICENSE](https://raw.githubusercontent.com/RedisAI/RedisAI/master/LICENSE)
+RedisAI is licensed under the [Redis Source Available License Agreement](https://github.com/RedisAI/RedisAI/blob/master/LICENSE).

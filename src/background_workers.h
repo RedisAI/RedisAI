@@ -1,3 +1,14 @@
+/**
+ * background_workers.h
+ *
+ * Contains the structure and method signatures required to manage the
+ * per-device queues, used for decoupling the work from the main thread to the
+ * background worker threads. For each of the incoming ModelRun, ScriptRun, and
+ * DagRun commands, the request is queued and evaded asynchronously to one the
+ * device queues.
+ *
+ */
+
 #if defined(__linux__)
 #define _GNU_SOURCE
 #endif
@@ -41,7 +52,6 @@
 
 AI_dict *run_queues;
 long long perqueueThreadPoolSize;
-
 
 typedef struct RunQueueInfo {
   pthread_mutex_t run_queue_mutex;

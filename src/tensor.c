@@ -1,3 +1,12 @@
+/**
+ * tensor.c
+ *
+ * Contains the helper methods for both creating, populating,
+ * managing and destructing the RedisAI_TensorType, and methods to manage
+ * parsing and replying of tensor related commands or operations.
+ *
+ */
+
 #include "tensor.h"
 #include "err.h"
 #include "tensor_struct.h"
@@ -399,7 +408,7 @@ RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset, lon
  * @return 0 on success, or 1 if the copy failed
  * failed.
  */
-int RAI_TensorCopyTensor(RAI_Tensor* t, RAI_Tensor** dest) {
+int RAI_TensorDeepCopy(RAI_Tensor* t, RAI_Tensor** dest) {
   const long long ndims = RAI_TensorNumDims(t);
   long long dims[ndims];
 
