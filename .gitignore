@@ -5,6 +5,8 @@
 /test/venv/
 logs/
 /test/logs/
+.env/
+env*/
 .venv/
 venv*/
 /install
@@ -79,7 +81,7 @@ __pycache__
 
 # Debug/Profile files
 # ignore perf html reports
-*.html 
+*.html
 
 # Kernel Module Compile Results
 *.mod*
@@ -130,3 +132,6 @@ dkms.conf
 
 # mpeltonen/sbt-idea plugin
 .idea_modules/
+
+# docs site
+site/

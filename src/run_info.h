@@ -1,4 +1,11 @@
-
+/**
+ * run_info.h
+ *
+ * Contains the structure and headers to create, initialize, get, reset, and
+ * free the structures that represent the context in which RedisAI blocking
+ * commands operate, namely RedisAI_RunInfo and the newly added RAI_DagOp.
+ *
+ */
 
 #ifndef SRC_RUN_INFO_H_
 #define SRC_RUN_INFO_H_

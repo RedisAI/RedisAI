@@ -1,3 +1,12 @@
+/**
+ * run_info.c
+ *
+ * Contains the methods to create, initialize, get, reset, and
+ * free the structures that represent the context in which RedisAI blocking
+ * commands operate, namely RedisAI_RunInfo and the newly added RAI_DagOp.
+ *
+ */
+
 #include "err.h"
 #include "model.h"
 #include "model_struct.h"

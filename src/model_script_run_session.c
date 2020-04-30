@@ -1,3 +1,14 @@
+/**
+ * model_scrip_run_session.c
+ * 
+ * Contains the methods that are related to async background work that was
+ * triggered by either MODELRUN or SCRIPTRUN Command and Called within
+ * `RedisAI_Run_ThreadMain`. This file also contains the function signatures of
+ * the reply callbacks to be called in order to reply to the clients, after the
+ * background work on MODELRUN and SCRIPTRUN is done.
+ *
+ */
+
 #include "model_script_run_session.h"
 
 #include "model.h"
@@ -11,7 +22,6 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
-
 
 /**
  * Actual method running the MODELRUN and SCRIPTRUN Commands in the background
@@ -91,7 +101,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (rinfo->result == REDISMODULE_ERR) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
-    RAI_SafeAddDataPoint(rstats,0,1,1,0);
+    RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
     int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
     RAI_FreeRunInfo(ctx, rinfo);
     return ret;
@@ -112,7 +122,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
                                           REDISMODULE_READ | REDISMODULE_WRITE);
     if (status == REDISMODULE_ERR) {
       RAI_FreeRunInfo(ctx, rinfo);
-      RAI_SafeAddDataPoint(rstats,0,1,1,0);
+      RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
       return REDISMODULE_ERR;
     }
     RAI_Tensor *t = NULL;
@@ -134,7 +144,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisAI_ReplicateTensorSet(ctx, rinfo->outkeys[i], t);
     }
   }
-  RAI_SafeAddDataPoint(rstats,rinfo->duration_us,1,0,batch_size);
+  RAI_SafeAddDataPoint(rstats, rinfo->duration_us, 1, 0, batch_size);
   RAI_FreeRunInfo(ctx, rinfo);
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
