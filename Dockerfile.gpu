@@ -1,6 +1,6 @@
-# BUILD redisfab/redisai-gpu:${VERSION}-${ARCH}-${OSNICK}
+# BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=5.0.7
+ARG REDIS_VER=5.0.8
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -10,7 +10,7 @@ ARG ARCH=x64
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04 AS builder
 
 # ENV DEPS "git ca-certificates wget unzip cmake libgomp1 patchelf coreutils tcl libjemalloc-dev"
 ENV NVIDIA_VISIBLE_DEVICES all
@@ -40,7 +40,7 @@ RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
 RUN if [ "$TEST" = "1" ]; then TEST="" make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1; fi
 
 #----------------------------------------------------------------------------------------------
-FROM nvidia/cuda:10.0-cudnn7-runtime-ubuntu18.04
+FROM nvidia/cuda:10.1-cudnn7-runtime-ubuntu18.04
 
 RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
 
