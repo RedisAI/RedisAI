@@ -1,3 +1,12 @@
+/**
+ * model.c
+ *
+ * Contains the helper methods for both creating, populating,
+ * managing and destructing the RedisModuleType, and methods to manage
+ * parsing and replying of tensor related commands or operations.
+ *
+ */
+
 #include "model.h"
 #include "model_struct.h"
 #include "backends.h"

@@ -1,3 +1,13 @@
+/**
+ * background_workers.c
+ *
+ * Contains the structure to manage the per-device queues, used for decoupling
+ * the work from the main thread to the background worker threads. For each of
+ * the incoming ModelRun, ScriptRun, and DagRun commands, the request is queued
+ * and evaded asynchronously to one the device queues.
+ *
+ */
+
 #include "background_workers.h"
 #include "dag.h"
 #include "model_script_run_session.h"

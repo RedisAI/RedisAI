@@ -1,7 +1,7 @@
 version: 2.1
 
 commands:
-  ci_steps:
+  setup_steps:
     parameters:
       platform:
         type: string
@@ -27,6 +27,13 @@ commands:
           command: |
             mkdir -p ~/workspace
             chown `whoami` ~/workspace
+
+  test_steps:
+    parameters:
+      platform:
+        type: string
+    steps:
+      - checkout
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -48,7 +55,7 @@ commands:
             - 'packages/branch/*.tgz'
       - store_artifacts:
           path: test/logs
-          
+
   deploy:
     parameters:
       from:
@@ -64,7 +71,9 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:5.0.7-x64-buster
     steps:
-      - ci_steps:
+      - setup_steps:
+          platform: debian
+      - test_steps:
           platform: debian
 
   coverage:
@@ -89,7 +98,7 @@ jobs:
             mkdir -p ~/workspace
             chown `whoami` ~/workspace
       - run:
-          name: Build
+          name: Build for coverage
           command: |
             make -C opt all COV=1 SHOW=1
       - run:
@@ -107,7 +116,9 @@ jobs:
           name: Fix macOS Python installation
           command: |
             brew reinstall -f python2
-      - ci_steps:
+      - setup_steps:
+          platform: macosx
+      - test_steps:
           platform: macosx
 
   build-multiarch-docker:
@@ -170,19 +181,6 @@ jobs:
       - store_artifacts:
           path: ~/workspace/packages/<<parameters.package>>
 
-  deploy_docs:
-    docker:
-      - image: redisfab/rmbuilder:5.0.7-x64-buster
-    steps:
-      - checkout
-      - run:
-          name: Build Docs
-          command: python3 -m mkdocs build
-      - run:
-          name: Deploy Docs to S3
-          command: |
-            aws s3 cp site s3://oss.redislabs.com/$WEBSITE_FOLDER/ --acl public-read --recursive
-
 workflows:
   version: 2
   build_and_package:
@@ -196,7 +194,7 @@ workflows:
             branches:
               only: /.*/
             tags:
-              only: /.*/ 
+              only: /.*/
       # - build-macos:
       #     filters:
       #       branches:
@@ -206,7 +204,7 @@ workflows:
       #- build-multiarch-docker:
       #    filters:
       #      tags:
-      #        only: /^v[0-9].*/ 
+      #        only: /^v[0-9].*/
       #      branches:
       #        ignore: /.*/
       - build-gpu:
@@ -231,10 +229,6 @@ workflows:
               ignore: /.*/
             tags:
               only: '/^v[0-9].*/'
-      - deploy_docs:
-          filters:
-            branches:
-              only: master
 
   #nightly:
   #  triggers:

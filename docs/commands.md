@@ -1,495 +1,684 @@
 # RedisAI Commands
+RedisAI is a Redis module, and as such it implements several data types and the respective commands to use them.
+
+All of RedisAI's commands are begin with the `AI.` prefix. The following sections describe these commands.
+
+**Syntax Conventions**
+
+The following conventions are used for describing the RedisAI Redis API:
+
+* `COMMAND`: a command or an argument name
+* `<mandatory>`: a mandatory argument
+* `[optional]`: an optional argument
+* `"`: a literal double quote character
+* `|`: an exclusive logical or operator
+* `...`: more of the same as before
 
 ## AI.TENSORSET
+The **`AI.TENSORSET`** command stores a tensor as the value of a key.
 
-Set a tensor.
+**Redis API**
 
-Stores a tensor of defined type with shape given by shape1..shapeN.
-
-```sql
-AI.TENSORSET tensor_key data_type shape1 shape2 ... [BLOB data | VALUES val1 val2 ...]
+```
+AI.TENSORSET <key> <type>
+   <shape> [shape ...] [BLOB <data> | VALUES <val> [val ...]]
 ```
 
-* tensor_key - Key for storing the tensor
-* data_type - Numeric data type of tensor elements, one of FLOAT, DOUBLE, INT8, INT16, INT32, INT64, UINT8, UINT16
-* shape - Shape of the tensor, that is how many elements for each axis
+_Arguments_
 
-Optional args:
+* **key**: the tensor's key name
+* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8` or `UINT16`
+* **shape**: one or more dimensions, or the number of elements per axis, for the tensor
+* **BLOB**: indicates that data is in binary format and is provided via the subsequent `data` argument
+* **VALUES**: indicates that data is numeric and is provided by one or more subsequent `val` arguments
 
-* BLOB data - provide tensor content as a binary buffer
-* VALUES val1 val2 - provide tensor content as individual values
+_Return_
 
-> If no BLOB or VALUES are specified, the tensor is allocated but not initialized to any value.
+A simple 'OK' string or an error.
 
-### TENSORSET Example
+**Examples**
 
-> Set a 2x2 tensor at `foo`
-> 1 2
-> 3 4
+Given the following: $\begin{equation*} A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \\ \end{bmatrix} \end{equation*}$
 
-```sql
-AI.TENSORSET foo FLOAT 2 2 VALUES 1 2 3 4
+This will set the key 'mytensor' to the 2x2 RedisAI tensor:
+
+```
+redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
+OK
 ```
 
-!!! warning "Overhead of `AI.TENSORSET` with the optional arg VALUES"
-        
-    It is possible to set a tensor by specifying each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of parsing each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
----
+!!! note "Uninitialized Tensor Values"
+    As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor.
+
+!!! important "Using `BLOB` is preferable to `VALUES`"
+    While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to specifying the values discretely.
 
 ## AI.TENSORGET
+The **`AI.TENSORGET`** command returns a tensor stored as key's value.
 
-Get a tensor.
+**Redis API**
 
-```sql
-AI.TENSORGET tensor_key [META] [BLOB | VALUES]
+```
+AI.TENSORGET <key> [META] [format]
 ```
 
-* tensor_key - Key for the tensor
-* META - Return tensor meta data (data type and shape)
-* BLOB - Return tensor content as a binary buffer
-* VALUES - Return tensor content as a list of values
+_Arguments_
 
-### TENSORGET Example
+* **key**: the tensor's key name
+* **META**: returns the tensor's metadata
+* **format**: the tensor's reply format can be one of the following:
+    * **BLOB**: returns the binary representation of the tensor's data
+    * **VALUES**: returns the numerical representation of the tensor's data
 
-Get binary data for tensor at `foo` as a buffer.
+_Return_
 
-```sql
-AI.TENSORGET foo BLOB
+Depending on the specified reply format:
 
-> ...
+ * **META**: Array containing the tensor's metadata exclusively. The returned array consists of the following elements:
+    1. The tensor's data type as a String
+    1. The tensor's shape as an Array consisting of an item per dimension
+ * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
+ * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
+
+
+
+**Examples**
+
+Given a tensor value stored at the 'mytensor' key:
+
+```
+redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
+OK
 ```
 
-Get tensor values for tensor at `foo` as a list of numbers.
+The following shows how to retrieve the tensor's metadata:
 
-```sql
-AI.TENSORGET foo VALUES
-
->  1) 1.1234
->  2) 2.5135
->  3) 5.5425
->  4) 4.1524
+```
+redis> AI.TENSORGET mytensor META
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
 ```
 
-Get meta data about tensor at `foo`
+The following shows how to retrieve the tensor's values as an Array:
 
-```sql
-AI.TENSORGET foo META
-
->  1) "dtype"
->  2) "FLOAT"
->  3) "shape"
->  4) 1) 4
->  4) 2) 5
+```
+redis> AI.TENSORGET mytensor VALUES
+1) "1"
+2) "2"
+3) "3"
+4) "4"
 ```
 
-Get meta data as well as binary data for tensor at `foo`
+The following shows how to retrieve the tensor's binary data as a String:
 
-```sql
-AI.TENSORGET foo META BLOB
-
->  1) "dtype"
->  2) "FLOAT"
->  3) "shape"
->  4) 1) 4
->  4) 2) 5
->  5) "blob"
->  6) ...
+```
+redis> AI.TENSORGET mytensor BLOB
+"\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
-Get binary data for tensor at `foo`. Meta data is also returned.
 
-```sql
-AI.TENSORGET foo META VALUES
+The following shows how the combine the retrieval of the tensor's metadata, and the tensor's values as an Array:
 
->  1) "dtype"
->  2) "FLOAT"
->  3) "shape"
->  4) 1) 4
->  4) 2) 5
->  5) "values"
->  6) 1) 1.1234
->  6) 2) 2.5135
->  6) 3) 5.5425
->  6) 4) 4.1524
+```
+redis> AI.TENSORGET mytensor META VALUES
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "values"
+6) 1) "1"
+   2) "2"
+   3) "3"
+   4) "4"
 ```
 
-!!! warning "Overhead of `AI.TENSORGET` with the optional arg VALUES"
-        
-    It is possible to receive a tensor as a list of each individual value (VALUES ... ) or the entire tensor content as a binary buffer (BLOB ...). You should always try to use the `BLOB` option since it removes the overhead of replying each individual value and does not require serialization/deserialization of the tensor, thus reducing the overall command latency an improving the maximum attainable performance of the model server.
----
+The following shows how the combine the retrieval of the tensor's metadata, and binary data as a String:
+
+```
+redis> AI.TENSORGET mytensor META BLOB
+1) "dtype"
+2) "FLOAT"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "blob"
+6) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+```
+
+!!! important "Using `BLOB` is preferable to `VALUES`"
+    While it is possible to get the tensor as binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to returning the values discretely.
 
 ## AI.MODELSET
+The **`AI.MODELSET`** commands stores a model as the value of a key.
 
-Set a model.
+**Redis API**
 
-```sql
-AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
+```
+AI.MODELSET <key> <backend> <device>
+    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
+    [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
 ```
 
-* model_key - Key for storing the model
-* backend - The backend corresponding to the model being set. Allowed values: `TF`, `TORCH`, `ONNX`.
-* device - Device where the model is loaded and where the computation will run. Allowed values: `CPU`, `GPU`.
-* TAG tag - Optional string tagging the model, such as a version number or other identifier
-* BATCHSIZE n - Batch incoming requests from multiple clients if they hit the same model and if input tensors have the same
-                shape. Upon MODELRUN, the request queue is visited, input tensors from compatible requests are concatenated
-                along the 0-th (batch) dimension, up until BATCHSIZE is exceeded. The model is then run for the entire batch,
-                results are unpacked back among the individual requests and the respective clients are unblocked.
-                If the batch size of the inputs to the first request in the queue exceeds BATCHSIZE, the request is served
-                in any case. Default is 0 (no batching).
-* MINBATCHSIZE m - Do not execute a MODELRUN until the batch size has reached MINBATCHSIZE. This is primarily used to force
-                   batching during testing, but it can also be used under normal operation. In this case, note that requests
-                   for which MINBATCHSIZE is not reached will hang indefinitely.
-                   Default is 0 (no minimum batch size).
-* INPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to inputs [`TF` backend only]
-* OUTPUTS name1 name2 ... - Name of the nodes in the provided graph corresponding to outputs [`TF` backend only]
-* BLOB model_blob - Binary buffer containing the model protobuf saved from a supported backend. Since Redis supports strings
-                    up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
+_Arguments_
 
-### MODELSET Example
+* **key**: the model's key name
+* **backend**: the backend for the model can be one of:
+    * **TF**: a TensorFlow backend
+    * **TORCH**: a PyTorch backend
+    * **ONNX**: a ONNX backend
+* **device**: the device that will execute the model can be of:
+    * **CPU**: a CPU device
+    * **GPU**: a GPU device
+* **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
+* **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
+* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0).
+* **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
+* **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
+* **model**: the Protobuf-serialized model. Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
 
-```sql
-AI.MODELSET resnet18 TORCH GPU BLOB < foo.pt
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choices that are native to your programming language:
+
 ```
-
-```sql
-AI.MODELSET resnet18 TF CPU INPUTS in1 OUTPUTS linear4 BLOB < foo.pb
-```
-
-```sql
-AI.MODELSET mnist_net ONNX CPU TAG mnist:lenet:v0.1 BLOB < mnist.onnx
-```
-
-```sql
-AI.MODELSET mnist_net ONNX CPU BATCHSIZE 10 BLOB < mnist.onnx
-```
-
-```sql
-AI.MODELSET resnet18 TF CPU BATCHSIZE 10 MINBATCHSIZE 6 INPUTS in1 OUTPUTS linear4 BLOB < foo.pb
+$ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output BLOB
+OK
 ```
 
 ## AI.MODELGET
+The **`AI.MODELGET`** command returns a model's metadata and blob stored as a key's value.
 
-Get model metadata and optionally its binary blob.
+**Redis API**
 
-```sql
-AI.MODELGET model_key [META] [BLOB]
+```
+AI.MODELGET <key> [META] [BLOB]
 ```
 
-* model_key - Key for the model
-* META - Return information on backend, device and tag
-* BLOB - Return binary blob containing the serialized model
+_Arguments
 
-If META is specified, command returns a list of key-value strings, namely `backend <backend> device <device> tag <tag> [blob <blob>]`.
+* **key**: the model's key name
+* **META**: will return the model's meta information on backend, device and tag
+* **BLOB**: will return the model's blob containing the serialized model
 
-### AI.MODELGET Example
+_Return_
 
-```sql
-AI.MODELGET mnist_net META
+An array of alternating key-value pairs as follows:
 
-> 1) "backend"
-> 2) "TORCH"
-> 3) "device"
-> 4) "CPU"
-> 5) "tag"
-> 6) "mnist"
+1. **BACKEND**: the backend used by the model as a String
+1. **DEVICE**: the device used to execute the model as a String
+1. **TAG**: the model's tag as a String
+1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
+
+**Examples**
+
+Assuming that your model is stored under the 'mymodel' key, you can obtain its metadata with:
+
+```
+redis> AI.MODELGET mymodel META
+1) "backend"
+2) TF
+3) "device"
+4) CPU
+5) "tag"
+6) imagenet:5.0
 ```
 
-```sql
-AI.MODELGET mnist_net BLOB
+You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
 
-> ...
 ```
-
-```sql
-AI.MODELGET mnist_net META BLOB
-
-> 1) "backend"
-> 2) "TORCH"
-> 3) "device"
-> 4) "CPU"
-> 5) "tag"
-> 6) "mnist"
-> 7) "blob"
-> 8) ...
+$ redis-cli --raw AI.MODELGET mymodel BLOB > model.ext
 ```
 
 ## AI.MODELDEL
+The **`AI.MODELDEL`** deletes a model stored as a key's value.
 
-Removes a model at a specified key.
+**Redis API**
 
-```sql
-AI.MODELDEL model_key
+```
+AI.MODELDEL <key>
 ```
 
-* model_key - Key for the model
+_Arguments_
 
-Currently, the command is fully equivalent to calling `DEL` on `model_key`.
+* **key**: the model's key name
 
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+Assuming that your model is stored under the 'mymodel' key, you can delete it like this:
+
+```
+redis> AI.MODELDEL mymodel
+OK
+```
+
+!!! note "The `AI.MODELDEL` vis a vis the `DEL` command"
+    The `AI.MODELDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
 ## AI.MODELRUN
+The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
-Run a model.
+The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model's run is completed. When needed, tensors' data is automatically copied to the device prior to execution.
 
-```sql
-AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...
+!!! warning "Intermediate memory overhead"
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+**Redis API**
+
+```
+AI.MODELRUN <key> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 ```
 
-* model_key - Key for the model
-* INPUTS input_key1 ... - Keys for tensors to use as inputs
-* OUTPUTS output_key2 ... - Keys for storing output tensors
+_Arguments_
 
-The request is queued and evaded asynchronously from a separate thread. The client blocks until the computation finishes.
+* **key**: the model's key name
+* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names
+* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by one or more key names
 
-If needed, input tensors are copied to the device specified in `AI.MODELSET` before execution.
+_Return_
 
-### MODELRUN Example
+A simple 'OK' string or an error.
 
-```sql
-AI.MODELRUN resnet18 INPUTS image12 OUTPUTS label12
+**Examples**
+
+Assuming that running the model that's stored at 'mymodel' with the tensor 'mytensor' as input outputs two tensors - 'classes' and 'predictions', the following command does that:
+
 ```
-
-!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
-        
-    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
----
+redis> AI.MODELRUN mymodel INPUTS mytensor OUTPUTS classes predictions
+OK
+```
 
 ## AI._MODELSCAN
+The **AI._MODELSCAN** command returns all the models in the database.
 
-NOTE: `_MODELSCAN` is EXPERIMENTAL and might be removed in future versions.
+!!! warning "Experimental API"
+    `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
 
-List all models. Returns a list of (key, tag) pairs.
+**Redis API**
 
-```sql
+```
 AI._MODELSCAN
 ```
 
-### _MODELSCAN Example
+_Arguments_
 
-```sql
-AI.MODELSET model1 TORCH GPU TAG resnet18:v1 < foo.pt
-AI.MODELSET model2 TORCH GPU TAG resnet18:v2 < bar.pt
+None.
 
-AI._MODELSCAN
+_Return_
 
->  1) 1) "model1"
->  1) 2) "resnet18:v1"
->  2) 1) "model2"
->  2) 2) "resnet18:v2"
+An array with an entry per model. Each entry is an array with two entries:
+
+1. The model's key name as a String
+1. The model's tag as a String
+
+**Examples**
+
 ```
----
-
-
+redis> > AI._MODELSCAN
+1) 1) "mymodel"
+   2) imagenet:5.0
+```
 
 ## AI.SCRIPTSET
+The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
 
-Set a script.
+**Redis API**
 
-```sql
-AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
+```
+AI.SCRIPTSET <key> <device> [TAG tag] SOURCE "<script>"
 ```
 
-* script_key - Key for storing the script
-* device - The device where the script will execute
-* TAG tag - Optional string tagging the script, such as a version number or other identifier
-* SOURCE script_source - A string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+_Arguments_
 
-### SCRIPTSET Example
 
-Given addtwo.txt as:
+* **key**: the script's key name
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
+* **device**: the device that will execute the model can be of:
+    * **CPU**: a CPU device
+    * **GPU**: a GPU device
+* **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+Given the following contents of the file 'addtwo.py':
 
 ```python
 def addtwo(a, b):
     return a + b
 ```
 
-```sql
-AI.SCRIPTSET addscript GPU SOURCE < addtwo.txt
-```
+It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
-```sql
-AI.SCRIPTSET addscript GPU TAG myscript:v0.1 SOURCE < addtwo.txt
+```
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG SOURCE myscript:v0.1
+OK
 ```
 
 ## AI.SCRIPTGET
+The **`AI.SCRIPTGET`** command returns the [TorchScript](https://pytorch.org/docs/stable/jit.html) stored as a key's value.
+
+**Redis API**
 
 Get script metadata and source.
 
-```sql
-AI.SCRIPTGET script_key [META] [SOURCE]
+```
+AI.SCRIPTGET <key> [META] [SOURCE]
 ```
 
-* script_key - key for the script
-* META - Return information on backend, device and tag
-* SOURCE - Return string containing the source code for the script
+_Arguments_
 
-The command returns a list of key-value strings, namely `device <device> tag <tag> [source <source>]`.
+* **key**: the script's key name
+* **TAG**: an optional string information on backend, device and tag
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
 
-### SCRIPTGET Example
+_Return_
 
-```sql
-AI.SCRIPTGET addtwo META
+An array with alternating entries that represent the following key-value pairs:
+!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
 
-> 1) "device"
-> 2) "CPU"
-> 3) "tag"
-> 4) "v1.0"
+1. **DEVICE**: the script's device as a String
+1. **TAG**: the scripts's tag as a String
+1. **SOURCE**: the script's source code as a String
+
+**Examples**
+
+The following shows how to read the script stored at the 'myscript' key:
+
 ```
-
-```sql
-AI.SCRIPTGET addtwo SOURCE
-
-> ...
+redis> AI.SCRIPTGET myscript
+1) "device"
+2) CPU
+3) "tag"
+4) "myscript:v0.1"
+5) "source"
+6) def addtwo(a, b):
+    return a + b
 ```
-
-```sql
-AI.SCRIPTGET addtwo META SOURCE
-
-> 3) "device"
-> 4) "CPU"
-> 5) "tag"
-> 6) "v1.0"
-> 7) "source"
-> 8) ...
-```
-
 
 ## AI.SCRIPTDEL
+The **`AI.SCRIPTDEL`** deletes a script stored as a key's value.
 
-Removes a script at a specified key.
+**Redis API**
 
-```sql
-AI.SCRIPTDEL script_key
+```
+AI.SCRIPTDEL <key>
 ```
 
-* script_key - key for the script
+_Arguments_
 
-Currently, the command is fully equivalent to calling `DEL` on `script_key`.
+* **key**: the script's key name
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+```
+redis> AI.SCRIPTDEL myscript
+OK
+```
+
+!!! note "The `AI.SCRIPTDEL` vis a vis the `DEL` command"
+    The `AI.SCRIPTDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
 
 ## AI.SCRIPTRUN
+The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors and store output tensors.
 
-Run a script.
+**Redis API**
 
-```sql
-AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
+```
+AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 ```
 
-* tensor_key - Key for the script
-* fn_name - Name of the function to execute
-* INPUTS input_key1 ... - Keys for tensors to use as inputs
-* OUTPUTS output_key1 ... - Keys for storing output tensors
+_Arguments_
 
-If needed, input tensors are copied to the device specified in `AI.SCRIPTSET` before execution.
+* **key**: the script's key name
+* **function**: the name of the function to run
+* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names
+* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by one or more key names
 
-### SCRIPTRUN Example
+_Return_
 
-```sql
-AI.SCRIPTRUN addscript addtwo INPUTS a b OUTPUTS c
+A simple 'OK' string or an error.
+
+**Examples**
+
+The following is an example of running the previously-created 'myscript' on two input tensors:
+
+```
+redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
+OK
+redis> AI.SCRIPTRUN myscript addtwo INPUTS mytensor1 mytensor2 OUTPUTS result
+OK
+redis> AI.TENSORGET result VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
 ```
 
-!!! warning "Intermediate tensors memory overhead when issuing `AI.MODELRUN` and `AI.SCRIPTRUN`"
-        
-    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by maxmemory settings on Redis.
----
+!!! warning "Intermediate memory overhead"
+    The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTSCAN
+The **AI._SCRIPTSCAN** command returns all the scripts in the database.
 
-NOTE: `_SCRIPTSCAN` is EXPERIMENTAL and might be removed in future versions.
+!!! warning "Experimental API"
+    `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
 
-List all scripts. Returns a list of (key, tag) pairs.
+**Redis API**
 
-```sql
+```
 AI._SCRIPTSCAN
 ```
 
-### _SCRIPTSCAN Example
+_Arguments_
 
-```sql
-AI.SCRIPTSET script1 GPU TAG addtwo:v0.1 < addtwo.txt
-AI.SCRIPTSET script2 GPU TAG addtwo:v0.2 < addtwo.txt
+None.
 
-AI._SCRIPTSCAN
+_Return_
 
->  1) 1) "script1"
->  1) 2) "addtwo:v0.1"
->  2) 1) "script2"
->  2) 2) "addtwo:v0.2"
+An array with an entry per script. Each entry is an array with two entries:
+
+1. The script's key name as a String
+1. The script's tag as a String
+
+**Examples**
+
 ```
----
+redis> > AI._SCRIPTSCAN
+1) 1) "myscript"
+   2) "myscript:v0.1"
+```
+
+## AI.DAGRUN
+The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to run within RedisAI.
+
+It accepts one or more operations, split by the pipe-forward operator (`|>`).
+
+By default, the DAG execution context is local, meaning that loading and persisting tensors should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
+
+When `PERSIST` is not present, object savings are done locally and kept only during the context of the DAG meaning that no output keys are open.
+
+As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
+
+
+**Redis API**
+
+```
+AI.DAGRUN [LOAD <n> <key-1> <key-2> ... <key-n>]
+          [PERSIST <n> <key-1> <key-2> ... <key-n>]
+          |> <command> [|>  command ...]
+```
+
+_Arguments_
+
+* **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
+* **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
+* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
+    * `AI.TENSORSET`
+    * `AI.TENSORGET`
+    * `AI.MODELRUN`
+
+_Return_
+
+An array with an entry per command's reply. Each entry format respects the specified command reply.
+
+**Examples**
+
+Assuming that running the model that's stored at 'mymodel', we define a temporary tensor 'mytensor' and use it as input, and persist only one of the two outputs - discarding 'classes' and persisting 'predictions'. In the same command return the tensor value of 'predictions'.  The following command does that:
+
+
+```
+redis> AI.DAGRUN PERSIST 1 predictions |>
+          AI.TENSORSET mytensor FLOAT 1 2 VALUES 5 10 |>
+          AI.MODELRUN mymodel INPUTS mytensor OUTPUTS classes predictions |>
+          AI.TENSORGET predictions VALUES
+1) OK
+2) OK
+3) 1) FLOAT
+   2) 1) (integer) 2
+      2) (integer) 2
+   3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+```
+
+!!! warning "Intermediate memory overhead"
+    The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+## AI.DAGRUN_RO
+
+The **`AI.DAGRUN_RO`** command is a read-only variant of `AI.DAGRUN`.
+
+Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' command in the Redis command table. However, even when `PERSIST` isn't used, read-only cluster replicas will refuse tp run the command and it will be redirected to the master even if the connection is using read-only mode.
+
+`AI.DAGRUN_RO` behaves exactly like the original command, excluding the `PERSIST` option. It is a read-only command that can safely be with read-only replicas.
+
+!!! info "Further reference"
+    Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
 
 ## AI.INFO
+The **`AI.INFO`** command returns information about the execution a model or a script.
 
-Return information about runs of a `MODEL` or a `SCRIPT`.
+Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
 
-At each `MODELRUN` or `SCRIPTRUN`, RedisAI will collect statistcs specific for each `MODEL` or `SCRIPT`,
-specific for the node (hence nodes in a cluster will have to be queried individually for their info).
-The following information is collected:
+**Redis API**
 
-- `key`: the key being run
-- `type`: either `MODEL` or `SCRIPT`
-- `backend`: the type of backend (always `TORCH` for `SCRIPT`)
-- `device`: the device where the run has been executed
-- `duration`: cumulative duration in microseconds
-- `samples`: cumulative number of samples obtained from the 0-th (batch) dimension (for `MODEL` only)
-- `calls`: number of calls
-- `errors`: number of errors generated after the run has been submitted (i.e. excluding errors generated during parsing of the command)
-
-```sql
-AI.INFO <model_or_script_key>
+```
+AI.INFO <key> [RESETSTAT]
 ```
 
-Statistcs are accumulated until the same command with an extra `RESETSTAT` argument is called. This resets the statistics relative to the model or script.
+_Arguments_
 
-```sql
-AI.INFO <model_or_script_key> RESETSTAT
+* **key**: the key name of a model or script
+* **RESETSTAT**: resets all statistics associated with the key
+
+_Return_
+
+An array with alternating entries that represent the following key-value pairs:
+
+* **KEY**: a String of the name of the key storing the model or script value
+* **TYPE**: a String of the type of value (i.e. 'MODEL' or 'SCRIPT')
+* **BACKEND**: a String of the type of backend (always 'TORCH' for 'SCRIPT' value type)
+* **DEVICE**: a String of the device where execution took place
+* **DURATION**: the cumulative duration of executions in microseconds
+* **SAMPLES**: the cumulative number of samples obtained from the 0th (batch) dimension (only applicable for RedisAI models)
+* **CALLS**: the total number of executions
+* **ERRORS**: the total number of errors generated by executions (excluding any errors generated during parsing commands)
+
+When called with the `RESETSTAT` argument, the command returns a simple 'OK' string.
+
+**Examples**
+
+The following example obtains the previously-run 'myscript' script's runtime statistics:
+
+```
+redis> AI.INFO myscript
+ 1) KEY
+ 2) "myscript"
+ 3) TYPE
+ 4) SCRIPT
+ 5) BACKEND
+ 6) TORCH
+ 7) DEVICE
+ 8) CPU
+ 9) DURATION
+10) (integer) 11391
+11) SAMPLES
+12) (integer) -1
+13) CALLS
+14) (integer) 1
+15) ERRORS
+16) (integer) 0
 ```
 
-The command can be called on a key until that key is removed using `MODELDEL` or `SCRIPTDEL`.
+The runtime statistics for that script can be reset like so:
 
-### AI.INFO Example
-
-```sql
-AI.INFO amodel
-
->  1) key
->  2) "amodel"
->  3) type
->  4) MODEL
->  5) backend
->  6) TORCH
->  7) device
->  8) CPU
->  9) duration
-> 10) (integer) 6511
-> 11) samples
-> 12) (integer) 2
-> 13) calls
-> 14) (integer) 1
-> 15) errors
-> 16) (integer) 0
+```
+redis> AI.INFO myscript RESETSTAT
+OK
 ```
 
-```sql
-AI.INFO amodel RESETSTAT
+## AI.CONFIG
+The **AI.CONFIG** command sets the value of configuration directives at run-time, and allows loading DL/ML backends dynamically.
 
-> OK
+!!! info "Loading DL/ML Backends at Bootstrap"
+    Instead of loading your backends dynamically, you can have RedisAI load them during bootstrap. See the [Configuration page](configuration.md) for more information.
 
-AI.INFO amodel
+**Redis API**
+```
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>>
+```
 
->  1) key
->  2) "amodel"
->  3) type
->  4) MODEL
->  5) backend
->  6) TORCH
->  7) device
->  8) CPU
->  9) duration
-> 10) (integer) 0
-> 11) samples
-> 12) (integer) 0
-> 13) calls
-> 14) (integer) 0
-> 15) errors
-> 16) (integer) 0
+_Arguments_
+
+* **BACKENDSPATH**: Specifies the default base backends path to `path`. The backends path is used when dynamically loading a backend (default: '{module_path}/backends', where `module_path` is the module's path).
+* **LOADBACKEND**: Loads the DL/ML backend specified by the `backend` identifier from `path`. If `path` is relative, it is resolved by prefixing the `BACKENDSPATH` to it. If `path` is absolute then it is used as is. The `backend` can be one of:
+    * **TF**: the TensorFlow backend
+    * **TFLITE**: The TensorFlow Lite backend
+    * **TORCH**: The PyTorch backend
+    * **ONNX**: ONNXRuntime backend
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+The following sets the default backends path to '/usr/lib/redis/modules/redisai/backends':
+
+```
+redis> AI.CONFIG BACKENDSPATH /usr/lib/redis/modules/redisai/backends
+OK
+```
+
+This loads the PyTorch backend with a path relative to `BACKENDSPATH`:
+
+```
+redis> AI.CONFIG LOADBACKEND TORCH redisai_torch/redisai_torch.so
+OK
+```
+
+This loads the PyTorch backend with a full path:
+
+```
+redis> AI.CONFIG LOADBACKEND TORCH /usr/lib/redis/modules/redisai/backends/redisai_torch/redisai_torch.so
+OK
 ```
