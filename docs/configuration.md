@@ -151,6 +151,8 @@ redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
 ### THREADS_PER_QUEUE
 The **THREADS_PER_QUEUE** configuration option controls the number of worker threads allocated to each device's job queue. Multiple threads can be used for executing different independent operations in parallel.
 
+Note that RedisAI maintains one job queue per device (CPU, GPU:0, GPU:1). Each job queue is consumed by THREADS_PER_QUEUE threads.
+
 This option significantly improves the performance of simple, low-effort computation-wise models since there is spare computation cycle available from modern CPUs and hardware accelerators (GPUs, TPUs, ...).
 
 _Expected Value_
