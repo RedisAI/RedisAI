@@ -1,7 +1,7 @@
 # RedisAI Commands
 RedisAI is a Redis module, and as such it implements several data types and the respective commands to use them.
 
-All of RedisAI's commands are begin with the `AI.` prefix. The following sections describe these commands.
+All of RedisAI's commands begin with the `AI.` prefix. The following sections describe these commands.
 
 **Syntax Conventions**
 
@@ -365,7 +365,7 @@ def addtwo(a, b):
 It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
 ```
-$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG SOURCE myscript:v0.1
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript addtwo CPU TAG myscript:v0.1 SOURCE
 OK
 ```
 
@@ -514,9 +514,9 @@ The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to ru
 
 It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
-By default, the DAG execution context is local, meaning that loading and persisting tensors should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
+By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
-When `PERSIST` is not present, object savings are done locally and kept only during the context of the DAG meaning that no output keys are open.
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
@@ -611,21 +611,21 @@ The following example obtains the previously-run 'myscript' script's runtime sta
 
 ```
 redis> AI.INFO myscript
- 1) KEY
+ 1) key
  2) "myscript"
- 3) TYPE
+ 3) type
  4) SCRIPT
- 5) BACKEND
+ 5) backend
  6) TORCH
- 7) DEVICE
+ 7) device
  8) CPU
- 9) DURATION
+ 9) duration
 10) (integer) 11391
-11) SAMPLES
+11) samples
 12) (integer) -1
-13) CALLS
+13) calls
 14) (integer) 1
-15) ERRORS
+15) errors
 16) (integer) 0
 ```
 
