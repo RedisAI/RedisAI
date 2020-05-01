@@ -31,10 +31,10 @@ In broad strokes, RedisAI's looks as follows:
 | | | myscript +----->+ Script +---+   +----+-----+   +-->+ ONNXRuntime | | | |
 | | |          |   |  +--------+   |        ^         |   +-------------+ | | |
 | | +----------+   |               |        |         |                   | | |
-| | |          |   |  +--------+   |        |         |   +-------------+ | | |
-| | | mydag    +----->+  DAG   +---+        |         +-->+     ...     | | | |
-| | |          |   |  +--------+            |             +-------------+ | | |
-| | +----------+ ^ +------------------------|-----------------------------+ | |
+| |              ^ |  +--------+   |        |         |   +-------------+ | | |
+| |              | |  +  DAG   +---+        |         +-->+     ...     | | | |
+| |              | |  +--------+            |             +-------------+ | | |
+| |              | +------------------------|-----------------------------+ | |
 | +--------------|--------------------------|-------------------------------+ |
 |                v                          v                                 |
 | +--------------+-----------------+   +------------------------------------+ |
@@ -83,22 +83,22 @@ A **Redis module** is a shared library that can be loaded by the Redis server du
       * [Modules published at redis.io](https://redis.io/modules)
 
 ### Why RedisAI?
-RedisAI bundles together best-of-breed technologies for delivering stable and performant graph serving. Every DL/ML framework ships with a backend for executing the graphs developed by it, and the common practice for serving these is building a simple server.
+RedisAI bundles together best-of-breed technologies for delivering stable and performant computation graph serving. Every DL/ML framework ships with a runtime for executing the models developed with it, and the common practice for serving these is building a simple server around them.
 
 RedisAI aims to be that server, saving you from the need of installing the backend you're using and developing a server for it. By itself that does not justify RedisAI's existence so there's more to it. Because RedisAI is implemented as a Redis module it automatically benefits from the server's capabilities: be it Redis' native data types, its robust eco-system of clients, high-availability, persistence, clustering, and Enterprise support.
 
-Because Redis is an in-memory data structure server RedisAI uses it for storing all of its data. The main data type supported by RedisAI is the Tensor that is the standard representation of data in the DL/ML domain. Because tensors are stored memory space of the Redis server they are readily accessible to any of RedisAI's backend libraries at minimal latency.
+Because Redis is an in-memory data structure server RedisAI uses it for storing all of its data. The main data type supported by RedisAI is the Tensor that is the standard representation of data in the DL/ML domain. Because tensors are stored in the memory space of the Redis server, they are readily accessible to any of RedisAI's backend libraries at minimal latency.
 
 The locality of data, which is tensor data in adjacency to DL/ML models backends, allows RedisAI to provide optimal performance when serving models. It also makes it a perfect choice for deploying DL/ML models in production and allowing them to be used by any application.
 
-Furthermore, RedisAI is also an optimal testbed for models as it allows the parallel execution of multiple graphs and, in future versions, assessing their respective performance in real-time.
+Furthermore, RedisAI is also an optimal testbed for models as it allows the parallel execution of multiple computation graphs and, in future versions, assessing their respective performance in real-time.
 
 #### Data Structures
 RedisAI provides the following data structures:
 
 * **Tensor**: represents an n-dimensional array of values
-* **Model**: represents a frozen graph by one of the supported DL/ML framework backends
-* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
+* **Model**: represents a computation graph by one of the supported DL/ML framework backends
+* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html) program
 
 #### DL/ML Backends
 RedisAI supports the following DL/ML identifiers and respective backend libraries:
@@ -135,7 +135,7 @@ docker exec -it redisai redis-cli
 ```
 
 ## Using RedisAI Tensors
-A **Tensor** is an n-dimensional array and is the standard vehicle for DL/ML data. RedisAI adds to Redis a Tensor data structure that implements the tensor type. Like any datum in Redis, RedisAI's Tensors are identified by key names.
+A **Tensor** is an n-dimensional array and is the standard representation for data in DL/ML workloads. RedisAI adds to Redis a Tensor data structure that implements the tensor type. Like any datum in Redis, RedisAI's Tensors are identified by key names.
 
 Creating new RedisAI tensors is done with the [`AI.TENSORSET` command](commands.md#aitensorset). For example, consider the tensor: $\begin{equation*} tA = \begin{bmatrix} 2 \\ 3 \end{bmatrix} \end{equation*}$.
 
@@ -154,7 +154,7 @@ Copy the command to your cli and hit the `<ENTER>` on your keyboard to execute i
     OK
     ```
 
-The reply 'OK' means that the operation was successful. We've called the `AI.TENSORSET` command to set the key named 'tA' with the tensor's data, but the name could have been any string value. The `FLOAT` argument specifies the type of values that the tensor stores, and in this case a double-precision floating-point. After the type argument comes the tensor's shape as a list of its dimensions, or just a single dimension of 2.
+The reply 'OK' means that the operation was successful. We've called the `AI.TENSORSET` command to set the key named 'tA' with the tensor's data, but the name could have been any string value. The `FLOAT` argument specifies the type of values that the tensor stores, and in this case a single-precision floating-point. After the type argument comes the tensor's shape as a list of its dimensions, or just a single dimension of 2.
 
 The `VALUES` argument tells RedisAI that the tensor's data will be given as a sequence of numeric values and in this case the numbers 2 and 3. This is useful for development purposes and creating small tensors, however for practical purposes the `AI.TENSORSET` command also supports importing data in binary format.
 
@@ -188,7 +188,7 @@ A **Model** is a Deep Learning or Machine Learning frozen graph that was generat
 
 Models, like any other Redis and RedisAI data structures, are identified by keys. A Model's key is created using the [`AI.MODELSET` command](commands.md#aimodelset) and requires the graph payload serialized as protobuf for input.
 
-In our examples, we'll use one of the graphs that RedisAI uses in its tests, namely 'graph.pb', which can be downloaded from [here](https://github.com/RedisAI/RedisAI/raw/master/test/test_data/graph.pb).
+In our examples, we'll use one of the graphs that RedisAI uses in its tests, namely 'graph.pb', which can be downloaded from [here](https://github.com/RedisAI/RedisAI/raw/master/test/test_data/graph.pb). This graph was created using TensorFlow with [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf-minimal.py).
 
 ??? info "Downloading 'graph.pb'"
     Use a web browser or the command line to download 'graph.pb':
@@ -196,6 +196,12 @@ In our examples, we'll use one of the graphs that RedisAI uses in its tests, nam
     ```
     wget https://github.com/RedisAI/RedisAI/raw/master/test/test_data/graph.pb
     ```
+
+You can view the computation graph using [Netron](https://lutzroeder.github.io/netron/), which supports all frameworks supported by RedisAI.
+
+![Computation graph visualized in Netron](images/graph.pb.png "Computation Graph Visualized in Netron")
+
+This is a great way to inspect a graph and find out node names for inputs and outputs.
 
 redis-cli doesn't provide a way to read files' contents, so to load the model with it we'll use the command line and output pipes:
 

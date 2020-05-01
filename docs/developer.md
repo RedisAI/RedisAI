@@ -6,7 +6,6 @@ The following sections discuss topics relevant to the development of the RedisAI
 
 RedisAI bundles together best-of-breed technologies for delivering stable and fast model serving. To do so, we need to abstract from what each specific DL/ML framework offers and provide common data structures and APIs to the DL/ML domain.
 
-
 As a way of representing tensor data we've embraced [dlpack](https://github.com/dmlc/dlpack) - a community effort to define a common tensor data structure that can be shared by different frameworks, supported by cuPy, cuDF, DGL, TGL, PyTorch, and MxNet.
 
 **Data Structures**
@@ -14,8 +13,8 @@ As a way of representing tensor data we've embraced [dlpack](https://github.com/
 RedisAI provides the following data structures:
 
 * **Tensor**: represents an n-dimensional array of values
-* **Model**: represents a frozen graph by one of the supported DL/ML framework backends
-* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html)
+* **Model**: represents a computation graph by one of the supported DL/ML framework backends
+* **Script**: represents a [TorchScript](https://pytorch.org/docs/stable/jit.html) program
 
 ## Source code layout
 
@@ -32,7 +31,6 @@ exposed is the logical one to follow in order to disclose different layers
 of complexity incrementally.
 
 **redisai.c**
-
 
 This is the entry point of the RedisAI module, responsible for registering the new commands in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of Tensor, Script and Model APIs to other Modules.
 
