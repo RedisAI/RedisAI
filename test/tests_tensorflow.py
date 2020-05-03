@@ -633,6 +633,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
                         'BLOB', img.tobytes())
 
     def run(name=model_name, output_name='output'):
+        con = env.getConnection()
         con.execute_command('AI.MODELRUN', name,
                             'INPUTS', 'input', 'OUTPUTS', output_name)
 
@@ -652,12 +653,10 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
                         'OUTPUTS', outputvar,
                         'BLOB', model_pb)
 
-    p1 = mp.Process(target=run, args=(another_model_name, 'final1'))
-    p1.start()
-    p2 = mp.Process(target=run, args=(another_model_name, 'final2'))
-    p2.start()
+    p1b = mp.Process(target=run, args=(another_model_name, 'final1'))
+    p1b.start()
 
-    time.sleep(3)
+    run(another_model_name, 'final2')
 
     _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'final1', 'META', 'BLOB')
     dtype_map = {b'FLOAT': np.float32}
@@ -669,6 +668,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     env.assertEqual(label, 'giant_panda')
 
     p3.terminate()
+
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_financialNet(env):
