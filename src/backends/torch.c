@@ -185,6 +185,15 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
   return 0;
 }
 
+// TODO: assign RAI_ModelRun fn pointer to something in function
+// called upon dynamic loading (only for TORCH backend)
+// int (*RAI_ModelRun)(RAI_ModelRunCtx** mctxs, RAI_Error* err);
+
+void RAI_dispatch(const char* fn_name) {
+  printf("DISPATCH %s\n", fn_name);
+  // RAI_ModelRun(NULL, NULL);
+}
+
 RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef, RAI_Error *error) {
   DLDeviceType dl_device;
   
