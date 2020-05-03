@@ -1,6 +1,6 @@
-# BUILD redisfab/redisai-gpu:${VERSION}-${ARCH}-${OSNICK}-test
+# BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}-test
 
-ARG REDIS_VER=5.0.7
+ARG REDIS_VER=5.0.8
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -10,7 +10,7 @@ ARG ARCH=x64
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu18.04 AS builder
+FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04 AS builder
 
 SHELL ["/bin/bash", "-c"]
 
@@ -35,7 +35,7 @@ COPY ./get_deps.sh .
 RUN set -e ;\
 	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
-		./get_deps.sh gpu ;\
+		VERBOSE=1 ./get_deps.sh gpu ;\
 	else \
 		env $DEPS_ARGS ./get_deps.sh gpu ;\
 	fi

@@ -11,14 +11,23 @@ ROOT=$(realpath $ROOT)
 
 if [[ "$1" == "cpu" ]]; then
 	GPU=0
+	DEVICE=cpu
 elif [[ "$1" == "gpu" ]]; then
 	GPU=1
+	DEVICE=gpu
 else
 	GPU=${GPU:-0}
+	if [[ $GPU == 1 ]]; then
+		DEVICE=gpu
+	else
+		DEVICE=cpu
+	fi
 fi
 
 OS=$(python3 $ROOT/opt/readies/bin/platform --os)
 ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
+
+TARGET_DIR=$ROOT/deps//$OS-$ARCH-$DEVICE
 
 # avoid wget warnings on macOS
 [[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8
@@ -74,5 +83,5 @@ if [[ $OS == linux ]]; then
 fi
 
 unzip -q -o $LIBTORCH_ZIP
-tar czf libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz libtorch/
+tar czf $TARGET_DIR/libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz libtorch/
 rm -rf libtorch/ $LIBTORCH_ZIP

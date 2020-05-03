@@ -1,6 +1,6 @@
-# BUILD redisfab/redisai-cpu-${OSNICK}:${VERSION}-${ARCH}
+# BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=5.0.7
+ARG REDIS_VER=5.0.8
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
@@ -39,7 +39,6 @@ RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 RUN if [ "$TEST" = "1" ]; then make -C opt test $BUILD_ARGS NO_LFS=1; fi
 
 #----------------------------------------------------------------------------------------------
-# FROM redis:latest
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK}
 
 RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
