@@ -1,0 +1,4 @@
+
+def bar(a, b):
+    redisai.modelrun('foooza', [a, b])
+    return a + b
