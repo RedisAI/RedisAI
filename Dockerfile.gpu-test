@@ -35,7 +35,7 @@ COPY ./get_deps.sh .
 RUN set -e ;\
 	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
-		./get_deps.sh gpu ;\
+		VERBOSE=1 ./get_deps.sh gpu ;\
 	else \
 		env $DEPS_ARGS ./get_deps.sh gpu ;\
 	fi

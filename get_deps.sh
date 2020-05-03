@@ -14,6 +14,8 @@ if [[ $1 == --help || $1 == help ]]; then
 		[ARGVARS...] get_deps.sh [cpu|gpu] [--help|help]
 		
 		Argument variables:
+		CPU=1              Get CPU dependencies
+		GPU=1              Get GPU dependencies
 		VERBOSE=1          Print commands
 		FORCE=1            Download even if present
 		WITH_DLPACK=0      Skip dlpack
@@ -29,10 +31,10 @@ fi
 set -e
 [[ $VERBOSE == 1 ]] && set -x
 
-if [[ "$1" == "cpu" ]]; then
+if [[ "$1" == "cpu" || $CPU == 1 ]]; then
 	GPU=0
 	DEVICE=cpu
-elif [[ "$1" == "gpu" ]]; then
+elif [[ "$1" == "gpu" || $GPU == 1 ]]; then
 	GPU=1
 	DEVICE=gpu
 else
