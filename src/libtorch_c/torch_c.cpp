@@ -2,11 +2,43 @@
 #include "torch/torch.h"
 #include "torch/csrc/jit/serialization/import.h"
 #include "torch/csrc/jit/api/compilation_unit.h"
+#include "torch/csrc/jit/frontend/resolver.h"
 #include "ATen/Functions.h"
 
 #include <iostream>
 #include <sstream>
+#include <torch/script.h>
+#include <torch/jit.h>
 
+
+namespace torch {
+namespace jit {
+namespace script {
+
+struct RedisAIResolver : public Resolver {
+  std::shared_ptr<SugaredValue> resolveValue(
+      const std::string& name,
+      Function& m,
+      const SourceRange& loc) override {
+    if (name == "torch") {
+      return std::make_shared<BuiltinModule>("aten");
+    }
+    else if (name == "redisai") {
+      return std::make_shared<BuiltinModule>("redisai");
+    }
+    return nullptr;
+  }
+
+  TypePtr resolveType(const std::string& name, const SourceRange& loc)
+      override {
+    return nullptr;
+  }
+};
+
+inline std::shared_ptr<RedisAIResolver> redisaiResolver() {
+  return std::make_shared<RedisAIResolver>();
+}
+}}}
 
 namespace {
 
@@ -307,14 +339,29 @@ extern "C" DLManagedTensor* torchNewTensor(DLDataType dtype, long ndims, int64_t
   return dl_tensor;
 }
 
+extern "C" void RAI_dispatch(const char* );
+
+torch::List<torch::Tensor> redisaiDispatch(const std::string& fn_name, const torch::List<torch::Tensor>& in) {
+  RAI_dispatch(fn_name.c_str());
+  return torch::List<torch::Tensor>();
+}
+
 extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
                                     char **error, void* (*alloc)(size_t))
 {
+  static auto registry = torch::RegisterOperators("redisai::modelrun", &redisaiDispatch);
+
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
   ctx->device_id = device_id;
   try {
-    auto cu = torch::jit::compile(script);
+    // auto cu = torch::jit::compile(script);
+    auto cu = std::make_shared<torch::jit::script::CompilationUnit>();
+    cu->define(
+        c10::nullopt,
+        script,
+        torch::jit::script::redisaiResolver(),
+        nullptr);
     auto aten_device_type = getATenDeviceType(device);
     if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
       throw std::logic_error("GPU requested but Torch couldn't find CUDA");
