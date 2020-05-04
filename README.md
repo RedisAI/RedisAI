@@ -144,4 +144,4 @@ Got questions? Feel free to ask at the [RedisAI Forum](https://forum.redislabs.c
 
 Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2020, Tensorwerk Inc & Redis Labs Ltd
+Copyright 2020, [Tensorwerk, Inc](https://tensorwerk.com) & [Redis Labs, Inc](https://redislabs.com)
