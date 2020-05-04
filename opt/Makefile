@@ -173,6 +173,7 @@ fetch deps:
 #----------------------------------------------------------------------------------------------
 
 pack: $(INSTALLED_TARGET)
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 ifneq ($(PACK_DEPS),0)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
