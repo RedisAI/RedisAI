@@ -1,5 +1,5 @@
 # RedisAI Quickstart
-RedisAI is a Redis module. To run it you'll need a Redis server (v4.0.9 or greater), the module's shared library, and its dependencies.
+RedisAI is a Redis module. To run it you'll need a Redis server (v5.0.7 or greater), the module's shared library, and its dependencies.
 
 The following sections describe how to get started with RedisAI.
 
@@ -23,7 +23,7 @@ You can compile and build the module from its source code. The [Developer](devel
 ### Prerequisites
 * CUDA needs to be installed for GPU support.
 * CMake 3.0 or higher needs to be installed.
-* Redis v4.0.9 or greater.
+* Redis v5.0.7 or greater.
 
 ### Get the Source Code
 You can obtain the module's source code by cloning the project's repository using git like so:

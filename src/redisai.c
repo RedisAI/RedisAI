@@ -26,6 +26,47 @@
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
 
+int redisMajorVersion;
+int redisMinorVersion;
+int redisPatchVersion;
+
+int rlecMajorVersion;
+int rlecMinorVersion;
+int rlecPatchVersion;
+int rlecBuild;
+
+void getRedisVersion() {
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModuleCallReply *reply = RedisModule_Call(ctx, "info", "c", "server");
+    assert(RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING);
+    size_t len;
+    const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
+
+    int n = sscanf(replyStr, "# Server\nredis_version:%d.%d.%d", &redisMajorVersion,
+                 &redisMinorVersion, &redisPatchVersion);
+
+    assert(n == 3);
+
+    rlecMajorVersion = -1;
+    rlecMinorVersion = -1;
+    rlecPatchVersion = -1;
+    rlecBuild = -1;
+    char *enterpriseStr = strstr(replyStr, "rlec_version:");
+    if (enterpriseStr) {
+        n = sscanf(enterpriseStr, "rlec_version:%d.%d.%d-%d", &rlecMajorVersion, &rlecMinorVersion,
+                   &rlecPatchVersion, &rlecBuild);
+        if (n != 4) {
+            RedisModule_Log(NULL, "warning", "Could not extract enterprise version");
+        }
+    }
+
+    RedisModule_FreeCallReply(reply);
+    RedisModule_FreeThreadSafeContext(ctx);
+}
+
+static inline int IsEnterprise() {
+  return rlecMajorVersion != -1;
+}
 
 /* ----------------------- RedisAI Module Commands ------------------------- */
 
@@ -1192,6 +1233,23 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
+  getRedisVersion();
+  RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
+                      redisMajorVersion, redisMinorVersion, redisPatchVersion,
+                      IsEnterprise() ? "enterprise" : "oss");
+  if (IsEnterprise()) {
+      RedisModule_Log(ctx, "notice", "Redis Enterprise version found by RedisAI: %d.%d.%d-%d",
+                      rlecMajorVersion, rlecMinorVersion, rlecPatchVersion, rlecBuild);
+  }
+
+  if (redisMajorVersion < 5 ||
+      (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
+    RedisModule_Log(ctx, "warning", "RedisAI requires Redis version equal or greater than 5.0.7");
+    return REDISMODULE_ERR;
+  }
+
+  RedisModule_Log(ctx, "notice", "RedisAI version: %d", RAI_ENC_VER);
+ 
   int flags = RedisModule_GetContextFlags(ctx);
 
   if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
