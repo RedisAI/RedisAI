@@ -1,4 +1,6 @@
-# BUILD redisfab/redisai-cpu-${OSNICK}:M.m.b-${ARCH}
+# BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
+
+ARG REDIS_VER=6.0.1
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
@@ -10,7 +12,7 @@ ARG OS=debian:buster-slim
 ARG ARCH=arm64v8
 
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis-${ARCH}-${OSNICK}-xbuild:5.0.5 AS builder
+FROM redisfab/redis-xbuild:${REDIS_VER}-${ARCH}-${OSNICK} AS builder
 
 RUN [ "cross-build-start" ]
 
@@ -39,7 +41,7 @@ RUN if [ "$TEST" = "1" ]; then make -C opt test $BUILD_ARGS NO_LFS=1; fi
 RUN [ "cross-build-end" ]
 
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis-${ARCH}-${OSNICK}-xbuild:5.0.5
+FROM redisfab/redis-xbuild:${REDIS_VER}-${ARCH}-${OSNICK}
 
 RUN [ "cross-build-start" ]
 

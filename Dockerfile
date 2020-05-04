@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=5.0.8
+ARG REDIS_VER=6.0.1
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
