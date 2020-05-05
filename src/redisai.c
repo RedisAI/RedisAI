@@ -1189,6 +1189,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
   REGISTER_API(GetLLAPIVersion, ctx);
 
   REGISTER_API(TensorCreate, ctx);
+  REGISTER_API(TensorCreateByConcatenatingTensors, ctx);
+  REGISTER_API(TensorCreateBySlicingTensor, ctx);
   REGISTER_API(TensorDataSize, ctx);
   REGISTER_API(TensorFree, ctx);
   REGISTER_API(TensorSetData, ctx);
