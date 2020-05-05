@@ -27,4 +27,4 @@ If you have questions, want to provide feedback or perhaps report an issue or [c
   * [Repository](https://github.com/RedisAI/RedisAI/issues)
 
 ## License
-RedisAI is licensed under the [Redis Source Available License Agreement](https://github.com/RedisAI/RedisAI/blob/master/LICENSE).
+RedisAI is licensed under the [Redis Source Available License Agreement](https://github.com/RedisAI/RedisAI/blob/master/LICENSE). 
