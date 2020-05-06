@@ -23,6 +23,18 @@ char *RAI_Chomp(const char *src) {
   return str;
 }
 
+const char* RAI_GetError(RAI_Error *err) {
+  return err->detail;
+}
+
+const char* RAI_GetErrorOnLine(RAI_Error *err) {
+  return err->detail_oneline;
+}
+
+RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err) {
+  return err->code;
+}
+
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
   if(!err){
     return;

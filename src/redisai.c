@@ -1188,6 +1188,13 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
 
   REGISTER_API(GetLLAPIVersion, ctx);
 
+  REGISTER_API(InitError, ctx);
+  REGISTER_API(ClearError, ctx);
+  REGISTER_API(FreeError, ctx);
+  REGISTER_API(GetError, ctx);
+  REGISTER_API(GetErrorOnLine, ctx);
+  REGISTER_API(GetErrorCode, ctx);
+
   REGISTER_API(TensorCreate, ctx);
   REGISTER_API(TensorCreateByConcatenatingTensors, ctx);
   REGISTER_API(TensorCreateBySlicingTensor, ctx);

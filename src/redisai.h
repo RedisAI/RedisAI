@@ -30,11 +30,37 @@ typedef struct RAI_Error RAI_Error;
 #define REDISAI_DEVICE_CPU 0
 #define REDISAI_DEVICE_GPU 1
 
+#define RedisAI_ErrorCode int
+#define RedisAI_ErrorCode_OK 0
+#define RedisAI_ErrorCode_EMODELIMPORT 1
+#define RedisAI_ErrorCode_EMODELCONFIGURE 2
+#define RedisAI_ErrorCode_EMODELCREATE 3
+#define RedisAI_ErrorCode_EMODELRUN 4
+#define RedisAI_ErrorCode_EMODELSERIALIZE 5
+#define RedisAI_ErrorCode_EMODELFREE 6
+#define RedisAI_ErrorCode_ESCRIPTIMPORT 7
+#define RedisAI_ErrorCode_ESCRIPTCONFIGURE 8
+#define RedisAI_ErrorCode_ESCRIPTCREATE 9
+#define RedisAI_ErrorCode_ESCRIPTRUN 10
+#define RedisAI_ErrorCode_EUNSUPPORTEDBACKEND 11
+#define RedisAI_ErrorCode_EBACKENDNOTLOADED 12
+#define RedisAI_ErrorCode_ESCRIPTFREE 13
+#define RedisAI_ErrorCode_ETENSORSET 14
+#define RedisAI_ErrorCode_ETENSORGET 15
+#define RedisAI_ErrorCode_EDAGRUN 17
+
 enum RedisAI_DataFmt {
   REDISAI_DATA_BLOB = 0,
   REDISAI_DATA_VALUES,
   REDISAI_DATA_NONE
 };
+
+int MODULE_API_FUNC(RedisAI_InitError)(RAI_Error **err);
+void MODULE_API_FUNC(RedisAI_ClearError)(RAI_Error *err);
+void MODULE_API_FUNC(RedisAI_FreeError)(RAI_Error *err);
+const char* MODULE_API_FUNC(RedisAI_GetError)(RAI_Error *err);
+const char* MODULE_API_FUNC(RedisAI_GetErrorOnLine)(RAI_Error *err);
+RedisAI_ErrorCode MODULE_API_FUNC(RedisAI_GetErrorCode)(RAI_Error *err);
 
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreateByConcatenatingTensors)(RAI_Tensor** ts, long long n);
@@ -95,6 +121,13 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
     RedisModule_Log(ctx, "warning", "redis version is not compatible with module shared api, use redis 5.0.4 or above.");
     return REDISMODULE_ERR;
   }
+
+  REDISAI_MODULE_INIT_FUNCTION(ctx, InitError);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ClearError);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, FreeError);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, GetError);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorOnLine);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorCode);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 

@@ -53,6 +53,33 @@ int RAI_InitError(RAI_Error **err);
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail);
 
 /**
+ * Return the error description
+ *
+ * @param err
+ * @return error description
+ * @param err
+ */
+const char* RAI_GetError(RAI_Error *err);
+
+/**
+ * Return the error description as one line
+ *
+ * @param err
+ * @return error description as one line
+ * @param err
+ */
+const char* RAI_GetErrorOnLine(RAI_Error *err);
+
+/**
+ * Return the error code
+ *
+ * @param err
+ * @return error code
+ * @param err
+ */
+RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err);
+
+/**
  * Resets an previously used/allocated RAI_Error
  *
  * @param err
