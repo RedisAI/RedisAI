@@ -69,12 +69,11 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
             &(rinfo->dagTensorsContext), 0, NULL, currentOp->err);
 
         if (parse_result > 0) {
-          RAI_ModelRunCtx **mctxs = NULL;
-          mctxs = array_new(RAI_ModelRunCtx *, 1);
-          mctxs = array_append(mctxs, currentOp->mctx);
+          RAI_ModelRunCtx *mctxs[1];
+          mctxs[0] = currentOp->mctx;
           currentOp->result = REDISMODULE_OK;
           const long long start = ustime();
-          currentOp->result = RAI_ModelRun(mctxs, currentOp->err);
+          currentOp->result = RAI_ModelRun(mctxs, 1, currentOp->err);
           currentOp->duration_us = ustime() - start;
           const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
           for (size_t outputNumber = 0; outputNumber < noutputs;
@@ -92,7 +91,6 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
               currentOp->result = REDISMODULE_ERR;
             }
           }
-          array_free(mctxs);
         } else {
           currentOp->result = REDISMODULE_ERR;
         }
