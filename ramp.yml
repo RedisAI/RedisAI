@@ -16,6 +16,8 @@ capabilities:
     - persistence_rdb
     - persistence_aof
     - clustering
+    - backup_restore
+    - replica_of
 exclude_commands:
     - ai.modelset
     - ai.modeldel
