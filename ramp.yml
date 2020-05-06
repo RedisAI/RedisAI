@@ -9,7 +9,6 @@ min_redis_version: "5.0.7"
 min_redis_pack_version: "5.4.11"
 capabilities:
     - types
-    - no_multi_key
     - hash_policy
     - eviction_expiry
     - failover_migrate
