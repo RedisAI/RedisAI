@@ -59,7 +59,7 @@ int MODULE_API_FUNC(RedisAI_InitError)(RAI_Error **err);
 void MODULE_API_FUNC(RedisAI_ClearError)(RAI_Error *err);
 void MODULE_API_FUNC(RedisAI_FreeError)(RAI_Error *err);
 const char* MODULE_API_FUNC(RedisAI_GetError)(RAI_Error *err);
-const char* MODULE_API_FUNC(RedisAI_GetErrorOnLine)(RAI_Error *err);
+const char* MODULE_API_FUNC(RedisAI_GetErrorOneLine)(RAI_Error *err);
 RedisAI_ErrorCode MODULE_API_FUNC(RedisAI_GetErrorCode)(RAI_Error *err);
 
 RAI_Tensor* MODULE_API_FUNC(RedisAI_TensorCreate)(const char* dataTypeStr, long long* dims, int ndims);
@@ -126,7 +126,7 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, ClearError);
   REDISAI_MODULE_INIT_FUNCTION(ctx, FreeError);
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetError);
-  REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorOnLine);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorOneLine);
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorCode);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);

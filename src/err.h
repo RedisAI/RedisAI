@@ -68,7 +68,7 @@ const char* RAI_GetError(RAI_Error *err);
  * @return error description as one line
  * @param err
  */
-const char* RAI_GetErrorOnLine(RAI_Error *err);
+const char* RAI_GetErrorOneLine(RAI_Error *err);
 
 /**
  * Return the error code

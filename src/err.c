@@ -27,7 +27,7 @@ const char* RAI_GetError(RAI_Error *err) {
   return err->detail;
 }
 
-const char* RAI_GetErrorOnLine(RAI_Error *err) {
+const char* RAI_GetErrorOneLine(RAI_Error *err) {
   return err->detail_oneline;
 }
 
