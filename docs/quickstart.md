@@ -21,8 +21,9 @@ docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
 You can compile and build the module from its source code. The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module and how to contribute.
 
 ### Prerequisites
-* CUDA needs to be installed for GPU support.
+* Packages: git, python3, make, wget, g++/clang, & unzip 
 * CMake 3.0 or higher needs to be installed.
+* CUDA needs to be installed for GPU support.
 * Redis v5.0.7 or greater.
 
 ### Get the Source Code
