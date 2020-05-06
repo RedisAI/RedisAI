@@ -44,13 +44,14 @@ make test         # run tests
   CALLGRIND|CGD=1   # test with Callgrind (implies DEBUG=1)
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
-make pack       # create installation packages
-  PACK_DEPS=0     # do not pack dependencies
-  INTO=dir        # place artifacts in `dir`
-  BRANCH=name     # use `name` as branch name
-make deploy     # copy packages to S3
-make release    # release a version
-make docker     # build docker image
+make pack             # create installation packages
+  PACK_DEPS=0           # do not pack dependencies
+  INTO=dir              # place artifacts in `dir`
+  BRANCH=name           # use `name` as branch name
+make deploy           # copy packages to S3
+make release          # release a version
+make docker           # build docker image
+make docker-gpu-test  # run GPU tests
 
 fetch and build options:
   WITH_TF=0     # SKip TensofFlow
@@ -144,10 +145,12 @@ cmake-build $(TARGET): $(MK_MAKEFILES)
 	$(SHOW)$(MAKE) -C $(BINDIR)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 
 install $(INSTALLED_TARGET): $(TARGET)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 
 clean:
 ifeq ($(ALL),1)
@@ -172,6 +175,7 @@ fetch deps:
 #----------------------------------------------------------------------------------------------
 
 pack: $(INSTALLED_TARGET)
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 ifneq ($(PACK_DEPS),0)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
@@ -204,3 +208,9 @@ callgrind:
 
 docker:
 	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+
+docker-gpu-test:
+	$(SHOW)set -e ;\
+		cd .. ;\
+		docker build -f Dockerfile.gpu-test -t redisai-test:latest-$(DEVICE)-$(ARCH)-$(OS) .
+		docker run --gpus all -it redisai-test:latest-$(DEVICE)-$(ARCH)-$(OS)

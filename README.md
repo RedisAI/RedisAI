@@ -73,6 +73,7 @@ bash get_deps.sh
 ```
 
 Alternatively, run the following to only fetch the CPU-only backends even on GPU machines.
+
 ```sh
 bash get_deps.sh cpu
 ```
@@ -81,23 +82,19 @@ Once the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
 ```sh
-mkdir build
-cd build
-cmake ..
-make && make install
-cd ..
+ALL=1 make -C opt clean build
 ```
 
 Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
 
 ### Running the server
 
-You will need a redis-server version 4.0.9 or greater. This should be
+You will need a redis-server version 5.0.7 or greater. This should be
 available in most recent distributions:
 
 ```sh
 redis-server --version
-Redis server v=4.0.9 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
+Redis server v=5.0.7 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
 ```
 
 To start Redis with the RedisAI module loaded:
@@ -128,7 +125,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 0.3.1   | 1.1.0   | 1.12.0     | None   | 0.4.0         |
 | 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
 | 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
-| master  | 1.4.0   | 1.15.0     | 2.0.0  | 1.0.0         |
+| master  | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 
 Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.
 
@@ -144,4 +141,4 @@ Got questions? Feel free to ask at the [RedisAI Forum](https://forum.redislabs.c
 
 Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2020, Tensorwerk Inc & Redis Labs Ltd
+Copyright 2020, [Tensorwerk, Inc](https://tensorwerk.com) & [Redis Labs, Inc](https://redislabs.com)

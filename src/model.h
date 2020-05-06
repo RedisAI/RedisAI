@@ -150,12 +150,13 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index);
  * definition.
  *
  * @param mctxs array on input model contexts
+ * @param n length of input model contexts array
  * @param error error data structure to store error message in the case of
  * failures
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ModelRun(RAI_ModelRunCtx** mctxs, RAI_Error* err);
+int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err);
 
 /**
  * Every call to this function, will make the RAI_Model 'model' requiring an

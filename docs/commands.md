@@ -168,6 +168,7 @@ _Arguments_
 * **key**: the model's key name
 * **backend**: the backend for the model can be one of:
     * **TF**: a TensorFlow backend
+    * **TFLITE**: The TensorFlow Lite backend
     * **TORCH**: a PyTorch backend
     * **ONNX**: a ONNX backend
 * **device**: the device that will execute the model can be of:

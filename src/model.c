@@ -413,47 +413,54 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
   RedisModule_Free(mctx);
 }
 
-int RAI_ModelRun(RAI_ModelRunCtx** mctxs, RAI_Error* err) {
+int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err) {
   int ret;
 
-  if (array_len(mctxs) == 0) {
+  if (n == 0) {
     RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Nothing to run");
     return REDISMODULE_ERR;
   }
 
-  switch (mctxs[0]->model->backend) {
+  RAI_ModelRunCtx** mctxs_arr = array_newlen(RAI_ModelRunCtx*, n);
+  for (int i=0; i<n; i++) {
+    mctxs_arr[i] = mctxs[i];
+  }
+
+  switch (mctxs_arr[0]->model->backend) {
     case RAI_BACKEND_TENSORFLOW:
       if (!RAI_backends.tf.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.tf.model_run(mctxs, err);
+      ret = RAI_backends.tf.model_run(mctxs_arr, err);
       break;
     case RAI_BACKEND_TFLITE:
       if (!RAI_backends.tflite.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.tflite.model_run(mctxs, err);
+      ret = RAI_backends.tflite.model_run(mctxs_arr, err);
       break;
     case RAI_BACKEND_TORCH:
       if (!RAI_backends.torch.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.torch.model_run(mctxs, err);
+      ret = RAI_backends.torch.model_run(mctxs_arr, err);
       break;
     case RAI_BACKEND_ONNXRUNTIME:
       if (!RAI_backends.onnx.model_run) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
         return REDISMODULE_ERR;
       }
-      ret = RAI_backends.onnx.model_run(mctxs, err);
+      ret = RAI_backends.onnx.model_run(mctxs_arr, err);
       break;
     default:
       RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
       return REDISMODULE_ERR;
   }
+
+  array_free(mctxs_arr);
 
   return ret;
 }

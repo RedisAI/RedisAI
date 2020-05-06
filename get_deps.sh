@@ -14,13 +14,15 @@ if [[ $1 == --help || $1 == help ]]; then
 		[ARGVARS...] get_deps.sh [cpu|gpu] [--help|help]
 		
 		Argument variables:
-		VERBOSE=1       Print commands
-		FORCE=1         Download even if present
-		WITH_DLPACK=0   Skip dlpack
-		WITH_TF=0       Skip Tensorflow
-		WITH_TFLITE=0   Skip Tensorflow
-		WITH_PT=0       Skip PyTorch
-		WITH_ORT=0      Skip OnnxRuntime
+		CPU=1              Get CPU dependencies
+		GPU=1              Get GPU dependencies
+		VERBOSE=1          Print commands
+		FORCE=1            Download even if present
+		WITH_DLPACK=0      Skip dlpack
+		WITH_TF=0|S3       Skip Tensorflow or download from S3 repo
+		WITH_TFLITE=0|S3   Skip TensorflowLite  or download from S3 repo
+		WITH_PT=0|S3       Skip PyTorch or download from S3 repo
+		WITH_ORT=0|S3      Skip OnnxRuntime or download from S3 repo
 
 	END
 	exit 0
@@ -29,10 +31,10 @@ fi
 set -e
 [[ $VERBOSE == 1 ]] && set -x
 
-if [[ "$1" == "cpu" ]]; then
+if [[ "$1" == "cpu" || $CPU == 1 ]]; then
 	GPU=0
 	DEVICE=cpu
-elif [[ "$1" == "gpu" ]]; then
+elif [[ "$1" == "gpu" || $GPU == 1 ]]; then
 	GPU=1
 	DEVICE=gpu
 else
@@ -100,7 +102,13 @@ if [[ $WITH_TF != 0 ]]; then
 			if [[ $ARCH == x64 ]]; then
 				TF_VERSION=1.15.0
 				TF_ARCH=x86_64
-				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+				
+				# special case for 1.15.0 as official version does not suport CUDA 10.1
+				if [[ $WITH_TF == S3 || $GPU == 1 ]]; then
+					LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+				else
+					LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+				fi
 			elif [[ $ARCH == arm64v8 ]]; then
 				TF_VERSION=1.15.0
 				TF_ARCH=arm64
@@ -115,7 +123,11 @@ if [[ $WITH_TF != 0 ]]; then
 			TF_OS=darwin
 			TF_BUILD=cpu
 			TF_ARCH=x86_64
-			LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+			if [[ $WITH_TF == S3 ]]; then
+				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+			else
+				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+			fi
 		fi
 
 		LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
@@ -186,7 +198,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.4.0"
+PT_VERSION="1.5.0"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
@@ -270,7 +282,7 @@ fi
 
 ################################################################################### ONNXRUNTIME
 
-ORT_VERSION="1.0.0"
+ORT_VERSION="1.2.0"
 
 if [[ $WITH_ORT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
