@@ -34,28 +34,26 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
     return NULL;
   }
 
-  RAI_ModelRunCtx **mctxs = NULL;
   RAI_ScriptRunCtx *sctx = NULL;
 
   RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
   long long rtime;
   int status;
+  bool is_model;
   if (batch_rinfo[0]->mctx) {
-    mctxs = array_new(RAI_ModelRunCtx *, batch_size);
+    RAI_ModelRunCtx *mctxs[batch_size];
     for (long long i = 0; i < batch_size; i++) {
-      mctxs = array_append(mctxs, batch_rinfo[i]->mctx);
+      mctxs[i] = batch_rinfo[i]->mctx;
     }
+    const long long start = ustime();
+    status = RAI_ModelRun(mctxs, batch_size, err);
+    rtime = ustime() - start;
   } else if (batch_rinfo[0]->sctx) {
     sctx = batch_rinfo[0]->sctx;
-  }
-
-  const long long start = ustime();
-  if (mctxs) {
-    status = RAI_ModelRun(mctxs, err);
-  } else if (sctx) {
+    const long long start = ustime();
     status = RAI_ScriptRun(sctx, err);
+    rtime = ustime() - start;
   }
-  rtime = ustime() - start;
 
   for (long long i = 0; i < batch_size; i++) {
     struct RedisAI_RunInfo *rinfo = batch_rinfo[i];
@@ -74,12 +72,6 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
     if (rinfo->client != NULL) {
       RedisModule_UnblockClient(rinfo->client, rinfo);
     }
-  }
-
-  if (mctxs) {
-    array_free(mctxs);
-  } else if (sctx) {
-    // No batching for scripts for now
   }
 
   return NULL;
