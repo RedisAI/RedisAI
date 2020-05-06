@@ -73,6 +73,7 @@ bash get_deps.sh
 ```
 
 Alternatively, run the following to only fetch the CPU-only backends even on GPU machines.
+
 ```sh
 bash get_deps.sh cpu
 ```
@@ -81,11 +82,7 @@ Once the dependencies are downloaded, build the module itself. Note that
 CMake 3.0 or higher is required.
 
 ```sh
-mkdir build
-cd build
-cmake ..
-make && make install
-cd ..
+ALL=1 make -C opt clean build
 ```
 
 Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
