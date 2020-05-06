@@ -145,10 +145,12 @@ cmake-build $(TARGET): $(MK_MAKEFILES)
 	$(SHOW)$(MAKE) -C $(BINDIR)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 
 install $(INSTALLED_TARGET): $(TARGET)
 	$(SHOW)mkdir -p $(INSTALL_DIR)
 	$(SHOW)$(MAKE) -C $(BINDIR) install
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 
 clean:
 ifeq ($(ALL),1)
