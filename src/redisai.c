@@ -26,6 +26,10 @@
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
 
+#ifndef REDISAI_GIT_SHA
+#define REDISAI_GIT_SHA "unknown"
+#endif
+
 int redisMajorVersion;
 int redisMinorVersion;
 int redisPatchVersion;
@@ -142,7 +146,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   const char* bckstr;
   int backend;
-  AC_GetString(&ac, &bckstr, NULL, 0); 
+  AC_GetString(&ac, &bckstr, NULL, 0);
   if (strcasecmp(bckstr, "TF") == 0) {
     backend = RAI_BACKEND_TENSORFLOW;
   }
@@ -160,7 +164,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   const char* devicestr;
-  AC_GetString(&ac, &devicestr, NULL, 0); 
+  AC_GetString(&ac, &devicestr, NULL, 0);
 
   if (strlen(devicestr) > 10 ||
       strcasecmp(devicestr, "INPUTS") == 0 ||
@@ -232,13 +236,13 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   size_t ninputs = inac.argc;
   const char *inputs[ninputs];
   for (size_t i=0; i<ninputs; i++) {
-    AC_GetString(&inac, inputs+i, NULL, 0); 
+    AC_GetString(&inac, inputs+i, NULL, 0);
   }
 
   size_t noutputs = outac.argc;
   const char *outputs[noutputs];
   for (size_t i=0; i<noutputs; i++) {
-    AC_GetString(&outac, outputs+i, NULL, 0); 
+    AC_GetString(&outac, outputs+i, NULL, 0);
   }
 
   RAI_ModelOpts opts = {
@@ -265,17 +269,17 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   char *modeldef;
 
   if (blobsac.argc == 1) {
-    AC_GetString(&blobsac, (const char**)&modeldef, &modellen, 0); 
+    AC_GetString(&blobsac, (const char**)&modeldef, &modellen, 0);
   }
   else {
     const char *chunks[blobsac.argc];
     size_t chunklens[blobsac.argc];
     modellen = 0;
     while (!AC_IsAtEnd(&blobsac)) {
-      AC_GetString(&blobsac, &chunks[blobsac.offset], &chunklens[blobsac.offset], 0); 
+      AC_GetString(&blobsac, &chunks[blobsac.offset], &chunklens[blobsac.offset], 0);
       modellen += chunklens[blobsac.offset-1];
     }
-    
+
     modeldef = RedisModule_Calloc(modellen, sizeof(char));
     size_t offset = 0;
     for (size_t i=0; i<blobsac.argc; i++) {
@@ -458,7 +462,7 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-/** 
+/**
 * AI._MODELSCAN
 */
 int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -506,7 +510,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
-  
+
   RedisModule_RetainString(NULL, argv[1]);
   rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
@@ -536,7 +540,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return REDISMODULE_OK;
 }
 
-/** 
+/**
 * AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -575,7 +579,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   }
 
   const char* fnname;
-  AC_GetString(&ac, &fnname, NULL, 0); 
+  AC_GetString(&ac, &fnname, NULL, 0);
 
   ArgsCursor inac = {0};
   ArgsCursor outac = {0};
@@ -596,13 +600,13 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   size_t ninputs = inac.argc;
   RedisModuleString *inputs[ninputs];
   for (size_t i=0; i<ninputs; i++) {
-    AC_GetRString(&inac, inputs+i, 0); 
+    AC_GetRString(&inac, inputs+i, 0);
   }
 
   size_t noutputs = outac.argc;
   RedisModuleString *outputs[noutputs];
   for (size_t i=0; i<noutputs; i++) {
-    AC_GetRString(&outac, outputs+i, 0); 
+    AC_GetRString(&outac, outputs+i, 0);
   }
 
   rinfo->sctx = RAI_ScriptRunCtxCreate(sto, fnname);
@@ -633,7 +637,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_RetainString(ctx, outputs[i]);
     array_append(rinfo->outkeys,outputs[i]);
   }
-  
+
   RedisModule_RetainString(ctx, keystr);
   rinfo->runkey = keystr;
   RunQueueInfo *run_queue_info = NULL;
@@ -725,11 +729,11 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModule_CloseKey(key);
 
   RedisModule_ReplicateVerbatim(ctx);
-  
+
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
-/** 
+/**
 * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
 */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -744,7 +748,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   AC_GetRString(&ac, &keystr, 0);
 
   const char* devicestr;
-  AC_GetString(&ac, &devicestr, NULL, 0); 
+  AC_GetString(&ac, &devicestr, NULL, 0);
 
   const char* tag = "";
   if (AC_AdvanceIfMatch(&ac, "TAG")) {
@@ -759,7 +763,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const char *scriptdef = NULL;
 
   if (AC_AdvanceIfMatch(&ac, "SOURCE")) {
-    AC_GetString(&ac, &scriptdef, &scriptlen, 0); 
+    AC_GetString(&ac, &scriptdef, &scriptlen, 0);
   }
 
   if (scriptdef == NULL) {
@@ -831,7 +835,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   return REDISMODULE_OK;
 }
 
-/** 
+/**
 * AI._SCRIPTSCAN
 */
 int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -912,7 +916,7 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
   return REDISMODULE_OK;
 }
 
-/** 
+/**
 * AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | LOADBACKEND <backend_identifier> <location_of_backend_library>]
 */
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -1013,12 +1017,12 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         if (status == REDISMODULE_ERR) {
           RAI_FreeRunInfo(ctx,rinfo);
           return REDISMODULE_ERR;
-        } 
+        }
         if (deviceStr==NULL){
           deviceStr=mto->devicestr;
         }else{
           // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(mto->devicestr, deviceStr)!=0){            
+          if(strcasecmp(mto->devicestr, deviceStr)!=0){
             RAI_FreeRunInfo(ctx,rinfo);
             return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
@@ -1123,12 +1127,12 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         if (status == REDISMODULE_ERR) {
           RAI_FreeRunInfo(ctx,rinfo);
           return REDISMODULE_ERR;
-        } 
+        }
         if (deviceStr==NULL){
           deviceStr=mto->devicestr;
         }else{
           // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(mto->devicestr, deviceStr)!=0){            
+          if(strcasecmp(mto->devicestr, deviceStr)!=0){
             RAI_FreeRunInfo(ctx,rinfo);
             return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
           }
@@ -1242,6 +1246,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
       == REDISMODULE_ERR) return REDISMODULE_ERR;
 
+  RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s",
+                      RAI_ENC_VER,
+                      REDISAI_GIT_SHA);
+
   getRedisVersion();
   RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
                       redisMajorVersion, redisMinorVersion, redisPatchVersion,
@@ -1257,8 +1265,6 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  RedisModule_Log(ctx, "notice", "RedisAI version: %d", RAI_ENC_VER);
- 
   int flags = RedisModule_GetContextFlags(ctx);
 
   if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
@@ -1350,7 +1356,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
   setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
   setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
-  
+
   RAI_loadTimeConfig(ctx,argv,argc);
 
   run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
@@ -1361,7 +1367,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   }
 
   run_stats = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-  
+
   return REDISMODULE_OK;
 }
 

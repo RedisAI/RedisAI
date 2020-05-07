@@ -20,7 +20,7 @@ ifeq ($(COV),1)
 DEBUG ?= 1
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
@@ -30,7 +30,8 @@ make build      # compile and link
   DEBUG=1         # build for debugging
   COV=1           # build for coverage analysis (implies DEBUG=1)
   VARIANT=name    # build variant `name`
-  WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
+  VERBOSE=1       # verbose build output
+  WHY=1           # explain CMake decisions (into /tmp/cmake.why)
 make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
@@ -65,7 +66,7 @@ device selection options (fetch, build, and test):
   CUDA=1        # build for GPU
 endef
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
 
@@ -80,7 +81,7 @@ DEPS_FLAGS=cpu
 DEVICE=cpu
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 SRCDIR=..
 BINDIR=$(BINROOT)/src
@@ -93,7 +94,7 @@ INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 CMAKE_FILES += \
 	$(SRCDIR)/CMakeLists.txt \
@@ -110,7 +111,8 @@ CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
 	-DUSE_COVERAGE=$(USE_COVERAGE) \
-	-DDEVICE=$(DEVICE)
+	-DDEVICE=$(DEVICE) \
+	-DREDISAI_GIT_SHA=$(GIT_SHA)
 
 ifeq ($(WITH_TF),0)
 CMAKE_FLAGS += -DBUILD_TF=off
@@ -136,7 +138,7 @@ include $(MK)/defs
 
 include $(MK)/rules
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 #prebuild:
 #	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
@@ -161,7 +163,7 @@ else
 	-$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 setup:
 	@echo Setting up system...
