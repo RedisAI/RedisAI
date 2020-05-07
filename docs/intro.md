@@ -207,13 +207,13 @@ redis-cli doesn't provide a way to read files' contents, so to load the model wi
 
 ```
 cat graph.pb | docker exec -i redisai redis-cli -x \
-               AI.MODELSET mymodel TF CPU INPUTS a b OUTPUTS c
+               AI.MODELSET mymodel TF CPU INPUTS a b OUTPUTS c BLOB
 ```
 
 ??? example "Example: loading a model from command line"
     ```
     $ cat graph.pb | docker exec -i redisai redis-cli -x \
-               AI.MODELSET mymodel TF CPU INPUTS a b OUTPUTS c
+               AI.MODELSET mymodel TF CPU INPUTS a b OUTPUTS c BLOB
     OK
     ```
 
@@ -313,7 +313,7 @@ def multiply(a, b):
 Assuming that the script is stored in the 'myscript.py' file it can be uploaded via command line and the `AI.SCRIPTSET` command as follows:
 
 ```
-cat myscript.py | docker exec -i redisai redis-cli -x AI.SCRIPTSET myscript CPU
+cat myscript.py | docker exec -i redisai redis-cli -x AI.SCRIPTSET myscript CPU SOURCE
 ```
 
 This will store the PyTorch Script from 'myscript.py' under the 'myscript' key and will associate it with the CPU device for execution. Once loaded, the script can be run with the following:
