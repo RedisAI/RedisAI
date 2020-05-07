@@ -21,10 +21,15 @@
 #include "util/queue.h"
 #include "rmutil/args.h"
 #include "run_info.h"
+#include "version.h"
 
 #define REDISAI_H_INCLUDE
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
+
+#ifndef REDISAI_GIT_SHA
+#define REDISAI_GIT_SHA "unknown"
+#endif
 
 int redisMajorVersion;
 int redisMinorVersion;
@@ -1257,7 +1262,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return REDISMODULE_ERR;
   }
 
-  RedisModule_Log(ctx, "notice", "RedisAI version: %d", RAI_ENC_VER);
+  RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s",
+                  RAI_ENC_VER, REDISAI_GIT_SHA);
  
   int flags = RedisModule_GetContextFlags(ctx);
 
