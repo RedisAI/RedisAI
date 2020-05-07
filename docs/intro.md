@@ -176,10 +176,13 @@ RedisAI Tensors are used as inputs and outputs in the execution of models and sc
 !!! example "Example: getting a tensor key"
 
     ```
-    127.0.0.1:6379> AI.TENSORGET tA VALUES
-    1) INT8
-    2) 1) (integer) 2
-    3) 1) (integer) 2
+    127.0.0.1:6379> AI.TENSORGET tA META VALUES
+    1) dtype
+    2) INT8
+    3) shape
+    4) 1) (integer) 2
+    5) values
+    6) 1) (integer) 2
        1) (integer) 3
     ```
 
