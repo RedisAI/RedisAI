@@ -7,8 +7,7 @@
 #include "model_struct.h"
 #include "model_script_run_session.h"
 #include "background_workers.h"
-
-#define REDISAI_LLAPI_VERSION 1
+#include "version.h"
 
 #define MODULE_API_FUNC(x) (*x)
 

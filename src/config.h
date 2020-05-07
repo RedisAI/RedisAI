@@ -17,8 +17,6 @@ typedef enum {
 
 typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 
-#define RAI_ENC_VER 9900
-
 //#define RAI_COPY_RUN_INPUT
 #define RAI_COPY_RUN_OUTPUT
 #define RAI_PRINT_BACKEND_ERRORS

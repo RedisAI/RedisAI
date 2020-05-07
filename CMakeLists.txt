@@ -7,6 +7,10 @@ list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/cmake/modules)
 # Set a default build type if none was specified
 set(default_build_type "Release")
 
+IF(REDISAI_GIT_SHA)
+    add_definitions(-DREDISAI_GIT_SHA=${REDISAI_GIT_SHA} )
+ENDIF()
+
 IF(NOT CMAKE_BUILD_TYPE)
     message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
     set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
