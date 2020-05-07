@@ -58,10 +58,13 @@ redis-cli
 > AI.TENSORSET bar FLOAT 2 VALUES 2 3
 > AI.TENSORSET baz FLOAT 2 VALUES 2 3
 > AI.MODELRUN foo INPUTS bar baz OUTPUTS jez
-> AI.TENSORGET jez VALUES
-1) FLOAT
-2) 1) (integer) 2
-3) 1) "4"
+> AI.TENSORGET jez META VALUES
+1) dtype
+2) FLOAT
+3) shape
+4) 1) (integer) 2
+5) values
+6) 1) "4"
    2) "9"
 ```
 
