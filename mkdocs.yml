@@ -30,13 +30,15 @@ nav:
   - 'Home': index.md
   - 'Introduction': intro.md
   - 'Quickstart': quickstart.md
-  - 'Commands': commands.md
+  - 'Reference':
+    - 'Redis Commands': commands.md
+    - 'C API' : api_reference.md
   - 'Clients': clients.md
   - 'Configuration': configuration.md
-  - 'Developer': developer.md
   - 'Performance': performance.md
   - 'Examples': examples.md
   - 'Contributing': contrib.md
+  - 'Developer': developer.md
 
 markdown_extensions:
   - admonition
