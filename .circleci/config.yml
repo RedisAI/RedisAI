@@ -157,7 +157,7 @@ jobs:
       - run:
           name: Build
           command: |
-            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test .
+            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
       - run:
           name: Test
           command: |
