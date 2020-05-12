@@ -35,7 +35,7 @@ pack_ramp() {
 
 	# this is only to extract {semantic_version} into VERSION
 	RAMPOUT=$(mktemp /tmp/ramp.XXXXXX)
-	$RAMP_PROG pack -m $ROOT/ramp.yml -o $BINDIR/$PRODUCT.{os}-{architecture}.{semantic_version}.zip $INSTALL_DIR/$PRODUCT.so 2> /dev/null | grep '.zip' > $RAMPOUT
+	$RAMP_PROG pack -m $ROOT/ramp.yml --packname-file $RAMPOUT -o $BINDIR/$PRODUCT.{os}-{architecture}.{semantic_version}.zip $INSTALL_DIR/$PRODUCT.so
 	local rampfile=`realpath $(tail -1 $RAMPOUT)`
 	rm -f $rampfile $RAMPOUT
 	echo `basename $rampfile` | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $BINDIR/VERSION
