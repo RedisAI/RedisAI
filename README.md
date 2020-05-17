@@ -9,7 +9,6 @@
 # RedisAI
 
 A Redis module for serving tensors and executing deep learning models.
-Expect changes in the API and internals.
 
 ## Cloning
 If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
