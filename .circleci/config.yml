@@ -36,7 +36,7 @@ commands:
       - checkout
       - run:
           name: Build
-          command: make -C opt all SHOW=1
+          command: make -C opt all <<parameters.platform>> SHOW=1
       - run:
           name: Test
           command: |
@@ -181,6 +181,23 @@ jobs:
       - store_artifacts:
           path: ~/workspace/packages/<<parameters.package>>
 
+
+platform-builds-requires: &platform-builds-requires
+  requires:
+    - build-centos7
+    - build-bionic
+    - build-xenial
+
+platform-builds-flow-defs: &platform-builds-flow-defs
+  requires:
+    - build
+  # filters:
+  #   branches:
+  #     only:
+  #       - master
+  #   tags:
+  #     only: /^v[0-9].*/
+
 workflows:
   version: 2
   build_and_package:
@@ -189,54 +206,38 @@ workflows:
           filters:
             tags:
               only: /.*/
+      - platform-build:
+          name: build-centos7
+          platform: centos7
+          <<: *platform-builds-flow-defs
+      - platform-build:
+          name: build-bionic
+          platform: bionic
+          <<: *platform-builds-flow-defs
+      - platform-build:
+          name: build-xenial
+          platform: xenial
+          <<: *platform-builds-flow-defs
       - coverage:
           filters:
             branches:
               only: /.*/
             tags:
               only: /.*/
-      # - build-macos:
-      #     filters:
-      #       branches:
-      #         ignore: /.*/
-      #       tags:
-      #         only: /^v[0-9].*/
-      #- build-multiarch-docker:
-      #    filters:
-      #      tags:
-      #        only: /^v[0-9].*/
-      #      branches:
-      #        ignore: /.*/
       - build-gpu:
           filters:
             tags:
               only: /.*/
       - deploy_package:
           name: deploy_branch
-          package: branch
-          requires:
-            - build
+          <<: *platform-builds-requires
           filters:
             branches:
               only: master
       - deploy_package:
-          name: deploy_release
-          package: release
-          requires:
-            - build
+          <<: *platform-builds-requires
           filters:
             branches:
               ignore: /.*/
             tags:
-              only: '/^v[0-9].*/'
-
-  #nightly:
-  #  triggers:
-  #   - schedule:
-  #        cron: "20 17 * * *"
-  #        filters:
-  #           branches:
-  #             only:
-  #              - master
-  #  jobs:
-  #    - build-macos
+              only: /^v[0-9].*/
