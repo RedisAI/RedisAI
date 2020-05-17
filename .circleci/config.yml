@@ -199,13 +199,6 @@ jobs:
       - store_artifacts:
           path: ~/workspace/packages/<<parameters.package>>
 
-
-platform-builds-requires: &platform-builds-requires
-  requires:
-    - build-centos7
-    - build
-    - build-xenial
-
 workflows:
   version: 2
   build_and_package:
@@ -234,14 +227,23 @@ workflows:
               only: /.*/
       - deploy_package:
           name: deploy_branch
-          <<: *platform-builds-requires
+          package: branch
+          requires:
+            - build
+            - build-centos7
+            - build-xenial
           filters:
             branches:
               only: master
       - deploy_package:
-          <<: *platform-builds-requires
+          name: deploy_release
+          package: release
+          requires:
+            - build
+            - build-centos7
+            - build-xenial
           filters:
             branches:
               ignore: /.*/
             tags:
-              only: /^v[0-9].*/
+              only: '/^v[0-9].*/'
