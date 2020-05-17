@@ -202,19 +202,19 @@ workflows:
   version: 2
   build_and_package:
     jobs:
+      # - build:
+      #     filters:
+      #       tags:
+      #         only: /.*/
       - build:
-          filters:
-            tags:
-              only: /.*/
-      - platform-build:
           name: build-centos7
           platform: centos7
           <<: *platform-builds-flow-defs
-      - platform-build:
+      - build:
           name: build-bionic
           platform: bionic
           <<: *platform-builds-flow-defs
-      - platform-build:
+      - build:
           name: build-xenial
           platform: xenial
           <<: *platform-builds-flow-defs
