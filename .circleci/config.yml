@@ -75,15 +75,6 @@ jobs:
           platform: debian
       - test_steps:
           platform: debian
-
-  build-xenial:
-    docker:
-      - image: redisfab/rmbuilder:6.0.1-x64-xenial
-    steps:
-      - setup_steps:
-          platform: debian
-      - test_steps:
-          platform: debian
   
   build-centos7:
     docker:
@@ -207,10 +198,6 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - build-xenial:
-          filters:
-            tags:
-              only: /.*/
       - build-centos7:
           filters:
             tags:
@@ -231,7 +218,6 @@ workflows:
           requires:
             - build
             - build-centos7
-            - build-xenial
           filters:
             branches:
               only: master
@@ -241,7 +227,6 @@ workflows:
           requires:
             - build
             - build-centos7
-            - build-xenial
           filters:
             branches:
               ignore: /.*/
