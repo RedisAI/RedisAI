@@ -36,7 +36,7 @@ commands:
       - checkout
       - run:
           name: Build
-          command: make -C opt all <<parameters.platform>> SHOW=1
+          command: make -C opt all SHOW=1
       - run:
           name: Test
           command: |
@@ -75,6 +75,24 @@ jobs:
           platform: debian
       - test_steps:
           platform: debian
+
+  build-xenial:
+    docker:
+      - image: redisfab/rmbuilder:6.0.1-x64-xenial
+    steps:
+      - setup_steps:
+          platform: debian
+      - test_steps:
+          platform: debian
+  
+  build-centos7:
+    docker:
+      - image: redisfab/rmbuilder:6.0.1-x64-centos7
+    steps:
+      - setup_steps:
+          platform: centos7
+      - test_steps:
+          platform: centos7
 
   coverage:
     docker:
@@ -185,39 +203,25 @@ jobs:
 platform-builds-requires: &platform-builds-requires
   requires:
     - build-centos7
-    - build-bionic
-    - build-xenial
-
-platform-builds-flow-defs: &platform-builds-flow-defs
-  requires:
     - build
-  # filters:
-  #   branches:
-  #     only:
-  #       - master
-  #   tags:
-  #     only: /^v[0-9].*/
+    - build-xenial
 
 workflows:
   version: 2
   build_and_package:
     jobs:
-      # - build:
-      #     filters:
-      #       tags:
-      #         only: /.*/
       - build:
-          name: build-centos7
-          platform: centos7
-          <<: *platform-builds-flow-defs
-      - build:
-          name: build-bionic
-          platform: bionic
-          <<: *platform-builds-flow-defs
-      - build:
-          name: build-xenial
-          platform: xenial
-          <<: *platform-builds-flow-defs
+          filters:
+            tags:
+              only: /.*/
+      - build-xenial:
+          filters:
+            tags:
+              only: /.*/
+      - build-centos7:
+          filters:
+            tags:
+              only: /.*/
       - coverage:
           filters:
             branches:
