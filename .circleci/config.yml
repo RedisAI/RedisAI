@@ -76,14 +76,14 @@ jobs:
       - test_steps:
           platform: debian
   
-  build-centos7:
-    docker:
-      - image: redisfab/rmbuilder:6.0.1-x64-centos7
-    steps:
-      - setup_steps:
-          platform: centos7
-      - test_steps:
-          platform: centos7
+  # build-centos7:
+  #   docker:
+  #     - image: redisfab/rmbuilder:6.0.1-x64-centos7
+  #   steps:
+  #     - setup_steps:
+  #         platform: centos7
+  #     - test_steps:
+  #         platform: centos7
 
   coverage:
     docker:
@@ -198,10 +198,10 @@ workflows:
           filters:
             tags:
               only: /.*/
-      - build-centos7:
-          filters:
-            tags:
-              only: /.*/
+      # - build-centos7:
+      #     filters:
+      #       tags:
+      #         only: /.*/
       - coverage:
           filters:
             branches:
@@ -217,7 +217,7 @@ workflows:
           package: branch
           requires:
             - build
-            - build-centos7
+            # - build-centos7
           filters:
             branches:
               only: master
@@ -226,7 +226,7 @@ workflows:
           package: release
           requires:
             - build
-            - build-centos7
+            # - build-centos7
           filters:
             branches:
               ignore: /.*/

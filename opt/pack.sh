@@ -92,6 +92,28 @@ pack_deps() {
 	echo "Done."
 }
 
+pack_bundle_artifacts() {
+	echo "Building bundled artifacts zip file ..."
+	cd "$BINDIR"
+
+	VERSION=$(cat $BINDIR/VERSION)
+
+	local STEM=$PRODUCT-$DEVICE-$OS-$OSNICK-$ARCH
+	local BUNDLE_PACKAGE=$STEM.$VERSION.tgz
+	local BUNDLE_LIST=""
+	for file in $RELEASE_ARTIFACTS; do
+		if [[ $file =~ ".$VERSION.tgz" || $file =~ ".$VERSION.zip" ]]; then
+			echo "bundling $file"
+			BUNDLE_LIST="$file $BUNDLE_LIST"
+		fi
+	done
+
+	tar -cvhf $BUNDLE_PACKAGE $BUNDLE_LIST
+	echo "Bundled $VERSION package with files: $BUNDLE_LIST"
+	export BUNDLE_ARTIFACTS="$BUNDLE_ARTIFACTS $BUNDLE_PACKAGE"
+	echo "Done."
+}
+
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
 		pack.sh [cpu|gpu] [--help|help]
@@ -138,6 +160,7 @@ fi
 
 pack_ramp
 [[ $DEPS == 1 ]] && pack_deps
+pack_bundle_artifacts
 
 if [[ ! -z $INTO ]]; then
 	mkdir -p $INTO
@@ -145,6 +168,10 @@ if [[ ! -z $INTO ]]; then
 	mkdir -p release branch
 	
 	for f in $RELEASE_ARTIFACTS; do
+		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
+	done
+
+	for f in $BUNDLE_ARTIFACTS; do
 		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
 	done
 	
