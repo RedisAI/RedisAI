@@ -29,7 +29,7 @@ pack_ramp() {
 	echo "Building RAMP file ..."
 	cd $ROOT
 	
-	local STEM=$PRODUCT.$OS-$OSNICK-$ARCH
+	local STEM=$PRODUCT.$DEVICE-$OS-$OSNICK-$ARCH
 	local FQ_VER=$GIT_VER
 	local FQ_PACKAGE=$STEM.$FQ_VER
 
