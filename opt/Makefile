@@ -1,5 +1,6 @@
 
 ROOT:=..
+MK.pyver:=3
 include readies/mk/main
 
 MK.cmake:=1
