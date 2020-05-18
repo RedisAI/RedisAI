@@ -61,7 +61,7 @@ class RedisAISetup(paella.Setup):
         self.install("redis")
 
     def common_last(self):
-        self.run("python3 -m pip uninstall -y ramp-packer RLTest")
+        self.run("python3 -m pip uninstall -y ramp-packer RLTest || true")
         # redis-py-cluster should be installed from git due to redis-py dependency
         self.pip3_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
         self.pip3_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
