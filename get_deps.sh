@@ -66,6 +66,8 @@ LIBTORCH=libtorch
 MKL=mkl
 ONNXRUNTIME=onnxruntime
 
+git submodule update --init --recursive || true
+
 ######################################################################################## DLPACK
 
 if [[ $WITH_DLPACK != 0 ]]; then

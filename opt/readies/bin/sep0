@@ -1,6 +1,0 @@
-#!/usr/bin/env python
-
-import os
-rows, cols = os.popen('stty size', 'r').read().split()
-print("-" * (int(cols) - 1) + "\n")
-
