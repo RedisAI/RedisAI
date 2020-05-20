@@ -21,6 +21,8 @@ jobs:
         python-version: '3.x'
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
+    - name: Install Doxygen
+      run: apt-get install -y doxygen
     - name: Install docs dependencies
       run: pip install -r docs/requirements.txt
     - name: Get entire project
