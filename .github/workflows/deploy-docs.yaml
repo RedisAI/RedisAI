@@ -22,7 +22,7 @@ jobs:
     - name: Display Python version
       run: python -c "import sys; print(sys.version)"
     - name: Install Doxygen
-      run: apt-get install -y doxygen
+      run: sudo apt-get install -y doxygen
     - name: Install docs dependencies
       run: pip install -r docs/requirements.txt
     - name: Build C API reference
