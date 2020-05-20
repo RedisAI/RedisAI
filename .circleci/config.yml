@@ -7,6 +7,9 @@ commands:
         type: string
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
@@ -34,6 +37,9 @@ commands:
         type: string
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -81,6 +87,9 @@ jobs:
       - image: redisfab/rmbuilder:6.0.1-x64-buster
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -128,6 +137,9 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - run:
           name: Checkout LFS
           command: |
             curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
@@ -155,9 +167,12 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - run:
           name: Build
           command: |
-            docker build -f Dockerfile.gpu-test -t redisai-gpu:latest-x64-bionic-test .
+            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
       - run:
           name: Test
           command: |
