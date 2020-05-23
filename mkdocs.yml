@@ -33,13 +33,11 @@ nav:
   - 'Commands': commands.md
   - 'Clients': clients.md
   - 'Configuration': configuration.md
+  - 'Developer': developer.md
   - 'Performance': performance.md
   - 'Examples': examples.md
   - 'Contributing': contrib.md
-  - 'Developer': 
-    - 'Work on the code' : developer.md
-    - 'C API' : api_reference.md
-
+  
 markdown_extensions:
   - admonition
   - pymdownx.arithmatex
