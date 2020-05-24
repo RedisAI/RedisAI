@@ -538,6 +538,7 @@ _Arguments_
     * `AI.TENSORSET`
     * `AI.TENSORGET`
     * `AI.MODELRUN`
+    * `AI.SCRIPTRUN`
 
 _Return_
 
