@@ -325,3 +325,163 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
   return argpos;
 }
+
+int RedisAI_DagRun_syntax_parser(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                 int argc, int dagMode) {
+  if (argc < 4) return RedisModule_WrongArity(ctx);
+
+  RedisAI_RunInfo *rinfo = NULL;
+  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(
+        ctx,
+        "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo "
+        "structure");
+  }
+  rinfo->use_local_context = 1;
+  RAI_DagOp *currentDagOp = NULL;
+  RAI_InitDagOp(&currentDagOp);
+  array_append(rinfo->dagOps, currentDagOp);
+
+  int persistFlag = 0;
+  int loadFlag = 0;
+  int chainingOpCount = 0;
+  const char *deviceStr = NULL;
+
+  for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
+    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (!strcasecmp(arg_string, "LOAD")) {
+      loadFlag = 1;
+      const int parse_result = RAI_parseDAGLoadArgs(
+          ctx, &argv[argpos], argc - argpos, &(rinfo->dagTensorsLoadedContext),
+          &(rinfo->dagTensorsContext), "|>");
+      if (parse_result > 0) {
+        argpos += parse_result - 1;
+      } else {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return REDISMODULE_ERR;
+      }
+    } else if (!strcasecmp(arg_string, "PERSIST")) {
+      if (dagMode == REDISAI_DAG_READONLY_MODE) {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return RedisModule_ReplyWithError(
+            ctx, "ERR PERSIST cannot be specified in a read-only DAG");
+      }
+      persistFlag = 1;
+      const int parse_result =
+          RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
+                                  &(rinfo->dagTensorsPersistentContext), "|>");
+      if (parse_result > 0) {
+        argpos += parse_result - 1;
+      } else {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return REDISMODULE_ERR;
+      }
+    } else if (!strcasecmp(arg_string, "|>")) {
+      // on the first pipe operator, if LOAD or PERSIST were used, we've already
+      // allocated memory
+      if (!((persistFlag == 1 || loadFlag == 1) && chainingOpCount == 0)) {
+        rinfo->dagNumberCommands++;
+        RAI_DagOp *currentDagOp = NULL;
+        RAI_InitDagOp(&currentDagOp);
+        array_append(rinfo->dagOps, currentDagOp);
+      }
+      chainingOpCount++;
+    } else {
+      if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType =
+            REDISAI_DAG_CMD_TENSORGET;
+      }
+      if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType =
+            REDISAI_DAG_CMD_TENSORSET;
+      }
+      if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+        if (argc - 2 < argpos) {
+          return RedisModule_WrongArity(ctx);
+        }
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType =
+            REDISAI_DAG_CMD_MODELRUN;
+        RAI_Model *mto;
+        RedisModuleKey *modelKey;
+        const int status = RAI_GetModelFromKeyspace(
+            ctx, argv[argpos + 1], &modelKey, &mto, REDISMODULE_READ);
+        if (status == REDISMODULE_ERR) {
+          RAI_FreeRunInfo(ctx, rinfo);
+          return REDISMODULE_ERR;
+        }
+        if (deviceStr == NULL) {
+          deviceStr = mto->devicestr;
+        } else {
+          // If the device strings are not equivalent, reply with error ( for
+          // now )
+          if (strcasecmp(mto->devicestr, deviceStr) != 0) {
+            RAI_FreeRunInfo(ctx, rinfo);
+            return RedisModule_ReplyWithError(
+                ctx, "ERR multi-device DAGs not supported yet");
+            ;
+          }
+        }
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos + 1];
+        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
+            RAI_ModelRunCtxCreate(mto);
+      }
+      if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
+        if (argc - 3 < argpos) {
+          return RedisModule_WrongArity(ctx);
+        }
+        rinfo->dagOps[rinfo->dagNumberCommands]->commandType =
+            REDISAI_DAG_CMD_SCRIPTRUN;
+        RAI_Script *sto;
+        RedisModuleKey *scriptKey;
+        const int status = RAI_GetScriptFromKeyspace(
+            ctx, argv[argpos + 1], &scriptKey, &sto, REDISMODULE_READ);
+        if (status == REDISMODULE_ERR) {
+          RAI_FreeRunInfo(ctx, rinfo);
+          return REDISMODULE_ERR;
+        }
+        if (deviceStr == NULL) {
+          deviceStr = sto->devicestr;
+        } else {
+          // If the device strings are not equivalent, reply with error ( for
+          // now )
+          if (strcasecmp(sto->devicestr, deviceStr) != 0) {
+            RAI_FreeRunInfo(ctx, rinfo);
+            return RedisModule_ReplyWithError(
+                ctx, "ERR multi-device DAGs not supported yet");
+            ;
+          }
+        }
+        const char *functionName =
+            RedisModule_StringPtrLen(argv[argpos + 2], NULL);
+        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos + 1];
+        rinfo->dagOps[rinfo->dagNumberCommands]->sctx =
+            RAI_ScriptRunCtxCreate(sto, functionName);
+      }
+      RedisModule_RetainString(NULL, argv[argpos]);
+      array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
+      rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
+    }
+  }
+
+  RunQueueInfo *run_queue_info = NULL;
+  // If there was no MODELRUN or SCRIPTRUN on the DAG, we default all ops to CPU
+  if (deviceStr == NULL) {
+    deviceStr = "CPU";
+  }
+  // If the queue does not exist, initialize it
+  if (ensureRunQueue(deviceStr, &run_queue_info) == REDISMODULE_ERR) {
+    RAI_FreeRunInfo(ctx, rinfo);
+    return RedisModule_ReplyWithError(ctx,
+                                      "ERR Queue not initialized for device");
+  }
+
+  rinfo->client =
+      RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, NULL, 0);
+
+  pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+  queuePush(run_queue_info->run_queue, rinfo);
+  pthread_cond_signal(&run_queue_info->queue_condition_var);
+  pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+
+  return REDISMODULE_OK;
+}
