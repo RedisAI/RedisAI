@@ -96,6 +96,38 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
         }
         break;
       }
+        case REDISAI_DAG_CMD_SCRIPTRUN: {
+            const int parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
+                    NULL, currentOp->argv, currentOp->argc, &(currentOp->sctx),
+                    &(currentOp->outkeys), &(currentOp->sctx->script), 1,
+                    &(rinfo->dagTensorsContext), 0, NULL, currentOp->err);
+
+            if (parse_result > 0) {
+                currentOp->result = REDISMODULE_OK;
+                const long long start = ustime();
+                currentOp->result = RAI_ScriptRun(currentOp->sctx, currentOp->err);
+                currentOp->duration_us = ustime() - start;
+                const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
+                for (size_t outputNumber = 0; outputNumber < noutputs;
+                     outputNumber++) {
+                    RAI_Tensor *tensor =
+                            RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
+                    if (tensor) {
+                        const char *key_string = RedisModule_StringPtrLen(
+                                currentOp->outkeys[outputNumber], NULL);
+                        const char *dictKey = RedisModule_Strdup(key_string);
+                        AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, tensor);
+                    } else {
+                        RAI_SetError(currentOp->err, RAI_EMODELRUN,
+                                     "ERR output tensor on DAG's SCRIPTRUN was null");
+                        currentOp->result = REDISMODULE_ERR;
+                    }
+                }
+            } else {
+                currentOp->result = REDISMODULE_ERR;
+            }
+            break;
+        }
       default: {
         /* unsupported DAG's command */
         RAI_SetError(currentOp->err, RAI_EDAGRUN,
@@ -162,6 +194,22 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         }
         break;
       }
+
+        case REDISAI_DAG_CMD_SCRIPTRUN: {
+            rinfo->dagReplyLength++;
+            struct RedisAI_RunStats *rstats = NULL;
+            const char *runkey =
+                    RedisModule_StringPtrLen(currentOp->runkey, NULL);
+            RAI_GetRunStats(runkey,&rstats);
+            if (currentOp->result == REDISMODULE_ERR) {
+                RAI_SafeAddDataPoint(rstats,0,1,1,0);
+                RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+            } else {
+                RAI_SafeAddDataPoint(rstats,currentOp->duration_us,1,0,0);
+                RedisModule_ReplyWithSimpleString(ctx, "OK");
+            }
+            break;
+        }
 
       default:
         /* no-op */

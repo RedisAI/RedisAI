@@ -67,6 +67,31 @@ def info_to_dict(info):
     return dict(zip(info[::2], info[1::2]))
 
 
+def load_resnet_test_data():
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data/imagenet')
+    labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
+    image_filename = os.path.join(test_data_path, 'dog.jpg')
+    model_filename = os.path.join(test_data_path, 'resnet50.pb')
+    script_filename = os.path.join(test_data_path, 'data_processing_script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(labels_filename, 'r') as f:
+        labels = json.load(f)
+
+    img_height, img_width = 224, 224
+
+    img = imread(image_filename)
+    img = resize(img, (img_height, img_width), mode='constant', anti_aliasing=True)
+    img = img.astype(np.uint8)
+
+    return model_pb, script, labels, img
+
+
 def load_mobilenet_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
