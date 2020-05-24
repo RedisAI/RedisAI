@@ -377,7 +377,7 @@ def test_pytorch_scriptrun(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSET', 'myscript', DEVICE, 'TAG', 'version1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -387,14 +387,58 @@ def test_pytorch_scriptrun(env):
 
     ensureSlaveSynced(con, env)
 
-    # TODO: Check why this COMMAND is hanging CI
-    # master_scriptget_result = con.execute_command('AI.SCRIPTGET', 'ket')
-    # env.assertEqual([b'CPU',script],master_scriptget_result)
-    #
-    # if env.useSlaves:
-    #     con2 = env.getSlaveConnection()
-    #     slave_scriptget_result = con2.execute_command('AI.SCRIPTGET', 'ket')
-    #     env.assertEqual(master_scriptget_result, slave_scriptget_result)
+    for _ in range( 0,100):
+
+        ret = con.execute_command('AI.SCRIPTRUN', 'myscript', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
+        env.assertEqual(ret, b'OK')
+
+
+    ensureSlaveSynced(con, env)
+
+    info = con.execute_command('AI.INFO', 'myscript')
+    info_dict_0 = info_to_dict(info)
+
+    env.assertEqual(info_dict_0['key'], 'myscript')
+    env.assertEqual(info_dict_0['type'], 'SCRIPT')
+    env.assertEqual(info_dict_0['backend'], 'TORCH')
+    env.assertEqual(info_dict_0['tag'], 'version1')
+    env.assertTrue(info_dict_0['duration'] > 0)
+    env.assertEqual(info_dict_0['samples'], -1)
+    env.assertEqual(info_dict_0['calls'], 100)
+    env.assertEqual(info_dict_0['errors'], 0)
+
+    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    ensureSlaveSynced(con, env)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        values2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
+        env.assertEqual(values2, values)
+
+def test_pytorch_scriptrun_errors(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    script_filename = os.path.join(test_data_path, 'script.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
 
     # ERR no script at key from SCRIPTGET
     try:
@@ -474,32 +518,6 @@ def test_pytorch_scriptrun(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
-    con.execute_command('AI.SCRIPTRUN', 'ket', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'ket')
-    info_dict_0 = info_to_dict(info)
-
-    env.assertEqual(info_dict_0['key'], 'ket')
-    env.assertEqual(info_dict_0['type'], 'SCRIPT')
-    env.assertEqual(info_dict_0['backend'], 'TORCH')
-    env.assertEqual(info_dict_0['tag'], 'asdf')
-    env.assertTrue(info_dict_0['duration'] > 0)
-    env.assertEqual(info_dict_0['samples'], -1)
-    env.assertEqual(info_dict_0['calls'], 4)
-    env.assertEqual(info_dict_0['errors'], 3)
-
-    values = con.execute_command('AI.TENSORGET', 'c', 'VALUES')
-    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
-
-    ensureSlaveSynced(con, env)
-
-    if env.useSlaves:
-        con2 = env.getSlaveConnection()
-        values2 = con2.execute_command('AI.TENSORGET', 'c', 'VALUES')
-        env.assertEqual(values2, values)
-
 
 def test_pytorch_scriptinfo(env):
     if not TEST_PT:
@@ -528,7 +546,7 @@ def test_pytorch_scriptinfo(env):
     ensureSlaveSynced(con, env)
 
     previous_duration = 0
-    for call in range(1, 10):
+    for call in range(1, 100):
         ret = con.execute_command('AI.SCRIPTRUN', 'ket_script', 'bar', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
