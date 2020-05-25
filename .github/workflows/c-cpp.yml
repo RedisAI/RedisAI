@@ -19,6 +19,7 @@ jobs:
       run: |
         git clone git://github.com/antirez/redis.git --branch 6.0; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
         ./get_deps.sh cpu
+        pip3 install git+https://github.com/RedisLabsModules/RLTest.git
     - name: make
       run: ALL=1 make -C opt clean build
     - name: Test
