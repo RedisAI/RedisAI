@@ -37,7 +37,7 @@ nav:
   - 'Performance': performance.md
   - 'Examples': examples.md
   - 'Contributing': contrib.md
-  
+
 markdown_extensions:
   - admonition
   - pymdownx.arithmatex
