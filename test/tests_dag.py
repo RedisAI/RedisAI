@@ -137,6 +137,140 @@ def test_dagro_common_errors(env):
         env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
 
 
+def test_dagrun_ro_modelrun_scriptrun_resnet(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+    model_name = 'imagenet_model'
+    script_name = 'imagenet_script'
+    inputvar = 'images'
+    outputvar = 'output'
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                        'INPUTS', inputvar,
+                        'OUTPUTS', outputvar,
+                        'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+    #
+    for opnumber in range(1,100):
+        image_key = 'image'
+        temp_key1 = 'temp_key1'
+        temp_key2 = 'temp_key2'
+        class_key = 'output'
+
+        ret = con.execute_command(
+            'AI.DAGRUN_RO', '|>',
+            'AI.TENSORSET', image_key,
+            'UINT8', img.shape[1], img.shape[0], 3,
+            'BLOB', img.tobytes(), '|>',
+            'AI.SCRIPTRUN',  script_name,
+            'pre_process_3ch', 'INPUTS', image_key, 'OUTPUTS', temp_key1,  '|>',
+            'AI.MODELRUN', model_name,
+            'INPUTS', temp_key1, 'OUTPUTS', temp_key2,  '|>',
+            'AI.SCRIPTRUN',  script_name,
+            'post_process', 'INPUTS', temp_key2, 'OUTPUTS', class_key, '|>',
+            'AI.TENSORGET', class_key, 'VALUES'
+        )
+        env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret[0:4])
+        # tf model has 100 classes [0,999]
+        env.assertEqual(ret[4][0]>=0 and ret[4][0]<1001, True)
+
+def test_dagrun_modelrun_scriptrun_resnet(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+    model_name = 'imagenet_model'
+    script_name = 'imagenet_script'
+    inputvar = 'images'
+    outputvar = 'output'
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    #
+    for opnumber in range(1,100):
+        image_key = 'image'
+        temp_key1 = 'temp_key1'
+        temp_key2 = 'temp_key2'
+        class_key = 'output'
+
+        ret = con.execute_command(
+            'AI.DAGRUN',
+                        'PERSIST', '1', class_key, '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
+            'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,  '|>',
+            'AI.MODELRUN', model_name,
+                         'INPUTS', temp_key1,
+                         'OUTPUTS', temp_key2,  '|>',
+            'AI.SCRIPTRUN',  script_name, 'post_process',
+                          'INPUTS', temp_key2,
+                          'OUTPUTS', class_key
+        )
+        env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret)
+
+        ret = con.execute_command('AI.TENSORGET', class_key, 'VALUES' )
+        # tf model has 100 classes [0,999]
+        env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
+
+def test_dag_scriptrun_errors(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+    model_name = 'imagenet_model'
+    script_name = 'imagenet_script'
+    inputvar = 'images'
+    outputvar = 'output'
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+
+    # ERR wrong number of inputs
+    try:
+        image_key = 'image'
+        temp_key1 = 'temp_key1'
+        temp_key2 = 'temp_key2'
+        class_key = 'output'
+
+        ret = con.execute_command(
+            'AI.DAGRUN','|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
+            'AI.SCRIPTRUN',  script_name,
+            'INPUTS', image_key,
+            'OUTPUTS', temp_key1,  '|>',
+            'AI.MODELRUN', model_name,
+            'INPUTS', temp_key1,
+            'OUTPUTS', temp_key2,  '|>',
+            'AI.SCRIPTRUN',  script_name, 'post_process',
+            'INPUTS', temp_key2,
+            'OUTPUTS', class_key
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+
+
 def test_dag_modelrun_financialNet_errors(env):
     if not TEST_TF:
         return

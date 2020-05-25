@@ -149,9 +149,7 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
   sctx->script = RAI_ScriptGetShallowCopy(script);
   sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
   sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
-  size_t fnname_len = strlen(fnname);
-  sctx->fnname = RedisModule_Calloc(fnname_len, sizeof(char));
-  memcpy(sctx->fnname, fnname, fnname_len);
+  sctx->fnname = RedisModule_Strdup(fnname);
   return sctx;
 }
 
@@ -245,4 +243,93 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
   }
   *script = RedisModule_ModuleTypeGetValue(*key);
   return REDISMODULE_OK;
+}
+
+/**
+ * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+ */
+int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
+                                        RedisModuleString **argv, int argc,
+                                        RAI_ScriptRunCtx **sctx,
+                                        RedisModuleString ***outkeys,
+                                        struct RAI_Script **sto, int useLocalContext,
+                                        AI_dict **localContextDict,
+                                        int use_chaining_operator,
+                                        const char *chaining_operator, RAI_Error *error) {
+    if (argc < 6) {
+        RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN,
+                                "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
+        return -1;
+    }
+
+    const char *inputstr = RedisModule_StringPtrLen(argv[3], NULL);
+    if (strcasecmp(inputstr, "INPUTS")) {
+        RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR INPUTS not specified");
+        return -1;
+    }
+
+    // parsing aux vars
+    int is_input = 0;
+    int outputs_flag_count = 0;
+    size_t argpos = 4;
+
+    for (; argpos <= argc - 1; argpos++) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if(!arg_string){
+            RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR NULL argument on scriptrun");
+            return -1;
+        }
+        if (use_chaining_operator == 1) {
+            if (!strcasecmp(arg_string, chaining_operator)) {
+                break;
+            }
+        }
+        if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
+            is_input = 1;
+            outputs_flag_count = 1;
+        } else {
+            RedisModule_RetainString(ctx, argv[argpos]);
+            if (is_input == 0) {
+                RAI_Tensor *inputTensor;
+                if (useLocalContext == 0) {
+                    RedisModuleKey *tensorKey;
+                    const int status = RAI_GetTensorFromKeyspace(
+                            ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
+                    if (status == REDISMODULE_ERR) {
+                        // TODO: free rinfo
+                        return -1;
+                    }
+                    RedisModule_CloseKey(tensorKey);
+                } else {
+                    const int get_result = RAI_getTensorFromLocalContext(
+                            ctx, *localContextDict, arg_string, &inputTensor,error);
+                    if (get_result == REDISMODULE_ERR) {
+                        return -1;
+                    }
+                }
+                if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor)) {
+                    RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR Input key not found");
+                    return -1;
+                }
+            } else {
+                if (!RAI_ScriptRunCtxAddOutput(*sctx)) {
+                    RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR Output key not found");
+                    return -1;
+                }
+                *outkeys=array_append(*outkeys,argv[argpos]);
+            }
+        }
+    }
+    return argpos;
+}
+
+void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCode code, const char* errorMessage ){
+    if (ctx == NULL) {
+        if(!error){
+            return;
+        }
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+    } else {
+        RedisModule_ReplyWithError(ctx, errorMessage);
+    }
 }
