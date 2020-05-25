@@ -242,7 +242,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx){
       .free = RAI_Tensor_DTFree,
       .digest = NULL,
   };
-  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", 0, &tmTensor);
+  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", RAI_ENC_VER_MM, &tmTensor);
   return RedisAI_TensorType != NULL;
 }
 

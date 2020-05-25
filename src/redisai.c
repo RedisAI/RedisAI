@@ -456,7 +456,12 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (meta && blob) {
     RedisModule_ReplyWithCString(ctx, "blob");
-    RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
+    const size_t n_chunks = len / RAI_CHUNK_LEN + 1;
+    RedisModule_ReplyWithArray(ctx, (long)n_chunks);
+    for (size_t i=0; i<n_chunks; i++) {
+      size_t chunk_len = i < n_chunks - 1 ? RAI_CHUNK_LEN : len % RAI_CHUNK_LEN;
+      RedisModule_ReplyWithStringBuffer(ctx, buffer + i * RAI_CHUNK_LEN, chunk_len);
+    }
     RedisModule_Free(buffer);
   }
 
