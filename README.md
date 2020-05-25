@@ -68,6 +68,13 @@ redis-cli
 ```
 
 ## Building
+
+You should obtain the module's source code and submodule using git like so: 
+
+```sh
+git clone --recursive https://github.com/RedisAI/RedisAI
+```
+
 This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA 10.0 to be installed.
 
 ```sh
