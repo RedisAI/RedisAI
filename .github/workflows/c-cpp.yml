@@ -16,4 +16,8 @@ jobs:
         git clone git://github.com/antirez/redis.git --branch 6.0; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
         ./get_deps.sh cpu
     - name: make
-      run: ALL=1 make -C opt clean build
+      run: make -C opt all SHOW=1
+    - name: Test
+      run: |
+        mkdir -p ~/workspace/tests
+        make -C opt test SHOW=1
