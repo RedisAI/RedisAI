@@ -1,6 +1,10 @@
 name: C/C++ CI
 
-on: [push, pull_request]
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: '0 2 * * *' # run at 2 AM UTC
 
 jobs:
   build:
@@ -16,7 +20,7 @@ jobs:
         git clone git://github.com/antirez/redis.git --branch 6.0; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
         ./get_deps.sh cpu
     - name: make
-      run: make -C opt all SHOW=1
+      run: ALL=1 make -C opt clean build
     - name: Test
       run: |
         mkdir -p ~/workspace/tests
