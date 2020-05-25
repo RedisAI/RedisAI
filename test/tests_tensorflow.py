@@ -789,7 +789,7 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
                               'post_process', 'INPUTS', temp_key2, 'OUTPUTS', outputvar )
     env.assertEqual(ret, b'OK')
 
-    ensureSlaveSynced(red, env)
+    ensureSlaveSynced(ret, env)
 
     ret = con.execute_command('AI.TENSORGET', outputvar, 'VALUES' )
     # tf model has 100 classes [0,999]
