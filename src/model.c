@@ -26,7 +26,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   //      the ability to load older versions of our data structure. */
   //   return NULL;
   // }
-  printf("A\n");
 
   RAI_Backend backend = RedisModule_LoadUnsigned(io);
   const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
@@ -38,8 +37,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
 
   const size_t ninputs = RedisModule_LoadUnsigned(io);
   const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
-
-  printf("B\n");
 
   for (size_t i=0; i<ninputs; i++) {
     inputs[i] = RedisModule_LoadStringBuffer(io, NULL);
@@ -53,8 +50,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     outputs[i] = RedisModule_LoadStringBuffer(io, NULL);
   }
 
-  printf("C\n");
-
   RAI_ModelOpts opts = {
     .batchsize = batchsize,
     .minbatchsize = minbatchsize,
@@ -65,27 +60,20 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   size_t len;
   char *buffer = NULL;
 
-  printf("ENCVER %d\n", encver);
-
   if (encver <= 100) {
     buffer = RedisModule_LoadStringBuffer(io, &len);
   }
   else {
     len = RedisModule_LoadUnsigned(io);
-    printf("LEN %d\n", len);
     buffer = RedisModule_Alloc(len);
     const size_t n_chunks = RedisModule_LoadUnsigned(io);
-    printf("NCHUNKS %d\n", n_chunks);
     for (size_t i=0; i<n_chunks; i++) {
       size_t chunk_len;
       char *chunk_buffer = RedisModule_LoadStringBuffer(io, &chunk_len);
-      printf("CHUNKLEN %d\n", chunk_len);
       memcpy(buffer + i * RAI_CHUNK_LEN, chunk_buffer, chunk_len);
       RedisModule_Free(chunk_buffer);
     }
   }
-
-  printf("D\n");
 
   RAI_Error err = {0};
 
@@ -104,8 +92,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs, buffer, len, &err);
   }
  
-  printf("E\n");
-
   if (err.code != RAI_OK) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
     RedisModule_Log(ctx, "error", err.detail);
@@ -120,8 +106,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   RedisModule_Free(outputs);
   RedisModule_Free(buffer);
 
-  printf("F\n");
-
   RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
   RedisModuleString* stats_keystr = RedisModule_CreateStringFromString(stats_ctx,
                                                                        RedisModule_GetKeyNameFromIO(io));
@@ -131,8 +115,6 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
 
   RedisModule_Free(stats_keystr);
-
-  printf("G\n");
 
   return model;
 }
