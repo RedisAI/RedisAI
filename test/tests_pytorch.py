@@ -62,22 +62,31 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    env.assertEqual(len(ret), 14)
+    # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'TORCH')
+        env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[7], 0)
+    env.assertEqual(ret[9], 0)
+    # assert there are no inputs or outputs
+    env.assertEqual(len(ret[11]), 0)
+    env.assertEqual(len(ret[13]), 0)
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'my:tag:v3', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
-
-
-    # TODO: enable me
-    # env.assertEqual(ret[0], b'TORCH')
-    # env.assertEqual(ret[1], b'CPU')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'my:tag:v3')
+    # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'TORCH')
+        env.assertEqual(ret[3], b'CPU')
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', wrong_model_pb)
