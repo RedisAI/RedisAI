@@ -175,7 +175,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
     env.assertEqual(len(ret), 14)
     # TODO: enable me. CI is having issues on GPU asserts of ONNX and CPU
-        if DEVICE == "CPU":
+    if DEVICE == "CPU":
         env.assertEqual(ret[1], b'ONNX')
         env.assertEqual(ret[3], b'CPU')
     env.assertEqual(ret[5], b'')
