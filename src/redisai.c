@@ -368,7 +368,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto;
   RedisModuleKey *key;
-  const int status = RAI_GetModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
+  const int status = RAI_GetModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ );
   if (status == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
@@ -418,12 +418,12 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return REDISMODULE_OK;
   }
 
-  int outentries = blob ? 8 : 6;
+  const int outentries = blob ? 16 : 14;
 
   RedisModule_ReplyWithArray(ctx, outentries);
 
   RedisModule_ReplyWithCString(ctx, "backend");
-  const char* backendstr = RAI_BackendName(mto->backend);
+  const char *backendstr = RAI_BackendName(mto->backend);
   RedisModule_ReplyWithCString(ctx, backendstr);
 
   RedisModule_ReplyWithCString(ctx, "device");
@@ -431,6 +431,28 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithCString(ctx, "tag");
   RedisModule_ReplyWithCString(ctx, mto->tag ? mto->tag : "");
+
+  RedisModule_ReplyWithCString(ctx, "batchsize");
+  RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.batchsize);
+
+  RedisModule_ReplyWithCString(ctx, "minbatchsize");
+  RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchsize);
+
+  RedisModule_ReplyWithCString(ctx, "inputs");
+  const size_t ninputs = array_len(mto->inputs);
+  RedisModule_ReplyWithArray(ctx, (long)ninputs);
+
+  for (size_t i = 0; i < ninputs; i++) {
+    RedisModule_ReplyWithCString(ctx, mto->inputs[i]);
+  }
+
+  RedisModule_ReplyWithCString(ctx, "outputs");
+  const size_t noutputs = array_len(mto->outputs);
+  RedisModule_ReplyWithArray(ctx, (long)noutputs);
+
+  for (size_t i = 0; i < noutputs; i++) {
+    RedisModule_ReplyWithCString(ctx, mto->outputs[i]);
+  }
 
   if (meta && blob) {
     RedisModule_ReplyWithCString(ctx, "blob");

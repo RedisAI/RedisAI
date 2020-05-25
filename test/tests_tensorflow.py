@@ -187,23 +187,28 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[11][0], b'a')
+    env.assertEqual(ret[11][1], b'b')
+    env.assertEqual(ret[13][0], b'mul')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'version:1',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
-
-
-    # TODO: enable me
-    # env.assertEqual(ret[0], b'TF')
-    # env.assertEqual(ret[1], b'CPU')
+    env.assertEqual(len(ret), 14)
+    # TODO: enable me. CI is having issues on GPU asserts of TF and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'TF')
+        env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'version:1')
+    env.assertEqual(ret[11][0], b'a')
+    env.assertEqual(ret[11][1], b'b')
+    env.assertEqual(ret[13][0], b'mul')
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT',
                         2, 2, 'VALUES', 2, 3, 2, 3)
@@ -258,8 +263,10 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[11][0], b'x')
+    env.assertEqual(ret[13][0], b'Identity')
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
                               'INPUTS', 'x', 'OUTPUTS', 'Identity', 'BLOB', model_pb)
@@ -268,8 +275,10 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'asdf')
+    env.assertEqual(ret[11][0], b'x')
+    env.assertEqual(ret[13][0], b'Identity')
 
     zero_values = [0] * (28 * 28)
 
