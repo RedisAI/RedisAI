@@ -62,17 +62,25 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[1], b'TORCH')
+    env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[7], 0)
+    env.assertEqual(ret[9], 0)
+    # assert there are no inputs or outputs
+    env.assertEqual(len(ret[11]), 0)
+    env.assertEqual(len(ret[13]), 0)
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'TAG', 'my:tag:v3', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'my:tag:v3')
 
 
     # TODO: enable me
