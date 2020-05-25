@@ -884,7 +884,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
-  return RedisAI_DagRun_syntax_parser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -896,7 +896,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
-  return RedisAI_DagRun_syntax_parser(ctx, argv, argc,
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc,
                                       REDISAI_DAG_READONLY_MODE);
 }
 

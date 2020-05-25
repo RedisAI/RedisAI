@@ -374,7 +374,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   return argpos;
 }
 
-int RedisAI_DagRun_syntax_parser(RedisModuleCtx *ctx, RedisModuleString **argv,
+int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
@@ -466,7 +466,6 @@ int RedisAI_DagRun_syntax_parser(RedisModuleCtx *ctx, RedisModuleString **argv,
             RAI_FreeRunInfo(ctx, rinfo);
             return RedisModule_ReplyWithError(
                 ctx, "ERR multi-device DAGs not supported yet");
-            ;
           }
         }
         rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos + 1];
@@ -496,7 +495,6 @@ int RedisAI_DagRun_syntax_parser(RedisModuleCtx *ctx, RedisModuleString **argv,
             RAI_FreeRunInfo(ctx, rinfo);
             return RedisModule_ReplyWithError(
                 ctx, "ERR multi-device DAGs not supported yet");
-            ;
           }
         }
         const char *functionName =

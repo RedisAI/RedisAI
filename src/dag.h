@@ -84,7 +84,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
  * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or REDISAI_DAG_WRITE_MODE
  * @return
  */
-int RedisAI_DagRun_syntax_parser(RedisModuleCtx *ctx, RedisModuleString **argv,
+int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode);
 
 #endif /* SRC_DAG_H_ */
