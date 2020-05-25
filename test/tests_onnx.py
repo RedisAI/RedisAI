@@ -36,21 +36,27 @@ def test_onnx_modelrun_mnist(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'')
+    # assert there are no inputs or outputs
+    env.assertEqual(len(ret[11]), 0)
+    env.assertEqual(len(ret[13]), 0)
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'TAG', 'version:2', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
- 
-    # TODO: enable me
-    # env.assertEqual(ret[0], b'ONNX')
-    # env.assertEqual(ret[1], b'CPU')
+    env.assertEqual(len(ret), 14)
+    # TODO: enable me. CI is having issues on GPU asserts of ONNX and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'ONNX')
+        env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'version:2')
+    # assert there are no inputs or outputs
+    env.assertEqual(len(ret[11]), 0)
+    env.assertEqual(len(ret[13]), 0)
 
     try:
         con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'BLOB', wrong_model_pb)
@@ -165,6 +171,19 @@ def test_onnx_modelrun_mnist_autobatch(env):
     ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', 'CPU',
                               'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    env.assertEqual(len(ret), 14)
+    # TODO: enable me. CI is having issues on GPU asserts of ONNX and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'ONNX')
+        env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[7], 2)
+    env.assertEqual(ret[9], 2)
+    # assert there are no inputs or outputs
+    env.assertEqual(len(ret[11]), 0)
+    env.assertEqual(len(ret[13]), 0)
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
