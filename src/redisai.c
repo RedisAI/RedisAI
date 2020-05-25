@@ -678,7 +678,6 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
-  RedisModule_ReplicateVerbatim(ctx);
   RedisModule_CloseKey(key);
 
   return REDISMODULE_OK;
