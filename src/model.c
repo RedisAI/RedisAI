@@ -556,11 +556,6 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
     if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
       is_input = 1;
       outputs_flag_count = 1;
-      const size_t expected_noutputs = argc - argpos - 1;
-      // if (expected_noutputs > 0) {
-      //   *outkeys =
-      //       RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
-      // }
     } else {
       RedisModule_RetainString(ctx, argv[argpos]);
       if (is_input == 0) {
@@ -610,6 +605,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
           } else {
             RedisModule_ReplyWithError(ctx, "ERR Output key not found");
           }
+          return -1;
         }
         *outkeys=array_append(*outkeys,argv[argpos]);
         // (*outkeys)[noutputs] = argv[argpos];

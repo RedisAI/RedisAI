@@ -551,6 +551,7 @@ _Arguments_
     * `AI.TENSORSET`
     * `AI.TENSORGET`
     * `AI.MODELRUN`
+    * `AI.SCRIPTRUN`
 
 _Return_
 
@@ -573,6 +574,30 @@ redis> AI.DAGRUN PERSIST 1 predictions |>
       2) (integer) 2
    3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
+
+A common pattern is enqueuing multiple SCRIPTRUN and MODELRUN commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+
+To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
+
+```
+redis> AI.DAGRUN_RO |> 
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
+            AI.SCRIPTRUN imagenet_script pre_process_3ch INPUTS image OUTPUTS temp_key1 |> 
+            AI.MODELRUN imagenet_model INPUTS temp_key1 OUTPUTS temp_key2 |> 
+            AI.SCRIPTRUN imagenet_script post_process INPUTS temp_key2 OUTPUTS output |> 
+            AI.TENSORGET output VALUES
+1) OK
+2) OK
+3) OK
+4) OK
+5) 1) 1) (integer) 111
+```
+
+As visible on the array reply, the label position with higher classification was 111. 
+
+By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
+
+
 
 !!! warning "Intermediate memory overhead"
     The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
