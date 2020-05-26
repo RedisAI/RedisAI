@@ -52,4 +52,4 @@ plugins:
   - search
   - include:
       src_path: docs/snippets
-  - versions-menu:
+  - versions-menu
