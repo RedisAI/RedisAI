@@ -23,8 +23,8 @@ jobs:
       run: python -c "import sys; print(sys.version)"
     - name: Install docs dependencies
       run: pip install -r docs/requirements.txt
-    - name: Setup tmate session
-      uses: mxschmitt/action-tmate@v2
+    - name: Get entire project
+      run: git fetch
     - name: Build docs
       run: mkdocs build
     - uses: jakejarvis/s3-sync-action@v0.5.1
