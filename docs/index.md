@@ -20,7 +20,7 @@ RedisAI is a joint effort between [Redis Labs](https://www.redislabs.com) and [T
   * [Docker image](https://hub.docker.com/r/redisai/redisai/)
 
 ## Contact Us
-If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
+If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's how you can contact us:
 
   * [Forum](https://forum.redislabs.com/c/modules/redisai)
   * [Gitter chatroom](https://gitter.im/RedisLabs/RedisAI)
