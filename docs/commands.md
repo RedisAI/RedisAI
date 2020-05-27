@@ -216,6 +216,10 @@ An array of alternating key-value pairs as follows:
 1. **BACKEND**: the backend used by the model as a String
 1. **DEVICE**: the device used to execute the model as a String
 1. **TAG**: the model's tag as a String
+1. **BATCHSIZE**: The maximum size of any batch of incoming requests. If `BATCHSIZE` is equal to 0 each incoming request is served immediately. When `BATCHSIZE` is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape.
+1. **MINBATCHSIZE**: The minimum size of any batch of incoming requests.
+1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
+1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
 1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
 
 **Examples**
@@ -224,12 +228,21 @@ Assuming that your model is stored under the 'mymodel' key, you can obtain its m
 
 ```
 redis> AI.MODELGET mymodel META
-1) "backend"
-2) TF
-3) "device"
-4) CPU
-5) "tag"
-6) imagenet:5.0
+ 1) "backend"
+ 2) "TF"
+ 3) "device"
+ 4) "CPU"
+ 5) "tag"
+ 6) "imagenet:5.0"
+ 7) "batchsize"
+ 8) (integer) 0
+ 9) "minbatchsize"
+10) (integer) 0
+11) "inputs"
+12) 1) "a"
+    2) "b"
+13) "outputs"
+14) 1) "c"
 ```
 
 You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
