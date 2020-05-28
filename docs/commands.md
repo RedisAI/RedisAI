@@ -397,8 +397,8 @@ AI.SCRIPTGET <key> [META] [SOURCE]
 _Arguments_
 
 * **key**: the script's key name
-* **TAG**: an optional string information on backend, device and tag
-* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
+* **META**: will return the script's meta information on device and tag
+* **SOURCE**: will return a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
 
