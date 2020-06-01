@@ -187,23 +187,28 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[11][0], b'a')
+    env.assertEqual(ret[11][1], b'b')
+    env.assertEqual(ret[13][0], b'mul')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
+    ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'version:1',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
-
-
-    # TODO: enable me
-    # env.assertEqual(ret[0], b'TF')
-    # env.assertEqual(ret[1], b'CPU')
+    env.assertEqual(len(ret), 14)
+    # TODO: enable me. CI is having issues on GPU asserts of TF and CPU
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'TF')
+        env.assertEqual(ret[3], b'CPU')
+    env.assertEqual(ret[5], b'version:1')
+    env.assertEqual(ret[11][0], b'a')
+    env.assertEqual(ret[11][1], b'b')
+    env.assertEqual(ret[13][0], b'mul')
 
     con.execute_command('AI.TENSORSET', 'a', 'FLOAT',
                         2, 2, 'VALUES', 2, 3, 2, 3)
@@ -258,8 +263,10 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[11][0], b'x')
+    env.assertEqual(ret[13][0], b'Identity')
 
     ret = con.execute_command('AI.MODELSET', 'm', 'TF', DEVICE, 'TAG', 'asdf',
                               'INPUTS', 'x', 'OUTPUTS', 'Identity', 'BLOB', model_pb)
@@ -268,8 +275,10 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm', 'META')
-    env.assertEqual(len(ret), 6)
-    env.assertEqual(ret[-1], b'asdf')
+    env.assertEqual(len(ret), 14)
+    env.assertEqual(ret[5], b'asdf')
+    env.assertEqual(ret[11][0], b'x')
+    env.assertEqual(ret[13][0], b'Identity')
 
     zero_values = [0] * (28 * 28)
 
@@ -745,3 +754,52 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
     total_ops = len(transaction_tensor)*100
     avg_ops_sec = total_ops/elapsed_time
     # env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)
+
+
+def test_tensorflow_modelrun_scriptrun_resnet(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+    model_name = 'imagenet_model'
+    script_name = 'imagenet_script'
+    inputvar = 'images'
+    outputvar = 'output'
+
+
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    image_key = 'image1'
+    temp_key1 = 'temp_key1'
+    temp_key2 = 'temp_key2'
+
+    ret = con.execute_command('AI.TENSORSET', image_key,
+                              'UINT8', img.shape[1], img.shape[0], 3,
+                              'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTRUN',  script_name,
+                              'pre_process_3ch', 'INPUTS', image_key, 'OUTPUTS', temp_key1 )
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELRUN', model_name,
+                              'INPUTS', temp_key1, 'OUTPUTS', temp_key2 )
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.SCRIPTRUN',  script_name,
+                              'post_process', 'INPUTS', temp_key2, 'OUTPUTS', outputvar )
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.TENSORGET', outputvar, 'VALUES' )
+    # tf model has 100 classes [0,999]
+    env.assertEqual(ret[0]>=0 and ret[0]<1001, True)

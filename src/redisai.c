@@ -368,7 +368,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RAI_Model *mto;
   RedisModuleKey *key;
-  const int status = RAI_GetModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
+  const int status = RAI_GetModelFromKeyspace( ctx, argv[1], &key, &mto, REDISMODULE_READ );
   if (status == REDISMODULE_ERR) {
     return REDISMODULE_ERR;
   }
@@ -418,12 +418,12 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     return REDISMODULE_OK;
   }
 
-  int outentries = blob ? 8 : 6;
+  const int outentries = blob ? 16 : 14;
 
   RedisModule_ReplyWithArray(ctx, outentries);
 
   RedisModule_ReplyWithCString(ctx, "backend");
-  const char* backendstr = RAI_BackendName(mto->backend);
+  const char *backendstr = RAI_BackendName(mto->backend);
   RedisModule_ReplyWithCString(ctx, backendstr);
 
   RedisModule_ReplyWithCString(ctx, "device");
@@ -431,6 +431,28 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   RedisModule_ReplyWithCString(ctx, "tag");
   RedisModule_ReplyWithCString(ctx, mto->tag ? mto->tag : "");
+
+  RedisModule_ReplyWithCString(ctx, "batchsize");
+  RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.batchsize);
+
+  RedisModule_ReplyWithCString(ctx, "minbatchsize");
+  RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchsize);
+
+  RedisModule_ReplyWithCString(ctx, "inputs");
+  const size_t ninputs = array_len(mto->inputs);
+  RedisModule_ReplyWithArray(ctx, (long)ninputs);
+
+  for (size_t i = 0; i < ninputs; i++) {
+    RedisModule_ReplyWithCString(ctx, mto->inputs[i]);
+  }
+
+  RedisModule_ReplyWithCString(ctx, "outputs");
+  const size_t noutputs = array_len(mto->outputs);
+  RedisModule_ReplyWithArray(ctx, (long)noutputs);
+
+  for (size_t i = 0; i < noutputs; i++) {
+    RedisModule_ReplyWithCString(ctx, mto->outputs[i]);
+  }
 
   if (meta && blob) {
     RedisModule_ReplyWithCString(ctx, "blob");
@@ -542,122 +564,56 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 /** 
-* AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
+* AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  if (argc < 4) return RedisModule_WrongArity(ctx);
+  if (argc < 6) return RedisModule_WrongArity(ctx);
 
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+    return RedisModule_ReplyWithError(
+        ctx,
+        "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo"
+        "structure");
   }
 
-  if (RedisModule_IsKeysPositionRequest(ctx)) {
-    RedisModule_KeyAtPos(ctx, 1);
-    for (int i=3; i<argc; i++) {
-      const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
-      if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
-        continue;
-      }
-      RedisModule_KeyAtPos(ctx, i);
-    }
-    return REDISMODULE_OK;
-  }
-
-  RedisModule_AutoMemory(ctx);
-
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  RedisModuleString* keystr;
-  AC_GetRString(&ac, &keystr, 0);
+  RedisModule_RetainString(NULL, argv[1]);
+  rinfo->runkey = argv[1];
 
   RAI_Script *sto;
   RedisModuleKey *key;
-  const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
-  if(status==REDISMODULE_ERR){
-      return REDISMODULE_ERR;
+  const int status =
+      RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+  if (status == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
+  const char *functionName = RedisModule_StringPtrLen(argv[2], NULL);
+  rinfo->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
+
+  const int parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
+      ctx, argv, argc, &(rinfo->sctx), &(rinfo->outkeys), &sto, 0, NULL, 0,
+      NULL, NULL);
+  RedisModule_CloseKey(key);
+  // if the number of parsed args is negative something went wrong
+  if (parse_result < 0) {
+    return REDISMODULE_ERR;
   }
 
-  const char* fnname;
-  AC_GetString(&ac, &fnname, NULL, 0); 
-
-  ArgsCursor inac = {0};
-  ArgsCursor outac = {0};
-
-  if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, INPUTS not specified");
-  }
-
-  const char* matches[] = {"OUTPUTS"};
-  AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
-
-  if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, OUTPUTS not specified");
-  }
-
-  AC_GetSliceToEnd(&ac, &outac);
-
-  size_t ninputs = inac.argc;
-  RedisModuleString *inputs[ninputs];
-  for (size_t i=0; i<ninputs; i++) {
-    AC_GetRString(&inac, inputs+i, 0); 
-  }
-
-  size_t noutputs = outac.argc;
-  RedisModuleString *outputs[noutputs];
-  for (size_t i=0; i<noutputs; i++) {
-    AC_GetRString(&outac, outputs+i, 0); 
-  }
-
-  rinfo->sctx = RAI_ScriptRunCtxCreate(sto, fnname);
-
-  for (size_t i=0; i<ninputs; i++) {
-    RAI_Tensor *t;
-    RedisModuleKey *argkey;
-    const int status = RAI_GetTensorFromKeyspace(ctx, inputs[i], &argkey, &t, REDISMODULE_READ);
-    if(status==REDISMODULE_ERR){
-         RedisModule_CloseKey(key);
-         RAI_FreeRunInfo(ctx,rinfo);
-        return REDISMODULE_ERR;
-    }
-    RedisModule_CloseKey(argkey);
-    if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, t)) {
-      RAI_FreeRunInfo(ctx,rinfo);
-      RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "ERR Input key not found");
-    }
-  }
-
-  for (size_t i=0; i<noutputs; i++) {
-    if (!RAI_ScriptRunCtxAddOutput(rinfo->sctx)) {
-      RAI_FreeRunInfo(ctx,rinfo);
-      RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "ERR Output key not found");
-    }
-    RedisModule_RetainString(ctx, outputs[i]);
-    array_append(rinfo->outkeys,outputs[i]);
-  }
-  
-  RedisModule_RetainString(ctx, keystr);
-  rinfo->runkey = keystr;
   RunQueueInfo *run_queue_info = NULL;
-    // If the queue does not exist, initialize it
-  if (ensureRunQueue(sto->devicestr,&run_queue_info) == REDISMODULE_ERR) {
-    RAI_FreeRunInfo(ctx,rinfo);
-    return RedisModule_ReplyWithError(ctx, "ERR Queue not initialized for device");
+  // If the queue does not exist, initialize it
+  if (ensureRunQueue(sto->devicestr, &run_queue_info) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(ctx,
+                                      "ERR Queue not initialized for device");
   }
 
-  rinfo->client = RedisModule_BlockClient(ctx, RAI_ModelRunScriptRunReply, NULL, RedisAI_FreeData, 0);
+  rinfo->client = RedisModule_BlockClient(ctx, RAI_ModelRunScriptRunReply, NULL,
+                                          RedisAI_FreeData, 0);
   // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   queuePush(run_queue_info->run_queue, rinfo);
   pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  RedisModule_ReplicateVerbatim(ctx);
-  RedisModule_CloseKey(key);
 
   return REDISMODULE_OK;
 }
@@ -950,115 +906,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
-  if (argc < 4) return RedisModule_WrongArity(ctx);
-
-  RedisAI_RunInfo *rinfo = NULL;
-  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
-  }
-  rinfo->use_local_context = 1;
-  RAI_DagOp* currentDagOp = NULL;
-  RAI_InitDagOp(&currentDagOp);
-  array_append(rinfo->dagOps,currentDagOp);
-
-  int persistFlag=0;
-  int loadFlag=0;
-  int chainingOpCount=0;
-  const char* deviceStr = NULL;
-
-  for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
-    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-    if (!strcasecmp(arg_string, "LOAD")) {
-      loadFlag=1;
-      const int parse_result = RAI_parseDAGLoadArgs(
-          ctx, &argv[argpos], argc - argpos,&(rinfo->dagTensorsLoadedContext), &(rinfo->dagTensorsContext), "|>");
-      if (parse_result > 0) {
-        argpos += parse_result - 1;
-      } else {
-        RAI_FreeRunInfo(ctx,rinfo);
-        return REDISMODULE_ERR;
-      }
-    } else if (!strcasecmp(arg_string, "PERSIST")) {
-      persistFlag = 1;
-      const int parse_result =
-          RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
-                                  &(rinfo->dagTensorsPersistentContext), "|>");
-      if (parse_result > 0) {
-        argpos += parse_result - 1;
-      } else {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return REDISMODULE_ERR;
-      }
-    } else if (!strcasecmp(arg_string, "|>")) {
-      // on the first pipe operator, if LOAD or PERSIST were used, we've already
-      // allocated memory
-      if (!((persistFlag == 1 || loadFlag == 1) && chainingOpCount == 0)) {
-        rinfo->dagNumberCommands++;
-        RAI_DagOp *currentDagOp = NULL;
-        RAI_InitDagOp(&currentDagOp);
-        array_append(rinfo->dagOps, currentDagOp);
-      }
-      chainingOpCount++;
-    } else {
-      if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORGET;
-      }
-      if (!strcasecmp(arg_string, "AI.TENSORSET")) {
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORSET;
-      }
-      if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-        if (argc - 2 < argpos) {
-          return RedisModule_WrongArity(ctx);
-        }
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_MODELRUN;
-        RAI_Model *mto;
-        RedisModuleKey *modelKey;
-        const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
-                                                    &mto, REDISMODULE_READ);
-        if (status == REDISMODULE_ERR) {
-          RAI_FreeRunInfo(ctx,rinfo);
-          return REDISMODULE_ERR;
-        } 
-        if (deviceStr==NULL){
-          deviceStr=mto->devicestr;
-        }else{
-          // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(mto->devicestr, deviceStr)!=0){            
-            RAI_FreeRunInfo(ctx,rinfo);
-            return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
-          }
-        }
-        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos+1];
-        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
-            RAI_ModelRunCtxCreate(mto);
-      }
-      RedisModule_RetainString(NULL, argv[argpos]);
-      array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
-      rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
-    }
-  }
-
-  RunQueueInfo *run_queue_info = NULL;
-  // If there was no MODELRUN on the DAG, we default all ops to CPU
-  if(deviceStr==NULL){
-    deviceStr="CPU";
-  }
-  // If the queue does not exist, initialize it
-  if (ensureRunQueue(deviceStr,&run_queue_info) == REDISMODULE_ERR) {
-    RAI_FreeRunInfo(ctx,rinfo);
-    return RedisModule_ReplyWithError(
-        ctx, "ERR Queue not initialized for device");
-  }
-
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL,
-                                          NULL, 0);
-
-  pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-  queuePush(run_queue_info->run_queue, rinfo);
-  pthread_cond_signal(&run_queue_info->queue_condition_var);
-  pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  return REDISMODULE_OK;
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -1069,106 +917,9 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
  * client blocks until the computation finishes.
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                int argc) {
-  if (argc < 4) return RedisModule_WrongArity(ctx);
-
-  RedisAI_RunInfo *rinfo = NULL;
-  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
-  }
-  rinfo->use_local_context = 1;
-  RAI_DagOp* currentDagOp = NULL;
-  RAI_InitDagOp(&currentDagOp);
-  array_append(rinfo->dagOps,currentDagOp);
-
-  int loadFlag=0;
-  int chainingOpCount=0;
-  const char* deviceStr = NULL;
-
-  for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
-    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-    if (!strcasecmp(arg_string, "LOAD")) {
-      loadFlag=1;
-      const int parse_result = RAI_parseDAGLoadArgs(
-          ctx, &argv[argpos], argc - argpos,&(rinfo->dagTensorsLoadedContext), &(rinfo->dagTensorsContext), "|>");
-      if (parse_result > 0) {
-        argpos += parse_result - 1;
-      } else {
-        RAI_FreeRunInfo(ctx,rinfo);
-        return REDISMODULE_ERR;
-      }
-    } else if (!strcasecmp(arg_string, "PERSIST")) {
-      return RedisModule_ReplyWithError(ctx,"ERR PERSIST cannot be specified in a read-only DAG");;
-    } else if (!strcasecmp(arg_string, "|>")) {
-      // on the first pipe operator, if LOAD or PERSIST were used, we've already
-      // allocated memory
-      if (!(loadFlag == 1 && chainingOpCount == 0)) {
-        rinfo->dagNumberCommands++;
-        RAI_DagOp *currentDagOp = NULL;
-        RAI_InitDagOp(&currentDagOp);
-        array_append(rinfo->dagOps, currentDagOp);
-      }
-      chainingOpCount++;
-    } else {
-      if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORGET;
-      }
-      if (!strcasecmp(arg_string, "AI.TENSORSET")) {
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_TENSORSET;
-      }
-      if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-        if (argc - 2 < argpos) {
-          return RedisModule_WrongArity(ctx);
-        }
-        rinfo->dagOps[rinfo->dagNumberCommands]->commandType = REDISAI_DAG_CMD_MODELRUN;
-        RAI_Model *mto;
-        RedisModuleKey *modelKey;
-        const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos+1], &modelKey,
-                                                    &mto, REDISMODULE_READ);
-        if (status == REDISMODULE_ERR) {
-          RAI_FreeRunInfo(ctx,rinfo);
-          return REDISMODULE_ERR;
-        } 
-        if (deviceStr==NULL){
-          deviceStr=mto->devicestr;
-        }else{
-          // If the device strings are not equivalent, reply with error ( for now )
-          if(strcasecmp(mto->devicestr, deviceStr)!=0){            
-            RAI_FreeRunInfo(ctx,rinfo);
-            return RedisModule_ReplyWithError(ctx,"ERR multi-device DAGs not supported yet");;
-          }
-        }
-        rinfo->dagOps[rinfo->dagNumberCommands]->runkey = argv[argpos+1];
-        rinfo->dagOps[rinfo->dagNumberCommands]->mctx =
-            RAI_ModelRunCtxCreate(mto);
-      }
-      RedisModule_RetainString(NULL, argv[argpos]);
-      array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
-      rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
-    }
-  }
-
-  RunQueueInfo *run_queue_info = NULL;
-  // If there was no MODELRUN on the DAG, we default all ops to CPU
-  if(deviceStr==NULL){
-    deviceStr="CPU";
-  }
-  // If the queue does not exist, initialize it
-  if (ensureRunQueue(deviceStr,&run_queue_info) == REDISMODULE_ERR) {
-    RAI_FreeRunInfo(ctx,rinfo);
-    return RedisModule_ReplyWithError(
-        ctx, "ERR Queue not initialized for device");
-  }
-
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL,
-                                          NULL, 0);
-
-  pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-  queuePush(run_queue_info->run_queue, rinfo);
-  pthread_cond_signal(&run_queue_info->queue_condition_var);
-  pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  return REDISMODULE_OK;
+                                  int argc) {
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc,
+                                      REDISAI_DAG_READONLY_MODE);
 }
 
 #define EXECUTION_PLAN_FREE_MSG 100

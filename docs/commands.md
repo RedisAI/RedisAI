@@ -216,6 +216,10 @@ An array of alternating key-value pairs as follows:
 1. **BACKEND**: the backend used by the model as a String
 1. **DEVICE**: the device used to execute the model as a String
 1. **TAG**: the model's tag as a String
+1. **BATCHSIZE**: The maximum size of any batch of incoming requests. If `BATCHSIZE` is equal to 0 each incoming request is served immediately. When `BATCHSIZE` is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape.
+1. **MINBATCHSIZE**: The minimum size of any batch of incoming requests.
+1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
+1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
 1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
 
 **Examples**
@@ -224,12 +228,21 @@ Assuming that your model is stored under the 'mymodel' key, you can obtain its m
 
 ```
 redis> AI.MODELGET mymodel META
-1) "backend"
-2) TF
-3) "device"
-4) CPU
-5) "tag"
-6) imagenet:5.0
+ 1) "backend"
+ 2) "TF"
+ 3) "device"
+ 4) "CPU"
+ 5) "tag"
+ 6) "imagenet:5.0"
+ 7) "batchsize"
+ 8) (integer) 0
+ 9) "minbatchsize"
+10) (integer) 0
+11) "inputs"
+12) 1) "a"
+    2) "b"
+13) "outputs"
+14) 1) "c"
 ```
 
 You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
@@ -384,8 +397,8 @@ AI.SCRIPTGET <key> [META] [SOURCE]
 _Arguments_
 
 * **key**: the script's key name
-* **TAG**: an optional string information on backend, device and tag
-* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
+* **META**: will return the script's meta information on device and tag
+* **SOURCE**: will return a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
 
@@ -538,6 +551,7 @@ _Arguments_
     * `AI.TENSORSET`
     * `AI.TENSORGET`
     * `AI.MODELRUN`
+    * `AI.SCRIPTRUN`
 
 _Return_
 
@@ -560,6 +574,30 @@ redis> AI.DAGRUN PERSIST 1 predictions |>
       2) (integer) 2
    3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
+
+A common pattern is enqueuing multiple SCRIPTRUN and MODELRUN commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+
+To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
+
+```
+redis> AI.DAGRUN_RO |> 
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
+            AI.SCRIPTRUN imagenet_script pre_process_3ch INPUTS image OUTPUTS temp_key1 |> 
+            AI.MODELRUN imagenet_model INPUTS temp_key1 OUTPUTS temp_key2 |> 
+            AI.SCRIPTRUN imagenet_script post_process INPUTS temp_key2 OUTPUTS output |> 
+            AI.TENSORGET output VALUES
+1) OK
+2) OK
+3) OK
+4) OK
+5) 1) 1) (integer) 111
+```
+
+As visible on the array reply, the label position with higher classification was 111. 
+
+By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
+
+
 
 !!! warning "Intermediate memory overhead"
     The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.

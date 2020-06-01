@@ -1,7 +1,0 @@
-#!/bin/sh
-
-if [ ! -z $(command -v python3) ]; then
-	python3 "$@"
-else
-	python "$@"
-fi
