@@ -993,6 +993,16 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
   return REDISMODULE_OK;
 }
 
+void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
+    RedisModule_InfoAddSection(ctx, "git");
+    RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
+
+    RedisModule_InfoAddSection(ctx, "load_time_configs");
+    RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", perqueueThreadPoolSize);
+    RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
   if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1)
@@ -1011,6 +1021,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
     RedisModule_Log(ctx, "warning", "RedisAI requires Redis version equal or greater than 5.0.7");
     return REDISMODULE_ERR;
+  }
+
+  if (redisMajorVersion >= 6){
+    if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR) return REDISMODULE_ERR;
   }
 
   RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s",
