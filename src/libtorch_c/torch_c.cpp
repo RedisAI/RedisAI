@@ -190,7 +190,7 @@ struct ModuleContext {
   int64_t device_id;
 };
 
-void torchRunModule(ModuleContext* ctx, const char* fnName,
+void torchRunModule(ModuleContext* ctx, const char* fnName, int variadic,
                     long nInputs, DLManagedTensor** inputs,
                     long nOutputs, DLManagedTensor** outputs) {
   // Checks device, if GPU then move input to GPU before running
@@ -214,9 +214,23 @@ void torchRunModule(ModuleContext* ctx, const char* fnName,
   torch::jit::Stack stack;
 
   for (int i=0; i<nInputs; i++) {
+    if (i == variadic) {
+      break;
+    }
     DLTensor* input = &(inputs[i]->dl_tensor);
     torch::Tensor tensor = fromDLPack(input);
     stack.push_back(tensor.to(device));
+  }
+
+  if (variadic != -1 ) {
+    std::vector<torch::Tensor> args;
+    for (int i=variadic; i<nInputs; i++) {
+      DLTensor* input = &(inputs[i]->dl_tensor);
+      torch::Tensor tensor = fromDLPack(input);
+      tensor.to(device);
+      args.emplace_back(tensor);
+    }
+    stack.push_back(args);
   }
 
   if (ctx->module) {
@@ -351,14 +365,14 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
   return ctx;
 }
 
-extern "C" void torchRunScript(void* scriptCtx, const char* fnName,
+extern "C" void torchRunScript(void* scriptCtx, const char* fnName, int variadic,
                                long nInputs, DLManagedTensor** inputs,
                                long nOutputs, DLManagedTensor** outputs,
                                char **error, void* (*alloc)(size_t))
 {
   ModuleContext* ctx = (ModuleContext*)scriptCtx;
   try {
-    torchRunModule(ctx, fnName, nInputs, inputs, nOutputs, outputs);
+    torchRunModule(ctx, fnName, variadic, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
     const size_t len = strlen(e.what());
@@ -376,7 +390,7 @@ extern "C" void torchRunModel(void* modelCtx,
 {
   ModuleContext* ctx = (ModuleContext*)modelCtx;
   try {
-    torchRunModule(ctx, "forward", nInputs, inputs, nOutputs, outputs);
+    torchRunModule(ctx, "forward", -1, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
     const size_t len = strlen(e.what());
