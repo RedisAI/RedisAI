@@ -24,6 +24,7 @@ typedef struct queue {
 
 queue *queueCreate(void);
 void queuePush(queue *queue, void *value);
+void queueUnpop(queue *queue, void *value);
 queueItem *queuePop(queue *queue);
 queueItem *queueFront(queue *queue);
 queueItem *queueNext(queueItem *item);

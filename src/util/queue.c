@@ -35,6 +35,24 @@ void queuePush(queue *queue, void *value) {
   queue->len++;
 }
 
+void queueUnpop(queue *queue, void *value) {
+  queueItem *item;
+
+  if ((item = RedisModule_Calloc(1, sizeof(*item))) == NULL) return;
+  item->value = value;
+  item->next = NULL;
+  item->prev = NULL;
+
+  if (queue->len == 0) {
+    queue->front = queue->back = item;
+  } else {
+    queue->front->prev = item;
+    item->next = queue->front;
+    queue->front = item;
+  }
+  queue->len++;
+}
+
 queueItem *queuePop(queue *queue) {
   queueItem *item = queue->front;
   if (item == NULL) {

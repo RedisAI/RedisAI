@@ -28,12 +28,14 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 int freeRunQueueInfo(RunQueueInfo *info) {
   int result = REDISMODULE_OK;
   if (info->run_queue) {
     RedisModule_Free(info->run_queue);
   }
+  RedisModule_Free(info->devicestr);
   if (info->threads) {
     /* Wait for workers to exit */
     for (int i = 0; i < perqueueThreadPoolSize; i++) {
@@ -51,6 +53,14 @@ int freeRunQueueInfo(RunQueueInfo *info) {
 
 void *RedisAI_Run_ThreadMain(void *arg);
 
+char* strToUpper(const char* input) {
+  char* output = RedisModule_Strdup(input);
+  for (long long i=0; i<strlen(output); i++) {
+    output[i] = toupper(output[i]);
+  }
+  return output;
+}
+
 /* Ensure that the the run queue for the device exists.
  * If not, create it. */
 int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
@@ -59,13 +69,16 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
     return result;
   }
 
-  AI_dictEntry *entry = AI_dictFind(run_queues, devicestr);
+  char *devicestr_ = strToUpper(devicestr);
+
+  AI_dictEntry *entry = AI_dictFind(run_queues, devicestr_);
   if (entry) {
     *run_queue_info = AI_dictGetVal(entry);
     result = REDISMODULE_OK;
   } else {
     *run_queue_info = RedisModule_Alloc(sizeof(RunQueueInfo));
     (*run_queue_info)->run_queue = queueCreate();
+    (*run_queue_info)->devicestr = RedisModule_Strdup(devicestr_);
     pthread_cond_init(&(*run_queue_info)->queue_condition_var, NULL);
     pthread_mutex_init(&(*run_queue_info)->run_queue_mutex, NULL);
     (*run_queue_info)->threads = (pthread_t *)RedisModule_Alloc(
@@ -78,9 +91,11 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
         return REDISMODULE_ERR;
       }
     }
-    AI_dictAdd(run_queues, (void *)devicestr, (void *)*run_queue_info);
+    AI_dictAdd(run_queues, (void *)devicestr_, (void *)*run_queue_info);
     result = REDISMODULE_OK;
   }
+
+  RedisModule_Free(devicestr_);
 
   return result;
 }
@@ -102,6 +117,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
       queueItem *item = queueFront(run_queue_info->run_queue);
 
+      // TODO DAG BATCHING
+      // If a batch item is a DAG and relies on unrealized outputs, just skip it
+      // and give way to other items, since the client is surely different (given
+      // the fact that commands are blocking for the individual clent, so that
+      // the temporal sequence of commands cannot be broken).
+
       while (item) {
         RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
 
@@ -119,7 +140,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           break;
         }
 
-        // DAGRUN
+        // TODO DAG BATCHING
+        // With DAG refactoring we will be able to batch, we just
+        // need to handle outputs properly.
         if (rinfo->use_local_context==1){
           break;
         }
@@ -141,6 +164,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         while (next_item != NULL) {
           RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
 
+          // TODO DAG BATCHING
+          // make sure we lock properly when we access DagOps
           if (RAI_RunInfoBatchable(rinfo, next_rinfo) == 0) {
             next_item = queueNext(next_item);
             continue;
@@ -181,21 +206,47 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
       pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
+      int dag_progress = 0;
+      int dag_complete = 0;
       if (array_len(batch_rinfo) > 0) {
         if (batch_rinfo[0]->use_local_context == 1) {
-          RedisAI_DagRunSession(batch_rinfo[0]);
+          RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr, &dag_progress, &dag_complete);
         } else {
           RAI_ModelRunScriptRunSession(batch_rinfo);
         }
       }
 
-      for (long long i = 0; i < array_len(evicted_items); i++) {
-        RedisModule_Free(evicted_items[i]);
-      }
-      array_free(evicted_items);
       array_free(batch_rinfo);
 
       pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+
+      for (long long i = 0; i < array_len(evicted_items); i++) {
+        RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[i]->value);
+        const int use_local_context = evicted_rinfo->use_local_context;
+        pthread_mutex_lock(evicted_rinfo->dagMutex);
+        const int dagError = *evicted_rinfo->dagError;
+        pthread_mutex_unlock(evicted_rinfo->dagMutex);
+        if (use_local_context == 1 && dag_complete == 0 && !dagError) {
+          if (dag_progress) {
+            queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+          }
+          else {
+            if (queueLength(run_queue_info->run_queue) > 0) {
+              queueItem *next_item = queuePop(run_queue_info->run_queue);
+              RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
+              queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+              queueUnpop(run_queue_info->run_queue, next_rinfo);
+            }
+            else {
+              queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+            }
+          }
+        }
+        else {
+          RedisModule_Free(evicted_items[i]);
+        }
+      }
+      array_free(evicted_items);
 
       run_queue_len = queueLength(run_queue_info->run_queue);
     }

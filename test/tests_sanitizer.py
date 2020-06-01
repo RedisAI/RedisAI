@@ -31,7 +31,7 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
         class_key = 'output'
 
         ret = con.execute_command(
-            'AI.DAGRUN', '|>',
+            'AI.DAGRUN',
             'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(), 
             '|>',
             'AI.MODELRUN', model_name,

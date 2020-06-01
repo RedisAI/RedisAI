@@ -66,7 +66,7 @@ def test_dag_common_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("unsupported command within DAG",exception.__str__())
 
     # ERR wrong number of arguments for 'AI.DAGRUN' command
     try:
@@ -113,7 +113,7 @@ def test_dagro_common_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("unsupported command within DAG",exception.__str__())
 
     # ERR wrong number of arguments for 'AI.DAGRUN' command
     try:
@@ -163,7 +163,7 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
         class_key = 'output'
 
         ret = con.execute_command(
-            'AI.DAGRUN_RO', '|>',
+            'AI.DAGRUN_RO',
             'AI.TENSORSET', image_key,
             'UINT8', img.shape[1], img.shape[0], 3,
             'BLOB', img.tobytes(), '|>',
@@ -178,6 +178,7 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
         env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret[0:4])
         # tf model has 100 classes [0,999]
         env.assertEqual(ret[4][0]>=0 and ret[4][0]<1001, True)
+
 
 def test_dagrun_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
@@ -225,6 +226,7 @@ def test_dagrun_modelrun_scriptrun_resnet(env):
         # tf model has 100 classes [0,999]
         env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
 
+
 def test_dag_scriptrun_errors(env):
     if (not TEST_TF or not TEST_PT):
         return
@@ -243,7 +245,6 @@ def test_dag_scriptrun_errors(env):
 
     ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
-
 
     # ERR wrong number of inputs
     try:
@@ -268,7 +269,7 @@ def test_dag_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("INPUTS not specified",exception.__str__())
 
 
 def test_dag_modelrun_financialNet_errors(env):
@@ -282,28 +283,28 @@ def test_dag_modelrun_financialNet_errors(env):
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    tensor_number=1
-    ret = con.execute_command(  'AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
-                                  'FLOAT', 1, 256,
-                                  'BLOB', creditcard_referencedata[0].tobytes())
+    tensor_number = 1
+    ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{0}'.format(tensor_number),
+                                'FLOAT', 1, 256,
+                                'BLOB', creditcard_referencedata[0].tobytes())
     env.assertEqual(ret, b'OK')
 
     # ERR wrong number of inputs
     try:
-        tensor_number=1
+        tensor_number = 1
         ret = con.execute_command(
-        'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
-                        'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
-        'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30, '|>',
-        'AI.MODELRUN', 'financialNet', 
-                        'INPUTS', 'transactionTensor:{}'.format(tensor_number),
-                        'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
-        'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META',
+          'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{}'.format(tensor_number), 
+                       'PERSIST', '1', 'classificationTensor:{}'.format(tensor_number), '|>',
+          'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30, '|>',
+          'AI.MODELRUN', 'financialNet', 
+                          'INPUTS', 'transactionTensor:{}'.format(tensor_number),
+                          'OUTPUTS', 'classificationTensor:{}'.format(tensor_number), '|>',
+          'AI.TENSORGET', 'classificationTensor:{}'.format(tensor_number), 'META',
     )
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match",exception.__str__())
 
 
 def test_dag_local_tensorset(env):
@@ -727,3 +728,87 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     env.assertEqual(0, financialNetRunInfo['samples'])
     env.assertEqual(0, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
+
+
+def test_dagrun_modelrun_multidevice_resnet(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+    model_name_0 = 'imagenet_model1'
+    model_name_1 = 'imagenet_model2'
+    script_name = 'imagenet_script'
+    inputvar = 'images'
+    outputvar = 'output'
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    # device_0 = DEVICE + ':0'
+    # device_1 = DEVICE + ':1'
+    device = 'CPU'
+    device_0 = device + ':0'
+    device_1 = device + ':1'
+
+    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name, device_0, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+ 
+    image_key = 'image'
+    temp_key1 = 'temp_key1'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0'
+    class_key_1 = 'output1'
+
+    ret = con.execute_command(
+        'AI.DAGRUN',
+                     'PERSIST', '2', class_key_0, class_key_1, '|>',
+        'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                     '|>',
+        'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
+                     'INPUTS', image_key,
+                     'OUTPUTS', temp_key1,
+                     '|>',
+        'AI.MODELRUN', model_name_0,
+                     'INPUTS', temp_key1,
+                     'OUTPUTS', temp_key2_0,
+                     '|>',
+        'AI.MODELRUN', model_name_1,
+                     'INPUTS', temp_key1,
+                     'OUTPUTS', temp_key2_1,
+                     '|>',
+        'AI.SCRIPTRUN', script_name, 'post_process',
+                      'INPUTS', temp_key2_0,
+                      'OUTPUTS', class_key_0,
+                      '|>',
+        'AI.SCRIPTRUN', script_name, 'post_process',
+                      'INPUTS', temp_key2_1,
+                      'OUTPUTS', class_key_1
+    )
+    env.assertEqual([b'OK', b'OK', b'OK', b'OK', b'OK', b'OK'],ret)
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.TENSORGET', class_key_0, 'VALUES' )
+    # tf model has 100 classes [0,999]
+    env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.TENSORGET', class_key_1, 'VALUES' )
+    env.assertEqual(ret[0]>=0 and ret[0]<1001, True)

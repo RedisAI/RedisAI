@@ -545,7 +545,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RAI_Model *mto;
   RedisModuleKey *modelKey;
   const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
-  if(status==REDISMODULE_ERR){
+  if (status == REDISMODULE_ERR) {
       return REDISMODULE_ERR;
   }
   
@@ -553,12 +553,48 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
 
+  RedisModuleString** inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+
+  RAI_Error err = {0};
   const int parse_result = RedisAI_Parse_ModelRun_RedisCommand(ctx, argv,
-                                   argc, &(rinfo->mctx), &(rinfo->outkeys), &mto, 0, NULL, 0, NULL, NULL);
+                                   argc, &(rinfo->mctx), &inkeys, &(rinfo->outkeys), &mto, &err);
   RedisModule_CloseKey(modelKey);
-  // if the number of parsed args is negative something went wrong
-  if(parse_result<0){
-    return REDISMODULE_ERR;
+
+  if (parse_result < 0) {
+    return RedisModule_ReplyWithError(ctx, err.detail_oneline);
+  }
+
+  for (int i=0; i<array_len(inkeys); i++) {
+    RAI_Tensor *inputTensor;
+    RedisModuleKey *tensorKey;
+    const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &tensorKey, &inputTensor, REDISMODULE_READ);
+    if (status == REDISMODULE_ERR) {
+      // TODO: free rinfo
+      // TODO DAG: output proper error
+      return REDISMODULE_ERR;
+    }
+    RedisModule_CloseKey(tensorKey);
+
+    const char *opname = NULL;
+    if (mto->inputs) {
+      opname = mto->inputs[i];
+    }
+ 
+    if (!RAI_ModelRunCtxAddInput(rinfo->mctx, opname, inputTensor)) {
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, "ERR Input key not found");
+    }
+  }
+
+  for (int i=0; i<array_len(rinfo->outkeys); i++) {
+    const char *opname = NULL;
+    if (mto->outputs) {
+      opname = mto->outputs[i];
+    }
+    if (!RAI_ModelRunCtxAddOutput(rinfo->mctx, opname)) {
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, "ERR Output key not found");
+    }
   }
 
   RunQueueInfo *run_queue_info = NULL;
@@ -605,13 +641,60 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   const char *functionName = RedisModule_StringPtrLen(argv[2], NULL);
   rinfo->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
 
+  RedisModuleString** inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+
+  RAI_Error err = {0};
   const int parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
-      ctx, argv, argc, &(rinfo->sctx), &(rinfo->outkeys), &sto, 0, NULL, 0,
-      NULL, NULL);
+      ctx, argv, argc, &(rinfo->sctx), &inkeys, &(rinfo->outkeys), &sto, &err);
   RedisModule_CloseKey(key);
+
   // if the number of parsed args is negative something went wrong
   if (parse_result < 0) {
-    return REDISMODULE_ERR;
+    return RedisModule_ReplyWithError(ctx, err.detail_oneline);
+  }
+
+        // RAI_Tensor *inputTensor;
+        // if (useLocalContext == 0) {
+        //   RedisModuleKey *tensorKey;
+        //   const int status = RAI_GetTensorFromKeyspace(
+        //           ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
+        //   if (status == REDISMODULE_ERR) {
+        //     // TODO: free rinfo
+        //     return -1;
+        //   }
+        //   RedisModule_CloseKey(tensorKey);
+        // } else {
+        //   const int get_result = RAI_getTensorFromLocalContext(
+        //           ctx, *localContextDict, arg_string, &inputTensor, error);
+        //   if (get_result == REDISMODULE_ERR) {
+        //     return -1;
+        //   }
+        // }
+        // if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor, error)) return -1;
+
+  for (int i=0; i<array_len(inkeys); i++) {
+    RAI_Tensor *inputTensor;
+    RedisModuleKey *tensorKey;
+
+    const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &tensorKey, &inputTensor, REDISMODULE_READ);
+    if (status == REDISMODULE_ERR) {
+      // TODO: free rinfo
+      // TODO: output proper error
+      return REDISMODULE_ERR;
+    }
+    RedisModule_CloseKey(tensorKey);
+
+    if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, inputTensor, &err)) {
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, err.detail_oneline);
+    }
+  }
+
+  for (int i=0; i<array_len(rinfo->outkeys); i++) {
+    if (!RAI_ScriptRunCtxAddOutput(rinfo->sctx)) {
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, err.detail_oneline);
+    }
   }
 
   RunQueueInfo *run_queue_info = NULL;

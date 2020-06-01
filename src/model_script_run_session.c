@@ -36,7 +36,8 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
 
   RAI_ScriptRunCtx *sctx = NULL;
 
-  RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  // RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
+  RAI_Error err = {0};
   long long rtime;
   int status;
   bool is_model;
@@ -46,12 +47,12 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
       mctxs[i] = batch_rinfo[i]->mctx;
     }
     const long long start = ustime();
-    status = RAI_ModelRun(mctxs, batch_size, err);
+    status = RAI_ModelRun(mctxs, batch_size, &err);
     rtime = ustime() - start;
   } else if (batch_rinfo[0]->sctx) {
     sctx = batch_rinfo[0]->sctx;
     const long long start = ustime();
-    status = RAI_ScriptRun(sctx, err);
+    status = RAI_ScriptRun(sctx, &err);
     rtime = ustime() - start;
   }
 
@@ -64,10 +65,10 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
     // and how large the batch was
     rinfo->duration_us = rtime;
 
-    rinfo->err->code = err->code;
-    if (err->code != RAI_OK) {
-      rinfo->err->detail = RedisModule_Strdup(err->detail);
-      rinfo->err->detail_oneline = RedisModule_Strdup(err->detail_oneline);
+    rinfo->err->code = err.code;
+    if (err.code != RAI_OK) {
+      rinfo->err->detail = RedisModule_Strdup(err.detail);
+      rinfo->err->detail_oneline = RedisModule_Strdup(err.detail_oneline);
     }
     if (rinfo->client != NULL) {
       RedisModule_UnblockClient(rinfo->client, rinfo);
@@ -93,10 +94,10 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (rinfo->result == REDISMODULE_ERR) {
     RedisModule_Log(ctx, "warning", "ERR %s", rinfo->err->detail);
-    RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
     int ret = RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
+    RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
     RAI_FreeRunInfo(ctx, rinfo);
-    return ret;
+    return REDISMODULE_ERR;
   }
 
   size_t num_outputs = 0;

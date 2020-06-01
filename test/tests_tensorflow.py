@@ -458,7 +458,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("Number of names given as OUTPUTS during MODELSET and keys given as INPUTS here do not match", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
@@ -734,13 +734,13 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
         for tensor_number in range(1, key_max):
             for repetition in range(1, repetitions):
                 ret = env.execute_command('AI.MODELRUN', 'financialNet', 'INPUTS',
-                                        'transactionTensor:{}'.format(tensor_number),
-                                        'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
-                                        'classificationTensor:{}_{}'.format(tensor_number, repetition))
+                                          'transactionTensor:{}'.format(tensor_number),
+                                          'referenceTensor:{}'.format(tensor_number), 'OUTPUTS',
+                                          'classificationTensor:{}_{}'.format(tensor_number, repetition))
 
     t = time.time()
     run_test_multiproc(env, 10,
-                       lambda env: functor_financialNet(env,MAX_TRANSACTIONS,100) )
+                       lambda env: functor_financialNet(env, MAX_TRANSACTIONS, 100) )
     elapsed_time = time.time() - t
     total_ops = len(transaction_tensor)*100
     avg_ops_sec = total_ops/elapsed_time

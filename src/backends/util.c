@@ -2,7 +2,8 @@
 
 int parseDeviceStr(const char* devicestr, RAI_Device* device,
                    int64_t* deviceid) {
-  if (strcasecmp(devicestr, "CPU") == 0) {
+  // if (strcasecmp(devicestr, "CPU") == 0) {
+  if (strncasecmp(devicestr, "CPU", 3) == 0) {
     *device = RAI_DEVICE_CPU;
     *deviceid = -1;
   } else if (strcasecmp(devicestr, "GPU") == 0) {
