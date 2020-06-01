@@ -150,6 +150,7 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
   sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
   sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
   sctx->fnname = RedisModule_Strdup(fnname);
+  sctx->variadic = -1;
   return sctx;
 }
 
@@ -288,6 +289,10 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
             is_input = 1;
             outputs_flag_count = 1;
         } else {
+            if (!strcasecmp(arg_string, "$")) {
+              (*sctx)->variadic = argpos - 4;
+              continue;
+            }
             RedisModule_RetainString(ctx, argv[argpos]);
             if (is_input == 0) {
                 RAI_Tensor *inputTensor;
@@ -302,18 +307,18 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
                     RedisModule_CloseKey(tensorKey);
                 } else {
                     const int get_result = RAI_getTensorFromLocalContext(
-                            ctx, *localContextDict, arg_string, &inputTensor,error);
+                            ctx, *localContextDict, arg_string, &inputTensor, error);
                     if (get_result == REDISMODULE_ERR) {
                         return -1;
                     }
                 }
                 if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor)) {
-                    RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR Input key not found");
+                    RedisAI_ReplyOrSetError(ctx, error, RAI_ESCRIPTRUN, "ERR Input key not found");
                     return -1;
                 }
             } else {
                 if (!RAI_ScriptRunCtxAddOutput(*sctx)) {
-                    RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR Output key not found");
+                    RedisAI_ReplyOrSetError(ctx, error, RAI_ESCRIPTRUN, "ERR Output key not found");
                     return -1;
                 }
                 *outkeys=array_append(*outkeys,argv[argpos]);

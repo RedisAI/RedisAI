@@ -27,6 +27,7 @@ typedef struct RAI_ScriptRunCtx {
   char* fnname;
   RAI_ScriptCtxParam* inputs;
   RAI_ScriptCtxParam* outputs;
+  int variadic;
 } RAI_ScriptRunCtx;
 
 #endif /* SRC_SCRIPT_STRUCT_H_ */

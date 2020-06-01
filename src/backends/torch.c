@@ -252,6 +252,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx* sctx, RAI_Error* error) {
 
   char* error_descr = NULL;
   torchRunScript(sctx->script->script, sctx->fnname,
+                 sctx->variadic,
                  nInputs, inputs, nOutputs, outputs,
                  &error_descr, RedisModule_Alloc);
 

@@ -19,7 +19,7 @@ void* torchCompileScript(const char* script, DLDeviceType device, int64_t device
 void* torchLoadModel(const char* model, size_t modellen, DLDeviceType device, int64_t device_id,
                      char **error, void* (*alloc)(size_t));
 
-void torchRunScript(void* scriptCtx, const char* fnName,
+void torchRunScript(void* scriptCtx, const char* fnName, int variadic,
                     long nInputs, DLManagedTensor** inputs,
                     long nOutputs, DLManagedTensor** outputs,
                     char **error, void* (*alloc)(size_t));

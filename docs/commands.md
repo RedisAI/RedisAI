@@ -460,14 +460,16 @@ The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its spec
 **Redis API**
 
 ```
-AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] [$ input ...] OUTPUTS <output> [output ...]
 ```
 
 _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
-* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names
+* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names;
+              variadic arguments are supported by prepending the list with `$`, in this case the
+              script is expected an argument of type `List[Tensor]` as its last argument
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by one or more key names
 
 _Return_
@@ -484,6 +486,29 @@ OK
 redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
 OK
 redis> AI.SCRIPTRUN myscript addtwo INPUTS mytensor1 mytensor2 OUTPUTS result
+OK
+redis> AI.TENSORGET result VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
+```
+
+If 'myscript' supports variadic arguments:
+```python
+def addn(a, args : List[Tensor]):
+    return a + torch.stack(args).sum()
+```
+
+then one can provide an arbitrary number of inputs after the `$` sign:
+
+```
+redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 1
+OK
+redis> AI.TENSORSET mytensor3 FLOAT 1 VALUES 1
+OK
+redis> AI.SCRIPTRUN myscript addn INPUTS mytensor1 $ mytensor2 mytensor3 OUTPUTS result
 OK
 redis> AI.TENSORGET result VALUES
 1) FLOAT
