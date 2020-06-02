@@ -40,7 +40,9 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build $BUILD_ARGS SHOW=1
+RUN set -e ;\
+    . ./opt/readies/bin/sourced ./profile.d ;\
+    make -C opt build $BUILD_ARGS SHOW=1
 
 ARG PACK
 ARG TEST

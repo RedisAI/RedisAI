@@ -40,6 +40,8 @@ class RedisAISetup(paella.Setup):
         self.install("centos-release-scl")
         self.install("devtoolset-8")
         self.run("cp /opt/rh/devtoolset-8/enable /etc/profile.d/scl-devtoolset-8.sh")
+        paella.mkdir_p("%s/profile.d" % ROOT)
+        self.run("cp /opt/rh/devtoolset-8/enable %s/profile.d/scl-devtoolset-8.sh" % ROOT)
 
         if not self.dist == "amzn":
             self.install("epel-release")
