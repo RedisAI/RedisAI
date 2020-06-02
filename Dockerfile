@@ -23,7 +23,7 @@ ARG OS
 ARG ARCH
 ARG REDIS_VER
 
-RUN echo "Building for ${OSNICK} (${OS}) for ${ARCH}"
+RUN echo "Building for ${OSNICK} (${OS}) for ${ARCH} [with Redis ${REDIS_VER}]"
 
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/

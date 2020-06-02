@@ -22,9 +22,10 @@ FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
 ARG OSNICK
 ARG OS
+ARG REDIS_VER
 ARG CUDA_VER
 
-RUN echo "Building for ${OSNICK} (${OS})"
+RUN echo "Building for ${OSNICK} (${OS}) [with Redis ${REDIS_VER}]"
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
@@ -44,7 +45,9 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+RUN set -e ;\
+    . ./opt/readies/bin/sourced ./profile.d ;\
+    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK
 ARG TEST
