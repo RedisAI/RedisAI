@@ -11,6 +11,9 @@ ARG OS=debian:buster-slim
 # ARCH=x64|arm64v8|arm32v7
 ARG ARCH=x64
 
+ARG PACK=0
+ARG TEST=0
+
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
 FROM ${OS} AS builder
@@ -39,8 +42,8 @@ ARG BUILD_ARGS=""
 ADD ./ /build
 RUN make -C opt build $BUILD_ARGS SHOW=1
 
-ARG PACK=0
-ARG TEST=0
+ARG PACK
+ARG TEST
 
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test $BUILD_ARGS NO_LFS=1; fi
