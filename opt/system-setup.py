@@ -33,10 +33,13 @@ class RedisAISetup(paella.Setup):
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
+        self.install("redhat-lsb-core")
+        self.run("%s/readies/bin/enable-utf8" % HERE)
+        
         self.group_install("'Development Tools'")
         self.install("cmake3")
         self.run("ln -s `command -v cmake3` /usr/local/bin/cmake")
-        self.install("redhat-lsb-core")
+        
         self.install("centos-release-scl")
         self.install("devtoolset-8")
         self.run("cp /opt/rh/devtoolset-8/enable /etc/profile.d/scl-devtoolset-8.sh")
@@ -45,7 +48,6 @@ class RedisAISetup(paella.Setup):
 
         if not self.dist == "amzn":
             self.install("epel-release")
-            # self.install("python36 python36-pip")
             self.install("python3-devel libaec-devel")
             self.install("python36-psutil")
         else:

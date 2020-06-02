@@ -18,8 +18,7 @@ REDIS_ENT_LIB_PATH=/opt/redislabs/lib
 BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
-export LC_ALL=C.UTF-8
-export LANG=C.UTF-8
+. $ROOT/opt/readies/bin/enable-utf8
 
 export ARCH=$($ROOT/opt/readies/bin/platform --arch)
 export OS=$($ROOT/opt/readies/bin/platform --os)
