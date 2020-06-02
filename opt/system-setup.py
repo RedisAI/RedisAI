@@ -34,8 +34,8 @@ class RedisAISetup(paella.Setup):
 
     def redhat_compat(self):
         self.group_install("'Development Tools'")
-        # self.install("cmake3")
-        # self.run("ln -s `command -v cmake3` /usr/local/bin/cmake")
+        self.install("cmake3")
+        self.run("ln -s `command -v cmake3` /usr/local/bin/cmake")
         self.install("redhat-lsb-core")
         self.install("centos-release-scl")
         self.install("devtoolset-8")
