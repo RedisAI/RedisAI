@@ -28,13 +28,12 @@ pack_ramp() {
 	cd $ROOT
 	
 	local STEM=$PRODUCT.$OS-$OSNICK-$ARCH
-	local FQ_VER
+	local FQ_PACKAGE
 	if [[ -z $BRANCH ]]; then
-		FQ_VER=$VERSION
+		FQ_PACKAGE=$STEM.$VERSION
 	else
-		FQ_VER=$BRANCH
+		FQ_PACKAGE=$STEM.$BRANCH
 	fi
-	local FQ_PACKAGE=$STEM.$FQ_VER
 
 	# this is only to extract {semantic_version} into VERSION
 	RAMPOUT=$(mktemp /tmp/ramp.XXXXXX)
@@ -63,13 +62,12 @@ pack_deps() {
 	SEMVER=$(cat $BINDIR/VERSION)
 
 	local STEM=$PRODUCT-$DEVICE-dependencies.$OS-$OSNICK-$ARCH
-	local FQ_VER
+	local FQ_PACKAGE
 	if [[ -z $BRANCH ]]; then
-		FQ_VER=$VERSION
+		FQ_PACKAGE=$STEM.$VERSION
 	else
-		FQ_VER=$BRANCH
+		FQ_PACKAGE=$STEM.$BRANCH
 	fi
-	local FQ_PACKAGE=$STEM.$FQ_VER
 	
 	cd $INSTALL_DIR
 	local BACKENDS_DIR=$PRODUCT-$DEVICE-$SEMVER

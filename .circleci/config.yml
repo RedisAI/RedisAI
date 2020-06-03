@@ -36,18 +36,18 @@ commands:
           paths:
             - deps
           key: build-dependencies-{{ checksum "get_deps.sh" }}
-      - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
+      #- run:
+      #    name: Set up workspace
+      #    command: |
+      #      mkdir -p ~/workspace
+      #      chown `whoami` ~/workspace
       - run:
           name: Build
           command: make -C opt all SHOW=1
       - run:
           name: Test
           command: |
-            mkdir -p ~/workspace/tests
+            # mkdir -p ~/workspace/tests
             #@@ make -C opt test SHOW=1
           no_output_timeout: 20m
       - run:
@@ -136,11 +136,11 @@ jobs:
             ./opt/system-setup.py
             # ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
-      - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
+      # - run:
+      #     name: Set up workspace
+      #     command: |
+      #       mkdir -p ~/workspace
+      #       chown `whoami` ~/workspace
       - run:
           name: Build for coverage
           command: |
@@ -210,11 +210,11 @@ jobs:
       - run:
           name: Test
           command: |
-            mkdir -p ~/workspace/tests
-            docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
+            mkdir -p $HOME/tests
+            docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 30m
       - store_artifacts:
-          path: ~/workspace/tests
+          path: ~/tests
 
   deploy-artifacts:
     parameters:
@@ -224,11 +224,11 @@ jobs:
       - image: redisfab/rmbuilder:6.0.1-x64-buster
     steps:
       - attach_workspace:
-          at: ~/workspace
-      - deploy-steps:
-          from: ~/workspace/artifacts/
-      - store_artifacts:
-          path: ~/workspace/artifacts/
+          at: artifacts
+      - run:
+          name: Deploy to S3
+          command: |
+            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 
 on-any-branch: &on-any-branch
@@ -288,7 +288,8 @@ workflows:
       - platform-build:
           name: build-centos7
           platform: centos7
-          <<: *platform-build-defs
+          #@@ <<: *platform-build-defs
+          <<: *never
       - platform-build:
           name: build-bionic
           platform: bionic
@@ -296,7 +297,8 @@ workflows:
       - platform-build:
           name: build-xenial
           platform: xenial
-          <<: *platform-build-defs
+          #@@ <<: *platform-build-defs
+          <<: *never
       - coverage:
           #@@ <<: *on-any-branch
           <<: *never
