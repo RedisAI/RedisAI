@@ -192,4 +192,10 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
  */
 void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCode code, const char* errorMessage );
 
+/**
+ * @brief  Returns the redis module type representing a script.
+ * @return redis module type representing a script.
+ */
+RedisModuleType *RAI_ScriptRedisType(void);
+
 #endif /* SRC_SCRIPT_H_ */

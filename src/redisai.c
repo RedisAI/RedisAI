@@ -966,6 +966,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
   REGISTER_API(TensorDim, ctx);
   REGISTER_API(TensorByteSize, ctx);
   REGISTER_API(TensorData, ctx);
+  REGISTER_API(TensorRedisType, ctx);
 
   REGISTER_API(ModelCreate, ctx);
   REGISTER_API(ModelFree, ctx);
@@ -978,6 +979,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
   REGISTER_API(ModelRun, ctx);
   REGISTER_API(ModelSerialize, ctx);
   REGISTER_API(ModelGetShallowCopy, ctx);
+  REGISTER_API(ModelRedisType, ctx);
 
   REGISTER_API(ScriptCreate, ctx);
   REGISTER_API(ScriptFree, ctx);
@@ -989,6 +991,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
   REGISTER_API(ScriptRunCtxFree, ctx);
   REGISTER_API(ScriptRun, ctx);
   REGISTER_API(ScriptGetShallowCopy, ctx);
+  REGISTER_API(ScriptRedisType, ctx);
 
   return REDISMODULE_OK;
 }

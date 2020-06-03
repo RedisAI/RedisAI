@@ -1072,3 +1072,7 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   // return command arity as the number of processed args
   return argc;
 }
+
+RedisModuleType *RAI_TensorRedisType(void) {
+    return RedisAI_TensorType;
+}

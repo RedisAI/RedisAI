@@ -78,6 +78,7 @@ int MODULE_API_FUNC(RedisAI_TensorNumDims)(RAI_Tensor* t);
 long long MODULE_API_FUNC(RedisAI_TensorDim)(RAI_Tensor* t, int dim);
 size_t MODULE_API_FUNC(RedisAI_TensorByteSize)(RAI_Tensor* t);
 char* MODULE_API_FUNC(RedisAI_TensorData)(RAI_Tensor* t);
+RedisModuleType MODULE_API_FUNC(RedisAI_TensorRedisType)(void);
 
 RAI_Model* MODULE_API_FUNC(RedisAI_ModelCreate)(int backend, char* devicestr, char* tag, RAI_ModelOpts opts,
                                                 size_t ninputs, const char **inputs,
@@ -93,6 +94,7 @@ void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx* mctx);
 int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx** mctx, long long n, RAI_Error* err);
 RAI_Model* MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model* model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
+RedisModuleType MODULE_API_FUNC(RedisAI_ModelRedisType)(void);
 
 RAI_Script* MODULE_API_FUNC(RedisAI_ScriptCreate)(char* devicestr, char* tag, const char* scriptdef, RAI_Error* err);
 void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script* script, RAI_Error* err);
@@ -104,6 +106,7 @@ RAI_Tensor* MODULE_API_FUNC(RedisAI_ScriptRunCtxOutputTensor)(RAI_ScriptRunCtx* 
 void MODULE_API_FUNC(RedisAI_ScriptRunCtxFree)(RAI_ScriptRunCtx* sctx);
 int MODULE_API_FUNC(RedisAI_ScriptRun)(RAI_ScriptRunCtx* sctx, RAI_Error* err);
 RAI_Script* MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script* script);
+RedisModuleType MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
@@ -145,6 +148,7 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDim);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorByteSize);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorData);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorRedisType);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, ModelCreate);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ModelFree);
@@ -157,6 +161,7 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRun);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ModelGetShallowCopy);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ModelSerialize);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRedisType);
 
   REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
@@ -168,6 +173,7 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxFree);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRun);
   REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptGetShallowCopy);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRedisType);
 
   if(RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION){
     return REDISMODULE_ERR;

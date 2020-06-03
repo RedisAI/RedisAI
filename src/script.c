@@ -335,3 +335,7 @@ void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCod
         RedisModule_ReplyWithError(ctx, errorMessage);
     }
 }
+
+RedisModuleType *RAI_ScriptRedisType(void) {
+    return RedisAI_ScriptType;
+}
