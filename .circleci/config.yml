@@ -325,5 +325,5 @@ workflows:
           cron: "20 17 * * *"
           <<: *on-master
     jobs:
-      - build-macos
+      - build-macos:
           <<: *never
