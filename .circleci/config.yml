@@ -74,7 +74,7 @@ commands:
           name: Setup
           command: |
             git submodule update --init --recursive
-            ./deps/readies/bin/getpy2
+            ./deps/readies/bin/getpy3
       - run:
           name: Build for platform
           command: |
