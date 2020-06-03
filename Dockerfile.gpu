@@ -68,6 +68,9 @@ RUN mkdir -p $REDIS_MODULES/
 
 COPY --from=redis /usr/local/ /usr/local/
 COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+
+COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+
 # COPY --from=builder /usr/local/etc/redis/redis.conf /usr/local/etc/redis/
 
 WORKDIR /data
