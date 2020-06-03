@@ -6,7 +6,6 @@
 [[ -z $DEVICE ]] && { echo DEVICE undefined; exit 1; }
 [[ -z $BINDIR ]] && { echo BINDIR undefined; exit 1; }
 [[ -z $INSTALL_DIR ]] && { echo INSTALL_DIR undefined; exit 1; }
-[[ ! -z $INTO ]] && INTO=$(realpath $INTO)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . $HERE/readies/shibumi/functions
@@ -29,7 +28,12 @@ pack_ramp() {
 	cd $ROOT
 	
 	local STEM=$PRODUCT.$OS-$OSNICK-$ARCH
-	local FQ_VER=$GIT_VER
+	local FQ_VER
+	if [[ -z $BRANCH ]]; then
+		FQ_VER=$VERSION
+	else
+		FQ_VER=$BRANCH
+	fi
 	local FQ_PACKAGE=$STEM.$FQ_VER
 
 	# this is only to extract {semantic_version} into VERSION
@@ -38,20 +42,16 @@ pack_ramp() {
 	local rampfile=`realpath $(tail -1 $RAMPOUT)`
 	rm -f $rampfile $RAMPOUT
 	echo `basename $rampfile` | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $BINDIR/VERSION
-	export VERSION=$(cat $BINDIR/VERSION)
+	export SEMVER=$(cat $BINDIR/VERSION)
 
 	$RAMP_PROG pack -m $ROOT/ramp.yml -o $BINDIR/$FQ_PACKAGE.zip \
-		-c "BACKENDSPATH $REDIS_ENT_LIB_PATH/$PRODUCT-$DEVICE-$VERSION/backends" $INSTALL_DIR/$PRODUCT.so > /dev/null 2>&1
+		-c "BACKENDSPATH $REDIS_ENT_LIB_PATH/$PRODUCT-$DEVICE-$SEMVER/backends" $INSTALL_DIR/$PRODUCT.so > /dev/null 2>&1
 
 	cd "$BINDIR"
-	ln -sf $FQ_PACKAGE.zip $STEM.$VERSION.zip
-	ln -sf $FQ_PACKAGE.zip $STEM.latest.zip
-	# [[ ! -z $BRANCH ]] && ln -sf $FQ_PACKAGE.zip $STEM.$BRANCH.zip
+	if [[ -z $BRANCH ]]; then
+		ln -sf $FQ_PACKAGE.zip $STEM.latest.zip
+	fi
 
-	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $STEM.$VERSION.zip $RAMP_STEM.latest.zip"
-	export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $FQ_PACKAGE.zip $STEM.$BRANCH.zip"
-	# [[ ! -z $BRANCH ]] && export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $DEPS.$BRANCH.tgz"
-	
 	echo "Done."
 }
 
@@ -60,15 +60,19 @@ pack_deps() {
 
 	cd $ROOT
 
-	VERSION=$(cat $BINDIR/VERSION)
-	local VARIANT=$OS-$OSNICK-$ARCH.$GIT_VER
+	SEMVER=$(cat $BINDIR/VERSION)
 
 	local STEM=$PRODUCT-$DEVICE-dependencies.$OS-$OSNICK-$ARCH
-	local FQ_VER=$GIT_VER
+	local FQ_VER
+	if [[ -z $BRANCH ]]; then
+		FQ_VER=$VERSION
+	else
+		FQ_VER=$BRANCH
+	fi
 	local FQ_PACKAGE=$STEM.$FQ_VER
 	
 	cd $INSTALL_DIR
-	local BACKENDS_DIR=$PRODUCT-$DEVICE-$VERSION
+	local BACKENDS_DIR=$PRODUCT-$DEVICE-$SEMVER
 	if [[ ! -h backends ]]; then
 		[[ ! -d backends ]] && { echo "install-$DEVICE/backend directory not found." ; exit 1; }
 		rm -rf $BACKENDS_DIR
@@ -80,14 +84,10 @@ pack_deps() {
 	find $BACKENDS_DIR -name "*.so*" | xargs tar pczf $BINDIR/$FQ_PACKAGE.tgz
 	
 	cd "$BINDIR"
-	ln -sf $FQ_PACKAGE.tgz $STEM.$VERSION.tgz
-	ln -sf $FQ_PACKAGE.tgz $STEM.latest.tgz
-	# [[ ! -z $BRANCH ]] && ln -sf $FQ_PACKAGE.tgz $STEM.$BRANCH.tgz
+	if [[ -z $BRANCH ]]; then
+		ln -sf $FQ_PACKAGE.tgz $STEM.latest.tgz
+	fi
 	
-	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $STEM.$VERSION.tgz $STEM.latest.tgz"
-	export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $FQ_PACKAGE.tgz"
-	# [[ ! -z $BRANCH ]] && export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $STEM.$BRANCH.tgz"
-
 	echo "Done."
 }
 
@@ -100,7 +100,6 @@ if [[ $1 == --help || $1 == help ]]; then
 		INSTALL_DIR=dir   directory in which artifacts are found
 		DEVICE=cpu|gpu
 		BRANCH=branch     branch names to serve as an exta package tag
-		INTO=dir          package destination directory (optinal)
 		RAMP=1            build RAMP file
 		DEPS=1            build dependencies file
 		RAMP_PROG         path to RAMP program
@@ -112,24 +111,36 @@ fi
 PRODUCT=redisai
 PRODUCT_LIB=$PRODUCT.so
 
-GIT_VER=""
-if [[ -d $ROOT/.git ]]; then
-	if [[ ! -z $BRANCH ]]; then
-		GIT_BRANCH="$BRANCH"
+if [[ -z $BRANCH ]]; then
+	tag=`git describe --abbrev=0 2> /dev/null | sed 's/^v\(.*\)/\1/'`
+	if [[ $? != 0 || -z $tag ]]; then
+		BRANCH=`git rev-parse --abbrev-ref HEAD`
+		VERSION=
 	else
-		GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+		VERSION=$tag
 	fi
-	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+")
-	# GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
-	GIT_VER="${GIT_BRANCH}"
 else
-	if [[ ! -z $BRANCH ]]; then
-		GIT_BRANCH="$BRANCH"
-	else
-		GIT_BRANCH=unknown
-	fi
-	GIT_VER="$GIT_BRANCH"
+	VERSION=
 fi
+
+# GIT_VER=""
+# if [[ -d $ROOT/.git ]]; then
+# 	if [[ ! -z $BRANCH ]]; then
+# 		GIT_BRANCH="$BRANCH"
+# 	else
+# 		GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+# 	fi
+# 	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+")
+# 	# GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
+# 	GIT_VER="${GIT_BRANCH}"
+# else
+# 	if [[ ! -z $BRANCH ]]; then
+# 		GIT_BRANCH="$BRANCH"
+# 	else
+# 		GIT_BRANCH=unknown
+# 	fi
+# 	GIT_VER="$GIT_BRANCH"
+# fi
 
 if ! command -v redis-server > /dev/null; then
 	echo "Cannot find redis-server. Aborting."
@@ -138,19 +149,5 @@ fi
 
 pack_ramp
 [[ $DEPS == 1 ]] && pack_deps
-
-if [[ ! -z $INTO ]]; then
-	mkdir -p $INTO
-	cd $INTO
-	mkdir -p release branch
-	
-	for f in $RELEASE_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
-	done
-	
-	for f in $BRANCH_ARTIFACTS; do
-		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f branch/
-	done
-fi
 
 exit 0

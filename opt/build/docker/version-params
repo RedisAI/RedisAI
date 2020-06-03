@@ -1,0 +1,12 @@
+#!/bin/bash
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT=$(cd $HERE/../..; pwd)
+
+tag=`git describe --abbrev=0 2> /dev/null | sed 's/^v\(.*\)/\1/'`
+if [[ $? != 0 || -z $tag ]]; then
+	branch=`git rev-parse --abbrev-ref HEAD`
+    echo "VERSION=$branch"
+else
+    echo "VERSION=$tag LATEST=1"
+fi
