@@ -48,7 +48,7 @@ commands:
           name: Test
           command: |
             mkdir -p ~/workspace/tests
-            make -C opt test SHOW=1
+            #@@ make -C opt test SHOW=1
           no_output_timeout: 20m
       - run:
           name: Package
@@ -56,10 +56,8 @@ commands:
       - persist_to_workspace:
           root: ~/workspace
           paths:
-            - 'packages/release/*.zip'
-            - 'packages/release/*.tgz'
-            - 'packages/branch/*.zip'
-            - 'packages/branch/*.tgz'
+            - bin/artifacts/*.zip
+            - bin/artifacts/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -74,21 +72,20 @@ commands:
           name: Setup
           command: |
             git submodule update --init --recursive
-            ./deps/readies/bin/getpy3
+            ./opt/readies/bin/getpy3
       - run:
           name: Build for platform
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             cd build/docker
-            make build publish $(./version-params) OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            #@@ make build publish $(./version-params) OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            make build publish $(./version-params) OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
           no_output_timeout: 40m
       - persist_to_workspace:
-          root: bin/artifacts
+          root: ~/workspace
           paths:
-            - 'snapshot/*.zip'
-            - 'snapshot/*.tgz'
-            - 'release/*.zip'
-            - 'release/*.tgz'
+            - bin/artifacts/*.zip
+            - bin/artifacts/*.tgz
 
   deploy-steps:
     parameters:
@@ -98,7 +95,7 @@ commands:
       - run:
           name: Deploy to S3
           command: |
-            aws s3 cp <<parameters.from>>/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
+            aws s3 cp ./ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
   build-debian:
@@ -227,9 +224,9 @@ jobs:
       - attach_workspace:
           at: ~/workspace
       - deploy-steps:
-          from: ~/workspace/packages/<<parameters.package>>
+          from: ~/workspace/bin/artifacts/
       - store_artifacts:
-          path: ~/workspace/packages/<<parameters.package>>
+          path: ~/workspace/bin/artifacts/
 
 
 on-any-branch: &on-any-branch
