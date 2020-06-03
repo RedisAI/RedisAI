@@ -178,10 +178,11 @@ fetch deps:
 
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
+	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=0 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=0 ./pack.sh
 endif
 
 #----------------------------------------------------------------------------------------------

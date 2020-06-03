@@ -8,6 +8,9 @@ OSNICK ?= buster
 REPO=redisfab
 STEM=$(REPO)/redisai
 
+ART_DIR=$(ROOT)/bin/artifacts
+ART_INT_DIR=/var/opt/redislabs/artifacts
+
 FETCH_ARGS.arm64v8=WITH_ORT=0 WITH_PT=0
 BUILD_ARGS.arm64v8=WITH_ORT=0 WITH_PT=0
 

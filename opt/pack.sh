@@ -49,8 +49,8 @@ pack_ramp() {
 	# [[ ! -z $BRANCH ]] && ln -sf $FQ_PACKAGE.zip $STEM.$BRANCH.zip
 
 	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $STEM.$VERSION.zip $RAMP_STEM.latest.zip"
-	export DEV_ARTIFACTS="$DEV_ARTIFACTS $FQ_PACKAGE.zip $STEM.$BRANCH.zip"
-	# [[ ! -z $BRANCH ]] && export DEV_ARTIFACTS="$DEV_ARTIFACTS $DEPS.$BRANCH.tgz"
+	export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $FQ_PACKAGE.zip $STEM.$BRANCH.zip"
+	# [[ ! -z $BRANCH ]] && export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $DEPS.$BRANCH.tgz"
 	
 	echo "Done."
 }
@@ -85,8 +85,8 @@ pack_deps() {
 	# [[ ! -z $BRANCH ]] && ln -sf $FQ_PACKAGE.tgz $STEM.$BRANCH.tgz
 	
 	export RELEASE_ARTIFACTS="$RELEASE_ARTIFACTS $STEM.$VERSION.tgz $STEM.latest.tgz"
-	export DEV_ARTIFACTS="$DEV_ARTIFACTS $FQ_PACKAGE.tgz"
-	# [[ ! -z $BRANCH ]] && export DEV_ARTIFACTS="$DEV_ARTIFACTS $STEM.$BRANCH.tgz"
+	export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $FQ_PACKAGE.tgz"
+	# [[ ! -z $BRANCH ]] && export BRANCH_ARTIFACTS="$BRANCH_ARTIFACTS $STEM.$BRANCH.tgz"
 
 	echo "Done."
 }
@@ -120,7 +120,8 @@ if [[ -d $ROOT/.git ]]; then
 		GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 	fi
 	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+")
-	GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
+	# GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
+	GIT_VER="${GIT_BRANCH}"
 else
 	if [[ ! -z $BRANCH ]]; then
 		GIT_BRANCH="$BRANCH"
@@ -147,7 +148,7 @@ if [[ ! -z $INTO ]]; then
 		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f release/
 	done
 	
-	for f in $DEV_ARTIFACTS; do
+	for f in $BRANCH_ARTIFACTS; do
 		[[ -f $BINDIR/$f ]] && cp $BINDIR/$f branch/
 	done
 fi

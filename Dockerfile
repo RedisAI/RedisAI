@@ -69,6 +69,8 @@ RUN mkdir -p $REDIS_MODULES/
 
 COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
 
+COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+
 WORKDIR /data
 EXPOSE 6379
 CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]
