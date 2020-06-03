@@ -226,7 +226,7 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/workspace
-      - deploy:
+      - deploy-steps:
           from: ~/workspace/packages/<<parameters.package>>
       - store_artifacts:
           path: ~/workspace/packages/<<parameters.package>>
