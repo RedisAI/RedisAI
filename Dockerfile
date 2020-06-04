@@ -47,7 +47,9 @@ RUN set -e ;\
 ARG PACK
 ARG TEST
 
+RUN mkdir -p bin/artifacts
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
+
 RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test $BUILD_ARGS NO_LFS=1; fi
 
 #----------------------------------------------------------------------------------------------

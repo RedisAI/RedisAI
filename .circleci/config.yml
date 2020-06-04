@@ -287,11 +287,9 @@ workflows:
           platform: xenial
           <<: *platform-build-defs
       - coverage:
-          #@@ <<: *on-any-branch
-          <<: *never
+          <<: *on-any-branch
       - build-and-test-gpu:
-          #@@ <<: *on-any-branch
-          <<: *never
+          <<: *on-any-branch
       - build-macos:
           <<: *never
           # <<: *on-version-tags
