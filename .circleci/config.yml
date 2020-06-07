@@ -20,7 +20,7 @@ commands:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
@@ -36,21 +36,6 @@ commands:
           paths:
             - deps
           key: build-dependencies-{{ checksum "get_deps.sh" }}
-      - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
-
-  test_steps:
-    parameters:
-      platform:
-        type: string
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive 
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -142,7 +127,7 @@ jobs:
           command: |
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            # ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - run:
           name: Build for coverage
@@ -215,7 +200,7 @@ jobs:
           command: |
             mkdir -p $HOME/tests
             docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 40m
+          no_output_timeout: 30m
       - store_artifacts:
           path: tests
 
@@ -273,8 +258,8 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  <<: *on-master-and-version-tags
-  # <<: *on-any-branch # debugging
+  #@@ <<: *on-master-and-version-tags
+  <<: *on-any-branch
 
 after-platform-builds: &after-platform-builds
   requires:
@@ -306,10 +291,10 @@ workflows:
       - build-and-test-gpu:
           <<: *on-any-branch
       - build-macos:
-          <<: *never # temporarily disabled
+          <<: *never
           # <<: *on-version-tags
       - build-multiarch-docker:
-          <<: *never # temporarily disabled
+          <<: *never
           # <<: *on-version-tags
       - deploy-artifacts:
           name: deploy-branch
@@ -329,4 +314,4 @@ workflows:
           <<: *on-master
     jobs:
       - build-macos:
-          <<: *never # temporarily disabled
+          <<: *never
