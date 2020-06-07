@@ -13,6 +13,7 @@
 #include "script_struct.h"
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
+#include <pthread.h>
 
 RedisModuleType* RedisAI_ScriptType = NULL;
 
@@ -126,7 +127,7 @@ RAI_Script* RAI_ScriptCreate(const char* devicestr, const char* tag,
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
-  if (--script->refCount > 0) {
+  if (__atomic_sub_fetch(&script->refCount, 1, __ATOMIC_RELAXED) > 0) {
     return;
   }
 
@@ -218,7 +219,7 @@ int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
 }
 
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {
-  ++script->refCount;
+  __atomic_fetch_add(&script->refCount, 1, __ATOMIC_RELAXED);
   return script;
 }
 
