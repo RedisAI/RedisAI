@@ -155,12 +155,12 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
 }
 
 static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx,
-                                 RAI_ScriptCtxParam* paramArr,
+                                 RAI_ScriptCtxParam** paramArr,
                                  RAI_Tensor* tensor) {
   RAI_ScriptCtxParam param = {
       .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
   };
-  paramArr = array_append(paramArr, param);
+  *paramArr = array_append(*paramArr, param);
   return 1;
 }
 
@@ -169,7 +169,7 @@ int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RA
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
         return 0;
     }
-    return Script_RunCtxAddParam(sctx, sctx->inputs, inputTensor);
+    return Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensor);
 }
 
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err) {
@@ -182,13 +182,13 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTenso
         return 0;
     }
     for(size_t i=0; i < len; i++){
-        Script_RunCtxAddParam(sctx, sctx->inputs, inputTensors[i]);
+        Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensors[i]);
     }
     return 1;
 }
 
 int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx) {
-  return Script_RunCtxAddParam(sctx, sctx->outputs, NULL);
+  return Script_RunCtxAddParam(sctx, &sctx->outputs, NULL);
 }
 
 size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx) {
