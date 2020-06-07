@@ -258,8 +258,8 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  #@@ <<: *on-master-and-version-tags
-  <<: *on-any-branch
+  <<: *on-master-and-version-tags
+  # <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
@@ -291,10 +291,10 @@ workflows:
       - build-and-test-gpu:
           <<: *on-any-branch
       - build-macos:
-          <<: *never
+          <<: *never # temporarily disabled
           # <<: *on-version-tags
       - build-multiarch-docker:
-          <<: *never
+          <<: *never # temporarily disabled
           # <<: *on-version-tags
       - deploy-artifacts:
           name: deploy-branch
@@ -314,4 +314,4 @@ workflows:
           <<: *on-master
     jobs:
       - build-macos:
-          <<: *never
+          <<: *never # temporarily disabled
