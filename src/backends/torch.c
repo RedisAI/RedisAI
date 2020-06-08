@@ -147,6 +147,10 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
     }
     RAI_Tensor* output_tensor = RAI_TensorCreateFromDLTensor(outputs_dl[i]);
     if (nbatches > 1) {
+      if (outputs_dl[i]->dl_tensor.shape[0] != nbatches) {
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected batch size");
+        return 1;
+      }
       for (size_t b=0; b<nbatches; b++) {
         mctxs[b]->outputs[i].tensor = RAI_TensorCreateBySlicingTensor(output_tensor, batch_offsets[b], batch_sizes[b]);
       }

@@ -537,6 +537,15 @@ int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
 
   for(size_t i=0; i<noutputs; ++i) {
     if (nbatches > 1) {
+      const size_t ndims = TF_NumDims(outputTensorsValues[i]);
+      const int64_t total_batch_size = TF_Dim(outputTensorsValues[i], 0);
+      if (nbatches != total_batch_size) {
+        TF_DeleteTensor(outputTensorsValues[i]);
+        TF_DeleteStatus(status);
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected batch size");
+        return 1;
+      }
+
       for (size_t b=0; b<nbatches; b++) {
         mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
       }
