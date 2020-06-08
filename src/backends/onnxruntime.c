@@ -163,7 +163,7 @@ error:
   return NULL;
 }
 
-RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, size_t batch_size, RAI_Error *error) {
+RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, long long batch_size, RAI_Error *error) {
   OrtStatus* status = NULL;
   const OrtApi* ort = OrtGetApiBase()->GetApi(1);
 
@@ -214,7 +214,12 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, size_
       shape[i] = dims[i];
       strides[i] = 1;
     }
-    shape[0] = batch_size;
+    if (batch_size != -1) {
+      shape[0] = batch_size;
+    }
+    else {
+      batch_size = total_batch_size;
+    }
     for (int64_t i = ndims - 2; i >= 0; --i)
     {
       strides[i] *= strides[i + 1] * shape[i + 1];
@@ -529,14 +534,30 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error)
     }
 
     for (size_t i = 0; i < n_output_nodes; i++) {
-      for (size_t b=0; b<nbatches; b++) {
-        RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], batch_offsets[b], batch_sizes[b], error);
+      if (nbatches > 1) {
+        for (size_t b=0; b<nbatches; b++) {
+          RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], batch_offsets[b], batch_sizes[b], error);
+          if (error->code != RAI_OK) {
+            ort->ReleaseStatus(status);
+            return 1;
+          }
+          if (output_tensor) {
+            mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+            RAI_TensorFree(output_tensor);
+          }
+          else {
+            printf("ERR: non-tensor output from ONNX models, ignoring (currently unsupported)");
+          }
+        }
+      }
+      else {
+        RAI_Tensor* output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], 0, -1, error);
         if (error->code != RAI_OK) {
           ort->ReleaseStatus(status);
           return 1;
         }
         if (output_tensor) {
-          mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+          mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
           RAI_TensorFree(output_tensor);
         }
         else {

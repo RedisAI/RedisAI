@@ -79,7 +79,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
   return (DLDataType){ .bits = 0 };
 }
 
-RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset, size_t batch_size) {
+RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset, long long batch_size) {
   RAI_Tensor* ret = RedisModule_Calloc(1, sizeof(*ret));
 
   DLContext ctx = (DLContext){
@@ -97,7 +97,12 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
     shape[i] = TF_Dim(tensor, i);
     strides[i] = 1;
   }
-  shape[0] = batch_size;
+  if (batch_size != -1) {
+    shape[0] = batch_size;
+  }
+  else {
+    batch_size = total_batch_size;
+  }
   for (int64_t i = ndims-2 ; i >= 0 ; --i) {
     strides[i] *= strides[i+1] * shape[i+1];
   }
@@ -531,8 +536,13 @@ int RAI_ModelRunTF(RAI_ModelRunCtx** mctxs, RAI_Error *error) {
   }
 
   for(size_t i=0; i<noutputs; ++i) {
-    for (size_t b=0; b<nbatches; b++) {
-      mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
+    if (nbatches > 1) {
+      for (size_t b=0; b<nbatches; b++) {
+        mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
+      }
+    }
+    else {
+      mctxs[0]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(outputTensorsValues[i], 0, -1);
     }
     TF_DeleteTensor(outputTensorsValues[i]);
   }
