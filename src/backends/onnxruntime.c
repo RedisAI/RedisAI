@@ -416,9 +416,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error)
  
   size_t batch_sizes[nbatches];
   size_t batch_offsets[nbatches];
+  size_t total_batch_size = 0;
   if (array_len(mctxs[0]->inputs) > 0) {
     for (size_t b=0; b<nbatches; ++b) {
       batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
+      total_batch_size += batch_sizes[b];
     }
     batch_offsets[0] = 0;
     for (size_t b=1; b<nbatches; ++b) {
@@ -547,7 +549,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error)
         status = ort->GetDimensions(info, dims, ndims);
         if (status != NULL) goto error;
 
-        if (dims[0] != nbatches) {
+        if (dims[0] != total_batch_size) {
           RAI_SetError(error, RAI_EMODELRUN, "ERR Model did not generate the expected batch size");
           ort->ReleaseStatus(status);
           return 1;
