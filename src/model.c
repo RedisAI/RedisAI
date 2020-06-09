@@ -12,7 +12,7 @@
 #include "backends.h"
 #include "stats.h"
 #include "backends/util.h"
-
+#include <pthread.h>
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
@@ -298,7 +298,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const cha
 }
 
 void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
-  if (--model->refCount > 0){
+  if (__atomic_sub_fetch(&model->refCount, 1, __ATOMIC_RELAXED) > 0){
     return;
   }
 
@@ -466,7 +466,7 @@ int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err) {
 }
 
 RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model) {
-  ++model->refCount;
+  __atomic_fetch_add(&model->refCount, 1, __ATOMIC_RELAXED);  
   return model;
 }
 
