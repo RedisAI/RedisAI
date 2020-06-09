@@ -645,3 +645,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
   }
   return argpos;
 }
+
+RedisModuleType *RAI_ModelRedisType(void) {
+    return RedisAI_ModelType;
+}
