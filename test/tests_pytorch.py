@@ -661,6 +661,13 @@ def test_pytorch_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    
+    # "ERR Already encountered a variable size list of tensors"
+    try:
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar_variadic', 'INPUTS', '$', 'a', '$', 'b' 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
 def test_pytorch_scriptinfo(env):
