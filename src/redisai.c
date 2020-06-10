@@ -456,11 +456,17 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (meta && blob) {
     RedisModule_ReplyWithCString(ctx, "blob");
-    const size_t n_chunks = len / RAI_CHUNK_LEN + 1;
-    RedisModule_ReplyWithArray(ctx, (long)n_chunks);
-    for (size_t i=0; i<n_chunks; i++) {
-      size_t chunk_len = i < n_chunks - 1 ? RAI_CHUNK_LEN : len % RAI_CHUNK_LEN;
-      RedisModule_ReplyWithStringBuffer(ctx, buffer + i * RAI_CHUNK_LEN, chunk_len);
+    long long chunk_size = getModelChunkSize();
+    const size_t n_chunks = len / chunk_size + 1;
+    if (n_chunks > 1) {
+      RedisModule_ReplyWithArray(ctx, (long)n_chunks);
+      for (size_t i=0; i<n_chunks; i++) {
+        size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+        RedisModule_ReplyWithStringBuffer(ctx, buffer + i * chunk_size, chunk_len);
+      }
+    }
+    else {
+      RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
     }
     RedisModule_Free(buffer);
   }
@@ -879,7 +885,9 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
 }
 
 /** 
-* AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | LOADBACKEND <backend_identifier> <location_of_backend_library>]
+* AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | 
+             LOADBACKEND <backend_identifier> <location_of_backend_library> |
+             CHUNKLEN <len>]
 */
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -1116,6 +1124,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
   setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
   setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
+  setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
   
   RAI_loadTimeConfig(ctx,argv,argc);
 

@@ -46,6 +46,4 @@ typedef struct RAI_ModelRunCtx {
   RAI_ModelCtxParam* outputs;
 } RAI_ModelRunCtx;
 
-static const size_t RAI_CHUNK_LEN = 511 * 1024 * 1024;
-
 #endif /* SRC_MODEL_STRUCT_H_ */

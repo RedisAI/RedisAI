@@ -67,10 +67,12 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     len = RedisModule_LoadUnsigned(io);
     buffer = RedisModule_Alloc(len);
     const size_t n_chunks = RedisModule_LoadUnsigned(io);
+    long long chunk_offset = 0;
     for (size_t i=0; i<n_chunks; i++) {
       size_t chunk_len;
       char *chunk_buffer = RedisModule_LoadStringBuffer(io, &chunk_len);
-      memcpy(buffer + i * RAI_CHUNK_LEN, chunk_buffer, chunk_len);
+      memcpy(buffer + chunk_offset, chunk_buffer, chunk_len);
+      chunk_offset += chunk_len;
       RedisModule_Free(chunk_buffer);
     }
   }
@@ -150,12 +152,13 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   for (size_t i=0; i<model->noutputs; i++) {
     RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
   }
+  long long chunk_size = getModelChunkSize();
+  const size_t n_chunks = len / chunk_size + 1;
   RedisModule_SaveUnsigned(io, len);
-  const size_t n_chunks = len / RAI_CHUNK_LEN + 1;
   RedisModule_SaveUnsigned(io, n_chunks);
   for (size_t i=0; i<n_chunks; i++) {
-    size_t chunk_len = i < n_chunks - 1 ? RAI_CHUNK_LEN : len % RAI_CHUNK_LEN;
-    RedisModule_SaveStringBuffer(io, buffer + i * RAI_CHUNK_LEN, chunk_len);
+    size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+    RedisModule_SaveStringBuffer(io, buffer + i * chunk_size, chunk_len);
   }
 
   if (buffer) {
@@ -197,12 +200,13 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
-  const size_t n_chunks = len / RAI_CHUNK_LEN + 1;
+  long long chunk_size = getModelChunkSize();
+  const size_t n_chunks = len / chunk_size + 1;
   RedisModuleString **buffers_ = array_new(RedisModuleString*, n_chunks);
 
   for (size_t i=0; i<n_chunks; i++) {
-    size_t chunk_len = i < n_chunks - 1 ? RAI_CHUNK_LEN : len % RAI_CHUNK_LEN;
-    array_append(buffers_, RedisModule_CreateString(ctx, buffer + i * RAI_CHUNK_LEN, chunk_len));
+    size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+    array_append(buffers_, RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
   }
 
   if (buffer) {

@@ -23,6 +23,7 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define REDISAI_DEFAULT_THREADS_PER_QUEUE 1
 #define REDISAI_DEFAULT_INTRA_OP_PARALLELISM 0
 #define REDISAI_DEFAULT_INTER_OP_PARALLELISM 0
+#define REDISAI_DEFAULT_MODEL_CHUNK_SIZE 535822336 // (511 * 1024 * 1024)
 #define REDISAI_ERRORMSG_PROCESSING_ARG "ERR error processing argument"
 #define REDISAI_ERRORMSG_THREADS_PER_QUEUE \
   "ERR error setting THREADS_PER_QUEUE to"
@@ -37,6 +38,8 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
   "Setting INTRA_OP_PARALLELISM parameter to"
 #define REDISAI_INFOMSG_INTER_OP_PARALLELISM \
   "Setting INTER_OP_PARALLELISM parameter to"
+#define REDISAI_INFOMSG_MODEL_CHUNK_SIZE \
+  "Setting MODEL_CHUNK_SIZE parameter to"
 
 /**
  * Get number of threads used for parallelism between independent operations, by
@@ -71,6 +74,21 @@ long long getBackendsIntraOpParallelism();
  * @return 0 on success, or 1  if failed
  */
 int setBackendsIntraOpParallelism(long long num_threads);
+
+/**
+ * @return size of chunks (in bytes) in which models are split for
+ * set, get, serialization and replication.
+ */
+long long getModelChunkSize();
+
+/**
+ * Set size of chunks (in bytes) in which models are split for set,
+ * get, serialization and replication.
+ *
+ * @param size
+ * @return 0 on success, or 1  if failed
+ */
+int setModelChunkSize(long long size);
 
 /**
  * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
