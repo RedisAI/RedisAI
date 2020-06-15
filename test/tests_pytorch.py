@@ -32,6 +32,16 @@ def test_pytorch_chunked_modelset(env):
 
     env.assertEqual(model1, model2)
 
+    ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
+
+    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    env.assertEqual(len(model2), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
+
+    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]
+    env.assertEqual(len(model3), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
+
 
 def test_pytorch_modelrun(env):
     if not TEST_PT:

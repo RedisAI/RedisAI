@@ -142,6 +142,16 @@ int RedisAI_Config_IntraOperationParallelism(
     RedisModuleString *num_threads_string);
 
 /**
+ * Set size of chunks in which model payloads are split for set,
+ * get, serialization and replication.
+ *
+ * @param chunk_size_string string containing chunk size (in bytes)
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int RedisAI_Config_ModelChunkSize(
+    RedisModuleString *chunk_size_string);
+
+/**
  *
  * @param ctx Context in which Redis modules operate
  * @param key

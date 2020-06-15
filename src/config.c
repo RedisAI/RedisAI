@@ -216,6 +216,7 @@ int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string) {
     temp = REDISAI_DEFAULT_MODEL_CHUNK_SIZE;
     result = REDISMODULE_ERR;
   }
+  result = setModelChunkSize(temp);
   return result;
 }
 
