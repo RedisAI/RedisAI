@@ -220,7 +220,7 @@ An array of alternating key-value pairs as follows:
 1. **MINBATCHSIZE**: The minimum size of any batch of incoming requests.
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
-1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
+1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
 
@@ -719,6 +719,7 @@ _Arguments_
     * **TFLITE**: The TensorFlow Lite backend
     * **TORCH**: The PyTorch backend
     * **ONNX**: ONNXRuntime backend
+* **MODEL_CHUNK_SIZE**: Sets the size of chunks (in bytes) in which model payloads are split for serialization, replication and `MODELGET`. Default is `511 * 1024 * 1024`.
 
 _Return_
 
@@ -744,5 +745,12 @@ This loads the PyTorch backend with a full path:
 
 ```
 redis> AI.CONFIG LOADBACKEND TORCH /usr/lib/redis/modules/redisai/backends/redisai_torch/redisai_torch.so
+OK
+```
+
+This sets model chunk size to one megabyte (not recommended):
+
+```
+redis> AI.CONFIG MODEL_CHUNK_SIZE 1048576
 OK
 ```
