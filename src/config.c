@@ -244,44 +244,31 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
   else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
     ret = RedisAI_Config_QueueThreads(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_THREADS_PER_QUEUE) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %s",
+                      REDISAI_INFOMSG_THREADS_PER_QUEUE,
+                      (val));
     }
   } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
     ret = RedisAI_Config_IntraOperationParallelism(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_INTRA_OP_PARALLELISM) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-              getBackendsIntraOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
+                      getBackendsIntraOpParallelism());
     }
   } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
     ret = RedisAI_Config_InterOperationParallelism(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_INTER_OP_PARALLELISM) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-              getBackendsInterOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_INTER_OP_PARALLELISM,
+                      getBackendsInterOpParallelism());
     }
   } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
-    RedisAI_Config_ModelChunkSize(rsval);
-    char *buffer = RedisModule_Alloc(
-        (3 + strlen(REDISAI_INFOMSG_MODEL_CHUNK_SIZE) + strlen((val))) *
-        sizeof(*buffer));
-    sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
-            getModelChunkSize());
-    RedisModule_Log(ctx, "notice", buffer);
-    RedisModule_Free(buffer);
+    ret = RedisAI_Config_ModelChunkSize(rsval);
+    if (ret == REDISMODULE_OK) {
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
+                      getModelChunkSize());
+    }
   } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
     // already taken care of
   } else {
