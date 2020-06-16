@@ -424,17 +424,20 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index) {
   return mctx->outputs[index].tensor;
 }
 
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
-  for (size_t i=0; i<array_len(mctx->inputs); ++i) {
-    RAI_TensorFree(mctx->inputs[i].tensor);
-  }
-  array_free(mctx->inputs);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx, int freeTensors) {
+  if (freeTensors) {
+    for (size_t i=0; i<array_len(mctx->inputs); ++i) {
+      RAI_TensorFree(mctx->inputs[i].tensor);
+    }
 
-  for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
-    if (mctx->outputs[i].tensor) {
-      RAI_TensorFree(mctx->outputs[i].tensor);
+    for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
+      if (mctx->outputs[i].tensor) {
+        RAI_TensorFree(mctx->outputs[i].tensor);
+      }
     }
   }
+
+  array_free(mctx->inputs);
   array_free(mctx->outputs);
 
   RAI_Error err = {0};
