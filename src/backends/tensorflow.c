@@ -89,7 +89,8 @@ RAI_Tensor* RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
 
   const size_t ndims = TF_NumDims(tensor);
 
-  const int64_t total_batch_size = TF_Dim(tensor, 0);
+  int64_t total_batch_size = TF_Dim(tensor, 0);
+  total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
   int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
   int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));

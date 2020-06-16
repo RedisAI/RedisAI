@@ -206,6 +206,7 @@ RAI_Tensor* RAI_TensorCreateFromOrtValue(OrtValue* v, size_t batch_offset, long 
     if (status != NULL) goto error;
 
     int64_t total_batch_size = dims[0];
+    total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
     shape = RedisModule_Calloc(ndims, sizeof(*shape));
     strides = RedisModule_Calloc(ndims, sizeof(*strides));
