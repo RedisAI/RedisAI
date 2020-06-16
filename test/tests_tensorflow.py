@@ -24,10 +24,7 @@ def skip_if_no_TF(f):
 def test_run_mobilenet(env):
     con = env.getConnection()
 
-    input_var = 'input'
-    output_var = 'MobilenetV2/Predictions/Reshape_1'
-
-    model_pb, labels, img = load_mobilenet_test_data()
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, 'BLOB', model_pb)
@@ -94,10 +91,7 @@ def test_run_mobilenet_multiproc(env):
 
     con = env.getConnection()
 
-    input_var = 'input'
-    output_var = 'MobilenetV2/Predictions/Reshape_1'
-
-    model_pb, labels, img = load_mobilenet_test_data()
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
     con.execute_command('AI.MODELSET', 'mobilenet', 'TF', DEVICE,
                         'INPUTS', input_var, 'OUTPUTS', output_var, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
@@ -627,10 +621,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     minbatch_size = 2
     model_name = 'model'
     another_model_name = 'another_model'
-    inputvar = 'input'
-    outputvar = 'MobilenetV2/Predictions/Reshape_1'
-
-    model_pb, labels, img = load_mobilenet_test_data()
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
     con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
