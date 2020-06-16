@@ -360,6 +360,21 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   return REDISMODULE_OK;
 }
 
+void RAI_ReplyWithChunks(RedisModuleCtx *ctx, const char* buffer, long long len) {
+  long long chunk_size = getModelChunkSize();
+  const size_t n_chunks = len / chunk_size + 1;
+  if (n_chunks > 1) {
+    RedisModule_ReplyWithArray(ctx, (long)n_chunks);
+    for (size_t i=0; i<n_chunks; i++) {
+      size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+      RedisModule_ReplyWithStringBuffer(ctx, buffer + i * chunk_size, chunk_len);
+    }
+  }
+  else {
+    RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
+  }
+}
+
 /**
 * AI.MODELGET model_key [META] [BLOB]
 */
@@ -412,7 +427,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   if (!meta && blob) {
-    RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
+    RAI_ReplyWithChunks(ctx, buffer, len);
     RedisModule_Free(buffer);
     RedisModule_CloseKey(key);
     return REDISMODULE_OK;
@@ -456,7 +471,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   if (meta && blob) {
     RedisModule_ReplyWithCString(ctx, "blob");
-    RedisModule_ReplyWithStringBuffer(ctx, buffer, len);
+    RAI_ReplyWithChunks(ctx, buffer, len);
     RedisModule_Free(buffer);
   }
 
@@ -874,7 +889,9 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
 }
 
 /** 
-* AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | LOADBACKEND <backend_identifier> <location_of_backend_library>]
+* AI.CONFIG [BACKENDSPATH <default_location_of_backend_libraries> | 
+             LOADBACKEND <backend_identifier> <location_of_backend_library> |
+             CHUNKLEN <len>]
 */
 int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (argc < 2) return RedisModule_WrongArity(ctx);
@@ -891,6 +908,16 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     } else {
       return RedisModule_ReplyWithError(
           ctx, "ERR BACKENDSPATH: missing path argument");
+    }
+  }
+
+  if (!strcasecmp(subcommand, "MODEL_CHUNK_SIZE")) {
+    if (argc > 2) {
+      RedisAI_Config_ModelChunkSize(argv[2]);
+      return RedisModule_ReplyWithSimpleString(ctx, "OK");
+    } else {
+      return RedisModule_ReplyWithError(
+          ctx, "ERR MODEL_CHUNK_SIZE: missing chunk size");
     }
   }
 
@@ -1111,6 +1138,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
   perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
   setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
   setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
+  setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
   
   RAI_loadTimeConfig(ctx,argv,argc);
 

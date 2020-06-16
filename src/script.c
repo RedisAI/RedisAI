@@ -14,6 +14,7 @@
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
 #include <pthread.h>
+#include "version.h"
 
 RedisModuleType* RedisAI_ScriptType = NULL;
 
@@ -83,8 +84,8 @@ static void RAI_Script_AofRewrite(RedisModuleIO* aof, RedisModuleString* key,
                                   void* value) {
   RAI_Script* script = (RAI_Script*)value;
 
-  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccc", key, script->devicestr,
-                      script->tag, script->scriptdef);
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "scccc", key, script->devicestr,
+                      script->tag, "SOURCE", script->scriptdef);
 }
 
 static void RAI_Script_DTFree(void* value) {
@@ -106,7 +107,7 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
                                      .digest = NULL};
 
   RedisAI_ScriptType =
-      RedisModule_CreateDataType(ctx, "AI_SCRIPT", 0, &tmScript);
+      RedisModule_CreateDataType(ctx, "AI_SCRIPT", RAI_ENC_VER_MM, &tmScript);
   return RedisAI_ScriptType != NULL;
 }
 
@@ -201,17 +202,20 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index) {
   return sctx->outputs[index].tensor;
 }
 
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
-  for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
-    RAI_TensorFree(sctx->inputs[i].tensor);
-  }
-  array_free(sctx->inputs);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors) {
+  if (freeTensors) {
+    for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
+      RAI_TensorFree(sctx->inputs[i].tensor);
+    }
 
-  for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
-    if (sctx->outputs[i].tensor) {
-      RAI_TensorFree(sctx->outputs[i].tensor);
+    for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
+      if (sctx->outputs[i].tensor) {
+        RAI_TensorFree(sctx->outputs[i].tensor);
+      }
     }
   }
+
+  array_free(sctx->inputs);
   array_free(sctx->outputs);
 
   RedisModule_Free(sctx->fnname);

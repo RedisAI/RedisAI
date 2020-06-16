@@ -20,6 +20,7 @@ long long backends_intra_op_parallelism;  //  number of threads used within an
 long long
     backends_inter_op_parallelism;  //  number of threads used for parallelism
                                     //  between independent operations.
+long long model_chunk_size;  // size of chunks used to break up model payloads.
 
 /**
  *
@@ -64,6 +65,30 @@ int setBackendsIntraOpParallelism(long long num_threads) {
   int result = 1;
   if (num_threads >= 0) {
     backends_intra_op_parallelism = num_threads;
+    result = 0;
+  }
+  return result;
+}
+
+/**
+ * @return size of chunks (in bytes) in which models are split for
+ * set, get, serialization and replication.
+ */
+long long getModelChunkSize() {
+  return model_chunk_size;
+}
+
+/**
+ * Set size of chunks (in bytes) in which models are split for set,
+ * get, serialization and replication.
+ *
+ * @param size
+ * @return 0 on success, or 1  if failed
+ */
+int setModelChunkSize(long long size) {
+  int result = 1;
+  if (size > 0) {
+    model_chunk_size = size;
     result = 0;
   }
   return result;
@@ -176,6 +201,26 @@ int RedisAI_Config_IntraOperationParallelism(
 }
 
 /**
+ * Set size of chunks in which model payloads are split for set,
+ * get, serialization and replication.
+ *
+ * @param chunk_size_string string containing chunk size (in bytes)
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string) {
+  long long temp;
+  int result = RedisModule_StringToLongLong(chunk_size_string, &temp);
+  // make sure chunk size is a positive integer
+  // if not set the value to the default
+  if (result == REDISMODULE_OK && temp < 1) {
+    temp = REDISAI_DEFAULT_MODEL_CHUNK_SIZE;
+    result = REDISMODULE_ERR;
+  }
+  result = setModelChunkSize(temp);
+  return result;
+}
+
+/**
  *
  * @param ctx Context in which Redis modules operate
  * @param key
@@ -199,34 +244,30 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
   else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
     ret = RedisAI_Config_QueueThreads(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_THREADS_PER_QUEUE) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %s",
+                      REDISAI_INFOMSG_THREADS_PER_QUEUE,
+                      (val));
     }
   } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
     ret = RedisAI_Config_IntraOperationParallelism(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_INTRA_OP_PARALLELISM) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-              getBackendsIntraOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
+                      getBackendsIntraOpParallelism());
     }
   } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
     ret = RedisAI_Config_InterOperationParallelism(rsval);
     if (ret == REDISMODULE_OK) {
-      char *buffer = RedisModule_Alloc(
-          (3 + strlen(REDISAI_INFOMSG_INTER_OP_PARALLELISM) + strlen((val))) *
-          sizeof(*buffer));
-      sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-              getBackendsInterOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
-      RedisModule_Free(buffer);
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_INTER_OP_PARALLELISM,
+                      getBackendsInterOpParallelism());
+    }
+  } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
+    ret = RedisAI_Config_ModelChunkSize(rsval);
+    if (ret == REDISMODULE_OK) {
+      RedisModule_Log(ctx, "notice", "%s: %lld",
+                      REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
+                      getModelChunkSize());
     }
   } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
     // already taken care of
