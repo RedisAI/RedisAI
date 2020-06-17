@@ -27,17 +27,17 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
     env.assertEqual(ret, b'OK')
 
     for opnumber in range(1, MAX_ITERATIONS):
-        image_key = 'image'
-        temp_key1 = 'temp_key1'
-        temp_key2 = 'temp_key2'
+        image_key = 'image{}'.format(opnumber)
         class_key = 'output'
 
         ret = con.execute_command(
             'AI.DAGRUN', '|>',
-            'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(), '|>',
+            'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(), 
+            '|>',
             'AI.MODELRUN', model_name,
                          'INPUTS', image_key,
-                         'OUTPUTS', class_key,  '|>',
+                         'OUTPUTS', class_key, 
+                          '|>',
             'AI.TENSORGET',  class_key, 'blob'
         )
         env.assertEqual([b'OK', b'OK'], ret[:2])

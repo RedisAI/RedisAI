@@ -625,8 +625,8 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', inputvar,
-                        'OUTPUTS', outputvar,
+                        'INPUTS', input_var,
+                        'OUTPUTS', output_var,
                         'BLOB', model_pb)
     con.execute_command('AI.TENSORSET', 'input',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -649,8 +649,8 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     con.execute_command('AI.MODELSET', another_model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', inputvar,
-                        'OUTPUTS', outputvar,
+                        'INPUTS', input_var,
+                        'OUTPUTS', output_var,
                         'BLOB', model_pb)
 
     p1b = mp.Process(target=run, args=(another_model_name, 'final1'))
