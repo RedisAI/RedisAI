@@ -174,6 +174,7 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system     
 * **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
 * **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0).
@@ -361,6 +362,7 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system     
 * **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
