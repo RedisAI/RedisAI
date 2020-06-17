@@ -119,8 +119,9 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index);
  * work
  *
  * @param sctx
+ * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors);
 
 /**
  * Given the input script context, run associated script
