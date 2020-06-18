@@ -161,15 +161,26 @@ def test_onnx_modelrun_batchdim_mismatch(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
+<<<<<<< HEAD
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+=======
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'BLOB', model_pb)
+>>>>>>> cb70069... Add test for inconsistent zero batch output
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
+<<<<<<< HEAD
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 'VALUES', 1, 1)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 'VALUES', 1, 1)
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}', 'd{1}')
+=======
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 1, 1)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c', 'd')
+>>>>>>> cb70069... Add test for inconsistent zero batch output
 
 
 
