@@ -17,7 +17,11 @@ docker run -p 6379:6379 redisai/redisai:latest
 docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
 ```
 
-## Building and Running
+## Download
+
+A pre-compiled version can be downloaded from [RedisLabs download center](https://redislabs.com/download-center/modules/).
+
+## Building
 You can compile and build the module from its source code. The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module and how to contribute.
 
 ### Prerequisites
@@ -59,7 +63,7 @@ Once the dependencies have been built, you can build the RedisAI module with:
 make -C opt build
 ```
 
-### Loading the Module
+## Loading the Module
 To load the module on the same server is was compiled on simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.
 
 For example, to load the module from the project's path with a server command line switch use the following:
