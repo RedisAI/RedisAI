@@ -152,6 +152,27 @@ def test_onnx_modelrun_mnist(env):
         env.assertEqual(values2, values)
 
 
+def test_onnx_modelrun_batchdim_mismatch(env):
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'batchdim_mismatch.onnx')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 1, 1)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c', 'd')
+
+
+
 def test_onnx_modelrun_mnist_autobatch(env):
     if not TEST_ONNX:
         return
