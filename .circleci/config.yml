@@ -127,7 +127,7 @@ jobs:
           command: |
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
-            # ./opt/readies/bin/getredis -v 6 --force
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
           name: Build for coverage
