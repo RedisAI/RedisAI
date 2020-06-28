@@ -182,17 +182,20 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index) {
   return sctx->outputs[index].tensor;
 }
 
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
-  for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
-    RAI_TensorFree(sctx->inputs[i].tensor);
-  }
-  array_free(sctx->inputs);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors) {
+  if (freeTensors) {
+    for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
+      RAI_TensorFree(sctx->inputs[i].tensor);
+    }
 
-  for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
-    if (sctx->outputs[i].tensor) {
-      RAI_TensorFree(sctx->outputs[i].tensor);
+    for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
+      if (sctx->outputs[i].tensor) {
+        RAI_TensorFree(sctx->outputs[i].tensor);
+      }
     }
   }
+
+  array_free(sctx->inputs);
   array_free(sctx->outputs);
 
   RedisModule_Free(sctx->fnname);
