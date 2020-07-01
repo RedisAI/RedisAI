@@ -16,6 +16,9 @@ venv*/
 *.tar.gz
 /VARIANT
 
+# Docs API reference 
+docs/api_reference.md
+
 ### Cmake auto tools
 cmake-build-debug
 

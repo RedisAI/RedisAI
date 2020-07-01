@@ -1,12 +1,26 @@
 version: 2.1
 
 commands:
-  setup_steps:
+  setup-executor:
+    steps:
+      - run:
+          name: Setup executor
+          command: |
+            apt-get -qq update
+            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
+            bash <(curl -fsSL https://get.docker.com)
+      - setup_remote_docker:
+          docker_layer_caching: true
+
+  build-steps:
     parameters:
       platform:
         type: string
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
@@ -16,47 +30,59 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            # git clone git://github.com/antirez/redis.git --branch 6.0.1; (cd redis; make malloc=libc -j $(nproc); make install); redis-server --version
+            # ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
           paths:
             - deps
           key: build-dependencies-{{ checksum "get_deps.sh" }}
       - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
-
-  test_steps:
-    parameters:
-      platform:
-        type: string
-    steps:
-      - checkout
-      - run:
           name: Build
           command: make -C opt all SHOW=1
       - run:
           name: Test
           command: |
-            mkdir -p ~/workspace/tests
             make -C opt test SHOW=1
           no_output_timeout: 20m
       - run:
           name: Package
-          command: make -C opt pack BRANCH="${CIRCLE_BRANCH//[^A-Za-z0-9._-]/_}" INTO=~/workspace/packages SHOW=1
+          command: make -C opt pack SHOW=1
       - persist_to_workspace:
-          root: ~/workspace
+          root: bin/
           paths:
-            - 'packages/release/*.zip'
-            - 'packages/release/*.tgz'
-            - 'packages/branch/*.zip'
-            - 'packages/branch/*.tgz'
+            - artifacts/*.zip
+            - artifacts/*.tgz
       - store_artifacts:
           path: test/logs
 
-  deploy:
+  platform-build-steps:
+    parameters:
+      platform:
+        type: string
+    steps:
+      - setup-executor
+      - checkout
+      - run:
+          name: Setup
+          command: |
+            git submodule update --init --recursive
+            ./opt/readies/bin/getpy3
+      - run:
+          name: Build for platform
+          command: |
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            cd opt/build/docker
+            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+          no_output_timeout: 40m
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*.zip
+            - artifacts/*.tgz
+
+  deploy-steps:
     parameters:
       from:
         type: string
@@ -64,23 +90,34 @@ commands:
       - run:
           name: Deploy to S3
           command: |
-            aws s3 cp <<parameters.from>>/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
+            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
-  build:
+  build-debian:
     docker:
       - image: redisfab/rmbuilder:6.0.1-x64-buster
     steps:
-      - setup_steps:
+      - build-steps:
           platform: debian
-      - test_steps:
-          platform: debian
+
+  platform-build:
+    parameters:
+      platform:
+        type: string
+    docker:
+      - image: debian:buster
+    steps:
+      - platform-build-steps:
+          platform: <<parameters.platform>>
 
   coverage:
     docker:
       - image: redisfab/rmbuilder:6.0.1-x64-buster
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -90,13 +127,8 @@ jobs:
           command: |
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
-            # git clone git://github.com/antirez/redis.git --branch 6.0.1; cd redis; make malloc=libc -j $(nproc); make install; redis-server --version
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
-      - run:
-          name: Set up workspace
-          command: |
-            mkdir -p ~/workspace
-            chown `whoami` ~/workspace
       - run:
           name: Build for coverage
           command: |
@@ -110,23 +142,24 @@ jobs:
 
   build-macos:
     macos:
-      xcode: 11.1.0
+      xcode: 11.3.0
     steps:
       - run:
           name: Fix macOS Python installation
           command: |
             brew reinstall -f python2
-      - setup_steps:
-          platform: macosx
-      - test_steps:
+      - build-steps:
           platform: macosx
 
   build-multiarch-docker:
     machine:
       enabled: true
-      image: ubuntu-1604:201903-01
+      image: cimg/base:2020.01
     steps:
       - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
       - run:
           name: Checkout LFS
           command: |
@@ -143,10 +176,11 @@ jobs:
           name: Build
           command: |
             sudo docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make -C opt/build/docker build
-            sudo make -C opt/build/docker publish
+            cd opt/build/docker
+            make build
+            sudo make publish
 
-  build-gpu:
+  build-and-test-gpu:
     machine:
       enabled: true
       docker_layer_caching: true
@@ -155,19 +189,22 @@ jobs:
     steps:
       - checkout
       - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - run:
           name: Build
           command: |
             docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
       - run:
           name: Test
           command: |
-            mkdir -p ~/workspace/tests
-            docker run --gpus all -v $HOME/workspace/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 30m
+            mkdir -p $HOME/tests
+            docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
+          no_output_timeout: 40m
       - store_artifacts:
-          path: ~/workspace/tests
+          path: tests
 
-  deploy_package:
+  deploy-artifacts:
     parameters:
       package:
         type: string
@@ -175,68 +212,106 @@ jobs:
       - image: redisfab/rmbuilder:6.0.1-x64-buster
     steps:
       - attach_workspace:
-          at: ~/workspace
-      - deploy:
-          from: ~/workspace/packages/<<parameters.package>>
-      - store_artifacts:
-          path: ~/workspace/packages/<<parameters.package>>
+          at: workspace
+      - run:
+          name: Deploy to S3
+          command: |
+            cd workspace
+            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
+
+
+on-any-branch: &on-any-branch
+  filters:
+    branches:
+      only: /.*/
+    tags:
+      only: /.*/
+
+never: &never
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      ignore: /.*/
+
+on-master: &on-master
+  filters:
+    branches:
+      only: master
+
+on-version-tags: &on-version-tags
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only: /^v[0-9].*/
+
+on-master-and-version-tags: &on-master-and-version-tags
+  filters:
+    branches:
+      only:
+        - master
+    tags:
+      only: /^v[0-9].*/
+
+
+platform-build-defs: &platform-build-defs
+  requires:
+    - build-debian
+  <<: *on-master-and-version-tags
+  # <<: *on-any-branch # debugging
+
+after-platform-builds: &after-platform-builds
+  requires:
+    - build-centos7
+    - build-bionic
+    - build-xenial
+
 
 workflows:
   version: 2
   build_and_package:
     jobs:
-      - build:
-          filters:
-            tags:
-              only: /.*/
+      - build-debian:
+          <<: *on-any-branch
+      - platform-build:
+          name: build-centos7
+          platform: centos7
+          <<: *platform-build-defs
+      - platform-build:
+          name: build-bionic
+          platform: bionic
+          <<: *platform-build-defs
+      - platform-build:
+          name: build-xenial
+          platform: xenial
+          <<: *platform-build-defs
       - coverage:
-          filters:
-            branches:
-              only: /.*/
-            tags:
-              only: /.*/
-      # - build-macos:
-      #     filters:
-      #       branches:
-      #         ignore: /.*/
-      #       tags:
-      #         only: /^v[0-9].*/
-      #- build-multiarch-docker:
-      #    filters:
-      #      tags:
-      #        only: /^v[0-9].*/
-      #      branches:
-      #        ignore: /.*/
-      - build-gpu:
-          filters:
-            tags:
-              only: /.*/
-      - deploy_package:
-          name: deploy_branch
+          <<: *on-any-branch
+      - build-and-test-gpu:
+          <<: *on-any-branch
+      - build-macos:
+          <<: *never # temporarily disabled
+          # <<: *on-version-tags
+      - build-multiarch-docker:
+          <<: *never # temporarily disabled
+          # <<: *on-version-tags
+      - deploy-artifacts:
+          name: deploy-branch
           package: branch
-          requires:
-            - build
-          filters:
-            branches:
-              only: master
-      - deploy_package:
-          name: deploy_release
+          <<: *after-platform-builds
+          <<: *on-any-branch
+      - deploy-artifacts:
+          name: deploy-release
           package: release
-          requires:
-            - build
-          filters:
-            branches:
-              ignore: /.*/
-            tags:
-              only: '/^v[0-9].*/'
+          <<: *after-platform-builds
+          <<: *on-version-tags
 
-  #nightly:
-  #  triggers:
-  #   - schedule:
-  #        cron: "20 17 * * *"
-  #        filters:
-  #           branches:
-  #             only:
-  #              - master
-  #  jobs:
-  #    - build-macos
+  nightly:
+    triggers:
+      - schedule:
+          cron: "20 17 * * *"
+          <<: *on-master
+    jobs:
+      - build-macos:
+          <<: *never # temporarily disabled
