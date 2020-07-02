@@ -1,5 +1,6 @@
 
 ROOT:=..
+MK.pyver:=3
 include readies/mk/main
 
 MK.cmake:=1
@@ -46,7 +47,6 @@ make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
 make pack             # create installation packages
   PACK_DEPS=0           # do not pack dependencies
-  INTO=dir              # place artifacts in `dir`
   BRANCH=name           # use `name` as branch name
 make deploy           # copy packages to S3
 make release          # release a version
@@ -177,10 +177,11 @@ fetch deps:
 
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
+	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=1 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=1 ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(BINROOT) INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) INTO=$(INTO) DEPS=0 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=0 ./pack.sh
 endif
 
 #----------------------------------------------------------------------------------------------
