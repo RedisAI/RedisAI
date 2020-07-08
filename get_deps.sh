@@ -46,6 +46,8 @@ else
 	fi
 fi
 
+git submodule update --init --recursive || true
+
 OS=$(python3 $HERE/opt/readies/bin/platform --os)
 ARCH=$(python3 $HERE/opt/readies/bin/platform --arch)
 
@@ -65,8 +67,6 @@ LIBTFLITE=libtensorflow-lite
 LIBTORCH=libtorch
 MKL=mkl
 ONNXRUNTIME=onnxruntime
-
-git submodule update --init --recursive || true
 
 ######################################################################################## DLPACK
 
