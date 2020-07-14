@@ -32,6 +32,16 @@ def test_pytorch_chunked_modelset(env):
 
     env.assertEqual(model1, model2)
 
+    ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
+
+    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    env.assertEqual(len(model2), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
+
+    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]
+    env.assertEqual(len(model3), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
+
 
 def test_pytorch_modelrun(env):
     if not TEST_PT:
@@ -167,6 +177,26 @@ def test_pytorch_modelrun(env):
         env.assertEqual(values2, values)
 
 
+def test_pytorch_modelrun_batchdim_mismatch(env):
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'batchdim_mismatch.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 'VALUES', 1, 1)
+
+    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c', 'd')
+
+
 def test_pytorch_modelrun_autobatch(env):
     if not TEST_PT:
         return
@@ -208,6 +238,51 @@ def test_pytorch_modelrun_autobatch(env):
 
     values = con.execute_command('AI.TENSORGET', 'f', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+
+def test_pytorch_modelrun_autobatch_badbatch(env):
+    if not TEST_PT:
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm', 'TORCH', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    con.execute_command('AI.TENSORSET', 'd', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'e', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    ensureSlaveSynced(con, env)
+
+    def run():
+        con = env.getConnection()
+        try:
+            con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'd', 'e', 'OUTPUTS', 'f1', 'f2')
+        except Exception as e:
+            exception = e
+            env.assertEqual(type(exception), redis.exceptions.ResponseError)
+            env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    try:
+        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b', 'OUTPUTS', 'c1', 'c2')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+
 
 
 def test_pytorch_modelinfo(env):
@@ -638,6 +713,13 @@ def test_pytorch_scriptrun_errors(env):
 
     try:
         con.execute_command('AI.SCRIPTRUN', 'ket', 'bar_variadic', 'INPUTS', '$', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    
+    # "ERR Already encountered a variable size list of tensors"
+    try:
+        con.execute_command('AI.SCRIPTRUN', 'ket', 'bar_variadic', 'INPUTS', '$', 'a', '$', 'b' 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)

@@ -127,7 +127,7 @@ jobs:
           command: |
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
-            # ./opt/readies/bin/getredis -v 6 --force
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
           name: Build for coverage
@@ -200,7 +200,7 @@ jobs:
           command: |
             mkdir -p $HOME/tests
             docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 30m
+          no_output_timeout: 40m
       - store_artifacts:
           path: tests
 
@@ -258,8 +258,8 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  #@@ <<: *on-master-and-version-tags
-  <<: *on-any-branch
+  <<: *on-master-and-version-tags
+  # <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
@@ -291,10 +291,10 @@ workflows:
       - build-and-test-gpu:
           <<: *on-any-branch
       - build-macos:
-          <<: *never
+          <<: *never # temporarily disabled
           # <<: *on-version-tags
       - build-multiarch-docker:
-          <<: *never
+          <<: *never # temporarily disabled
           # <<: *on-version-tags
       - deploy-artifacts:
           name: deploy-branch
@@ -314,4 +314,4 @@ workflows:
           <<: *on-master
     jobs:
       - build-macos:
-          <<: *never
+          <<: *never # temporarily disabled

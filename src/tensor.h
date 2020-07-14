@@ -378,4 +378,10 @@ int RAI_parseTensorSetArgs(RedisModuleCtx* ctx, RedisModuleString** argv,
 int RAI_parseTensorGetArgs(RedisModuleCtx* ctx, RedisModuleString** argv,
                            int argc, RAI_Tensor* t);
 
+/**
+ * @brief  Returns the redis module type representing a tensor.
+ * @return redis module type representing a tensor.
+ */
+RedisModuleType *RAI_TensorRedisType(void);
+
 #endif /* SRC_TENSOR_H_ */

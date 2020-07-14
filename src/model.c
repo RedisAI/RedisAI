@@ -58,8 +58,24 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   };
 
   size_t len;
+  char *buffer = NULL;
 
-  char *buffer = RedisModule_LoadStringBuffer(io, &len);
+  if (encver <= 100) {
+    buffer = RedisModule_LoadStringBuffer(io, &len);
+  }
+  else {
+    len = RedisModule_LoadUnsigned(io);
+    buffer = RedisModule_Alloc(len);
+    const size_t n_chunks = RedisModule_LoadUnsigned(io);
+    long long chunk_offset = 0;
+    for (size_t i=0; i<n_chunks; i++) {
+      size_t chunk_len;
+      char *chunk_buffer = RedisModule_LoadStringBuffer(io, &chunk_len);
+      memcpy(buffer + chunk_offset, chunk_buffer, chunk_len);
+      chunk_offset += chunk_len;
+      RedisModule_Free(chunk_buffer);
+    }
+  }
 
   RAI_Error err = {0};
 
@@ -136,7 +152,14 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
   for (size_t i=0; i<model->noutputs; i++) {
     RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
   }
-  RedisModule_SaveStringBuffer(io, buffer, len);
+  long long chunk_size = getModelChunkSize();
+  const size_t n_chunks = len / chunk_size + 1;
+  RedisModule_SaveUnsigned(io, len);
+  RedisModule_SaveUnsigned(io, n_chunks);
+  for (size_t i=0; i<n_chunks; i++) {
+    size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+    RedisModule_SaveStringBuffer(io, buffer + i * chunk_size, chunk_len);
+  }
 
   if (buffer) {
     RedisModule_Free(buffer);
@@ -177,32 +200,44 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
     array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
+  long long chunk_size = getModelChunkSize();
+  const size_t n_chunks = len / chunk_size + 1;
+  RedisModuleString **buffers_ = array_new(RedisModuleString*, n_chunks);
+
+  for (size_t i=0; i<n_chunks; i++) {
+    size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
+    array_append(buffers_, RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
+  }
+
+  if (buffer) {
+    RedisModule_Free(buffer);
+  }
+
   const char* backendstr = RAI_BackendName(model->backend);
 
-  RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvb",
+  RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvcv",
                       key,
                       backendstr, model->devicestr, model->tag,
                       "BATCHSIZE", model->opts.batchsize,
                       "MINBATCHSIZE", model->opts.minbatchsize,
                       "INPUTS", inputs_, model->ninputs,
                       "OUTPUTS", outputs_, model->noutputs,
-                      buffer, len);
-
-  if (buffer) {
-    RedisModule_Free(buffer);
-  }
+                      "BLOB", buffers_, n_chunks);
 
   for (size_t i=0; i<model->ninputs; i++) {
     RedisModule_FreeString(ctx, inputs_[i]);
   }
-
   array_free(inputs_);
 
   for (size_t i=0; i<model->noutputs; i++) {
     RedisModule_FreeString(ctx, outputs_[i]);
   }
-
   array_free(outputs_);
+
+  for (size_t i=0; i<n_chunks; i++) {
+    RedisModule_FreeString(ctx, buffers_[i]);
+  }
+  array_free(buffers_);
 }
 
 
@@ -248,7 +283,7 @@ int RAI_ModelInit(RedisModuleCtx* ctx) {
       .digest = NULL
   };
 
-  RedisAI_ModelType = RedisModule_CreateDataType(ctx, "AI__MODEL", 0, &tmModel);
+  RedisAI_ModelType = RedisModule_CreateDataType(ctx, "AI__MODEL", RAI_ENC_VER_MM, &tmModel);
   return RedisAI_ModelType != NULL;
 }
 
@@ -389,17 +424,20 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index) {
   return mctx->outputs[index].tensor;
 }
 
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx) {
-  for (size_t i=0; i<array_len(mctx->inputs); ++i) {
-    RAI_TensorFree(mctx->inputs[i].tensor);
-  }
-  array_free(mctx->inputs);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx, int freeTensors) {
+  if (freeTensors) {
+    for (size_t i=0; i<array_len(mctx->inputs); ++i) {
+      RAI_TensorFree(mctx->inputs[i].tensor);
+    }
 
-  for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
-    if (mctx->outputs[i].tensor) {
-      RAI_TensorFree(mctx->outputs[i].tensor);
+    for (size_t i = 0 ; i < array_len(mctx->outputs) ; ++i) {
+      if (mctx->outputs[i].tensor) {
+        RAI_TensorFree(mctx->outputs[i].tensor);
+      }
     }
   }
+
+  array_free(mctx->inputs);
   array_free(mctx->outputs);
 
   RAI_Error err = {0};
@@ -644,4 +682,8 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
     return -1;
   }
   return argpos;
+}
+
+RedisModuleType *RAI_ModelRedisType(void) {
+    return RedisAI_ModelType;
 }
