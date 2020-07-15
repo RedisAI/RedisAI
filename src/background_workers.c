@@ -223,9 +223,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       for (long long i = 0; i < array_len(evicted_items); i++) {
         RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[i]->value);
         const int use_local_context = evicted_rinfo->use_local_context;
-        pthread_mutex_lock(evicted_rinfo->dagMutex);
-        const int dagError = *evicted_rinfo->dagError;
-        pthread_mutex_unlock(evicted_rinfo->dagMutex);
+        int dagError = 0;
+        if (use_local_context == 1) {
+          pthread_mutex_lock(evicted_rinfo->dagMutex);
+          dagError = *evicted_rinfo->dagError;
+          pthread_mutex_unlock(evicted_rinfo->dagMutex);
+        }
         if (use_local_context == 1 && dag_complete == 0 && !dagError) {
           if (dag_progress) {
             queueUnpop(run_queue_info->run_queue, evicted_rinfo);
