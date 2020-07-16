@@ -167,22 +167,10 @@ static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx,
 }
 
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RAI_Error* err) {
-  // if (sctx->variadic != -1) {
-  //   RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
-  //   return 0;
-  // }
   return Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensor);
 }
 
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err) {
-  // If this is the first time a list is added, set the variadic, else return an error.
-  // if (sctx->variadic == -1) {
-  //   sctx->variadic = array_len(sctx->inputs);
-  // }
-  // else {
-  //   RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
-  //   return 0;
-  // }
   int res;
   for (size_t i=0; i < len; i++) {
     res = Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensors[i]);
