@@ -653,25 +653,6 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisModule_ReplyWithError(ctx, err.detail_oneline);
   }
 
-        // RAI_Tensor *inputTensor;
-        // if (useLocalContext == 0) {
-        //   RedisModuleKey *tensorKey;
-        //   const int status = RAI_GetTensorFromKeyspace(
-        //           ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
-        //   if (status == REDISMODULE_ERR) {
-        //     // TODO: free rinfo
-        //     return -1;
-        //   }
-        //   RedisModule_CloseKey(tensorKey);
-        // } else {
-        //   const int get_result = RAI_getTensorFromLocalContext(
-        //           ctx, *localContextDict, arg_string, &inputTensor, error);
-        //   if (get_result == REDISMODULE_ERR) {
-        //     return -1;
-        //   }
-        // }
-        // if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor, error)) return -1;
-
   for (int i=0; i<array_len(inkeys); i++) {
     RAI_Tensor *inputTensor;
     RedisModuleKey *tensorKey;
