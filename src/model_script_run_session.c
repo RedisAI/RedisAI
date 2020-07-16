@@ -36,7 +36,6 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
 
   RAI_ScriptRunCtx *sctx = NULL;
 
-  // RAI_Error *err = RedisModule_Calloc(1, sizeof(RAI_Error));
   RAI_Error err = {0};
   long long rtime;
   int status;
