@@ -741,11 +741,8 @@ def test_dagrun_modelrun_multidevice_resnet(env):
     outputvar = 'output'
     model_pb, script, labels, img = load_resnet_test_data()
 
-    # device_0 = DEVICE + ':0'
-    # device_1 = DEVICE + ':1'
-    device = 'CPU'
-    device_0 = device + ':0'
-    device_1 = device + ':1'
+    device_0 = 'CPU:1'
+    device_1 = DEVICE
 
     ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
                               'INPUTS', inputvar,
@@ -800,7 +797,7 @@ def test_dagrun_modelrun_multidevice_resnet(env):
                       'INPUTS', temp_key2_1,
                       'OUTPUTS', class_key_1
     )
-    env.assertEqual([b'OK', b'OK', b'OK', b'OK', b'OK', b'OK'],ret)
+    env.assertEqual([b'OK', b'OK', b'OK', b'OK', b'OK', b'OK'], ret)
 
     ensureSlaveSynced(con, env)
 
@@ -808,7 +805,88 @@ def test_dagrun_modelrun_multidevice_resnet(env):
     # tf model has 100 classes [0,999]
     env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
 
+    ret = con.execute_command('AI.TENSORGET', class_key_1, 'VALUES' )
+    env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
+
+
+def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+
+    model_name_0 = 'imagenet_model1'
+    model_name_1 = 'imagenet_model2'
+    script_name_0 = 'imagenet_script1'
+    script_name_1 = 'imagenet_script2'
+    inputvar = 'images'
+    outputvar = 'output'
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    device_0 = 'CPU:1'
+    device_1 = DEVICE
+
+    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.TENSORGET', class_key_1, 'VALUES' )
+    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+ 
+    image_key = 'image'
+    temp_key1 = 'temp_key1'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0'
+    class_key_1 = 'output1'
+
+    ret = con.execute_command(
+        'AI.DAGRUN',
+                     'PERSIST', '1', class_key_0, '|>',
+        'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                     '|>',
+        'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+                     'INPUTS', image_key,
+                     'OUTPUTS', temp_key1,
+                     '|>',
+        'AI.MODELRUN', model_name_0,
+                     'INPUTS', temp_key1,
+                     'OUTPUTS', temp_key2_0,
+                     '|>',
+        'AI.MODELRUN', model_name_1,
+                     'INPUTS', temp_key1,
+                     'OUTPUTS', temp_key2_1,
+                     '|>',
+        'AI.SCRIPTRUN', script_name_1, 'ensemble',
+                      'INPUTS', temp_key2_0, temp_key2_1,
+                      'OUTPUTS', temp_key1,
+                      '|>',
+        'AI.SCRIPTRUN', script_name_0, 'post_process',
+                      'INPUTS', temp_key1,
+                      'OUTPUTS', class_key_0,
+    )
+    env.assertEqual([b'OK', b'OK', b'OK', b'OK', b'OK', b'OK'], ret)
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.TENSORGET', class_key_0, 'VALUES' )
+    # tf model has 100 classes [0,999]
     env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
