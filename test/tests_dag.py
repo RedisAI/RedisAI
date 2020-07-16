@@ -858,6 +858,68 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     class_key_0 = 'output0'
     class_key_1 = 'output1'
 
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN',
+                         'PERSIST', '2', class_key_0, class_key_1, '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                         '|>',
+            'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,
+                         '|>',
+            'AI.MODELRUN', model_name_0,
+                         'INPUTS', temp_key1,
+                         'OUTPUTS', temp_key2_0,
+                         '|>',
+            'AI.MODELRUN', model_name_1,
+                         'INPUTS', temp_key1,
+                         'OUTPUTS', temp_key2_1,
+                         '|>',
+            'AI.SCRIPTRUN', script_name_1, 'ensemble',
+                          'INPUTS', temp_key2_0, temp_key2_1,
+                          'OUTPUTS', temp_key1,
+                          '|>',
+            'AI.SCRIPTRUN', script_name_0, 'post_process',
+                          'INPUTS', temp_key1,
+                          'OUTPUTS', class_key_0,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("PERSIST key cannot be found in DAG", exception.__str__())
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN',
+                         'PERSIST', '1', class_key_0, '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                         '|>',
+            'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,
+                         '|>',
+            'AI.MODELRUN', model_name_0,
+                         'INPUTS', temp_key1 + '_foo',
+                         'OUTPUTS', temp_key2_0,
+                         '|>',
+            'AI.MODELRUN', model_name_1,
+                         'INPUTS', temp_key1,
+                         'OUTPUTS', temp_key2_1,
+                         '|>',
+            'AI.SCRIPTRUN', script_name_1, 'ensemble',
+                          'INPUTS', temp_key2_0, temp_key2_1,
+                          'OUTPUTS', temp_key1,
+                          '|>',
+            'AI.SCRIPTRUN', script_name_0, 'post_process',
+                          'INPUTS', temp_key1,
+                          'OUTPUTS', class_key_0,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUT key cannot be found in DAG", exception.__str__())
+
     ret = con.execute_command(
         'AI.DAGRUN',
                      'PERSIST', '1', class_key_0, '|>',

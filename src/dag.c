@@ -730,8 +730,9 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       const char* key = RedisModule_StringPtrLen(currentOp->inkeys[j], NULL);
       AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
       if (!entry) {
-        return REDISMODULE_ERR;
-      } 
+        return RedisModule_ReplyWithError(ctx,
+                                          "ERR INPUT key cannot be found in DAG");
+      }
       int *instance = AI_dictGetVal(entry);
       RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
       mangled_inkeys = array_append(mangled_inkeys, mangled_key);
@@ -770,7 +771,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       char *key = (char *)AI_dictGetKey(entry);
       AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
       if (!mangled_entry) {
-        return REDISMODULE_ERR;
+        return RedisModule_ReplyWithError(ctx,
+                                          "ERR PERSIST key cannot be found in DAG");
       } 
       int *instance = AI_dictGetVal(mangled_entry);
       RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
