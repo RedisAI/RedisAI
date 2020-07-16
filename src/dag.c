@@ -819,13 +819,6 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
   
-  // The problem is that master_device here is the last, but the fact that it is
-  // actually the last to run is incorrect. The exit condition for this needs
-  // to be different.
-  // For instance: the first that notices that all tasks have been executed
-  // is the one who should unblock. We need to set an unblocked flag for the
-  // others so that they know that they need to exit.
-  // In other words: there's no master_device ################################
   const char* master_device = rinfo->dagOps[array_len(rinfo->dagOps)-1]->devicestr;
 
   RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, 10);
