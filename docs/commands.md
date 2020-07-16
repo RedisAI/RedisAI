@@ -580,6 +580,8 @@ _Arguments_
     * `AI.MODELRUN`
     * `AI.SCRIPTRUN`
 
+`AI.MODELRUN` and `AI.SCRIPTRUN` commands can run on models or scripts that were set on different devices. RedisAI will analyze the DAG and execute commands in parallel if they are located on different devices and their inputs are available.
+
 _Return_
 
 An array with an entry per command's reply. Each entry format respects the specified command reply.
