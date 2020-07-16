@@ -11,7 +11,9 @@ int parseDeviceStr(const char* devicestr, RAI_Device* device,
     *deviceid = -1;
   } else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
     *device = RAI_DEVICE_GPU;
-    sscanf(devicestr, "GPU:%lld", deviceid);
+    long long id;
+    sscanf(devicestr, "GPU:%lld", &id);
+    *deviceid = id;
   } else {
     return 0;
   }

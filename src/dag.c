@@ -216,6 +216,12 @@ void *RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr, i
 
   pthread_mutex_lock(rinfo->dagMutex);
 
+  if (*rinfo->dagError == 1 && rinfo->client != NULL) {
+    RedisModule_UnblockClient(rinfo->client, rinfo);
+    pthread_mutex_unlock(rinfo->dagMutex);
+    return NULL;
+  }
+
   bool all_complete = true;
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
 

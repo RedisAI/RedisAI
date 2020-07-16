@@ -106,6 +106,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
+  rinfo->client = NULL;
   rinfo->runkey = NULL;
   rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
   rinfo->mctx = NULL;
@@ -149,6 +150,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
+  rinfo->client = NULL;
   rinfo->runkey = NULL;
   rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
   rinfo->mctx = NULL;
