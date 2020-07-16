@@ -9,4 +9,4 @@ def post_process(output):
     return output.max(1)[1] - 1
 
 def ensemble(output0, output1):
-    return output0 + output1
+    return (output0 + output1) * 0.5

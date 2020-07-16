@@ -242,6 +242,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             }
             else {
               queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+              // Sleep for a millisecond since there's nothing else
+              // on the queue that has a chance to run
+              usleep(1000);
             }
           }
         }
