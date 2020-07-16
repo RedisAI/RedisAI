@@ -968,7 +968,7 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
                      'INPUTS', temp_key1,
                      'OUTPUTS', temp_key2_1,
                      '|>',
-        'AI.SCRIPTRUN', script_name_1, 'ensemble',
+        'AI.SCRIPTRUN', script_name_0, 'ensemble',
                       'INPUTS', temp_key2_0, temp_key2_1,
                       'OUTPUTS', temp_key1,
                       '|>',
