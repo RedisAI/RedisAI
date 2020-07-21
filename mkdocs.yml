@@ -6,7 +6,7 @@ repo_name: RedisAI/RedisAI
 google_analytics:
   - 'UA-92003007-1'
   - 'auto'
-
+  
 use_directory_urls: true
 
 theme:
@@ -26,7 +26,6 @@ theme:
 extra_javascript:
   - 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.0/MathJax.js?config=TeX-MML-AM_CHTML'
   - gtm.js
-  
 nav:
   - 'Home': index.md
   - 'Introduction': intro.md
