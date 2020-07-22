@@ -16,6 +16,7 @@ try:
 except:
     pass
 
+MAX_ITERATIONS = 2 if os.environ.get("MAX_ITERATIONS") == None else os.environ.get("MAX_ITERATIONS")
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
 TEST_TFLITE = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
 TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
@@ -24,7 +25,7 @@ COV = os.environ.get("COV") != "0" and os.environ.get("COV") != "0"
 DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
 VALGRIND = os.environ.get("VALGRIND") == "1"
 print(f"Running tests on {DEVICE}\n")
-
+print(f"Using a max of {MAX_ITERATIONS} iterations per test\n")
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
@@ -91,12 +92,13 @@ def load_resnet_test_data():
 
     return model_pb, script, labels, img
 
-
-def load_mobilenet_test_data():
+def load_mobilenet_v1_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
     image_filename = os.path.join(test_data_path, 'panda.jpg')
-    model_filename = os.path.join(test_data_path, 'mobilenet_v2_1.4_224_frozen.pb')
+    model_filename = os.path.join(test_data_path, 'mobilenet/mobilenet_v1_100_224_cpu_NxHxWxC.pb')
+    input_var = 'input'
+    output_var = 'MobilenetV1/Predictions/Reshape_1'
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
@@ -110,7 +112,29 @@ def load_mobilenet_test_data():
     img = resize(img, (img_height, img_width), mode='constant', anti_aliasing=True)
     img = img.astype(np.float32)
 
-    return model_pb, labels, img
+    return model_pb, input_var, output_var, labels, img
+
+def load_mobilenet_v2_test_data():
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
+    image_filename = os.path.join(test_data_path, 'panda.jpg')
+    model_filename = os.path.join(test_data_path, 'mobilenet/mobilenet_v2_1.4_224_frozen.pb')
+    input_var = 'input'
+    output_var = 'MobilenetV2/Predictions/Reshape_1'
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(labels_filename, 'r') as f:
+        labels = json.load(f)
+
+    img_height, img_width = 224, 224
+
+    img = imread(image_filename)
+    img = resize(img, (img_height, img_width), mode='constant', anti_aliasing=True)
+    img = img.astype(np.float32)
+
+    return model_pb, input_var, output_var, labels, img
 
 def load_creditcardfraud_data(env,max_tensors=10000):
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')

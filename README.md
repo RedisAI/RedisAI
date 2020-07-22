@@ -121,6 +121,7 @@ Some languages have client libraries that provide support for RedisAI's commands
 | JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
 | redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
 | redisai-go | Go | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-go) |
+| redisai-js | Typescript/Javascript | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-js) |
 
 ## Backend Dependancy
 
@@ -134,6 +135,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 0.3.1   | 1.1.0   | 1.12.0     | None   | 0.4.0         |
 | 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
 | 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
+| 1.0.0   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 | master  | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 
 Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.

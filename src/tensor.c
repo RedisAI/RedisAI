@@ -17,6 +17,7 @@
 #include "util/dict.h"
 #include <assert.h>
 #include "redisai.h"
+#include <pthread.h>
 
 RedisModuleType *RedisAI_TensorType = NULL;
 
@@ -241,7 +242,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx){
       .free = RAI_Tensor_DTFree,
       .digest = NULL,
   };
-  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", 0, &tmTensor);
+  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", RAI_ENC_VER_MM, &tmTensor);
   return RedisAI_TensorType != NULL;
 }
 
@@ -480,7 +481,7 @@ size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype) {
 
 void RAI_TensorFree(RAI_Tensor *t) {
   if (t) {
-    if (--t->refCount <= 0) {
+    if (__atomic_sub_fetch(&t->refCount, 1, __ATOMIC_RELAXED)  <= 0) {
       if (t->tensor.deleter) {
         t->tensor.deleter(&t->tensor);
       } else {
@@ -632,7 +633,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor* t, long long i, long long* val) {
 }
 
 RAI_Tensor* RAI_TensorGetShallowCopy(RAI_Tensor* t){
-  ++t->refCount;
+  __atomic_fetch_add(&t->refCount, 1, __ATOMIC_RELAXED);
   return t;
 }
 
@@ -1071,4 +1072,8 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
   // return command arity as the number of processed args
   return argc;
+}
+
+RedisModuleType *RAI_TensorRedisType(void) {
+    return RedisAI_TensorType;
 }

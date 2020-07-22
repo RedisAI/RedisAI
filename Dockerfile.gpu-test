@@ -8,9 +8,15 @@ ARG OSNICK=bionic
 # ARCH=x64|arm64v8|arm32v7
 ARG ARCH=x64
 
+# OS=ubuntu18.04|ubuntu16.04|centos7
+ARG OS=ubuntu18.04
+
+ARG CUDA_VER=10.1-cudnn7
+
+ARG PACK=1
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04 AS builder
+FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
 SHELL ["/bin/bash", "-c"]
 
@@ -43,10 +49,11 @@ RUN set -e ;\
 ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
-	. venv/bin/activate ;\
-	make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+    . venv/bin/activate ;\
+    . ./opt/readies/bin/sourced ./profile.d ;\
+    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
-ARG PACK=1
+ARG PACK
 
 RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \

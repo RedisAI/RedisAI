@@ -13,6 +13,8 @@
 #include "script_struct.h"
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
+#include <pthread.h>
+#include "version.h"
 
 RedisModuleType* RedisAI_ScriptType = NULL;
 
@@ -82,8 +84,8 @@ static void RAI_Script_AofRewrite(RedisModuleIO* aof, RedisModuleString* key,
                                   void* value) {
   RAI_Script* script = (RAI_Script*)value;
 
-  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccc", key, script->devicestr,
-                      script->tag, script->scriptdef);
+  RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "scccc", key, script->devicestr,
+                      script->tag, "SOURCE", script->scriptdef);
 }
 
 static void RAI_Script_DTFree(void* value) {
@@ -105,7 +107,7 @@ int RAI_ScriptInit(RedisModuleCtx* ctx) {
                                      .digest = NULL};
 
   RedisAI_ScriptType =
-      RedisModule_CreateDataType(ctx, "AI_SCRIPT", 0, &tmScript);
+      RedisModule_CreateDataType(ctx, "AI_SCRIPT", RAI_ENC_VER_MM, &tmScript);
   return RedisAI_ScriptType != NULL;
 }
 
@@ -126,7 +128,7 @@ RAI_Script* RAI_ScriptCreate(const char* devicestr, const char* tag,
 }
 
 void RAI_ScriptFree(RAI_Script* script, RAI_Error* err) {
-  if (--script->refCount > 0) {
+  if (__atomic_sub_fetch(&script->refCount, 1, __ATOMIC_RELAXED) > 0) {
     return;
   }
 
@@ -155,21 +157,40 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
 }
 
 static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx,
-                                 RAI_ScriptCtxParam* paramArr,
+                                 RAI_ScriptCtxParam** paramArr,
                                  RAI_Tensor* tensor) {
   RAI_ScriptCtxParam param = {
       .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
   };
-  paramArr = array_append(paramArr, param);
+  *paramArr = array_append(*paramArr, param);
   return 1;
 }
 
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor) {
-  return Script_RunCtxAddParam(sctx, sctx->inputs, inputTensor);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RAI_Error* err) {
+    if(sctx->variadic != -1) {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
+        return 0;
+    }
+    return Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensor);
+}
+
+int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err) {
+   // If this is the first time a list is added, set the variadic, else return an error.
+    if(sctx->variadic == -1) {
+       sctx->variadic = array_len(sctx->inputs);
+    }
+    else {
+        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
+        return 0;
+    }
+    for(size_t i=0; i < len; i++){
+        Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensors[i]);
+    }
+    return 1;
 }
 
 int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx) {
-  return Script_RunCtxAddParam(sctx, sctx->outputs, NULL);
+  return Script_RunCtxAddParam(sctx, &sctx->outputs, NULL);
 }
 
 size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx) {
@@ -181,17 +202,20 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index) {
   return sctx->outputs[index].tensor;
 }
 
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx) {
-  for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
-    RAI_TensorFree(sctx->inputs[i].tensor);
-  }
-  array_free(sctx->inputs);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors) {
+  if (freeTensors) {
+    for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
+      RAI_TensorFree(sctx->inputs[i].tensor);
+    }
 
-  for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
-    if (sctx->outputs[i].tensor) {
-      RAI_TensorFree(sctx->outputs[i].tensor);
+    for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
+      if (sctx->outputs[i].tensor) {
+        RAI_TensorFree(sctx->outputs[i].tensor);
+      }
     }
   }
+
+  array_free(sctx->inputs);
   array_free(sctx->outputs);
 
   RedisModule_Free(sctx->fnname);
@@ -218,7 +242,7 @@ int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err) {
 }
 
 RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script) {
-  ++script->refCount;
+  __atomic_fetch_add(&script->refCount, 1, __ATOMIC_RELAXED);
   return script;
 }
 
@@ -270,7 +294,8 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
     int is_input = 0;
     int outputs_flag_count = 0;
     size_t argpos = 4;
-
+    // Keep variadic local variable as the calls for RAI_ScriptRunCtxAddInput check if (*sctx)->variadic already assigned.
+    size_t variadic = (*sctx)->variadic;
     for (; argpos <= argc - 1; argpos++) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if(!arg_string){
@@ -287,7 +312,11 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
             outputs_flag_count = 1;
         } else {
             if (!strcasecmp(arg_string, "$")) {
-              (*sctx)->variadic = argpos - 4;
+              if(variadic > -1) {
+                RedisAI_ReplyOrSetError(ctx,error,RAI_ESCRIPTRUN, "ERR Already encountered a variable size list of tensors");
+                return -1;
+              }
+              variadic = argpos - 4;
               continue;
             }
             RedisModule_RetainString(ctx, argv[argpos]);
@@ -309,10 +338,7 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
                         return -1;
                     }
                 }
-                if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor)) {
-                    RedisAI_ReplyOrSetError(ctx, error, RAI_ESCRIPTRUN, "ERR Input key not found");
-                    return -1;
-                }
+                if (!RAI_ScriptRunCtxAddInput(*sctx, inputTensor, error)) return -1;
             } else {
                 if (!RAI_ScriptRunCtxAddOutput(*sctx)) {
                     RedisAI_ReplyOrSetError(ctx, error, RAI_ESCRIPTRUN, "ERR Output key not found");
@@ -322,6 +348,8 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
             }
         }
     }
+    // In case variadic position found, set it in the context.
+    (*sctx)->variadic = variadic;
     return argpos;
 }
 
@@ -334,4 +362,8 @@ void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCod
     } else {
         RedisModule_ReplyWithError(ctx, errorMessage);
     }
+}
+
+RedisModuleType *RAI_ScriptRedisType(void) {
+    return RedisAI_ScriptType;
 }

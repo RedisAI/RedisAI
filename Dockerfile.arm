@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=6.0.1
+ARG REDIS_VER=6.0.5
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
@@ -11,12 +11,24 @@ ARG OS=debian:buster-slim
 # ARCH=arm64v8|arm32v7
 ARG ARCH=arm64v8
 
+ARG PACK=0
+ARG TEST=0
+
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis-xbuild:${REDIS_VER}-${ARCH}-${OSNICK} AS builder
+FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
+FROM redisfab/xbuild:${ARCH}-${OS} AS builder
+
+ARG OSNICK
+ARG OS
+ARG ARCH
+ARG REDIS_VER
 
 RUN [ "cross-build-start" ]
 
+RUN echo "Building for ${OSNICK} (${OS}) for ${ARCH}"
+
 WORKDIR /build
+COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
@@ -30,13 +42,15 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build $BUILD_ARGS SHOW=1
+RUN set -e ;\
+    . ./opt/readies/bin/sourced ./profile.d ;\
+    make -C opt build $BUILD_ARGS SHOW=1
 
-ARG PACK=0
-ARG TEST=0
+ARG PACK
+ARG TEST
 
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
-RUN if [ "$TEST" = "1" ]; then make -C opt test $BUILD_ARGS NO_LFS=1; fi
+RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test $BUILD_ARGS NO_LFS=1; fi
 
 RUN [ "cross-build-end" ]
 
@@ -45,7 +59,14 @@ FROM redisfab/redis-xbuild:${REDIS_VER}-${ARCH}-${OSNICK}
 
 RUN [ "cross-build-start" ]
 
-RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
+ARG OSNICK
+ARG OS
+ARG ARCH
+ARG REDIS_VER
+ARG PACK
+
+RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi 
 
 ENV REDIS_MODULES /usr/lib/redis/modules
 ENV LD_LIBRARY_PATH $REDIS_MODULES

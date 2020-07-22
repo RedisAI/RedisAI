@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=6.0.1
+ARG REDIS_VER=6.0.5
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -8,11 +8,25 @@ ARG OSNICK=bionic
 # ARCH=x64|arm64v8|arm32v7
 ARG ARCH=x64
 
+# OS=ubuntu18.04|ubuntu16.04|centos7
+ARG OS=ubuntu18.04
+
+ARG CUDA_VER=10.1-cudnn7
+
+ARG PACK=0
+ARG TEST=0
+
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:10.1-cudnn7-devel-ubuntu18.04 AS builder
+FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
-# ENV DEPS "git ca-certificates wget unzip cmake libgomp1 patchelf coreutils tcl libjemalloc-dev"
+ARG OSNICK
+ARG OS
+ARG REDIS_VER
+ARG CUDA_VER
+
+RUN echo "Building for ${OSNICK} (${OS}) [with Redis ${REDIS_VER}]"
+
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
@@ -31,24 +45,34 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+RUN set -e ;\
+    . ./opt/readies/bin/sourced ./profile.d ;\
+    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
-ARG PACK=0
-ARG TEST=0
+ARG PACK
+ARG TEST
 
+RUN mkdir -p bin/artifacts
 RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
-RUN if [ "$TEST" = "1" ]; then TEST="" make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1; fi
+
+RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1; fi
 
 #----------------------------------------------------------------------------------------------
-FROM nvidia/cuda:10.1-cudnn7-runtime-ubuntu18.04
+FROM nvidia/cuda:${CUDA_VER}-runtime-${OS}
 
-RUN set -e; apt-get -qq update; apt-get -q install -y libgomp1
+ARG OS
+
+RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi 
 
 ENV REDIS_MODULES /usr/lib/redis/modules
 RUN mkdir -p $REDIS_MODULES/
 
 COPY --from=redis /usr/local/ /usr/local/
 COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+
+COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+
 # COPY --from=builder /usr/local/etc/redis/redis.conf /usr/local/etc/redis/
 
 WORKDIR /data

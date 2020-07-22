@@ -91,6 +91,16 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
               currentOp->result = REDISMODULE_ERR;
             }
           }
+          // since we've increased the reference count prior modelrun we need to decrease it
+          const size_t ninputs = RAI_ModelRunCtxNumInputs(currentOp->mctx);
+          for (size_t inputNumber = 0; inputNumber < ninputs; inputNumber++) {
+            RAI_Tensor *tensor =
+                RAI_ModelRunCtxInputTensor(currentOp->mctx, inputNumber);
+            if (tensor) {
+              RAI_TensorFree(tensor);
+            }
+          }
+
         } else {
           currentOp->result = REDISMODULE_ERR;
         }
@@ -243,7 +253,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
       RedisModule_CloseKey(key);
       RedisAI_ReplicateTensorSet(ctx, tensor_keyname, tensor);
-      // TODO: free Tensor
     } else {
       RedisModule_ReplyWithError(
           ctx, "ERR specified persistent key that was not used on DAG");

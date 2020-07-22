@@ -174,6 +174,7 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
 * **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
 * **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. This is primarily used to force batching during testing, but it can also be used under normal operation. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0).
@@ -220,7 +221,7 @@ An array of alternating key-value pairs as follows:
 1. **MINBATCHSIZE**: The minimum size of any batch of incoming requests.
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
-1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String
+1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
 
@@ -361,6 +362,7 @@ _Arguments_
 * **device**: the device that will execute the model can be of:
     * **CPU**: a CPU device
     * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
 * **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
@@ -719,6 +721,7 @@ _Arguments_
     * **TFLITE**: The TensorFlow Lite backend
     * **TORCH**: The PyTorch backend
     * **ONNX**: ONNXRuntime backend
+* **MODEL_CHUNK_SIZE**: Sets the size of chunks (in bytes) in which model payloads are split for serialization, replication and `MODELGET`. Default is `511 * 1024 * 1024`.
 
 _Return_
 
@@ -744,5 +747,12 @@ This loads the PyTorch backend with a full path:
 
 ```
 redis> AI.CONFIG LOADBACKEND TORCH /usr/lib/redis/modules/redisai/backends/redisai_torch/redisai_torch.so
+OK
+```
+
+This sets model chunk size to one megabyte (not recommended):
+
+```
+redis> AI.CONFIG MODEL_CHUNK_SIZE 1048576
 OK
 ```

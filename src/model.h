@@ -79,8 +79,9 @@ RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model);
  * work
  *
  * @param mctx
+ * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx, int freeTensors);
 
 /**
  * Allocates a RAI_ModelCtxParam data structure, and enforces a shallow copy of
@@ -225,4 +226,11 @@ int RedisAI_Parse_ModelRun_RedisCommand(
     RAI_ModelRunCtx** mctx, RedisModuleString*** outkeys, RAI_Model** mto,
     int useLocalContext, AI_dict** localContextDict, int use_chaining_operator,
     const char* chaining_operator, RAI_Error* error);
+
+/**
+ * @brief  Returns the redis module type representing a model.
+ * @return redis module type representing a model.
+ */
+RedisModuleType *RAI_ModelRedisType(void);
+
 #endif /* SRC_MODEL_H_ */
