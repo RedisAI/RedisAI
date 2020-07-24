@@ -1,5 +1,5 @@
 display_name: RedisAI
-author: TensorWerk and RedisLabs
+author: Tensorwerk and RedisLabs
 email: support@redislabs.com
 description: Serving tensors and executing deep learning graphs
 homepage: https://oss.redislabs.com/redisai/
