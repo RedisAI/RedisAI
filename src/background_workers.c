@@ -236,6 +236,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           }
           else {
             if (queueLength(run_queue_info->run_queue) > 0) {
+              // TODO COVERAGE
               queueItem *next_item = queuePop(run_queue_info->run_queue);
               RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
               queuePushFront(run_queue_info->run_queue, evicted_rinfo);

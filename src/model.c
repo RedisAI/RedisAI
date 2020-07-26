@@ -96,7 +96,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
  
   if (err.code != RAI_OK) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
-    RedisModule_Log(ctx, "error", err.detail);
+    RedisModule_Log(ctx, "error", "%s", err.detail);
     RAI_ClearError(&err);
     if (buffer) {
       RedisModule_Free(buffer);

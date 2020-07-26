@@ -315,7 +315,7 @@ int RAI_loadTimeConfig(RedisModuleCtx *ctx,
                              strlen(key) + strlen(val)) *
                             sizeof(*buffer));
       sprintf(buffer, "%s: %s %s", REDISAI_ERRORMSG_PROCESSING_ARG, key, val);
-      RedisModule_Log(ctx, "warning", buffer);
+      RedisModule_Log(ctx, "warning", "%s", buffer);
       RedisModule_Free(buffer);
       return ret;
     }

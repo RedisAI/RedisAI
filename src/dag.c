@@ -3,6 +3,25 @@
  *
  * Contains the helper methods for both parsing, running the command in the
  * background, and replying DAG structured commands.
+ * 
+ * The way we allow DAG operations to run on different devices in parallel
+ * (when possible) is the following: instead of running the whole DAG in one
+ * swoop, the DAG run info is created on one
+ * queue/device and shallow copied (appropriately) across other queues/devices
+ * as indicated by the DAG specification. A DAG mutex is shared across all
+ * copies.
+ * The DAG run info is placed on the queue for each device and evicted for
+ * execution (in background_workers). Execution happens one DAG op at a time:
+ * once the individual op has executed, it is marked as such and the DAG run
+ * info is placed back on the queue. The current un-executed op is checked for
+ * its inputs. If all inputs are found in the tensor context, then the DAG op
+ * can be executed. If not, the execution quits and control is given back to
+ * the worker. If there are other items in the queue the op is placed after the
+ * next item. When all ops for a device have been executed, the DAG is not
+ * placed back on the queue. When all ops in a DAG have been executed or an
+ * error occurs, the client is unblocked.
+ * 
+ * See background_workers.c for the queue logic, everything else DAG is here.
  */
 
 #include "dag.h"
@@ -107,6 +126,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
       opname = currentOp->mctx->model->inputs[i];
     }
     if (!RAI_ModelRunCtxAddInput(currentOp->mctx, opname, inputTensors[i])) {
+      // TODO COVERAGE
       RAI_SetError(currentOp->err, RAI_EMODELRUN,
                    "ERR cannot add input to DAG's MODELRUN context");
       currentOp->result = REDISMODULE_ERR;
@@ -121,6 +141,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
       opname = currentOp->mctx->model->outputs[i];
     }
     if (!RAI_ModelRunCtxAddOutput(currentOp->mctx, opname)) {
+      // TODO COVERAGE
       RAI_SetError(currentOp->err, RAI_EMODELRUN,
                    "ERR cannot add output to DAG's MODELRUN context");
       currentOp->result = REDISMODULE_ERR;
@@ -148,6 +169,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
       AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
       pthread_mutex_unlock(rinfo->dagMutex);
     } else {
+      // TODO COVERAGE
       RAI_SetError(currentOp->err, RAI_EMODELRUN,
                    "ERR output tensor on DAG's MODELRUN was null");
       currentOp->result = REDISMODULE_ERR;
@@ -188,6 +210,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
 
   for (uint i=0; i<n_inkeys; i++) {
     if (!RAI_ScriptRunCtxAddInput(currentOp->sctx, inputTensors[i], currentOp->err)) {
+      // TODO COVERAGE
       currentOp->result = REDISMODULE_ERR;
       pthread_mutex_unlock(rinfo->dagMutex);
       return;
@@ -196,6 +219,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
 
   for (uint i=0; i<n_outkeys; i++) {
     if (!RAI_ScriptRunCtxAddOutput(currentOp->sctx)) {
+      // TODO COVERAGE
       RAI_SetError(currentOp->err, RAI_ESCRIPTRUN,
                    "ERR cannot add output to DAG's SCRIPTRUN context");
       currentOp->result = REDISMODULE_ERR;
@@ -222,6 +246,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
       AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
       pthread_mutex_unlock(rinfo->dagMutex);
     } else {
+      // TODO COVERAGE
       RAI_SetError(currentOp->err, RAI_ESCRIPTRUN,
                    "ERR output tensor on DAG's SCRIPTRUN was null");
       currentOp->result = REDISMODULE_ERR;
@@ -238,6 +263,7 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr, in
   pthread_mutex_lock(rinfo->dagMutex);
 
   if (*rinfo->dagError == 1 && rinfo->client != NULL) {
+    // TODO COVERAGE
     RedisModule_UnblockClient(rinfo->client, rinfo);
     pthread_mutex_unlock(rinfo->dagMutex);
     return;
@@ -356,6 +382,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       case REDISAI_DAG_CMD_TENSORSET: {
         rinfo->dagReplyLength++;
         if (currentOp->result == REDISMODULE_ERR) {
+          // TODO COVERAGE
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
           dag_error = 1;
         } else {
@@ -367,6 +394,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       case REDISAI_DAG_CMD_TENSORGET: {
         rinfo->dagReplyLength++;
         if (currentOp->result == REDISMODULE_ERR) {
+          // TODO COVERAGE
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
           dag_error = 1;
         } else {
@@ -375,6 +403,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
             RAI_parseTensorGetArgs(ctx, currentOp->argv, currentOp->argc,
                                    tensor);
           } else {
+            // TODO COVERAGE
             RedisModule_ReplyWithError(
                 ctx, "ERR error getting tensor from local context");
           }
@@ -389,6 +418,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
             RedisModule_StringPtrLen(currentOp->runkey, NULL);
         RAI_GetRunStats(runkey,&rstats);
         if (currentOp->result == REDISMODULE_ERR) {
+          // TODO COVERAGE
           RAI_SafeAddDataPoint(rstats,0,1,1,0);
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
           dag_error = 1;
@@ -405,6 +435,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         const char *runkey = RedisModule_StringPtrLen(currentOp->runkey, NULL);
         RAI_GetRunStats(runkey,&rstats);
         if (currentOp->result == REDISMODULE_ERR) {
+          // TODO COVERAGE
           RAI_SafeAddDataPoint(rstats,0,1,1,0);
           RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
           dag_error = 1;

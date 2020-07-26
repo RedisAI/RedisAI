@@ -100,6 +100,39 @@ def test_dag_common_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
 
+    # ERR INPUT key cannot be found in DAG
+    try:
+        command = "AI.DAGRUN |> "\
+                  "AI.TENSORGET tensor1 VALUES"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUT key cannot be found in DAG",exception.__str__())
+
+    # ERR invalid value
+    try:
+        command = "AI.DAGRUN |> "\
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES ASD"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid value",exception.__str__())
+
+    # ERR invalid or negative value found in number of keys to LOAD
+    try:
+        command = "AI.DAGRUN LOAD notnumber |> "\
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
+
 
 def test_dagro_common_errors(env):
     con = env.getConnection()
@@ -773,6 +806,62 @@ def test_dagrun_modelrun_multidevice_resnet(env):
     temp_key2_1 = 'temp_key2_1'
     class_key_0 = 'output0'
     class_key_1 = 'output1'
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN', '|>',
+            'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUT key cannot be found in DAG", exception.__str__())
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN', '|>',
+            'AI.MODELRUN', model_name_0,
+                         'INPUTS', temp_key1,
+                         'OUTPUTS', temp_key2_0,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("INPUT key cannot be found in DAG", exception.__str__())
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN', '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                         '|>',
+            'AI.SCRIPTRUN',  script_name, 'wrong_fn',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertTrue(exception.__str__().startswith("attempted to get undefined function wrong_fn"))
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN', '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                         '|>',
+            'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
+                         'INPUTS', image_key,
+                         'OUTPUTS', temp_key1,
+                         '|>',
+            'AI.MODELRUN', model_name_0,
+                         'INPUTS', temp_key1, temp_key1,
+                         'OUTPUTS', temp_key2_0,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match", exception.__str__())
 
     ret = con.execute_command(
         'AI.DAGRUN',
