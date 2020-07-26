@@ -272,14 +272,20 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
     return -1;
   }
 
-  const char *inputstr = RedisModule_StringPtrLen(argv[3], NULL);
+  const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
+  if (strcasecmp(inputstr, "INPUTS") == 0) {
+    RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
+    return -1;
+  }
+
+  inputstr = RedisModule_StringPtrLen(argv[3], NULL);
   if (strcasecmp(inputstr, "INPUTS")) {
     RAI_SetError(error, RAI_ESCRIPTRUN, "ERR INPUTS not specified");
     return -1;
   }
 
   // parsing aux vars
-  int is_input = 0;
+  int is_output = 0;
   int outputs_flag_count = 0;
   // Keep variadic local variable as the calls for RAI_ScriptRunCtxAddInput check if (*sctx)->variadic already assigned.
   size_t variadic = (*sctx)->variadic;
@@ -291,7 +297,7 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
       return -1;
     }
     if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
-      is_input = 1;
+      is_output = 1;
       outputs_flag_count = 1;
     } else {
       if (!strcasecmp(arg_string, "$")) {
@@ -303,7 +309,7 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
         continue;
       }
       RedisModule_RetainString(ctx, argv[argpos]);
-      if (is_input == 0) {
+      if (is_output == 0) {
         *inkeys = array_append(*inkeys, argv[argpos]);
       } else {
         *outkeys = array_append(*outkeys, argv[argpos]);

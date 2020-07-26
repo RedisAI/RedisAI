@@ -55,7 +55,8 @@ void *RedisAI_Run_ThreadMain(void *arg);
 
 char* strToUpper(const char* input) {
   char* output = RedisModule_Strdup(input);
-  for (long long i=0; i<strlen(output); i++) {
+  size_t output_len = strlen(output);
+  for (long long i=0; i<output_len; i++) {
     output[i] = toupper(output[i]);
   }
   return output;
@@ -231,17 +232,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         }
         if (use_local_context == 1 && dag_complete == 0 && !dagError) {
           if (dag_progress) {
-            queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+            queuePushFront(run_queue_info->run_queue, evicted_rinfo);
           }
           else {
             if (queueLength(run_queue_info->run_queue) > 0) {
               queueItem *next_item = queuePop(run_queue_info->run_queue);
               RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
-              queueUnpop(run_queue_info->run_queue, evicted_rinfo);
-              queueUnpop(run_queue_info->run_queue, next_rinfo);
+              queuePushFront(run_queue_info->run_queue, evicted_rinfo);
+              queuePushFront(run_queue_info->run_queue, next_rinfo);
             }
             else {
-              queueUnpop(run_queue_info->run_queue, evicted_rinfo);
+              queuePushFront(run_queue_info->run_queue, evicted_rinfo);
               // Sleep for a millisecond since there's nothing else
               // on the queue that has a chance to run
               usleep(1000);

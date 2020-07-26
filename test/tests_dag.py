@@ -16,8 +16,8 @@ def test_dag_load(env):
         "AI.TENSORSET persisted_tensor_1 FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
     command = "AI.DAGRUN "\
-                "LOAD 1 persisted_tensor_1 "\
-                "PERSIST 1 tensor1 |> "\
+              "LOAD 1 persisted_tensor_1 "\
+              "PERSIST 1 tensor1 |> "\
               "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
     ret = con.execute_command(command)
@@ -29,9 +29,9 @@ def test_dag_load_errors(env):
     # ERR tensor key is empty
     try:
         command = "AI.DAGRUN "\
-                    "LOAD 1 persisted_tensor_1 "\
-                    "PERSIST 1 tensor1 |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                  "LOAD 1 persisted_tensor_1 "\
+                  "PERSIST 1 tensor1 |> "\
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -43,9 +43,9 @@ def test_dag_load_errors(env):
     try:
         con.execute_command('SET', 'non-tensor', 'value')
         command = "AI.DAGRUN "\
-                    "LOAD 1 non-tensor "\
-                    "PERSIST 1 tensor1 |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                  "LOAD 1 non-tensor "\
+                  "PERSIST 1 tensor1 |> "\
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -60,7 +60,7 @@ def test_dag_common_errors(env):
     # ERR unsupported command within DAG
     try:
         command = "AI.DAGRUN |> "\
-                "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
+                  "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -81,7 +81,7 @@ def test_dag_common_errors(env):
     # ERR invalid or negative value found in number of keys to PERSIST
     try:
         command = "AI.DAGRUN PERSIST notnumber |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -92,7 +92,7 @@ def test_dag_common_errors(env):
     # ERR invalid or negative value found in number of keys to LOAD
     try:
         command = "AI.DAGRUN LOAD notnumber |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -107,7 +107,7 @@ def test_dagro_common_errors(env):
     # ERR unsupported command within DAG
     try:
         command = "AI.DAGRUN_RO |> "\
-                "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
+                  "AI.DONTEXIST tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -128,7 +128,7 @@ def test_dagro_common_errors(env):
     # ERR invalid or negative value found in number of keys to LOAD
     try:
         command = "AI.DAGRUN_RO LOAD notnumber |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
 
         ret = con.execute_command(command)
     except Exception as e:
@@ -148,36 +148,40 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
     model_pb, script, labels, img = load_resnet_test_data()
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-                        'INPUTS', inputvar,
-                        'OUTPUTS', outputvar,
-                        'BLOB', model_pb)
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
     #
-    for opnumber in range(1,100):
+    for opnumber in range(1, 100):
         image_key = 'image'
         temp_key1 = 'temp_key1'
         temp_key2 = 'temp_key2'
         class_key = 'output'
 
         ret = con.execute_command(
-            'AI.DAGRUN_RO', # '|>',
+            'AI.DAGRUN_RO', '|>',
             'AI.TENSORSET', image_key,
-            'UINT8', img.shape[1], img.shape[0], 3,
-            'BLOB', img.tobytes(), '|>',
-            'AI.SCRIPTRUN',  script_name,
-            'pre_process_3ch', 'INPUTS', image_key, 'OUTPUTS', temp_key1,  '|>',
+                'UINT8', img.shape[1], img.shape[0], 3,
+                'BLOB', img.tobytes(),
+                '|>',
+            'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
+                'INPUTS', image_key, 'OUTPUTS', temp_key1,
+                '|>',
             'AI.MODELRUN', model_name,
-            'INPUTS', temp_key1, 'OUTPUTS', temp_key2,  '|>',
-            'AI.SCRIPTRUN',  script_name,
-            'post_process', 'INPUTS', temp_key2, 'OUTPUTS', class_key, '|>',
+                'INPUTS', temp_key1, 'OUTPUTS', temp_key2,
+                '|>',
+            'AI.SCRIPTRUN',  script_name, 'post_process',
+                'INPUTS', temp_key2, 'OUTPUTS', class_key,
+                '|>',
             'AI.TENSORGET', class_key, 'VALUES'
         )
-        env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret[0:4])
+        env.assertEqual([b'OK',b'OK',b'OK',b'OK'], ret[0:4])
         # tf model has 100 classes [0,999]
-        env.assertEqual(ret[4][0]>=0 and ret[4][0]<1001, True)
+        env.assertEqual(ret[4][0] >= 0 and ret[4][0] < 1001, True)
 
 
 def test_dagrun_modelrun_scriptrun_resnet(env):
@@ -207,8 +211,7 @@ def test_dagrun_modelrun_scriptrun_resnet(env):
         class_key = 'output'
 
         ret = con.execute_command(
-            'AI.DAGRUN',
-                        'PERSIST', '1', class_key, '|>',
+            'AI.DAGRUN', 'PERSIST', '1', class_key, '|>',
             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
             'AI.SCRIPTRUN',  script_name, 'pre_process_3ch',
                          'INPUTS', image_key,
@@ -254,14 +257,14 @@ def test_dag_scriptrun_errors(env):
         class_key = 'output'
 
         ret = con.execute_command(
-            'AI.DAGRUN','|>',
+            'AI.DAGRUN', '|>',
             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
             'AI.SCRIPTRUN',  script_name,
             'INPUTS', image_key,
-            'OUTPUTS', temp_key1,  '|>',
+            'OUTPUTS', temp_key1, '|>',
             'AI.MODELRUN', model_name,
             'INPUTS', temp_key1,
-            'OUTPUTS', temp_key2,  '|>',
+            'OUTPUTS', temp_key2, '|>',
             'AI.SCRIPTRUN',  script_name, 'post_process',
             'INPUTS', temp_key2,
             'OUTPUTS', class_key
@@ -269,7 +272,7 @@ def test_dag_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified",exception.__str__())
+        env.assertEqual("function name not specified", exception.__str__())
 
 
 def test_dag_modelrun_financialNet_errors(env):
@@ -310,7 +313,7 @@ def test_dag_modelrun_financialNet_errors(env):
 def test_dag_local_tensorset(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUN "\
+    command = "AI.DAGRUN |> "\
         "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -325,7 +328,7 @@ def test_dag_local_tensorset(env):
 def test_dagro_local_tensorset(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUN_RO "\
+    command = "AI.DAGRUN_RO |> "\
         "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -420,8 +423,7 @@ def test_dag_local_tensorset_tensorget_persist(env):
 def test_dag_local_multiple_tensorset_on_same_tensor(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUN "\
-                     "PERSIST 1 tensor1 |> "\
+    command = "AI.DAGRUN PERSIST 1 tensor1 |> "\
         "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET tensor1 META VALUES |> "\
         "AI.TENSORSET tensor1 FLOAT 1 4 VALUES 20 40 60 80 |> "\
@@ -466,7 +468,7 @@ def test_dag_load_persist_tensorset_tensorget(env):
 def test_dag_local_tensorset_tensorget(env):
     con = env.getConnection()
 
-    command = "AI.DAGRUN "\
+    command = "AI.DAGRUN |> "\
         "AI.TENSORSET volatile_tensor FLOAT 1 2 VALUES 5 10 |> "\
         "AI.TENSORGET volatile_tensor META VALUES"
 

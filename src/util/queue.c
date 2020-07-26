@@ -35,7 +35,7 @@ void queuePush(queue *queue, void *value) {
   queue->len++;
 }
 
-void queueUnpop(queue *queue, void *value) {
+void queuePushFront(queue *queue, void *value) {
   queueItem *item;
 
   if ((item = RedisModule_Calloc(1, sizeof(*item))) == NULL) return;

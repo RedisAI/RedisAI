@@ -15,16 +15,23 @@
 #include "util/arr_rm_alloc.h"
 
 /**
- * Actual method running the DAGRUN Commands in the background
- * thread Called within `RedisAI_Run_ThreadMain`
- * After all computation is done, this will trigger
- * the reply callback to be called in order to reply to the client.
- * The 'rinfo' argument will be accessible by the reply callback.
+ * Actual method running at most one of the DAGRUN comments in the worker
+ * thread comsuming operations on a specific device. After a step is executed,
+ * `progress` is set to 1 and the run info is placed back in the queue, until
+ * DAGRUN is `complete`, when all steps have been executed on all devices.
+ * A step may not be executed if its required inputs are not available in the
+ * DAG local context.
+ * Completion will trigger the reply callback to be called in order to reply to
+ * the client. The 'rinfo' argument will be accessible by the reply callback.
  *
  * @param rinfo context in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @param progress value is set to one if a step has been executed
+ * @param complete
  * @return
  */
-void *RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr, int *progress, int *complete);
+void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr,
+                               int *progress, int *complete);
 
 /**
  * Reply Callback called after a successful RedisModule_UnblockClient() within

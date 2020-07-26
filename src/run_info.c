@@ -199,6 +199,20 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
       RAI_ScriptRunCtxFree(dagOp->sctx, false);
     }
 
+    if (dagOp->inkeys) {
+      for (size_t i=0; i<array_len(dagOp->inkeys); i++) {
+        RedisModule_Free(dagOp->inkeys[i]);
+      }
+      array_free(dagOp->inkeys);
+    }
+
+    if (dagOp->outkeys) {
+      for (size_t i=0; i<array_len(dagOp->outkeys); i++) {
+        RedisModule_Free(dagOp->outkeys[i]);
+      }
+      array_free(dagOp->outkeys);
+    }
+
     RedisModule_Free(dagOp);
   }
 }
