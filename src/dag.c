@@ -88,15 +88,6 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
   uint n_inkeys = array_len(currentOp->inkeys);
   uint n_outkeys = array_len(currentOp->outkeys);
 
-  // for (uint i=0; i<n_inkeys; i++) {
-  //   if (AI_dictFind(rinfo->dagTensorsContext,
-  //                   RedisModule_StringPtrLen(currentOp->inkeys[i], NULL)) == NULL) {
-  //     pthread_mutex_unlock(rinfo->dagMutex);
-  //     *progress = 0;
-  //     return;
-  //   }
-  // }
-
   RAI_Tensor* inputTensors[n_inkeys];
   for (uint i=0; i<n_inkeys; i++) {
     RAI_Tensor *inputTensor;
@@ -181,15 +172,6 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
 
   uint n_inkeys = array_len(currentOp->inkeys);
   uint n_outkeys = array_len(currentOp->outkeys);
-
-  // for (uint i=0; i<n_inkeys; i++) {
-  //   if (AI_dictFind(rinfo->dagTensorsContext,
-  //                   RedisModule_StringPtrLen(currentOp->inkeys[i], NULL)) == NULL) {
-  //     pthread_mutex_unlock(rinfo->dagMutex);
-  //     *progress = 0;
-  //     return;
-  //   }
-  // }
 
   RAI_Tensor* inputTensors[n_inkeys];
   for (uint i=0; i<n_inkeys; i++) {
