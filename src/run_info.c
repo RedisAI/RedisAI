@@ -139,6 +139,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   rinfo->dagMaster = 1;
   rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
   rinfo->dagMutex = RedisModule_Alloc(sizeof(pthread_mutex_t));
+  rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
   pthread_mutex_init(rinfo->dagMutex, NULL);
   *result = rinfo;
   return REDISMODULE_OK;
@@ -150,7 +151,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
-  rinfo->client = NULL;
+  rinfo->client = src->client;
   rinfo->runkey = NULL;
   rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
   rinfo->mctx = NULL;
@@ -170,6 +171,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
   rinfo->dagMutex = src->dagMutex;
   rinfo->dagMaster = 0;
   rinfo->dagError = src->dagError;
+  rinfo->dagRefCount = src->dagRefCount;
   *result = rinfo;
   return REDISMODULE_OK;
 }
@@ -287,6 +289,8 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   if (rinfo->dagError) {
     RedisModule_Free(rinfo->dagError);
   }
+
+  RedisModule_Free(rinfo->dagRefCount);
 
   if (rinfo->outkeys) {
     for (size_t i = 0; i < array_len(rinfo->outkeys); i++) {

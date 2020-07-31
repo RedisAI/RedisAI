@@ -91,8 +91,10 @@ typedef struct RedisAI_RunInfo {
   // This is shared across shallow copies in device queues.
   int *dagError;
   // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
-  pthread_mutex_t* dagMutex;
+  pthread_mutex_t *dagMutex;
   int dagMaster;
+  // Pointer to ref count in DAG, shared across multiple worker thread
+  long long *dagRefCount;
 } RedisAI_RunInfo;
 
 /**

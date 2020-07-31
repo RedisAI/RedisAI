@@ -69,16 +69,13 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
       rinfo->err->detail = RedisModule_Strdup(err.detail);
       rinfo->err->detail_oneline = RedisModule_Strdup(err.detail_oneline);
     }
-    if (rinfo->client != NULL) {
-      RedisModule_UnblockClient(rinfo->client, rinfo);
-    }
   }
 
   return NULL;
 }
 
 /**
- * Reply Callback called after a successful RedisModule_UnblockClient() within
+ * Reply Callback called after a successful RedisModule_UnblockClient() after
  * RAI_ModelRunScriptRunSession() in order to reply to the client and unblock it
  */
 int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,

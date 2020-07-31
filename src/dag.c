@@ -145,9 +145,8 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
 
   pthread_mutex_lock(rinfo->dagMutex);
 
-  currentOp->result = result;
-
-  if (currentOp->result == REDISMODULE_ERR) {
+  if (result == REDISMODULE_ERR) {
+    currentOp->result = result;
     pthread_mutex_unlock(rinfo->dagMutex);
     return;
   }
@@ -161,6 +160,8 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
         currentOp->outkeys[outputNumber], NULL);
     AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
   }
+
+  currentOp->result = result;
 
   pthread_mutex_unlock(rinfo->dagMutex);
 
@@ -212,9 +213,6 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
 
   pthread_mutex_lock(rinfo->dagMutex);
 
-  currentOp->result = result;
-  currentOp->duration_us = end - start;
-
   const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
   for (size_t outputNumber = 0; outputNumber < noutputs;
      outputNumber++) {
@@ -225,47 +223,46 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
   }
 
+  currentOp->result = result;
+  currentOp->duration_us = end - start;
+
   pthread_mutex_unlock(rinfo->dagMutex);
 
   return;
 }
 
-void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr, int *progress, int *complete) {
+void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr,
+                               int *progress,
+                               int *device_complete, int *all_devices_complete) {
   RAI_DagOp *currentOp = NULL;
 
   pthread_mutex_lock(rinfo->dagMutex);
 
-  if (*rinfo->dagError == 1 && rinfo->client != NULL) {
-    // TODO COVERAGE
-    RedisModule_UnblockClient(rinfo->client, rinfo);
-    pthread_mutex_unlock(rinfo->dagMutex);
-    return;
-  }
+  *rinfo->dagRefCount += 1;
 
-  bool all_complete = true;
+  int all_devices_complete_ = 1;
+  int device_complete_ = 1;
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
 
     if (rinfo->dagOps[i]->result >= 0) {
       continue;
     }
 
-    if (strcasecmp(devicestr, rinfo->dagOps[i]->devicestr) != 0) {
-      continue;
-    }
+    all_devices_complete_ = 0;
 
-    if (rinfo->dagOps[i]->result == -1) {
-      all_complete = false;
+    if (strcasecmp(devicestr, rinfo->dagOps[i]->devicestr) == 0) {
+      device_complete_ = 0;
       currentOp = rinfo->dagOps[i];
       break;
     }
   }
 
-  if (currentOp == NULL && all_complete) {
-    *complete = 1;
+  *device_complete = device_complete_;
+  *all_devices_complete = all_devices_complete_;
+ 
+  if (currentOp == NULL && device_complete) {
+    *rinfo->dagRefCount -= 1;
     pthread_mutex_unlock(rinfo->dagMutex);
-    if (rinfo->client != NULL) {
-      RedisModule_UnblockClient(rinfo->client, rinfo);
-    }
     return;
   }
 
@@ -273,6 +270,7 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr, in
   for (int i=0; i<n_inkeys; i++) {
     if (AI_dictFind(rinfo->dagTensorsContext,
                     RedisModule_StringPtrLen(currentOp->inkeys[i], NULL)) == NULL) {
+      *rinfo->dagRefCount -= 1;
       pthread_mutex_unlock(rinfo->dagMutex);
       *progress = 0;
       return;
@@ -314,10 +312,9 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr, in
   else {
     *progress = 0;
     *rinfo->dagError = 1;
-    if (rinfo->client != NULL) {
-      RedisModule_UnblockClient(rinfo->client, rinfo);
-    }
   }
+
+  *rinfo->dagRefCount -= 1;
 
   pthread_mutex_unlock(rinfo->dagMutex);
   
@@ -460,7 +457,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisAI_ReplicateTensorSet(ctx, tensor_keyname, tensor);
     } else {
       RedisModule_ReplyWithError(
-          ctx, "ERR specified persistent key that was not used on DAG");
+          ctx, "ERR specified persistent key that was not used in DAG");
       rinfo->dagReplyLength++;
 
       RedisModule_Log(ctx, "warning",
@@ -735,6 +732,17 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
+  // At this point, we have built a sequence of DAG operations, each with its own
+  // input and output keys. The names of the keys will be used to look whether the
+  // inputs to a DAG operation have all been realized by previous operations (or if
+  // they are available as part of LOADed keys from keyspace).
+  // This strategy is fine if keys are not aliased, that is, if a command's output
+  // overwrites the key of a previous command. This would trick DAG operations into
+  // thinking that their input is ready when it's not.
+  // To overcome this, we make key names unique, so that names are not aliased. We
+  // mangle the names by appending a numerical suffix ":0001". After computing, we
+  // demangle the keys in order to persist them.
+
   AI_dict* mangled_tensors = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
   if (!mangled_tensors) {
     return REDISMODULE_ERR;
@@ -857,16 +865,20 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
   
   const char* master_device = rinfo->dagOps[array_len(rinfo->dagOps)-1]->devicestr;
 
-  RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, array_len(devices)-1);
+  size_t ndevices = array_len(devices);
+
+  *rinfo->dagRefCount = 0;
+
+  RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, ndevices - 1);
   
-  for (long long i=0; i<array_len(devices)-1; i++) {
+  for (long long i=0; i<ndevices-1; i++) {
     RedisAI_RunInfo *rinfo_copy;
     RAI_ShallowCopyDagRunInfo(&rinfo_copy, rinfo);
     rinfo_copies = array_append(rinfo_copies, rinfo_copy);
   }
 
   int copy_count = 0;
-  for (long long i=0; i<array_len(devices); i++) {
+  for (long long i=0; i<ndevices; i++) {
     const char* devicestr = devices[i];
     RunQueueInfo *run_queue_info = NULL;
     if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
