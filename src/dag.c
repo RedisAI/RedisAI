@@ -725,9 +725,9 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         break;
       case REDISAI_DAG_CMD_SCRIPTRUN:
         parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
-                NULL, currentOp->argv, currentOp->argc, &(currentOp->sctx),
+                NULL, currentOp->argv, currentOp->argc,
                 &(currentOp->inkeys), &(currentOp->outkeys),
-                &(currentOp->sctx->script), currentOp->err);
+                &(currentOp->sctx->variadic), currentOp->err);
         if (parse_result < 0) {
           return RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
         }

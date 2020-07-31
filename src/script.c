@@ -167,10 +167,19 @@ static int Script_RunCtxAddParam(RAI_ScriptRunCtx* sctx,
 }
 
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RAI_Error* err) {
+  // Even if variadic is set, we still allow to add inputs in the LLAPI
   return Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensor);
 }
 
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err) {
+  if (sctx->variadic == -1) {
+    sctx->variadic = array_len(sctx->inputs);
+  }
+  else {
+    RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Already encountered a variable size list of tensors");
+    return 0;
+  }
+
   int res;
   for (size_t i=0; i < len; i++) {
     res = Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensors[i]);
@@ -262,10 +271,9 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  */
 int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
                                         RedisModuleString **argv, int argc,
-                                        RAI_ScriptRunCtx **sctx,
                                         RedisModuleString ***inkeys,
                                         RedisModuleString ***outkeys,
-                                        struct RAI_Script **sto,
+                                        int *variadic,
                                         RAI_Error *error) {
   if (argc < 6) {
     RAI_SetError(error, RAI_ESCRIPTRUN, "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
@@ -287,8 +295,7 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
   // parsing aux vars
   int is_output = 0;
   int outputs_flag_count = 0;
-  // Keep variadic local variable as the calls for RAI_ScriptRunCtxAddInput check if (*sctx)->variadic already assigned.
-  size_t variadic = (*sctx)->variadic;
+  int variadic_ = *variadic;
   size_t argpos = 4;
   for (; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
@@ -301,11 +308,11 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
       outputs_flag_count = 1;
     } else {
       if (!strcasecmp(arg_string, "$")) {
-        if (variadic > -1) {
+        if (variadic_ > -1) {
           RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Already encountered a variable size list of tensors");
           return -1;
         }
-        variadic = argpos - 4;
+        variadic_ = argpos - 4;
         continue;
       }
       RedisModule_RetainString(ctx, argv[argpos]);
@@ -316,8 +323,9 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
       }
     }
   }
-  // In case variadic position found, set it in the context.
-  (*sctx)->variadic = variadic;
+
+  *variadic = variadic_;
+
   return argpos;
 }
 

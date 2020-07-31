@@ -176,19 +176,18 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param sctx Destination Script context to store the parsed data
+ * @param outkeys array to store the parsed input keys
  * @param outkeys array to store the parsed output keys
- * @param sto script to run the session from
+ * @param variadic int to store the variadic input location
  * @param error error data structure to store error message in the case of
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
                                          RedisModuleString **argv, int argc,
-                                         RAI_ScriptRunCtx **sctx,
                                          RedisModuleString ***inkeys,
                                          RedisModuleString ***outkeys,
-                                         struct RAI_Script **sto,
+                                         int *variadic,
                                          RAI_Error *error);
 
 

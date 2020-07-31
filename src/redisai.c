@@ -644,8 +644,9 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   RedisModuleString** inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
 
   RAI_Error err = {0};
+  int variadic = -1;
   const int parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
-      ctx, argv, argc, &(rinfo->sctx), &inkeys, &(rinfo->outkeys), &sto, &err);
+      ctx, argv, argc, &inkeys, &(rinfo->outkeys), &(rinfo->sctx->variadic), &err);
   RedisModule_CloseKey(key);
 
   // if the number of parsed args is negative something went wrong
