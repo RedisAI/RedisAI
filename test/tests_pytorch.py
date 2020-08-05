@@ -658,7 +658,7 @@ def test_pytorch_scriptrun_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
-def test_pytorch_scriptrun_errors(env):
+def test_pytorch_scriptrun_variadic_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return

@@ -153,6 +153,7 @@ def load_creditcardfraud_data(env,max_tensors=10000):
 
     return model_pb, creditcard_transactions, creditcard_referencedata
 
+
 def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
     con.execute_command('AI.TENSORSET', 'input',

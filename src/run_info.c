@@ -18,25 +18,25 @@
 
 
 static uint64_t RAI_TensorDictKeyHashFunction(const void *key){
-    return AI_dictGenHashFunction(key, strlen((char*)key));
+  return AI_dictGenHashFunction(key, strlen((char*)key));
 }
 
 static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2){
-    const char* strKey1 = key1;
-    const char* strKey2 = key2;
-    return strcmp(strKey1, strKey2) == 0;
+  const char* strKey1 = key1;
+  const char* strKey2 = key2;
+  return strcmp(strKey1, strKey2) == 0;
 }
 
 static void RAI_TensorDictKeyFree(void *privdata, void *key){
-    RedisModule_Free(key);
+  RedisModule_Free(key);
 }
 
 static void* RAI_TensorDictKeyDup(void *privdata, const void *key){
-    return RedisModule_Strdup((char*)key);
+  return RedisModule_Strdup((char*)key);
 }
 
 static void RAI_TensorDictValFree(void *privdata, const void *obj){
-    return RAI_TensorFree((RAI_Tensor*)obj);
+  return RAI_TensorFree((RAI_Tensor*)obj);
 }
 
 
@@ -64,6 +64,10 @@ int RAI_InitDagOp(RAI_DagOp **result) {
   }
   dagOp->commandType = REDISAI_DAG_CMD_NONE;
   dagOp->runkey = NULL;
+  dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+  if (!(dagOp->inkeys)) {
+    return REDISMODULE_ERR;
+  }
   dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
   if (!(dagOp->outkeys)) {
     return REDISMODULE_ERR;
@@ -74,7 +78,9 @@ int RAI_InitDagOp(RAI_DagOp **result) {
   }
   dagOp->mctx = NULL;
   dagOp->sctx = NULL;
+  dagOp->devicestr = NULL;
   dagOp->duration_us = 0;
+  dagOp->result = -1;
   RAI_InitError(&dagOp->err);
   if (!(dagOp->err)) {
     return REDISMODULE_ERR;
@@ -100,6 +106,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
+  rinfo->client = NULL;
   rinfo->runkey = NULL;
   rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
   rinfo->mctx = NULL;
@@ -118,9 +125,9 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!(rinfo->dagTensorsLoadedContext)) {
     return REDISMODULE_ERR;
   }
-  rinfo->dagTensorsPersistentContext =
+  rinfo->dagTensorsPersistedContext =
       AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-  if (!(rinfo->dagTensorsPersistentContext)) {
+  if (!(rinfo->dagTensorsPersistedContext)) {
     return REDISMODULE_ERR;
   }
   rinfo->dagOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
@@ -129,6 +136,42 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   }
   rinfo->dagReplyLength = 0;
   rinfo->dagNumberCommands = 0;
+  rinfo->dagMaster = 1;
+  rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
+  rinfo->dagMutex = RedisModule_Alloc(sizeof(pthread_mutex_t));
+  rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
+  pthread_mutex_init(rinfo->dagMutex, NULL);
+  *result = rinfo;
+  return REDISMODULE_OK;
+}
+
+int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
+  RedisAI_RunInfo *rinfo;
+  rinfo = (RedisAI_RunInfo *)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
+  if (!rinfo) {
+    return REDISMODULE_ERR;
+  }
+  rinfo->client = src->client;
+  rinfo->runkey = NULL;
+  rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+  rinfo->mctx = NULL;
+  rinfo->sctx = NULL;
+  rinfo->duration_us = 0;
+  RAI_InitError(&rinfo->err);
+  if (!(rinfo->err)) {
+    return REDISMODULE_ERR;
+  }
+  rinfo->use_local_context = src->use_local_context;
+  rinfo->dagTensorsContext = src->dagTensorsContext;
+  rinfo->dagTensorsLoadedContext = src->dagTensorsLoadedContext;
+  rinfo->dagTensorsPersistedContext = src->dagTensorsPersistedContext;
+  rinfo->dagOps = src->dagOps;
+  rinfo->dagReplyLength = src->dagReplyLength;
+  rinfo->dagNumberCommands = src->dagNumberCommands;
+  rinfo->dagMutex = src->dagMutex;
+  rinfo->dagMaster = 0;
+  rinfo->dagError = src->dagError;
+  rinfo->dagRefCount = src->dagRefCount;
   *result = rinfo;
   return REDISMODULE_OK;
 }
@@ -142,6 +185,7 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
       }
       array_free(dagOp->argv);
     }
+    // dagOp->inkeys is released on all argv release above
     // dagOp->outkeys is released on all argv release above
     // dagOp->outTensors is released on RunInfo after checking what tensors to
     // persist
@@ -155,6 +199,20 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
     }
     if (dagOp->sctx) {
       RAI_ScriptRunCtxFree(dagOp->sctx, false);
+    }
+
+    if (dagOp->inkeys) {
+      for (size_t i=0; i<array_len(dagOp->inkeys); i++) {
+        RedisModule_Free(dagOp->inkeys[i]);
+      }
+      array_free(dagOp->inkeys);
+    }
+
+    if (dagOp->outkeys) {
+      for (size_t i=0; i<array_len(dagOp->outkeys); i++) {
+        RedisModule_Free(dagOp->outkeys[i]);
+      }
+      array_free(dagOp->outkeys);
     }
 
     RedisModule_Free(dagOp);
@@ -173,6 +231,17 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   }
   RAI_FreeError(rinfo->err);
 
+  if (rinfo->use_local_context) {
+    if (rinfo->dagMaster == 0) {
+      RedisModule_Free(rinfo);
+      return;
+    }
+    else {
+      pthread_mutex_destroy(rinfo->dagMutex);
+      RedisModule_Free(rinfo->dagMutex);
+    }
+  }
+
   if (rinfo->dagTensorsContext) {
     AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
     AI_dictEntry *entry = AI_dictNext(iter);
@@ -183,19 +252,19 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
       char *key = (char *)AI_dictGetKey(entry);
 
       if (tensor && key != NULL) {
-        // if the key is persistent then we should not delete it
-        AI_dictEntry *persistent_entry =
-            AI_dictFind(rinfo->dagTensorsPersistentContext, key);
+        // if the key is persisted then we should not delete it
+        AI_dictEntry *persisted_entry =
+            AI_dictFind(rinfo->dagTensorsPersistedContext, key);
         // if the key was loaded from the keyspace then we should not delete it
         AI_dictEntry *loaded_entry =
             AI_dictFind(rinfo->dagTensorsLoadedContext, key);
 
-        if (persistent_entry == NULL && loaded_entry == NULL) {
+        if (persisted_entry == NULL && loaded_entry == NULL) {
           AI_dictDelete(rinfo->dagTensorsContext, key);
         }
 
-        if (persistent_entry) {
-          AI_dictDelete(rinfo->dagTensorsPersistentContext, key);
+        if (persisted_entry) {
+          AI_dictDelete(rinfo->dagTensorsPersistedContext, key);
         }
         if (loaded_entry) {
           AI_dictDelete(rinfo->dagTensorsLoadedContext, key);
@@ -207,7 +276,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
     RedisModule_Free(rinfo->dagTensorsContext);
     RedisModule_Free(rinfo->dagTensorsLoadedContext);
-    RedisModule_Free(rinfo->dagTensorsPersistentContext);
+    RedisModule_Free(rinfo->dagTensorsPersistedContext);
   }
 
   if (rinfo->dagOps) {
@@ -217,12 +286,19 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     array_free(rinfo->dagOps);
   }
 
+  if (rinfo->dagError) {
+    RedisModule_Free(rinfo->dagError);
+  }
+
+  RedisModule_Free(rinfo->dagRefCount);
+
   if (rinfo->outkeys) {
     for (size_t i = 0; i < array_len(rinfo->outkeys); i++) {
       RedisModule_FreeString(ctx, rinfo->outkeys[i]);
     }
     array_free(rinfo->outkeys);
   }
+
   RedisModule_Free(rinfo);
 }
 

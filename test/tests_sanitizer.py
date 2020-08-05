@@ -32,11 +32,11 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
 
         ret = con.execute_command(
             'AI.DAGRUN', '|>',
-            'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(), 
+            'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(),
             '|>',
             'AI.MODELRUN', model_name,
                          'INPUTS', image_key,
-                         'OUTPUTS', class_key, 
+                         'OUTPUTS', class_key,
                           '|>',
             'AI.TENSORGET',  class_key, 'blob'
         )
