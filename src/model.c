@@ -598,7 +598,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       RedisModule_RetainString(ctx, argv[argpos]);
       if (is_input == 0) {
         RAI_Tensor *inputTensor;
-        if (useLocalContext == 0) {
+        if (useLocalContext == 0) { 
           RedisModuleKey *tensorKey;
           const int status = RAI_GetTensorFromKeyspace(
               ctx, argv[argpos], &tensorKey, &inputTensor, REDISMODULE_READ);
@@ -651,7 +651,6 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       }
     }
   }
-
   if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
     if (ctx == NULL) {
       RAI_SetError(

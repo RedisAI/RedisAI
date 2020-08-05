@@ -306,7 +306,6 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
         ctx, "ERR invalid or negative value found in number of keys to LOAD");
     return -1;
   }
-
   int number_loaded_keys = 0;
   int separator_flag = 0;
   size_t argpos = 2;
@@ -318,8 +317,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
     } else {
       RAI_Tensor *t;
       RedisModuleKey *key;
-      const int status = RAI_GetTensorFromKeyspace(ctx, argv[argpos], &key, &t,
-                                                   REDISMODULE_READ);
+      const int status = RAI_GetTensorFromKeyspace(ctx, argv[argpos], &key, &t, REDISMODULE_READ);
       if (status == REDISMODULE_ERR) {
         RedisModule_Log(
             ctx, "warning",
@@ -385,8 +383,36 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
 
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
+  /* When a module command is called in order to obtain the position of
+  * keys, since it was flagged as "getkeys-api" during the registration,
+  * the command implementation checks for this special call using the
+  * RedisModule_IsKeysPositionRequest() API and uses this function in
+  * order to report keys.
+  * No real execution is done on this special call.
+  */
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    for (size_t argpos = 1; argpos < argc; argpos++){
+      const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+      if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
+        long long n_keys;
+        argpos++;
+        const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+        if(retval != REDISMODULE_OK){
+          return REDISMODULE_ERR;
+        }
+        argpos++;
+        if (n_keys > 0){
+          size_t last_persist_argpos = n_keys+argpos;
+          for (; argpos < last_persist_argpos &&  argpos < argc; argpos++)
+          {
+            RedisModule_KeyAtPos(ctx,argpos);
+          }
+        }
+      }
+    }
+    return REDISMODULE_OK;
+  }
   if (argc < 4) return RedisModule_WrongArity(ctx);
-
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(

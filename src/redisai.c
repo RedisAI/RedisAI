@@ -535,20 +535,35 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
+  /* When a module command is called in order to obtain the position of
+  * keys, since it was flagged as "getkeys-api" during the registration,
+  * the command implementation checks for this special call using the
+  * RedisModule_IsKeysPositionRequest() API and uses this function in
+  * order to report keys.
+  * No real execution is done on this special call.
+  */
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx,1);
+    for (size_t argpos = 3; argpos < argc; argpos++){
+      const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+      if (strcasecmp(str, "OUTPUTS")) {
+        continue;
+      }
+      RedisModule_KeyAtPos(ctx,argpos);
+    }
+    return REDISMODULE_OK;
+  }
   if (argc < 3) return RedisModule_WrongArity(ctx);
-
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
   }
-
   RAI_Model *mto;
   RedisModuleKey *modelKey;
   const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
-  
   RedisModule_RetainString(NULL, argv[1]);
   rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
@@ -582,8 +597,25 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+  /* When a module command is called in order to obtain the position of
+  * keys, since it was flagged as "getkeys-api" during the registration,
+  * the command implementation checks for this special call using the
+  * RedisModule_IsKeysPositionRequest() API and uses this function in
+  * order to report keys.
+  * No real execution is done on this special call.
+  */
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    RedisModule_KeyAtPos(ctx,1);
+    for (size_t argpos = 4; argpos < argc; argpos++){
+      const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+      if (strcasecmp(str, "OUTPUTS")) {
+        continue;
+      }
+      RedisModule_KeyAtPos(ctx,argpos);
+    }
+    return REDISMODULE_OK;
+  }
   if (argc < 6) return RedisModule_WrongArity(ctx);
-
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(
@@ -591,7 +623,6 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo"
         "structure");
   }
-
   RedisModule_RetainString(NULL, argv[1]);
   rinfo->runkey = argv[1];
 
@@ -1139,11 +1170,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand, "write deny-oom", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand, "write deny-oom getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
