@@ -534,7 +534,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       sprintf(dictKey, "%s%04d", arg_string, 1);
       AI_dictAdd(*localContextDict, (void*)dictKey, t);
       AI_dictAdd(*loadedContextDict, (void*)dictKey, (void *)1);
-      RedisModule_Free(dictKey);
+      // RedisModule_Free(dictKey);
       number_loaded_keys++;
     }
   }

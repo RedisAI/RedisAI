@@ -107,7 +107,7 @@ RLTEST_ARGS=""
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
 if [[ ! -z $TEST ]]; then
-	RLTEST_ARGS+=" -s --test $TEST"
+	RLTEST_ARGS+=" --test $TEST"
 	export PYDEBUG=${PYDEBUG:-1}
 fi
 

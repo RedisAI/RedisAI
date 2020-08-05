@@ -2,6 +2,7 @@ import redis
 from functools import wraps
 import multiprocessing as mp
 from includes import *
+import time 
 
 '''
 python -m RLTest --test tests_dag.py --module path/to/redisai.so
@@ -188,10 +189,14 @@ def test_dagrun_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
-    model_name = 'imagenet_model{{1}}'
-    script_name = 'imagenet_script{{1}}'
-    inputvar = 'images{{1}}'
-    outputvar = 'output{{1}}'
+    model_name = 'imagenet_model:{{1}}'
+    script_name = 'imagenet_script:{{1}}'
+    image_key = 'image:{{1}}'
+    temp_key1 = 'temp_key1'
+    temp_key2 = 'temp_key2'
+    class_key = 'output:{{1}}'
+    inputvar = 'images'
+    outputvar = 'output'
     model_pb, script, labels, img = load_resnet_test_data()
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
@@ -205,10 +210,7 @@ def test_dagrun_modelrun_scriptrun_resnet(env):
 
     #
     for opnumber in range(1,100):
-        image_key = 'image{{1}}'
-        temp_key1 = 'temp_key1{{1}}'
-        temp_key2 = 'temp_key2{{1}}'
-        class_key = 'output{{1}}'
+
 
         ret = con.execute_command(
             'AI.DAGRUN', 'PERSIST', '1', class_key, '|>',
@@ -236,8 +238,8 @@ def test_dag_scriptrun_errors(env):
     con = env.getConnection()
     model_name = 'imagenet_model{{1}}'
     script_name = 'imagenet_script{{1}}'
-    inputvar = 'images{{1}}'
-    outputvar = 'output{{1}}'
+    inputvar = 'images'
+    outputvar = 'output'
     model_pb, script, labels, img = load_resnet_test_data()
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
@@ -279,10 +281,11 @@ def test_dag_modelrun_financialNet_errors(env):
     if not TEST_TF:
         return
     con = env.getConnection()
+    model_key = 'financialNet_errors{{1}}'
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet{{1}}', 'TF', "CPU",
+    ret = con.execute_command('AI.MODELSET', model_key, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -299,9 +302,9 @@ def test_dag_modelrun_financialNet_errors(env):
         'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), 
                         'PERSIST', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
         'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30, '|>',
-        'AI.MODELRUN', 'financialNet{{1}}', 
+        'AI.MODELRUN', model_key, 
                         'INPUTS', 'transactionTensor:{}'.format(tensor_number),
-                        'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
+                        'OUTPUTS', 'resultTensor:{{1}}{}'.format(tensor_number), '|>',
         'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META',
     )
     except Exception as e:
@@ -548,11 +551,11 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
             'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
             'AI.MODELRUN', 'financialNet{{1}}', 
                 'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), 
+                'OUTPUTS', 'resultTensor:{{1}}{}'.format(tensor_number), 
         )
         env.assertEqual([b'OK',b'OK'],ret)
 
-        ret = con.execute_command("AI.TENSORGET referenceTensor:{{1}}{} META".format(
+        ret = con.execute_command("AI.TENSORGET resultTensor:{{1}}{} META".format(
             tensor_number))
         env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret)
 
@@ -570,35 +573,49 @@ def test_dag_modelrun_financialNet(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet{{1}}', 'TF', "CPU",
+    model_name = 'test_dag_modelrun_financialNet{1}'
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{{1}}{0}'.format(tensor_number),
+        reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+        ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
+        # assert that reference tensor exists
+        ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+        env.assertEqual(ret, 1)
         tensor_number = tensor_number + 1
 
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
+        reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+        ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+        env.assertEqual(ret, 1)
+        # time.sleep(1000)
+        transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
+        result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
         ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), 
-                         'PERSIST', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-            'AI.MODELRUN', 'financialNet{{1}}', 
-                           'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                           'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META',
+            'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, 
+                         'PERSIST', '1', result_tensor_keyname, '|>',
+            'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+            'AI.MODELRUN', model_name, 
+                           'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                           'OUTPUTS', result_tensor_keyname, '|>',
+            'AI.TENSORGET', result_tensor_keyname, 'META',
         )
         env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
 
         # assert that transaction tensor does not exist
-        ret = con.execute_command("EXISTS transactionTensor:{}".format(
-            tensor_number))
-        env.assertEqual(ret, 0 )
+        ret = con.execute_command("EXISTS {}".format(transaction_tensor_keyname))
+        env.assertEqual(ret, 0)
+        # assert that result tensor exists
+        ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
+        env.assertEqual(ret, 1)
         tensor_number = tensor_number + 1
 
 
@@ -609,13 +626,15 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet{{1}}', 'TF', "CPU",
+    model_key = 'financialNet{{1}}'
+    ret = con.execute_command('AI.MODELSET', model_key, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{{1}}{0}'.format(tensor_number),
+        reference_key = 'referenceTensor{{1}}{}'.format(tensor_number)
+        ret = con.execute_command('AI.TENSORSET', reference_key,
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -624,14 +643,18 @@ def test_dag_modelrun_financialNet_no_writes(env):
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
         for run_number in range(1,10):
+            reference_key = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_key = 'transactionTensor{{1}}{}'.format(tensor_number)
+            result_key = 'classificationTensor{{1}}{}'.format(tensor_number)
+
             ret = con.execute_command(
-                'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-                'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-                'AI.MODELRUN', 'financialNet{{1}}', 
-                            'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                            'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-                'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META',  '|>',
-                'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'VALUES'
+                'AI.DAGRUN', 'LOAD', '1', reference_key, '|>',
+                'AI.TENSORSET', transaction_key, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_key, 
+                            'INPUTS', transaction_key, reference_key,
+                            'OUTPUTS', result_key, '|>',
+                'AI.TENSORGET',result_key, 'META',  '|>',
+                'AI.TENSORGET', result_key, 'VALUES'
             )
             env.assertEqual(4, len(ret))
             env.assertEqual([b'OK', b'OK'], ret[:2])
@@ -642,12 +665,12 @@ def test_dag_modelrun_financialNet_no_writes(env):
             env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
             # assert that transactionTensor does not exist
-            ret = con.execute_command("EXISTS transactionTensor:{}".format(
+            ret = con.execute_command("EXISTS transactionTensor{}".format(
                 tensor_number))
             env.assertEqual(ret, 0 )
 
             # assert that classificationTensor does not exist
-            ret = con.execute_command("EXISTS referenceTensor:{{1}}{}".format(
+            ret = con.execute_command("EXISTS classificationTensor{{1}}{}".format(
                 tensor_number))
             env.assertEqual(ret, 0 )
         tensor_number = tensor_number + 1
@@ -660,13 +683,15 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet{{1}}', 'TF', DEVICE,
+    model_key = 'financialNet{{1}}'
+    ret = con.execute_command('AI.MODELSET', model_key, 'TF', DEVICE,
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     tensor_number = 1
     for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{{1}}{0}'.format(tensor_number),
+        reference_tensor_key = 'referenceTensor{{1}}{0}'.format(tensor_number)
+        ret = con.execute_command('AI.TENSORSET', reference_tensor_key,
                                   'FLOAT', 1, 256,
                                   'BLOB', reference_tensor.tobytes())
         env.assertEqual(ret, b'OK')
@@ -674,17 +699,20 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
 
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
+        transaction_tensor_key = 'transactionTensor{{1}}{0}'.format(tensor_number)
+        reference_tensor_key = 'referenceTensor{{1}}{0}'.format(tensor_number)
+        result_tensor_key = 'resultTensor{{1}}{0}'.format(tensor_number)
         ret = con.execute_command(
-            'AI.DAGRUN_RO', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-            'AI.MODELRUN', 'financialNet{{1}}', 
-                           'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                           'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META', 'VALUES', '|>',
-            'AI.MODELRUN', 'financialNet{{1}}', 
-                           'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                           'OUTPUTS', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META', 'VALUES', 
+            'AI.DAGRUN_RO', 'LOAD', '1', 'referenceTensor{{1}}{}'.format(tensor_number), '|>',
+            'AI.TENSORSET', 'transactionTensor{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+            'AI.MODELRUN', model_key, 
+                           'INPUTS', transaction_tensor_key, reference_tensor_key,
+                           'OUTPUTS', result_tensor_key, '|>',
+            'AI.TENSORGET', result_tensor_key, 'META', 'VALUES', '|>',
+            'AI.MODELRUN', model_key, 
+                           'INPUTS', transaction_tensor_key, reference_tensor_key,
+                           'OUTPUTS', result_tensor_key, '|>',
+            'AI.TENSORGET', result_tensor_key, 'META', 'VALUES', 
         )
         env.assertEqual(5, len(ret))
         env.assertEqual([b'OK', b'OK'], ret[:2])
@@ -697,20 +725,20 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
             env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
         # assert that transactionTensor does not exist
-        ret = con.execute_command("EXISTS transactionTensor:{}".format(
+        ret = con.execute_command("EXISTS transactionTensor{{1}}{0}".format(
             tensor_number))
         env.assertEqual(ret, 0)
 
         # assert that classificationTensor does not exist
-        ret = con.execute_command("EXISTS referenceTensor:{{1}}{}".format(
+        ret = con.execute_command("EXISTS referenceTensor{{1}}{}".format(
             tensor_number))
         env.assertEqual(ret, 0)
         tensor_number = tensor_number + 1
 
-    info = con.execute_command('AI.INFO', 'financialNet{{1}}')
+    info = con.execute_command('AI.INFO', '{}'.format(model_key))
     financialNetRunInfo = info_to_dict(info)
 
-    env.assertEqual('financialNet{{1}}', financialNetRunInfo['key'])
+    env.assertEqual(model_key, financialNetRunInfo['key'])
     env.assertEqual('MODEL', financialNetRunInfo['type'])
     env.assertEqual('TF', financialNetRunInfo['backend'])
     env.assertEqual(DEVICE, financialNetRunInfo['device'])
@@ -719,11 +747,11 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     env.assertEqual(2*MAX_TRANSACTIONS, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
 
-    con.execute_command('AI.INFO', 'financialNet{{1}}', 'RESETSTAT')
-    info = con.execute_command('AI.INFO', 'financialNet{{1}}')
+    con.execute_command('AI.INFO', model_key, 'RESETSTAT')
+    info = con.execute_command('AI.INFO', model_key)
     financialNetRunInfo = info_to_dict(info)
 
-    env.assertEqual('financialNet{{1}}', financialNetRunInfo['key'])
+    env.assertEqual(model_key, financialNetRunInfo['key'])
     env.assertEqual('MODEL', financialNetRunInfo['type'])
     env.assertEqual('TF', financialNetRunInfo['backend'])
     env.assertEqual(DEVICE, financialNetRunInfo['device'])
@@ -737,9 +765,15 @@ def test_dagrun_modelrun_multidevice_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
-    model_name_0 = 'imagenet_model1'
-    model_name_1 = 'imagenet_model2'
-    script_name = 'imagenet_script'
+    model_name_0 = 'imagenet_model1:{{1}}'
+    model_name_1 = 'imagenet_model2:{{1}}'
+    script_name = 'imagenet_script:{{1}}'
+    image_key = 'image:{{1}}'
+    temp_key1 = 'temp_key1:{{1}}'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0:{{1}}'
+    class_key_1 = 'output1:{{1}}'
     inputvar = 'images'
     outputvar = 'output'
     model_pb, script, labels, img = load_resnet_test_data()
@@ -768,13 +802,6 @@ def test_dagrun_modelrun_multidevice_resnet(env):
 
     ensureSlaveSynced(con, env)
  
-    image_key = 'image'
-    temp_key1 = 'temp_key1'
-    temp_key2_0 = 'temp_key2_0'
-    temp_key2_1 = 'temp_key2_1'
-    class_key_0 = 'output0'
-    class_key_1 = 'output1'
-
     try:
         ret = con.execute_command(
             'AI.DAGRUN', '|>',
@@ -873,12 +900,19 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
         return
     con = env.getConnection()
 
-    model_name_0 = 'imagenet_model1'
-    model_name_1 = 'imagenet_model2'
-    script_name_0 = 'imagenet_script1'
-    script_name_1 = 'imagenet_script2'
+    model_name_0 = 'imagenet_model1:{{1}}'
+    model_name_1 = 'imagenet_model2:{{1}}'
+    script_name_0 = 'imagenet_script1:{{1}}'
+    script_name_1 = 'imagenet_script2:{{1}}'
     inputvar = 'images'
     outputvar = 'output'
+    image_key = 'image:{{1}}'
+    temp_key1 = 'temp_key1:{{1}}'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0:{{1}}'
+    class_key_1 = 'output1:{{1}}'
+
     model_pb, script, labels, img = load_resnet_test_data()
 
     device_0 = 'CPU:1'
@@ -910,12 +944,7 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
 
     ensureSlaveSynced(con, env)
  
-    image_key = 'image'
-    temp_key1 = 'temp_key1'
-    temp_key2_0 = 'temp_key2_0'
-    temp_key2_1 = 'temp_key2_1'
-    class_key_0 = 'output0'
-    class_key_1 = 'output1'
+    
 
     try:
         ret = con.execute_command(

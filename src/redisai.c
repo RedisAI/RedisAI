@@ -546,7 +546,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_KeyAtPos(ctx,1);
     for (size_t argpos = 3; argpos < argc; argpos++){
       const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
-      if (strcasecmp(str, "OUTPUTS")) {
+      if (!strcasecmp(str, "OUTPUTS")) {
         continue;
       }
       RedisModule_KeyAtPos(ctx,argpos);
@@ -644,7 +644,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_KeyAtPos(ctx,1);
     for (size_t argpos = 4; argpos < argc; argpos++){
       const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
-      if (strcasecmp(str, "OUTPUTS")) {
+      if (!strcasecmp(str, "OUTPUTS")) {
         continue;
       }
       RedisModule_KeyAtPos(ctx,argpos);
@@ -1231,7 +1231,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 1, 1, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 0, 0, 0)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
