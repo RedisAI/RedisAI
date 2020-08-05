@@ -58,6 +58,7 @@ typedef struct RunQueueInfo {
   pthread_cond_t queue_condition_var;
   queue *run_queue;
   pthread_t *threads;
+  char* devicestr;
 } RunQueueInfo;
 
 int freeRunQueueInfo(RunQueueInfo *info);

@@ -34,10 +34,12 @@ enum RedisAI_DAGMode {
 typedef struct RAI_DagOp {
   int commandType;
   RedisModuleString *runkey;
+  RedisModuleString **inkeys;
   RedisModuleString **outkeys;
   RAI_Tensor **outTensors;
   RAI_ModelRunCtx *mctx;
   RAI_ScriptRunCtx *sctx;
+  char* devicestr;
   int result;  // REDISMODULE_OK or REDISMODULE_ERR
   long long duration_us;
   RAI_Error *err;
@@ -80,12 +82,19 @@ typedef struct RedisAI_RunInfo {
   // DAG
   int use_local_context;
   AI_dict *dagTensorsContext;
-  AI_dict *dagTensorsPersistentContext;  // dict to flag tensors to persist
-  AI_dict *
-      dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
+  AI_dict *dagTensorsPersistedContext;  // dict to flag tensors to persist
+  AI_dict *dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
   RAI_DagOp **dagOps;
   int dagReplyLength;
   int dagNumberCommands;
+  // Pointer to integer signaling whether an error occurred anywhere in the DAG.
+  // This is shared across shallow copies in device queues.
+  int *dagError;
+  // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
+  pthread_mutex_t *dagMutex;
+  int dagMaster;
+  // Pointer to ref count in DAG, shared across multiple worker thread
+  long long *dagRefCount;
 } RedisAI_RunInfo;
 
 /**
@@ -96,6 +105,8 @@ typedef struct RedisAI_RunInfo {
  */
 int RAI_InitRunInfo(RedisAI_RunInfo **result);
 
+int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
+ 
 /**
  * Frees the memory allocated on RedisAI_RunInfo
  * @param ctx Context in which Redis modules operate

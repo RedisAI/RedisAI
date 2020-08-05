@@ -176,30 +176,22 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param sctx Destination Script context to store the parsed data
+ * @param outkeys array to store the parsed input keys
  * @param outkeys array to store the parsed output keys
- * @param sto script to run the session from
- * @param useLocalContext flag to enable using local context
- * @param localContextDict local non-blocking hash table containing DAG's
- * keynames marked as persistent
- * @param use_chaining_operator flag to enable enforcing the chaining operator
- * checking
- * @param chaining_operator operator used to split operations. Any command
- * argument after the chaining operator is not considered
+ * @param variadic int to store the variadic input location
  * @param error error data structure to store error message in the case of
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
                                          RedisModuleString **argv, int argc,
-                                         RAI_ScriptRunCtx **sctx,
+                                         RedisModuleString ***inkeys,
                                          RedisModuleString ***outkeys,
-                                         struct RAI_Script **sto, int useLocalContext,
-                                         AI_dict **localContextDict,
-                                         int use_chaining_operator,
-                                         const char *chaining_operator, RAI_Error *error);
+                                         int *variadic,
+                                         RAI_Error *error);
 
 
+#if 0
 /**
  * Helper method to reply if the ctx is not NULL or fallback and set the error in the RAI_Error structure
  * @param ctx Context in which Redis modules operate
@@ -208,6 +200,7 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
  * @param errorMessage the error detail
  */
 void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCode code, const char* errorMessage );
+#endif
 
 /**
  * @brief  Returns the redis module type representing a script.

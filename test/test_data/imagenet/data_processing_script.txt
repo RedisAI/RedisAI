@@ -7,3 +7,6 @@ def pre_process_4ch(image):
 def post_process(output):
     # tf model has 1001 classes, hence negative 1
     return output.max(1)[1] - 1
+
+def ensemble(output0, output1):
+    return (output0 + output1) * 0.5
