@@ -729,6 +729,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   for (long long i=0; i<array_len(rinfo->dagOps); i++) {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
+    if(currentOp==NULL) continue;
     int parse_result;
     switch (currentOp->commandType) {
       case REDISAI_DAG_CMD_TENSORSET:

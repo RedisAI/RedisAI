@@ -273,10 +273,6 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
       entry = AI_dictNext(iter);
     }
     AI_dictReleaseIterator(iter);
-
-    RedisModule_Free(rinfo->dagTensorsContext);
-    RedisModule_Free(rinfo->dagTensorsLoadedContext);
-    RedisModule_Free(rinfo->dagTensorsPersistedContext);
   }
 
   if (rinfo->dagOps) {

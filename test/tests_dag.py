@@ -626,7 +626,7 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_key = 'financialNet{{1}}'
+    model_key = 'financialNet{1}'
     ret = con.execute_command('AI.MODELSET', model_key, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -640,10 +640,16 @@ def test_dag_modelrun_financialNet_no_writes(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
+        # assert that referenceTensor exists
+        ret = con.execute_command("EXISTS {}".format(reference_key))
+        env.assertEqual(ret, 1 )
+
     tensor_number = 1
     for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
-        for run_number in range(1,10):
+        for run_number in range(1,100):
             reference_key = 'referenceTensor{{1}}{}'.format(tensor_number)
+            ret = con.execute_command("EXISTS {}".format(reference_key))
+            env.assertEqual(ret, 1 )
             transaction_key = 'transactionTensor{{1}}{}'.format(tensor_number)
             result_key = 'classificationTensor{{1}}{}'.format(tensor_number)
 
