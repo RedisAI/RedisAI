@@ -179,6 +179,9 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
 void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
   if (dagOp) {
     RAI_FreeError(dagOp->err);
+    if(dagOp->runkey){
+      RedisModule_FreeString(ctx,dagOp->runkey);
+    }
     if (dagOp->argv) {
       for (size_t i = 0; i < array_len(dagOp->argv); i++) {
         RedisModule_FreeString(ctx, dagOp->argv[i]);
@@ -203,14 +206,14 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
 
     if (dagOp->inkeys) {
       for (size_t i=0; i<array_len(dagOp->inkeys); i++) {
-        RedisModule_Free(dagOp->inkeys[i]);
+        RedisModule_FreeString(ctx,dagOp->inkeys[i]);
       }
       array_free(dagOp->inkeys);
     }
 
     if (dagOp->outkeys) {
       for (size_t i=0; i<array_len(dagOp->outkeys); i++) {
-        RedisModule_Free(dagOp->outkeys[i]);
+        RedisModule_FreeString(ctx,dagOp->outkeys[i]);
       }
       array_free(dagOp->outkeys);
     }
