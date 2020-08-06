@@ -297,15 +297,14 @@ def test_dag_modelrun_financialNet_errors(env):
 
     # ERR wrong number of inputs
     try:
-        tensor_number = 1
         ret = con.execute_command(
         'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), 
-                        'PERSIST', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
+                        'PERSIST', '1', 'resultTensor:{{1}}{}'.format(tensor_number), '|>',
         'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30, '|>',
         'AI.MODELRUN', model_key, 
                         'INPUTS', 'transactionTensor:{}'.format(tensor_number),
                         'OUTPUTS', 'resultTensor:{{1}}{}'.format(tensor_number), '|>',
-        'AI.TENSORGET', 'referenceTensor:{{1}}{}'.format(tensor_number), 'META',
+        'AI.TENSORGET', 'resultTensor:{{1}}{}'.format(tensor_number), 'META',
     )
     except Exception as e:
         exception = e
