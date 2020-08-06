@@ -531,39 +531,40 @@ def test_dag_modelrun_financialNet_separate_tensorget(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    ret = con.execute_command('AI.MODELSET', 'financialNet{{1}}', 'TF', "CPU",
+    model_name = 'financialNet{{hhh}}'
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        ret = con.execute_command('AI.TENSORSET', 'referenceTensor:{{1}}{0}'.format(tensor_number),
-                                  'FLOAT', 1, 256,
-                                  'BLOB', reference_tensor.tobytes())
-        env.assertEqual(ret, b'OK')
-        tensor_number = tensor_number + 1
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
 
-    tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
-        ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), 
-            'PERSIST', '1', 'referenceTensor:{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORSET', 'transactionTensor:{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-            'AI.MODELRUN', 'financialNet{{1}}', 
-                'INPUTS', 'transactionTensor:{}'.format(tensor_number), 'referenceTensor:{{1}}{}'.format(tensor_number),
-                'OUTPUTS', 'resultTensor:{{1}}{}'.format(tensor_number), 
-        )
-        env.assertEqual([b'OK',b'OK'],ret)
+            ret = con.execute_command(
+                'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, 
+                'PERSIST', '1', result_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_name, 
+                    'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                    'OUTPUTS', result_tensor_keyname, 
+            )
+            env.assertEqual([b'OK',b'OK'],ret)
 
-        ret = con.execute_command("AI.TENSORGET resultTensor:{{1}}{} META".format(
-            tensor_number))
-        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret)
-
-        # assert that transaction tensor does not exist
-        ret = con.execute_command("EXISTS transactionTensor:{} META".format(
-            tensor_number))
-        env.assertEqual(ret, 0 )
-        tensor_number = tensor_number + 1
+            ret = con.execute_command("AI.TENSORGET {} META".format(
+                result_tensor_keyname))
+            env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret)
 
 
 def test_dag_modelrun_financialNet(env):
@@ -573,51 +574,44 @@ def test_dag_modelrun_financialNet(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'test_dag_modelrun_financialNet{1}'
+    model_name = 'financialNet{{hhh}}'
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
-        ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
-                                  'FLOAT', 1, 256,
-                                  'BLOB', reference_tensor.tobytes())
-        env.assertEqual(ret, b'OK')
-        # assert that reference tensor exists
-        ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
-        env.assertEqual(ret, 1)
-        tensor_number = tensor_number + 1
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
 
-    tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
-        reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
-        ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
-        env.assertEqual(ret, 1)
-        # time.sleep(1000)
-        transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
-        result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
-        ret = con.execute_command(
-            'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, 
-                         'PERSIST', '1', result_tensor_keyname, '|>',
-            'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-            'AI.MODELRUN', model_name, 
-                           'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
-                           'OUTPUTS', result_tensor_keyname, '|>',
-            'AI.TENSORGET', result_tensor_keyname, 'META',
-        )
-        env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
+            ret = con.execute_command(
+                'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, 
+                            'PERSIST', '1', result_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_name, 
+                            'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', result_tensor_keyname, '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'META',
+            )
+            env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
 
-        # assert that transaction tensor does not exist
-        ret = con.execute_command("EXISTS {}".format(transaction_tensor_keyname))
-        env.assertEqual(ret, 0)
-        # assert that result tensor exists
-        ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
-        env.assertEqual(ret, 1)
-        tensor_number = tensor_number + 1
-
+            # assert that transaction tensor does not exist
+            ret = con.execute_command("EXISTS {}".format(transaction_tensor_keyname))
+            env.assertEqual(ret, 0)
+            # assert that result tensor exists
+            ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
+            env.assertEqual(ret, 1)
 
 def test_dag_modelrun_financialNet_no_writes(env):
     if not TEST_TF:
@@ -626,41 +620,35 @@ def test_dag_modelrun_financialNet_no_writes(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_key = 'financialNet{1}'
-    ret = con.execute_command('AI.MODELSET', model_key, 'TF', "CPU",
+    model_name = 'financialNet{{hhh}}'
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        reference_key = 'referenceTensor{{1}}{}'.format(tensor_number)
-        ret = con.execute_command('AI.TENSORSET', reference_key,
-                                  'FLOAT', 1, 256,
-                                  'BLOB', reference_tensor.tobytes())
-        env.assertEqual(ret, b'OK')
-        tensor_number = tensor_number + 1
-
-        # assert that referenceTensor exists
-        ret = con.execute_command("EXISTS {}".format(reference_key))
-        env.assertEqual(ret, 1 )
-
-    tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
-        for run_number in range(1,100):
-            reference_key = 'referenceTensor{{1}}{}'.format(tensor_number)
-            ret = con.execute_command("EXISTS {}".format(reference_key))
-            env.assertEqual(ret, 1 )
-            transaction_key = 'transactionTensor{{1}}{}'.format(tensor_number)
-            result_key = 'classificationTensor{{1}}{}'.format(tensor_number)
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
 
             ret = con.execute_command(
-                'AI.DAGRUN', 'LOAD', '1', reference_key, '|>',
-                'AI.TENSORSET', transaction_key, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-                'AI.MODELRUN', model_key, 
-                            'INPUTS', transaction_key, reference_key,
-                            'OUTPUTS', result_key, '|>',
-                'AI.TENSORGET',result_key, 'META',  '|>',
-                'AI.TENSORGET', result_key, 'VALUES'
+                'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_name, 
+                            'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', result_tensor_keyname, '|>',
+                'AI.TENSORGET',result_tensor_keyname, 'META',  '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'VALUES'
             )
             env.assertEqual(4, len(ret))
             env.assertEqual([b'OK', b'OK'], ret[:2])
@@ -670,16 +658,12 @@ def test_dag_modelrun_financialNet_no_writes(env):
             env.assertEqual(True, 0 <= float(values[0]) <= 1)
             env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
-            # assert that transactionTensor does not exist
-            ret = con.execute_command("EXISTS transactionTensor{}".format(
-                tensor_number))
-            env.assertEqual(ret, 0 )
-
-            # assert that classificationTensor does not exist
-            ret = con.execute_command("EXISTS classificationTensor{{1}}{}".format(
-                tensor_number))
-            env.assertEqual(ret, 0 )
-        tensor_number = tensor_number + 1
+            # assert that transaction tensor does not exist
+            ret = con.execute_command("EXISTS {}".format(transaction_tensor_keyname))
+            env.assertEqual(ret, 0)
+            # assert that result tensor exists
+            ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
+            env.assertEqual(ret, 0)
 
 
 def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
@@ -689,75 +673,65 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_key = 'financialNet{{1}}'
-    ret = con.execute_command('AI.MODELSET', model_key, 'TF', DEVICE,
+    model_name = 'financialNet_no_writes{{hhh}}'
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', "CPU",
                               'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    tensor_number = 1
-    for reference_tensor in creditcard_referencedata[:MAX_TRANSACTIONS]:
-        reference_tensor_key = 'referenceTensor{{1}}{0}'.format(tensor_number)
-        ret = con.execute_command('AI.TENSORSET', reference_tensor_key,
-                                  'FLOAT', 1, 256,
-                                  'BLOB', reference_tensor.tobytes())
-        env.assertEqual(ret, b'OK')
-        tensor_number = tensor_number + 1
+    for tensor_number in range(1,MAX_TRANSACTIONS+1):
+        for repetition in range(1,11):
+            reference_tensor = creditcard_referencedata[tensor_number-1]
+            transaction_tensor = creditcard_transactions[tensor_number-1]
+            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
+            ret = con.execute_command(
+                'AI.DAGRUN_RO', 'LOAD', '1', reference_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_name, 
+                            'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', result_tensor_keyname, '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'META', 'VALUES', '|>',
+                'AI.MODELRUN', model_name, 
+                            'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', result_tensor_keyname, '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'META', 'VALUES', 
+            )
+            env.assertEqual(5, len(ret))
+            env.assertEqual([b'OK', b'OK'], ret[:2])
+            env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[2][:4])
+            env.assertEqual(b'OK', ret[3])
+            env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[4][:4])
+            for _, dtype, _, shape, _, values in [ret[2], ret[4]]:
+                # Assert that resulting classification is within [0,1]
+                env.assertEqual(True, 0 <= float(values[0]) <= 1)
+                env.assertEqual(True, 0 <= float(values[1]) <= 1)
 
-    tensor_number = 1
-    for transaction_tensor in creditcard_transactions[:MAX_TRANSACTIONS]:
-        transaction_tensor_key = 'transactionTensor{{1}}{0}'.format(tensor_number)
-        reference_tensor_key = 'referenceTensor{{1}}{0}'.format(tensor_number)
-        result_tensor_key = 'resultTensor{{1}}{0}'.format(tensor_number)
-        ret = con.execute_command(
-            'AI.DAGRUN_RO', 'LOAD', '1', 'referenceTensor{{1}}{}'.format(tensor_number), '|>',
-            'AI.TENSORSET', 'transactionTensor{}'.format(tensor_number), 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
-            'AI.MODELRUN', model_key, 
-                           'INPUTS', transaction_tensor_key, reference_tensor_key,
-                           'OUTPUTS', result_tensor_key, '|>',
-            'AI.TENSORGET', result_tensor_key, 'META', 'VALUES', '|>',
-            'AI.MODELRUN', model_key, 
-                           'INPUTS', transaction_tensor_key, reference_tensor_key,
-                           'OUTPUTS', result_tensor_key, '|>',
-            'AI.TENSORGET', result_tensor_key, 'META', 'VALUES', 
-        )
-        env.assertEqual(5, len(ret))
-        env.assertEqual([b'OK', b'OK'], ret[:2])
-        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[2][:4])
-        env.assertEqual(b'OK', ret[3])
-        env.assertEqual([b'dtype', b'FLOAT', b'shape', [1, 2]], ret[4][:4])
-        for _, dtype, _, shape, _, values in [ret[2], ret[4]]:
-            # Assert that resulting classification is within [0,1]
-            env.assertEqual(True, 0 <= float(values[0]) <= 1)
-            env.assertEqual(True, 0 <= float(values[1]) <= 1)
-
-        # assert that transactionTensor does not exist
-        ret = con.execute_command("EXISTS transactionTensor{{1}}{0}".format(
-            tensor_number))
-        env.assertEqual(ret, 0)
-
-        # assert that classificationTensor does not exist
-        ret = con.execute_command("EXISTS referenceTensor{{1}}{}".format(
-            tensor_number))
-        env.assertEqual(ret, 0)
-        tensor_number = tensor_number + 1
-
-    info = con.execute_command('AI.INFO', '{}'.format(model_key))
+    info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
 
-    env.assertEqual(model_key, financialNetRunInfo['key'])
+    env.assertEqual(model_name, financialNetRunInfo['key'])
     env.assertEqual('MODEL', financialNetRunInfo['type'])
     env.assertEqual('TF', financialNetRunInfo['backend'])
     env.assertEqual(DEVICE, financialNetRunInfo['device'])
     env.assertTrue(financialNetRunInfo['duration'] > 0)
     env.assertEqual(0, financialNetRunInfo['samples'])
-    env.assertEqual(2*MAX_TRANSACTIONS, financialNetRunInfo['calls'])
+    env.assertEqual(2*MAX_TRANSACTIONS*10, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
 
-    con.execute_command('AI.INFO', model_key, 'RESETSTAT')
-    info = con.execute_command('AI.INFO', model_key)
+    con.execute_command('AI.INFO', model_name, 'RESETSTAT')
+    info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
 
-    env.assertEqual(model_key, financialNetRunInfo['key'])
+    env.assertEqual(model_name, financialNetRunInfo['key'])
     env.assertEqual('MODEL', financialNetRunInfo['type'])
     env.assertEqual('TF', financialNetRunInfo['backend'])
     env.assertEqual(DEVICE, financialNetRunInfo['device'])
