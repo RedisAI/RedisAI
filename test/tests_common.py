@@ -291,3 +291,14 @@ def test_tensorget_disconnect(env):
     env.assertEqual(ret, b'OK')
     ret = send_and_disconnect(('AI.TENSORGET', 't_FLOAT', 'META'), red)
     env.assertEqual(ret, None)
+
+def test_info_modules(env):
+    red = env.getConnection()
+    ret = red.execute_command('INFO','MODULES')
+    env.assertEqual( ret['ai_threads_per_queue'], 1 )
+    # minimum cpu properties
+    env.assertEqual( 'ai_self_used_cpu_sys' in ret, True )
+    env.assertEqual( 'ai_self_used_cpu_user' in ret, True )
+    env.assertEqual( 'ai_children_used_cpu_sys' in ret, True )
+    env.assertEqual( 'ai_children_used_cpu_user' in ret, True )
+    env.assertEqual( 'ai_queue_CPU_bthread_#1_used_cpu_total' in ret, True )
