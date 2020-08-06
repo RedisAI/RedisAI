@@ -18,15 +18,16 @@ class RedisAISetup(paella.Setup):
     def common_first(self):
         self.install_downloaders()
         self.setup_pip()
-        self.pip3_install("wheel virtualenv")
-        self.pip3_install("setuptools --upgrade")
+        self.pip_install("wheel virtualenv")
+        self.pip_install("setuptools --upgrade")
 
         if self.os == 'linux':
             self.install("ca-certificates")
-        self.install("git unzip wget patchelf awscli")
+        self.install("git unzip wget patchelf")
         self.install("coreutils") # for realpath
 
     def debian_compat(self):
+        self.pip_install("-IU --force-reinstall setuptools")
         self.install("build-essential cmake")
         self.install("python3-regex")
         self.install("python3-venv python3-psutil python3-networkx python3-numpy") # python3-skimage
@@ -53,7 +54,7 @@ class RedisAISetup(paella.Setup):
         else:
             self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3-devel")
-            self.pip3_install("psutil")
+            self.pip_install("psutil")
 
         self.install_git_lfs_on_linux()
 
@@ -76,14 +77,15 @@ class RedisAISetup(paella.Setup):
     def common_last(self):
         self.run("python3 -m pip uninstall -y ramp-packer RLTest || true")
         # redis-py-cluster should be installed from git due to redis-py dependency
-        self.pip3_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
-        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
-        self.pip3_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
+        self.pip_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
+        self.pip_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
+        self.pip_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
 
-        self.pip3_install("-r %s/readies/paella/requirements.txt" % HERE)
-        self.pip3_install("-r %s/test/test_requirements.txt" % ROOT)
+        self.pip_install("-r %s/readies/paella/requirements.txt" % HERE)
+        self.pip_install("-r %s/test/test_requirements.txt" % ROOT)
 
-        self.pip3_install("mkdocs mkdocs-material mkdocs-extensions")
+        self.pip_install("awscli")
+        self.pip_install("mkdocs mkdocs-material mkdocs-extensions")
 
 #----------------------------------------------------------------------------------------------
 
