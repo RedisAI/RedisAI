@@ -29,11 +29,13 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN ./opt/readies/bin/getpy3
-RUN ./opt/system-setup.py
+RUN PIP=19.3.1 ./opt/readies/bin/getpy3
+RUN python3 -m pip install virtualenv
+
 RUN set -e ;\
-	python3 -m virtualenv venv --system-site-packages;\
+	python3 -m virtualenv venv --system-site-packages ;\
 	. venv/bin/activate ;\
+	python -m pip install pip==19.3.1 ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
