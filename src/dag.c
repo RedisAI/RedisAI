@@ -530,7 +530,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
         return -1;
       }
       RedisModule_CloseKey(key);
-      char *dictKey = RedisModule_Alloc(strlen(arg_string) + 4);
+      char *dictKey = (char*) RedisModule_Alloc((strlen(arg_string) + 5)*sizeof(char));
       sprintf(dictKey, "%s%04d", arg_string, 1);
       AI_dictAdd(*localContextDict, (void*)dictKey, (void *)t);
       AI_dictAdd(*loadedContextDict, (void*)dictKey, (void *)1);
