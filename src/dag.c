@@ -585,36 +585,33 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   return argpos;
 }
 
-int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                 int argc, int dagMode) {
-  /* When a module command is called in order to obtain the position of
-  * keys, since it was flagged as "getkeys-api" during the registration,
-  * the command implementation checks for this special call using the
-  * RedisModule_IsKeysPositionRequest() API and uses this function in
-  * order to report keys.
-  * No real execution is done on this special call.
-  */
-  if (RedisModule_IsKeysPositionRequest(ctx)) {
+int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                    RedisModuleString **argv, int argc){
     for (size_t argpos = 1; argpos < argc; argpos++){
-      const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-      if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
-        long long n_keys;
-        argpos++;
-        const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
-        if(retval != REDISMODULE_OK){
-          return REDISMODULE_ERR;
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
+            long long n_keys;
+            argpos++;
+            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+            if(retval != REDISMODULE_OK){
+                return REDISMODULE_ERR;
+            }
+            argpos++;
+            if (n_keys > 0){
+                size_t last_persist_argpos = n_keys+argpos;
+                for (; argpos < last_persist_argpos &&  argpos < argc; argpos++){
+                    RedisModule_KeyAtPos(ctx, argpos);
+                }
+            }
         }
-        argpos++;
-        if (n_keys > 0){
-          size_t last_persist_argpos = n_keys+argpos;
-          for (; argpos < last_persist_argpos &&  argpos < argc; argpos++)
-          {
-            RedisModule_KeyAtPos(ctx,argpos);
-          }
-        }
-      }
     }
     return REDISMODULE_OK;
+}
+
+int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                 int argc, int dagMode) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
   }
   if (argc < 4) return RedisModule_WrongArity(ctx);
   RedisAI_RunInfo *rinfo = NULL;

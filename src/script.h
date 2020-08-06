@@ -171,6 +171,21 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
 
 
 /**
+ * When a module command is called in order to obtain the position of
+ * keys, since it was flagged as "getkeys-api" during the registration,
+ * the command implementation checks for this special call using the
+ * RedisModule_IsKeysPositionRequest() API and uses this function in
+ * order to report keys.
+ * No real execution is done on this special call.
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @return
+ */
+int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                               RedisModuleString **argv, int argc);
+
+/**
  * Helper method to parse AI.SCRIPTRUN arguments
  *
  * @param ctx Context in which Redis modules operate

@@ -535,23 +535,8 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
-  /* When a module command is called in order to obtain the position of
-  * keys, since it was flagged as "getkeys-api" during the registration,
-  * the command implementation checks for this special call using the
-  * RedisModule_IsKeysPositionRequest() API and uses this function in
-  * order to report keys.
-  * No real execution is done on this special call.
-  */
   if (RedisModule_IsKeysPositionRequest(ctx)) {
-    RedisModule_KeyAtPos(ctx,1);
-    for (size_t argpos = 3; argpos < argc; argpos++){
-      const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
-      if (!strcasecmp(str, "OUTPUTS")) {
-        continue;
-      }
-      RedisModule_KeyAtPos(ctx,argpos);
-    }
-    return REDISMODULE_OK;
+    return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
   }
   if (argc < 3) return RedisModule_WrongArity(ctx);
   RedisAI_RunInfo *rinfo = NULL;
@@ -633,23 +618,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  /* When a module command is called in order to obtain the position of
-  * keys, since it was flagged as "getkeys-api" during the registration,
-  * the command implementation checks for this special call using the
-  * RedisModule_IsKeysPositionRequest() API and uses this function in
-  * order to report keys.
-  * No real execution is done on this special call.
-  */
   if (RedisModule_IsKeysPositionRequest(ctx)) {
-    RedisModule_KeyAtPos(ctx,1);
-    for (size_t argpos = 4; argpos < argc; argpos++){
-      const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
-      if (!strcasecmp(str, "OUTPUTS")) {
-        continue;
-      }
-      RedisModule_KeyAtPos(ctx,argpos);
-    }
-    return REDISMODULE_OK;
+    return RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
   }
   if (argc < 6) return RedisModule_WrongArity(ctx);
   RedisAI_RunInfo *rinfo = NULL;
