@@ -534,7 +534,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       sprintf(dictKey, "%s%04d", arg_string, 1);
       AI_dictAdd(*localContextDict, (void*)dictKey, (void *)t);
       AI_dictAdd(*loadedContextDict, (void*)dictKey, (void *)1);
-      // RedisModule_Free(dictKey);
+      RedisModule_Free(dictKey);
       number_loaded_keys++;
     }
   }
@@ -574,7 +574,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       separator_flag = 1;
       break;
     } else {
-      AI_dictAdd(*persistContextDict, (void*)RedisModule_Strdup(arg_string), (void *)1);
+      AI_dictAdd(*persistContextDict, (void*)arg_string, (void *)1);
       number_loaded_keys++;
     }
   }
@@ -816,7 +816,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       else {
         instance = RedisModule_Alloc(sizeof(int));
         *instance = 1;
-        AI_dictAdd(mangled_tensors, (void *)RedisModule_Strdup(key), (void *)instance);
+        AI_dictAdd(mangled_tensors, (void *)key, (void *)instance);
       }
       RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
       mangled_outkeys = array_append(mangled_outkeys, mangled_key);
