@@ -112,7 +112,7 @@ int siptlw(int c) {
         v2 = ROTL(v2, 32);                                                     \
     } while (0)
 
-uint64_t siphash(const uint8_t *in, const size_t inlen, const uint8_t *k) {
+uint64_t _AI_siphash(const uint8_t *in, const size_t inlen, const uint8_t *k) {
 #ifndef UNALIGNED_LE_CPU
     uint64_t hash;
     uint8_t *out = (uint8_t*) &hash;
@@ -171,7 +171,7 @@ uint64_t siphash(const uint8_t *in, const size_t inlen, const uint8_t *k) {
 #endif
 }
 
-uint64_t siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k)
+uint64_t _AI_siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k)
 {
 #ifndef UNALIGNED_LE_CPU
     uint64_t hash;
@@ -304,13 +304,13 @@ const uint8_t vectors_sip64[64][8] = {
 };
 
 
-/* Test siphash using a test vector. Returns 0 if the function passed
+/* Test _AI_siphash using a test vector. Returns 0 if the function passed
  * all the tests, otherwise 1 is returned.
  *
  * IMPORTANT: The test vector is for SipHash 2-4. Before running
- * the test revert back the siphash() function to 2-4 rounds since
+ * the test revert back the _AI_siphash() function to 2-4 rounds since
  * now it uses 1-2 rounds. */
-int siphash_test(void) {
+int _AI_siphash_test(void) {
     uint8_t in[64], k[16];
     int i;
     int fails = 0;
@@ -320,7 +320,7 @@ int siphash_test(void) {
 
     for (i = 0; i < 64; ++i) {
         in[i] = i;
-        uint64_t hash = siphash(in, i, k);
+        uint64_t hash = _AI_siphash(in, i, k);
         const uint8_t *v = NULL;
         v = (uint8_t *)vectors_sip64;
         if (memcmp(&hash, v + (i * 8), 8)) {
@@ -331,16 +331,16 @@ int siphash_test(void) {
 
     /* Run a few basic tests with the case insensitive version. */
     uint64_t h1, h2;
-    h1 = siphash((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
-    h2 = siphash_nocase((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
+    h1 = _AI_siphash((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
+    h2 = _AI_siphash_nocase((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
     if (h1 != h2) fails++;
 
-    h1 = siphash((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
-    h2 = siphash_nocase((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
+    h1 = _AI_siphash((uint8_t*)"hello world",11,(uint8_t*)"1234567812345678");
+    h2 = _AI_siphash_nocase((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
     if (h1 != h2) fails++;
 
-    h1 = siphash((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
-    h2 = siphash_nocase((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
+    h1 = _AI_siphash((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
+    h2 = _AI_siphash_nocase((uint8_t*)"HELLO world",11,(uint8_t*)"1234567812345678");
     if (h1 == h2) fails++;
 
     if (!fails) return 0;

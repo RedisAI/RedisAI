@@ -510,7 +510,6 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
         ctx, "ERR invalid or negative value found in number of keys to LOAD");
     return -1;
   }
-
   int number_loaded_keys = 0;
   int separator_flag = 0;
   size_t argpos = 2;
@@ -522,8 +521,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
     } else {
       RAI_Tensor *t;
       RedisModuleKey *key;
-      const int status = RAI_GetTensorFromKeyspace(ctx, argv[argpos], &key, &t,
-                                                   REDISMODULE_READ);
+      const int status = RAI_GetTensorFromKeyspace(ctx, argv[argpos], &key, &t, REDISMODULE_READ);
       if (status == REDISMODULE_ERR) {
         RedisModule_Log(
             ctx, "warning",
@@ -532,9 +530,9 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
         return -1;
       }
       RedisModule_CloseKey(key);
-      char *dictKey = RedisModule_Alloc(strlen(arg_string) + 4);
+      char *dictKey = (char*) RedisModule_Alloc((strlen(arg_string) + 5)*sizeof(char));
       sprintf(dictKey, "%s%04d", arg_string, 1);
-      AI_dictAdd(*localContextDict, (void*)dictKey, t);
+      AI_dictAdd(*localContextDict, (void*)dictKey, (void *)t);
       AI_dictAdd(*loadedContextDict, (void*)dictKey, (void *)1);
       RedisModule_Free(dictKey);
       number_loaded_keys++;
@@ -587,10 +585,35 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
   return argpos;
 }
 
+int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                    RedisModuleString **argv, int argc){
+    for (size_t argpos = 1; argpos < argc; argpos++){
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
+            long long n_keys;
+            argpos++;
+            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+            if(retval != REDISMODULE_OK){
+                return REDISMODULE_ERR;
+            }
+            argpos++;
+            if (n_keys > 0){
+                size_t last_persist_argpos = n_keys+argpos;
+                for (; argpos < last_persist_argpos &&  argpos < argc; argpos++){
+                    RedisModule_KeyAtPos(ctx, argpos);
+                }
+            }
+        }
+    }
+    return REDISMODULE_OK;
+}
+
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
   if (argc < 4) return RedisModule_WrongArity(ctx);
-
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(
@@ -703,6 +726,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   for (long long i=0; i<array_len(rinfo->dagOps); i++) {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
+    if(currentOp==NULL) continue;
     int parse_result;
     switch (currentOp->commandType) {
       case REDISAI_DAG_CMD_TENSORSET:
@@ -818,7 +842,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       } 
       int *instance = AI_dictGetVal(mangled_entry);
       RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
-      AI_dictAdd(mangled_persisted, (void *)RedisModule_StringPtrLen(mangled_key, NULL), (void *)1);
+      const char* mangled_key_str = RedisModule_StringPtrLen(mangled_key, NULL);
+      AI_dictAdd(mangled_persisted, (void *)mangled_key_str, (void *)1);
       entry = AI_dictNext(iter);
     }
     AI_dictReleaseIterator(iter);

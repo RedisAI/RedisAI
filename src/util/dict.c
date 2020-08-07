@@ -99,10 +99,10 @@ static unsigned int dict_force_resize_ratio = 5;
 
 /* -------------------------- private prototypes ---------------------------- */
 
-static int _dictExpandIfNeeded(AI_dict *ht);
-static unsigned long _dictNextPower(unsigned long size);
-static long _dictKeyIndex(AI_dict *ht, const void *key, uint64_t hash, AI_dictEntry **existing);
-static int _dictInit(AI_dict *ht, AI_dictType *type, void *privDataPtr);
+static int _AI_dictExpandIfNeeded(AI_dict *ht);
+static unsigned long _AI_dictNextPower(unsigned long size);
+static long _AI_dictKeyIndex(AI_dict *ht, const void *key, uint64_t hash, AI_dictEntry **existing);
+static int _AI_dictInit(AI_dict *ht, AI_dictType *type, void *privDataPtr);
 
 /* -------------------------- hash functions -------------------------------- */
 
@@ -117,24 +117,24 @@ uint8_t *AI_dictGetHashFunctionSeed(void) {
 }
 
 /* The default hashing function uses SipHash implementation
- * in siphash.c. */
+ * in _AI_siphash.c. */
 
-uint64_t siphash(const uint8_t *in, const size_t inlen, const uint8_t *k);
-uint64_t siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k);
+uint64_t _AI_siphash(const uint8_t *in, const size_t inlen, const uint8_t *k);
+uint64_t _AI_siphash_nocase(const uint8_t *in, const size_t inlen, const uint8_t *k);
 
 uint64_t AI_dictGenHashFunction(const void *key, int len) {
-    return siphash(key,len,dict_hash_function_seed);
+    return _AI_siphash(key,len,dict_hash_function_seed);
 }
 
 uint64_t AI_dictGenCaseHashFunction(const unsigned char *buf, int len) {
-    return siphash_nocase(buf,len,dict_hash_function_seed);
+    return _AI_siphash_nocase(buf,len,dict_hash_function_seed);
 }
 
 /* ----------------------------- API implementation ------------------------- */
 
 /* Reset a hash table already initialized with ht_init().
  * NOTE: This function should only be called by ht_destroy(). */
-static void _dictReset(AI_dictht *ht)
+static void _AI_dictReset(AI_dictht *ht)
 {
     ht->table = NULL;
     ht->size = 0;
@@ -148,16 +148,16 @@ AI_dict *AI_dictCreate(AI_dictType *type,
 {
     AI_dict *d = RA_ALLOC(sizeof(*d));
 
-    _dictInit(d,type,privDataPtr);
+    _AI_dictInit(d,type,privDataPtr);
     return d;
 }
 
 /* Initialize the hash table */
-int _dictInit(AI_dict *d, AI_dictType *type,
+int _AI_dictInit(AI_dict *d, AI_dictType *type,
               void *privDataPtr)
 {
-    _dictReset(&d->ht[0]);
-    _dictReset(&d->ht[1]);
+    _AI_dictReset(&d->ht[0]);
+    _AI_dictReset(&d->ht[1]);
     d->type = type;
     d->privdata = privDataPtr;
     d->rehashidx = -1;
@@ -187,7 +187,7 @@ int AI_dictExpand(AI_dict *d, unsigned long size)
         return DICT_ERR;
 
     AI_dictht n; /* the new hash table */
-    unsigned long realsize = _dictNextPower(size);
+    unsigned long realsize = _AI_dictNextPower(size);
 
     /* Rehashing to the same table size is not useful. */
     if (realsize == d->ht[0].size) return DICT_ERR;
@@ -256,7 +256,7 @@ int AI_dictRehash(AI_dict *d, int n) {
     if (d->ht[0].used == 0) {
         RA_FREE(d->ht[0].table);
         d->ht[0] = d->ht[1];
-        _dictReset(&d->ht[1]);
+        _AI_dictReset(&d->ht[1]);
         d->rehashidx = -1;
         return 0;
     }
@@ -292,7 +292,7 @@ int AI_dictRehashMilliseconds(AI_dict *d, int ms) {
  * This function is called by common lookup or update operations in the
  * dictionary so that the hash table automatically migrates from H1 to H2
  * while it is actively used. */
-static void _dictRehashStep(AI_dict *d) {
+static void _AI_dictRehashStep(AI_dict *d) {
     if (d->iterators == 0) AI_dictRehash(d,1);
 }
 
@@ -334,11 +334,11 @@ AI_dictEntry *AI_dictAddRaw(AI_dict *d, void *key, AI_dictEntry **existing)
     AI_dictEntry *entry;
     AI_dictht *ht;
 
-    if (AI_dictIsRehashing(d)) _dictRehashStep(d);
+    if (AI_dictIsRehashing(d))_AI_dictRehashStep(d);
 
     /* Get the index of the new element, or -1 if
      * the element already exists. */
-    if ((index = _dictKeyIndex(d, key, AI_dictHashKey(d,key), existing)) == -1)
+    if ((index = _AI_dictKeyIndex(d, key, AI_dictHashKey(d,key), existing)) == -1)
         return NULL;
 
     /* Allocate the memory and store the new entry.
@@ -407,7 +407,7 @@ static AI_dictEntry *dictGenericDelete(AI_dict *d, const void *key, int nofree) 
 
     if (d->ht[0].used == 0 && d->ht[1].used == 0) return NULL;
 
-    if (AI_dictIsRehashing(d)) _dictRehashStep(d);
+    if (AI_dictIsRehashing(d))_AI_dictRehashStep(d);
     h = AI_dictHashKey(d, key);
 
     for (table = 0; table <= 1; table++) {
@@ -478,7 +478,7 @@ void AI_dictFreeUnlinkedEntry(AI_dict *d, AI_dictEntry *he) {
 }
 
 /* Destroy an entire dictionary */
-static int _dictClear(AI_dict *d, AI_dictht *ht, void(callback)(void *)) {
+static int AI_dictClear(AI_dict *d, AI_dictht *ht, void(callback)(void *)) {
     unsigned long i;
 
     /* Free all the elements */
@@ -500,15 +500,15 @@ static int _dictClear(AI_dict *d, AI_dictht *ht, void(callback)(void *)) {
     /* Free the table and the allocated cache structure */
     RA_FREE(ht->table);
     /* Re-initialize the table */
-    _dictReset(ht);
+    _AI_dictReset(ht);
     return DICT_OK; /* never fails */
 }
 
 /* Clear & Release the hash table */
 void AI_dictRelease(AI_dict *d)
 {
-    _dictClear(d,&d->ht[0],NULL);
-    _dictClear(d,&d->ht[1],NULL);
+    AI_dictClear(d,&d->ht[0],NULL);
+    AI_dictClear(d,&d->ht[1],NULL);
     RA_FREE(d);
 }
 
@@ -518,7 +518,7 @@ AI_dictEntry *AI_dictFind(AI_dict *d, const void *key)
     uint64_t h, idx, table;
 
     if (d->ht[0].used + d->ht[1].used == 0) return NULL; /* dict is empty */
-    if (AI_dictIsRehashing(d)) _dictRehashStep(d);
+    if (AI_dictIsRehashing(d))_AI_dictRehashStep(d);
     h = AI_dictHashKey(d, key);
     for (table = 0; table <= 1; table++) {
         idx = h & d->ht[table].sizemask;
@@ -653,7 +653,7 @@ AI_dictEntry *AI_dictGetRandomKey(AI_dict *d)
     int listlen, listele;
 
     if (AI_dictSize(d) == 0) return NULL;
-    if (AI_dictIsRehashing(d)) _dictRehashStep(d);
+    if (AI_dictIsRehashing(d))_AI_dictRehashStep(d);
     if (AI_dictIsRehashing(d)) {
         do {
             /* We are sure there are no elements in indexes from 0
@@ -721,7 +721,7 @@ unsigned int AI_dictGetSomeKeys(AI_dict *d, AI_dictEntry **des, unsigned int cou
     /* Try to do a rehashing work proportional to 'count'. */
     for (j = 0; j < count; j++) {
         if (AI_dictIsRehashing(d))
-            _dictRehashStep(d);
+           _AI_dictRehashStep(d);
         else
             break;
     }
@@ -958,7 +958,7 @@ unsigned long AI_dictScan(AI_dict *d,
 /* ------------------------- private functions ------------------------------ */
 
 /* Expand the hash table if needed */
-static int _dictExpandIfNeeded(AI_dict *d)
+static int _AI_dictExpandIfNeeded(AI_dict *d)
 {
     /* Incremental rehashing already in progress. Return. */
     if (AI_dictIsRehashing(d)) return DICT_OK;
@@ -980,7 +980,7 @@ static int _dictExpandIfNeeded(AI_dict *d)
 }
 
 /* Our hash table capability is a power of two */
-static unsigned long _dictNextPower(unsigned long size)
+static unsigned long _AI_dictNextPower(unsigned long size)
 {
     unsigned long i = DICT_HT_INITIAL_SIZE;
 
@@ -999,14 +999,14 @@ static unsigned long _dictNextPower(unsigned long size)
  *
  * Note that if we are in the process of rehashing the hash table, the
  * index is always returned in the context of the second (new) hash table. */
-static long _dictKeyIndex(AI_dict *d, const void *key, uint64_t hash, AI_dictEntry **existing)
+static long _AI_dictKeyIndex(AI_dict *d, const void *key, uint64_t hash, AI_dictEntry **existing)
 {
     unsigned long idx, table;
     AI_dictEntry *he;
     if (existing) *existing = NULL;
 
     /* Expand the hash table if needed */
-    if (_dictExpandIfNeeded(d) == DICT_ERR)
+    if (_AI_dictExpandIfNeeded(d) == DICT_ERR)
         return -1;
     for (table = 0; table <= 1; table++) {
         idx = hash & d->ht[table].sizemask;
@@ -1025,8 +1025,8 @@ static long _dictKeyIndex(AI_dict *d, const void *key, uint64_t hash, AI_dictEnt
 }
 
 void AI_dictEmpty(AI_dict *d, void(callback)(void*)) {
-    _dictClear(d,&d->ht[0],callback);
-    _dictClear(d,&d->ht[1],callback);
+    AI_dictClear(d,&d->ht[0],callback);
+    AI_dictClear(d,&d->ht[1],callback);
     d->rehashidx = -1;
     d->iterators = 0;
 }
@@ -1071,7 +1071,7 @@ AI_dictEntry **AI_dictFindEntryRefByPtrAndHash(AI_dict *d, const void *oldptr, u
 /* ------------------------------- Debugging ---------------------------------*/
 
 #define DICT_STATS_VECTLEN 50
-static size_t _dictGetStatsHt(char *buf, size_t bufsize, AI_dictht *ht, int tableid) {
+static size_t _AI_dictGetStatsHt(char *buf, size_t bufsize, AI_dictht *ht, int tableid) {
     unsigned long i, slots = 0, chainlen, maxchainlen = 0;
     unsigned long totchainlen = 0;
     unsigned long clvector[DICT_STATS_VECTLEN];
@@ -1137,11 +1137,11 @@ void AI_dictGetStats(char *buf, size_t bufsize, AI_dict *d) {
     char *orig_buf = buf;
     size_t orig_bufsize = bufsize;
 
-    l = _dictGetStatsHt(buf,bufsize,&d->ht[0],0);
+    l =_AI_dictGetStatsHt(buf,bufsize,&d->ht[0],0);
     buf += l;
     bufsize -= l;
     if (AI_dictIsRehashing(d) && bufsize > 0) {
-        _dictGetStatsHt(buf,bufsize,&d->ht[1],1);
+       _AI_dictGetStatsHt(buf,bufsize,&d->ht[1],1);
     }
     /* Make sure there is a NULL term at the end. */
     if (orig_bufsize) orig_buf[orig_bufsize-1] = '\0';

@@ -31,37 +31,37 @@ def test_run_tflite_model(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
     env.assertEqual(len(ret), 14)
     env.assertEqual(ret[5], b'')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
     env.assertEqual(len(ret), 14)
     env.assertEqual(ret[5], b'asdf')
 
-    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.MODELGET', 'm', 'META')
+    ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
     env.assertEqual(len(ret), 14)
     # TODO: enable me. CI is having issues on GPU asserts of TFLITE and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TFLITE')
         env.assertEqual(ret[3], b'CPU')
 
-    con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
+    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}', 'c{1}')
 
     ensureSlaveSynced(con, env)
 
-    values = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
 
     env.assertEqual(values[0], 1)
 
@@ -90,40 +90,40 @@ def test_run_tflite_model_errors(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm_2', 'TFLITE', 'CPU', 'BLOB', model_pb2)
+    ret = con.execute_command('AI.MODELSET', 'm_2{1}', 'TFLITE', 'CPU', 'BLOB', model_pb2)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     try:
-        con.execute_command('AI.MODELSET', 'm_1', 'TFLITE', model_pb)
+        con.execute_command('AI.MODELSET', 'm_1{1}', 'TFLITE', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELSET', 'm_2', 'BLOB', model_pb)
+        con.execute_command('AI.MODELSET', 'm_2{1}', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("unsupported backend", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'EMPTY_TENSOR', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'EMPTY_TENSOR{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("tensor key is empty", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2')
+        con.execute_command('AI.MODELRUN', 'm_2{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -137,56 +137,56 @@ def test_run_tflite_model_errors(env):
         env.assertEqual("model key is empty", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'INPUTS', 'a', 'b', 'c')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'a{1}', 'b{1}', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("tensor key is empty", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'a', 'b', 'c')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'a{1}', 'b{1}', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2', 'OUTPUTS', 'c')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'OUTPUTS', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm', 'OUTPUTS', 'c')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'b')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("tensor key is empty", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Inconsistent number of inputs", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Inconsistent number of outputs", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -213,7 +213,7 @@ def test_run_tflite_model_autobatch(env):
         sample_raw = f.read()
 
     try:
-        ret = con.execute_command('AI.MODELSET', 'm', 'TFLITE', 'CPU',
+        ret = con.execute_command('AI.MODELSET', 'm{1}', 'TFLITE', 'CPU',
                                   'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     except Exception as e:
         exception = e
@@ -222,19 +222,19 @@ def test_run_tflite_model_autobatch(env):
 
     # env.assertEqual(ret, b'OK')
 
-    # con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-    # con.execute_command('AI.TENSORSET', 'c', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    # con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    # con.execute_command('AI.TENSORSET', 'c{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
     # def run():
     #     con = env.getConnection()
-    #     con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'c', 'OUTPUTS', 'd', 'd2')
+    #     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'c{1}', 'OUTPUTS', 'd', 'd2')
 
     # t = threading.Thread(target=run)
     # t.start()
 
-    # con.execute_command('AI.MODELRUN', 'm', 'INPUTS', 'a', 'OUTPUTS', 'b', 'b2')
+    # con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}', 'b2')
 
-    # values = con.execute_command('AI.TENSORGET', 'b', 'VALUES')
+    # values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
 
     # env.assertEqual(values[0], 1)
 
@@ -263,24 +263,24 @@ def test_tflite_modelinfo(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     previous_duration = 0
     for call in range(1, 10):
-        ret = con.execute_command('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c')
+        ret = con.execute_command('AI.MODELRUN', 'mnist{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}', 'c{1}')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
 
-        info = con.execute_command('AI.INFO', 'mnist')
+        info = con.execute_command('AI.INFO', 'mnist{1}')
         info_dict_0 = info_to_dict(info)
 
-        env.assertEqual(info_dict_0['key'], 'mnist')
+        env.assertEqual(info_dict_0['key'], 'mnist{1}')
         env.assertEqual(info_dict_0['type'], 'MODEL')
         env.assertEqual(info_dict_0['backend'], 'TFLITE')
         env.assertEqual(info_dict_0['device'], DEVICE)
@@ -291,9 +291,9 @@ def test_tflite_modelinfo(env):
 
         previous_duration = info_dict_0['duration']
 
-    res = con.execute_command('AI.INFO', 'mnist', 'RESETSTAT')
+    res = con.execute_command('AI.INFO', 'mnist{1}', 'RESETSTAT')
     env.assertEqual(res, b'OK')
-    info = con.execute_command('AI.INFO', 'mnist')
+    info = con.execute_command('AI.INFO', 'mnist{1}')
     info_dict_0 = info_to_dict(info)
     env.assertEqual(info_dict_0['duration'], 0)
     env.assertEqual(info_dict_0['samples'], 0)
@@ -317,15 +317,15 @@ def test_tflite_modelrun_disconnect(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = red.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = red.execute_command('AI.MODELSET', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command('AI.TENSORSET', 'a', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = red.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(red, env)
 
-    ret = send_and_disconnect(('AI.MODELRUN', 'mnist', 'INPUTS', 'a', 'OUTPUTS', 'b', 'c'), red)
+    ret = send_and_disconnect(('AI.MODELRUN', 'mnist{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}', 'c{1}'), red)
     env.assertEqual(ret, None)
 
 
@@ -342,10 +342,10 @@ def test_tflite_model_rdb_save_load(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'mnist', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+    model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist{1}', 'BLOB')
 
     ensureSlaveSynced(con, env)
     ret = con.execute_command('SAVE')
@@ -354,7 +354,7 @@ def test_tflite_model_rdb_save_load(env):
     env.stop()
     env.start()
     con = env.getConnection()
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mnist', 'BLOB')
+    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mnist{1}', 'BLOB')
     env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
     env.assertEqual(len(model_pb), len(model_serialized_after_rdbload))
     # Assert in memory model binary is equal to loaded model binary
