@@ -266,6 +266,19 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
   return REDISMODULE_OK;
 }
 
+int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                       RedisModuleString **argv, int argc){
+    RedisModule_KeyAtPos(ctx, 1);
+    for (size_t argpos = 4; argpos < argc; argpos++){
+        const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if (!strcasecmp(str, "OUTPUTS")) {
+            continue;
+        }
+        RedisModule_KeyAtPos(ctx,argpos);
+    }
+    return REDISMODULE_OK;
+}
+
 /**
  * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
  */

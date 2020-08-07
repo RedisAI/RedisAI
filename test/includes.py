@@ -155,12 +155,12 @@ def load_creditcardfraud_data(env,max_tensors=10000):
 
 def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
-    con.execute_command('AI.TENSORSET', 'input',
+    con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.MODELRUN', 'mobilenet',
-                        'INPUTS', 'input', 'OUTPUTS', 'output')
+    con.execute_command('AI.MODELRUN', 'mobilenet{1}',
+                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
 
 
 def run_test_multiproc(env, n_procs, fn, args=tuple()):
