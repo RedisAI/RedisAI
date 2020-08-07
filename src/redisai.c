@@ -520,20 +520,20 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
   if (argc < 3) return RedisModule_WrongArity(ctx);
-
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
   }
-
   RAI_Model *mto;
   RedisModuleKey *modelKey;
   const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &modelKey, &mto, REDISMODULE_READ);
   if(status==REDISMODULE_ERR){
       return REDISMODULE_ERR;
   }
-  
   RedisModule_RetainString(NULL, argv[1]);
   rinfo->runkey = argv[1];
   rinfo->mctx = RAI_ModelRunCtxCreate(mto);
@@ -567,118 +567,83 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 * AI.SCRIPTRUN script_key fn_name INPUTS input_key1 ... OUTPUTS output_key1 ...
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-  if (argc < 4) return RedisModule_WrongArity(ctx);
-
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+    return RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
+  if (argc < 6) return RedisModule_WrongArity(ctx);
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+    return RedisModule_ReplyWithError(
+        ctx,
+        "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo"
+        "structure");
   }
-
-  if (RedisModule_IsKeysPositionRequest(ctx)) {
-    RedisModule_KeyAtPos(ctx, 1);
-    for (int i=3; i<argc; i++) {
-      const char* arg = RedisModule_StringPtrLen(argv[i], NULL);
-      if (strcasecmp(arg, "INPUTS") == 0 || strcasecmp(arg, "OUTPUTS") == 0) {
-        continue;
-      }
-      RedisModule_KeyAtPos(ctx, i);
-    }
-    return REDISMODULE_OK;
-  }
-
-  RedisModule_AutoMemory(ctx);
-
-  ArgsCursor ac;
-  ArgsCursor_InitRString(&ac, argv+1, argc-1);
-
-  RedisModuleString* keystr;
-  AC_GetRString(&ac, &keystr, 0);
+  RedisModule_RetainString(NULL, argv[1]);
+  rinfo->runkey = argv[1];
 
   RAI_Script *sto;
   RedisModuleKey *key;
-  const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
-  if(status==REDISMODULE_ERR){
+  const int status =
+      RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+  if (status == REDISMODULE_ERR) {
+    return REDISMODULE_ERR;
+  }
+  const char *functionName = RedisModule_StringPtrLen(argv[2], NULL);
+  rinfo->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
+
+  RedisModuleString** inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+
+  RAI_Error err = {0};
+  int variadic = -1;
+  const int parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
+      ctx, argv, argc, &inkeys, &(rinfo->outkeys), &variadic, &err);
+  RedisModule_CloseKey(key);
+
+  // if the number of parsed args is negative something went wrong
+  if (parse_result < 0) {
+    return RedisModule_ReplyWithError(ctx, err.detail_oneline);
+  }
+
+  for (int i=0; i<array_len(inkeys); i++) {
+    RAI_Tensor *inputTensor;
+    RedisModuleKey *tensorKey;
+
+    const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &tensorKey, &inputTensor, REDISMODULE_READ);
+    if (status == REDISMODULE_ERR) {
+      // TODO: free rinfo
+      // TODO: output proper error
       return REDISMODULE_ERR;
-  }
-
-  const char* fnname;
-  AC_GetString(&ac, &fnname, NULL, 0); 
-
-  ArgsCursor inac = {0};
-  ArgsCursor outac = {0};
-
-  if (!AC_AdvanceIfMatch(&ac, "INPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, INPUTS not specified");
-  }
-
-  const char* matches[] = {"OUTPUTS"};
-  AC_GetSliceUntilMatches(&ac, &inac, 1, matches);
-
-  if (!AC_AdvanceIfMatch(&ac, "OUTPUTS")) {
-    return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, OUTPUTS not specified");
-  }
-
-  AC_GetSliceToEnd(&ac, &outac);
-
-  size_t ninputs = inac.argc;
-  RedisModuleString *inputs[ninputs];
-  for (size_t i=0; i<ninputs; i++) {
-    AC_GetRString(&inac, inputs+i, 0); 
-  }
-
-  size_t noutputs = outac.argc;
-  RedisModuleString *outputs[noutputs];
-  for (size_t i=0; i<noutputs; i++) {
-    AC_GetRString(&outac, outputs+i, 0); 
-  }
-
-  rinfo->sctx = RAI_ScriptRunCtxCreate(sto, fnname);
-
-  for (size_t i=0; i<ninputs; i++) {
-    RAI_Tensor *t;
-    RedisModuleKey *argkey;
-    const int status = RAI_GetTensorFromKeyspace(ctx, inputs[i], &argkey, &t, REDISMODULE_READ);
-    if(status==REDISMODULE_ERR){
-         RedisModule_CloseKey(key);
-         RAI_FreeRunInfo(ctx,rinfo);
-        return REDISMODULE_ERR;
     }
-    RedisModule_CloseKey(argkey);
-    if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, t)) {
-      RAI_FreeRunInfo(ctx,rinfo);
-      RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "ERR Input key not found");
+    RedisModule_CloseKey(tensorKey);
+
+    if (!RAI_ScriptRunCtxAddInput(rinfo->sctx, inputTensor)) {
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, err.detail_oneline);
     }
   }
 
-  for (size_t i=0; i<noutputs; i++) {
+  for (int i=0; i<array_len(rinfo->outkeys); i++) {
     if (!RAI_ScriptRunCtxAddOutput(rinfo->sctx)) {
-      RAI_FreeRunInfo(ctx,rinfo);
-      RedisModule_CloseKey(key);
-      return RedisModule_ReplyWithError(ctx, "ERR Output key not found");
+      // todo free rinfo
+      return RedisModule_ReplyWithError(ctx, err.detail_oneline);
     }
-    RedisModule_RetainString(ctx, outputs[i]);
-    array_append(rinfo->outkeys,outputs[i]);
-  }
-  
-  RedisModule_RetainString(ctx, keystr);
-  rinfo->runkey = keystr;
-  RunQueueInfo *run_queue_info = NULL;
-    // If the queue does not exist, initialize it
-  if (ensureRunQueue(sto->devicestr,&run_queue_info) == REDISMODULE_ERR) {
-    RAI_FreeRunInfo(ctx,rinfo);
-    return RedisModule_ReplyWithError(ctx, "ERR Queue not initialized for device");
   }
 
-  rinfo->client = RedisModule_BlockClient(ctx, RAI_ModelRunScriptRunReply, NULL, RedisAI_FreeData, 0);
+  RunQueueInfo *run_queue_info = NULL;
+  // If the queue does not exist, initialize it
+  if (ensureRunQueue(sto->devicestr, &run_queue_info) == REDISMODULE_ERR) {
+    return RedisModule_ReplyWithError(ctx,
+                                      "ERR Queue not initialized for device");
+  }
+
+  rinfo->client = RedisModule_BlockClient(ctx, RAI_ModelRunScriptRunReply, NULL,
+                                          RedisAI_FreeData, 0);
   // RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   queuePush(run_queue_info->run_queue, rinfo);
   pthread_cond_signal(&run_queue_info->queue_condition_var);
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-
-  RedisModule_CloseKey(key);
 
   return REDISMODULE_OK;
 }
@@ -971,6 +936,9 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
   RedisAI_RunInfo *rinfo = NULL;
@@ -1364,11 +1332,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand, "write deny-oom", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand, "write deny-oom getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
-  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly", 3, 3, 1)
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly getkeys-api", 3, 3, 1)
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 

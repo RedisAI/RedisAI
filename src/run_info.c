@@ -136,6 +136,9 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
 void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
   if (dagOp) {
     RAI_FreeError(dagOp->err);
+    if(dagOp->runkey){
+      RedisModule_FreeString(ctx,dagOp->runkey);
+    }
     if (dagOp->argv) {
       for (size_t i = 0; i < array_len(dagOp->argv); i++) {
         RedisModule_FreeString(ctx, dagOp->argv[i]);
@@ -155,6 +158,13 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
     }
     if (dagOp->sctx) {
       RAI_ScriptRunCtxFree(dagOp->sctx, false);
+    }
+
+    if (dagOp->outkeys) {
+      for (size_t i=0; i<array_len(dagOp->outkeys); i++) {
+        RedisModule_FreeString(ctx,dagOp->outkeys[i]);
+      }
+      array_free(dagOp->outkeys);
     }
 
     RedisModule_Free(dagOp);
@@ -204,10 +214,6 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
       entry = AI_dictNext(iter);
     }
     AI_dictReleaseIterator(iter);
-
-    RedisModule_Free(rinfo->dagTensorsContext);
-    RedisModule_Free(rinfo->dagTensorsLoadedContext);
-    RedisModule_Free(rinfo->dagTensorsPersistentContext);
   }
 
   if (rinfo->dagOps) {

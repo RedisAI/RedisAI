@@ -246,3 +246,67 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
   *script = RedisModule_ModuleTypeGetValue(*key);
   return REDISMODULE_OK;
 }
+
+int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                       RedisModuleString **argv, int argc){
+    RedisModule_KeyAtPos(ctx, 1);
+    for (size_t argpos = 4; argpos < argc; argpos++){
+        const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if (!strcasecmp(str, "OUTPUTS")) {
+            continue;
+        }
+        RedisModule_KeyAtPos(ctx,argpos);
+    }
+    return REDISMODULE_OK;
+}
+
+/**
+ * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+ */
+int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
+                                        RedisModuleString **argv, int argc,
+                                        RedisModuleString ***inkeys,
+                                        RedisModuleString ***outkeys,
+                                        int *variadic,
+                                        RAI_Error *error) {
+  if (argc < 6) {
+    RAI_SetError(error, RAI_ESCRIPTRUN, "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
+    return -1;
+  }
+
+  const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
+  if (strcasecmp(inputstr, "INPUTS") == 0) {
+    RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
+    return -1;
+  }
+
+  inputstr = RedisModule_StringPtrLen(argv[3], NULL);
+  if (strcasecmp(inputstr, "INPUTS")) {
+    RAI_SetError(error, RAI_ESCRIPTRUN, "ERR INPUTS not specified");
+    return -1;
+  }
+
+  // parsing aux vars
+  int is_output = 0;
+  int outputs_flag_count = 0;
+  size_t argpos = 4;
+  for (; argpos <= argc - 1; argpos++) {
+    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (!arg_string) {
+      RAI_SetError(error, RAI_ESCRIPTRUN, "ERR NULL argument on SCRIPTRUN");
+      return -1;
+    }
+    if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
+      is_output = 1;
+      outputs_flag_count = 1;
+    } else {
+      RedisModule_RetainString(ctx, argv[argpos]);
+      if (is_output == 0) {
+        *inkeys = array_append(*inkeys, argv[argpos]);
+      } else {
+        *outkeys = array_append(*outkeys, argv[argpos]);
+      }
+    }
+  }
+  return argpos;
+}
