@@ -1,5 +1,6 @@
 
 ROOT=../../..
+MK.pyver:=3
 include $(ROOT)/opt/readies/mk/main
 
 # OSNICK=buster|stretch|bionic|xenial|centos7
