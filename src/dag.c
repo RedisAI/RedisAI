@@ -842,7 +842,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       } 
       int *instance = AI_dictGetVal(mangled_entry);
       RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
-      const char* mangled_key_str = RedisModule_Strdup(RedisModule_StringPtrLen(mangled_key, NULL));
+      const char* mangled_key_str = RedisModule_StringPtrLen(mangled_key, NULL);
       AI_dictAdd(mangled_persisted, (void *)mangled_key_str, (void *)1);
       entry = AI_dictNext(iter);
     }
