@@ -548,6 +548,18 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
   return ret;
 }
 
+int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                    RedisModuleString **argv, int argc){
+  RedisModule_KeyAtPos(ctx, 1);
+  for (size_t argpos = 3; argpos < argc; argpos++){
+    const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (!strcasecmp(str, "OUTPUTS")) {
+      continue;
+    }
+    RedisModule_KeyAtPos(ctx,argpos);
+  }
+  return REDISMODULE_OK;
+}
 
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RedisModuleString **argv, int argc,
@@ -590,7 +602,6 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       }
     }
   }
-
   if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
     RAI_SetError(
         error, RAI_EMODELRUN,
