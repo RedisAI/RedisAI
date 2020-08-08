@@ -1,5 +1,6 @@
 
 ROOT=../../..
+MK.pyver:=3
 include $(ROOT)/opt/readies/mk/main
 
 # OSNICK=buster|stretch|bionic|xenial|centos7
@@ -7,6 +8,8 @@ OSNICK ?= buster
 
 REPO=redisfab
 STEM=$(REPO)/redisai
+
+REDIS_VER:=6.0.5
 
 ART_DIR=$(ROOT)/bin/artifacts
 ART_INT_DIR=/var/opt/redislabs/artifacts
