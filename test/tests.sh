@@ -107,7 +107,7 @@ RLTEST_ARGS=""
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
 if [[ ! -z $TEST ]]; then
-	RLTEST_ARGS+=" -s --test $TEST"
+	RLTEST_ARGS+=" --test $TEST"
 	export PYDEBUG=${PYDEBUG:-1}
 fi
 
@@ -121,5 +121,6 @@ install_git_lfs
 check_redis_server
 
 [[ $GEN == 1 ]]    && run_tests
+[[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
 [[ $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
