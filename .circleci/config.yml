@@ -30,7 +30,7 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            # ./opt/readies/bin/getredis -v 6 --force
+            ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
           paths:
