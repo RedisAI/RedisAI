@@ -11,6 +11,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <sys/resource.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include "backends/util.h"
@@ -1093,11 +1094,56 @@ static int RedisAI_RegisterApi(RedisModuleCtx* ctx) {
 void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddSection(ctx, "git");
     RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
-
     RedisModule_InfoAddSection(ctx, "load_time_configs");
     RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", perqueueThreadPoolSize);
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
+    struct rusage self_ru, c_ru;
+    // Return resource usage statistics for the calling process,
+    // which is the sum of resources used by all threads in the
+    // process
+    getrusage(RUSAGE_SELF, &self_ru);
+    // Return resource usage statistics for all of its
+    // terminated child processes
+    getrusage(RUSAGE_CHILDREN, &c_ru);
+    sds self_used_cpu_sys = sdscatprintf(sdsempty(),"%ld.%06ld",(long)self_ru.ru_stime.tv_sec,(long)self_ru.ru_stime.tv_usec);
+    sds self_used_cpu_user = sdscatprintf(sdsempty(),"%ld.%06ld",(long)self_ru.ru_utime.tv_sec, (long)self_ru.ru_utime.tv_usec);
+    sds children_used_cpu_sys = sdscatprintf(sdsempty(),"%ld.%06ld",(long)c_ru.ru_stime.tv_sec,(long)c_ru.ru_stime.tv_usec);
+    sds children_used_cpu_user = sdscatprintf(sdsempty(),"%ld.%06ld",(long)c_ru.ru_utime.tv_sec, (long)c_ru.ru_utime.tv_usec);
+    RedisModule_InfoAddSection(ctx, "cpu");
+    RedisModule_InfoAddFieldCString(ctx, "self_used_cpu_sys", self_used_cpu_sys);
+    RedisModule_InfoAddFieldCString(ctx, "self_used_cpu_user", self_used_cpu_user);
+    RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_sys", children_used_cpu_sys);
+    RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_user", children_used_cpu_user);
+
+    AI_dictIterator *iter = AI_dictGetSafeIterator(run_queues);
+    AI_dictEntry *entry = AI_dictNext(iter);
+    while (entry) {
+      char *queue_name = (char *)AI_dictGetKey(entry);
+      RunQueueInfo *run_queue_info = (RunQueueInfo *)AI_dictGetVal(entry);
+      if(run_queue_info){
+        for (int i = 0; i < perqueueThreadPoolSize; i++) {
+          pthread_t current_bg_threads = run_queue_info->threads[i];
+          struct timespec ts;
+          clockid_t cid;
+          sds queue_used_cpu_total = sdscatprintf(sdsempty(),"queue_%s_bthread_#%d_used_cpu_total",queue_name,i+1);
+          sds bthread_used_cpu_total = sdsempty();
+          const int status = pthread_getcpuclockid(current_bg_threads,&cid);
+          if (status != 0){
+            bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total,"N/A");
+          } else {
+            if (clock_gettime(cid, &ts) == -1){
+              bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total,"N/A");
+            } else {
+                bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total,"%ld.%06ld",(long)ts.tv_sec, (long)(ts.tv_nsec / 1000000));
+            }
+          }
+          RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);
+        }
+      }
+      entry = AI_dictNext(iter);
+    }
+    AI_dictReleaseIterator(iter);
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
