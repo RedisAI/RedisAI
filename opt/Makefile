@@ -25,7 +25,7 @@ endif
 
 define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
-make fetch  # download and prepare dependant modules
+make fetch  # download and prepare dependant artifacts
 
 make build      # compile and link
   DEBUG=1         # build for debugging
@@ -179,9 +179,9 @@ pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
 ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=1 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=1 ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=0 ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=0 ./pack.sh
 endif
 
 #----------------------------------------------------------------------------------------------

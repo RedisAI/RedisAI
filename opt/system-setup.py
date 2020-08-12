@@ -28,6 +28,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.pip_install("-IU --force-reinstall setuptools")
+        self.install("gawk")
         self.install("build-essential cmake")
         self.install("python3-regex")
         self.install("python3-venv python3-psutil python3-networkx python3-numpy") # python3-skimage
