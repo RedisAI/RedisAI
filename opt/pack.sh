@@ -61,6 +61,9 @@ export PRODUCT_LIB=$PRODUCT.so
 
 export PACKAGE_NAME=${PACKAGE_NAME:-${PRODUCT}}
 
+# BACKENDS="all torch tensorflow onnxruntime tflite"
+BACKENDS="torch tensorflow onnxruntime tflite"
+
 #----------------------------------------------------------------------------------------------
 
 pack_ramp() {
@@ -88,7 +91,7 @@ pack_ramp() {
 	local product_so="$INSTALL_DIR/$PRODUCT.so"
 
 	local xtx_vars=""
-	for dep in all torch tensorflow onnxruntime tflite; do
+	for dep in $BACKENDS; do
 		eval "export NAME_${dep}=${PACKAGE_NAME}_${dep}"
 		local dep_fname=${PACKAGE_NAME}-${DEVICE}-${dep}.${platform}.${verspec}.tgz
 		eval "export PATH_${dep}=${s3base}${dep_fname}"
@@ -145,8 +148,6 @@ pack_deps() {
 		ln -sf ../$fq_package $snap_package
 		ln -sf ../$fq_package.sha256 $snap_package.sha256
 	fi
-	
-	echo "Done."
 }
 
 #----------------------------------------------------------------------------------------------
@@ -167,7 +168,7 @@ fi
 export BRANCH
 
 [[ $DEPS == 1 ]] && echo "Building dependencies ..."
-for dep in all torch tensorflow onnxruntime tflite; do
+for dep in $BACKENDS; do
 	if [[ $DEPS == 1 ]]; then
 		echo "$dep ..."
 		pack_deps $dep
@@ -183,6 +184,7 @@ if [[ $RAMP == 1 ]]; then
 	echo "Building RAMP files ..."
 	SNAPSHOT=0 pack_ramp
 	SNAPSHOT=1 pack_ramp
+	echo "Done."
 fi
 
 exit 0
