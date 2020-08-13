@@ -72,7 +72,7 @@ pack_ramp() {
 	if [[ $SNAPSHOT == 0 ]]; then
 		local verspec=${SEMVER}${VARIANT}
 		local packdir=.
-		local s3base=
+		local s3base=""
 	else
 		local verspec=${BRANCH}${VARIANT}
 		local packdir=snapshots
@@ -124,17 +124,17 @@ pack_deps() {
 	local stem=${PACKAGE_NAME}-${DEVICE}-${depname}.${platform}
 	local fq_package=$stem.${SEMVER}${VARIANT}.tgz
 	local tar_path=$BINDIR/$fq_package
-	local backends_prefix_dir=$PRODUCT-$DEVICE-$SEMVER
+	local backends_prefix_dir=""
 	
 	if [[ $depname == all ]]; then
-		local backens_dir=backends
+		local backens_dir=.
 	else
-		local backens_dir=backends/${PRODUCT}_$depname
+		local backens_dir=${PRODUCT}_$depname
 	fi
 	
-	cd $INSTALL_DIR
+	cd $INSTALL_DIR/backends
 	{ find $backens_dir -name "*.so*" | \
-	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir/," 2>> /tmp/pack.err | \
+	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir," 2>> /tmp/pack.err | \
 	  gzip -n - > $tar_path ; E=$?; } || true
 	sha256sum $tar_path | gawk '{print $1}' > $tar_path.sha256
 
