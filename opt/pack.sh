@@ -1,5 +1,38 @@
 #!/bin/bash
 
+error() {
+	>&2 echo "$0: There are errors."
+	exit 1
+}
+
+if [[ -z $_Dbg_DEBUGGER_LEVEL ]]; then
+	trap error ERR
+fi
+
+#----------------------------------------------------------------------------------------------
+
+if [[ $1 == --help || $1 == help ]]; then
+	cat <<-END
+		pack.sh [cpu|gpu] [--help|help]
+		
+		Argument variables:
+		DEVICE=cpu|gpu    CPU or GPU variants
+		RAMP=1            Build RAMP file
+		DEPS=1            Build dependencies file
+
+		VARIANT=name      Build variant (empty for standard packages)
+		BRANCH=branch     Branch names to serve as an exta package tag
+		GITSHA=1          Append Git SHA to shapshot package names
+
+		BINDIR=dir        Directory in which packages are created
+		INSTALL_DIR=dir   Directory in which artifacts are found
+
+	END
+	exit 0
+fi
+
+#----------------------------------------------------------------------------------------------
+
 [[ $IGNERR == 1 ]] || set -e
 [[ $VERBOSE == 1 ]] && set -x
 
@@ -10,142 +43,148 @@
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . $HERE/readies/shibumi/functions
 ROOT=$(realpath $HERE/..)
+READIES=$ROOT/opt/readies/bin
 
 RAMP_PROG="python3 -m RAMP.ramp"
-REDIS_ENT_LIB_PATH=/opt/redislabs/lib
 
 BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
-. $ROOT/opt/readies/bin/enable-utf8
+. $READIES/enable-utf8
 
-export ARCH=$($ROOT/opt/readies/bin/platform --arch)
-export OS=$($ROOT/opt/readies/bin/platform --os)
-export OSNICK=$($ROOT/opt/readies/bin/platform --osnick)
+export ARCH=$($READIES/platform --arch)
+export OS=$($READIES/platform --os)
+export OSNICK=$($READIES/platform --osnick)
+
+export PRODUCT=redisai
+export PRODUCT_LIB=$PRODUCT.so
+
+export PACKAGE_NAME=${PACKAGE_NAME:-${PRODUCT}}
+
+# BACKENDS="all torch tensorflow onnxruntime tflite"
+BACKENDS="torch tensorflow onnxruntime tflite"
+
+#----------------------------------------------------------------------------------------------
 
 pack_ramp() {
-	echo "Building RAMP file ..."
 	cd $ROOT
-	
-	local STEM=$PRODUCT.$OS-$OSNICK-$ARCH
-	local FQ_PACKAGE
-	if [[ -z $BRANCH ]]; then
-		FQ_PACKAGE=$STEM.$VERSION
+
+	local platform="$OS-$OSNICK-$ARCH"
+	local stem=${PACKAGE_NAME}-${DEVICE}.${platform}
+
+	if [[ $SNAPSHOT == 0 ]]; then
+		local verspec=${SEMVER}${VARIANT}
+		local packdir=.
+		local s3base=""
 	else
-		FQ_PACKAGE=$STEM.$BRANCH
+		local verspec=${BRANCH}${VARIANT}
+		local packdir=snapshots
+		local s3base=snapshots/
 	fi
+	
+	local fq_package=$stem.${verspec}.zip
 
-	# this is only to extract {semantic_version} into VERSION
-	RAMPOUT=$(mktemp /tmp/ramp.XXXXXX)
-	$RAMP_PROG pack -m $ROOT/ramp.yml --packname-file $RAMPOUT -o $BINDIR/$PRODUCT.{os}-{architecture}.{semantic_version}.zip $INSTALL_DIR/$PRODUCT.so
-	local rampfile=`realpath $(tail -1 $RAMPOUT)`
-	rm -f $rampfile $RAMPOUT
-	echo `basename $rampfile` | sed -e "s/[^.]*\.[^.]*\.\(.*\)\.zip/\1/" > $BINDIR/VERSION
-	export SEMVER=$(cat $BINDIR/VERSION)
+	[[ ! -d $BINDIR/$packdir ]] && mkdir -p $BINDIR/$packdir
 
-	$RAMP_PROG pack -m $ROOT/ramp.yml -o $BINDIR/$FQ_PACKAGE.zip \
-		-c "BACKENDSPATH $REDIS_ENT_LIB_PATH/$PRODUCT-$DEVICE-$SEMVER/backends" $INSTALL_DIR/$PRODUCT.so > /dev/null 2>&1
+	local packdir="$BINDIR/$packdir"
+	local packfile="$packdir/$fq_package"
+	local product_so="$INSTALL_DIR/$PRODUCT.so"
 
-	cd "$BINDIR"
-	if [[ -z $BRANCH ]]; then
-		ln -sf $FQ_PACKAGE.zip $STEM.latest.zip
+	local xtx_vars=""
+	for dep in $BACKENDS; do
+		eval "export NAME_${dep}=${PACKAGE_NAME}_${dep}"
+		local dep_fname=${PACKAGE_NAME}-${DEVICE}-${dep}.${platform}.${verspec}.tgz
+		eval "export PATH_${dep}=${s3base}${dep_fname}"
+		local dep_sha256="$packdir/${dep_fname}.sha256"
+		eval "export SHA256_${dep}=$(cat $dep_sha256)"
+
+		xtx_vars+=" -e NAME_$dep -e PATH_$dep -e SHA256_$dep"
+	done
+	
+	python3 $READIES/xtx \
+		$xtx_vars \
+		-e DEVICE -e NUMVER -e SEMVER \
+		$ROOT/ramp.yml > /tmp/ramp.yml
+	rm -f /tmp/ramp.fname $packfile
+	$RAMP_PROG pack -m /tmp/ramp.yml --packname-file /tmp/ramp.fname --verbose --debug -o $packfile $product_so >/tmp/ramp.err 2>&1 || true
+	if [[ ! -e $packfile ]]; then
+		>&2 echo "Error generating RAMP file:"
+		>&2 cat /tmp/ramp.err
+		exit 1
 	fi
 
 	echo "Done."
 }
+
+#----------------------------------------------------------------------------------------------
 
 pack_deps() {
-	echo "Building dependencies file ..."
-
+	local depname="$1"
+	
 	cd $ROOT
 
-	SEMVER=$(cat $BINDIR/VERSION)
-
-	local STEM=$PRODUCT-$DEVICE-dependencies.$OS-$OSNICK-$ARCH
-	local FQ_PACKAGE
-	if [[ -z $BRANCH ]]; then
-		FQ_PACKAGE=$STEM.$VERSION
+	local platform="$OS-$OSNICK-$ARCH"
+	local stem=${PACKAGE_NAME}-${DEVICE}-${depname}.${platform}
+	local fq_package=$stem.${SEMVER}${VARIANT}.tgz
+	local tar_path=$BINDIR/$fq_package
+	local backends_prefix_dir=""
+	
+	if [[ $depname == all ]]; then
+		local backens_dir=.
 	else
-		FQ_PACKAGE=$STEM.$BRANCH
+		local backens_dir=${PRODUCT}_$depname
 	fi
 	
-	cd $INSTALL_DIR
-	local BACKENDS_DIR=$PRODUCT-$DEVICE-$SEMVER
-	if [[ ! -h backends ]]; then
-		[[ ! -d backends ]] && { echo "install-$DEVICE/backend directory not found." ; exit 1; }
-		rm -rf $BACKENDS_DIR
-		mkdir $BACKENDS_DIR
-	
-		mv backends $BACKENDS_DIR
-		ln -s $BACKENDS_DIR/backends backends
+	cd $INSTALL_DIR/backends
+	{ find $backens_dir -name "*.so*" | \
+	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir," 2>> /tmp/pack.err | \
+	  gzip -n - > $tar_path ; E=$?; } || true
+	sha256sum $tar_path | gawk '{print $1}' > $tar_path.sha256
+
+	mkdir -p $BINDIR/snapshots
+	cd $BINDIR/snapshots
+	if [[ ! -z $BRANCH ]]; then
+		local snap_package=$stem.${BRANCH}${VARIANT}.tgz
+		ln -sf ../$fq_package $snap_package
+		ln -sf ../$fq_package.sha256 $snap_package.sha256
 	fi
-	find $BACKENDS_DIR -name "*.so*" | xargs tar pczf $BINDIR/$FQ_PACKAGE.tgz
-	
-	cd "$BINDIR"
-	if [[ -z $BRANCH ]]; then
-		ln -sf $FQ_PACKAGE.tgz $STEM.latest.tgz
-	fi
-	
-	echo "Done."
 }
 
-if [[ $1 == --help || $1 == help ]]; then
-	cat <<-END
-		pack.sh [cpu|gpu] [--help|help]
-		
-		Argument variables:
-		BINDIR=dir        directory in which packages are created
-		INSTALL_DIR=dir   directory in which artifacts are found
-		DEVICE=cpu|gpu
-		BRANCH=branch     branch names to serve as an exta package tag
-		RAMP=1            build RAMP file
-		DEPS=1            build dependencies file
-		RAMP_PROG         path to RAMP program
+#----------------------------------------------------------------------------------------------
 
-	END
-	exit 0
+export NUMVER=$(NUMERIC=1 $ROOT/opt/getver)
+export SEMVER=$($ROOT/opt/getver)
+
+if [[ ! -z $VARIANT ]]; then
+	VARIANT=-${VARIANT}
 fi
 
-PRODUCT=redisai
-PRODUCT_LIB=$PRODUCT.so
+[[ -z $BRANCH ]] && BRANCH=${CIRCLE_BRANCH:-`git rev-parse --abbrev-ref HEAD`}
+BRANCH=${BRANCH//[^A-Za-z0-9._-]/_}
+if [[ $GITSHA == 1 ]]; then
+	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+" 2>/dev/null || git rev-parse --short HEAD)
+	BRANCH="${BRANCH}-${GIT_COMMIT}"
+fi
+export BRANCH
 
-if [[ -z $BRANCH ]]; then
-	tag=`git describe --abbrev=0 2> /dev/null | sed 's/^v\(.*\)/\1/'`
-	if [[ $? != 0 || -z $tag ]]; then
-		BRANCH=`git rev-parse --abbrev-ref HEAD`
-		VERSION=
-	else
-		VERSION=$tag
+[[ $DEPS == 1 ]] && echo "Building dependencies ..."
+for dep in $BACKENDS; do
+	if [[ $DEPS == 1 ]]; then
+		echo "$dep ..."
+		pack_deps $dep
 	fi
-else
-	VERSION=
+done
+
+if [[ $RAMP == 1 ]]; then
+	if ! command -v redis-server > /dev/null; then
+		>&2 echo "$0: Cannot find redis-server. Aborting."
+		exit 1
+	fi
+
+	echo "Building RAMP files ..."
+	SNAPSHOT=0 pack_ramp
+	SNAPSHOT=1 pack_ramp
+	echo "Done."
 fi
-
-# GIT_VER=""
-# if [[ -d $ROOT/.git ]]; then
-# 	if [[ ! -z $BRANCH ]]; then
-# 		GIT_BRANCH="$BRANCH"
-# 	else
-# 		GIT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-# 	fi
-# 	GIT_COMMIT=$(git describe --always --abbrev=7 --dirty="+")
-# 	# GIT_VER="${GIT_BRANCH}-${GIT_COMMIT}"
-# 	GIT_VER="${GIT_BRANCH}"
-# else
-# 	if [[ ! -z $BRANCH ]]; then
-# 		GIT_BRANCH="$BRANCH"
-# 	else
-# 		GIT_BRANCH=unknown
-# 	fi
-# 	GIT_VER="$GIT_BRANCH"
-# fi
-
-if ! command -v redis-server > /dev/null; then
-	echo "Cannot find redis-server. Aborting."
-	exit 1
-fi 
-
-pack_ramp
-[[ $DEPS == 1 ]] && pack_deps
 
 exit 0
