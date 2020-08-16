@@ -52,6 +52,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
+            - artifacts/shapshos/*.zip
+            - artifacts/shapshos/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -71,16 +73,23 @@ commands:
           name: Build for platform
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            pushd opt/build/docker
+            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            # make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            popd
+            mkdir -p tests/logs/cpu
+            tar -C cpu -xzf bin/artifacts/tests-logs-cpu.tgz
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
+            - artifacts/shapshots/*.zip
+            - artifacts/shapshots/*.tgz
+      - store_artifacts:
+          path: test/logs
 
   deploy-steps:
     parameters:
@@ -206,7 +215,7 @@ jobs:
 
   deploy-artifacts:
     parameters:
-      package:
+      location:
         type: string
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
@@ -216,8 +225,38 @@ jobs:
       - run:
           name: Deploy to S3
           command: |
-            cd workspace
-            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
+            cd workspace/artifacts/"<<parameters.location>>"
+            for f in *.zip snapshot/*.tgz; do
+              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
+            done
+
+  deploy-snapshot:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Deploy Snapshots to S3
+          command: |
+		    cd workspace/artifacts/snapshots
+            for f in *.zip *.tgz; do
+              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
+            done
+
+  deploy-release:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Deploy Releases to S3
+          command: |
+		    cd workspace/artifacts
+            for f in *.zip *.tgz; do
+              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
+            done
 
 
 on-any-branch: &on-any-branch
@@ -296,14 +335,11 @@ workflows:
       - build-multiarch-docker:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
-      - deploy-artifacts:
-          name: deploy-branch
-          package: branch
+      - deploy-snapshot:
           <<: *after-platform-builds
+          #@@ <<: *on-master
           <<: *on-any-branch
-      - deploy-artifacts:
-          name: deploy-release
-          package: release
+      - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
 
