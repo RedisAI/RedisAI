@@ -297,8 +297,8 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  <<: *on-master-and-version-tags
-  # <<: *on-any-branch # debugging
+  #@@ <<: *on-master-and-version-tags
+  <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
