@@ -74,12 +74,14 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            # make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            # make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             popd
-            mkdir -p tests/logs/cpu
-            tar -C cpu -xzf bin/artifacts/tests-logs-cpu.tgz
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            [[ -e $logstar ]] && tar -C $logsdir -xzf $logstar
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -211,7 +213,7 @@ jobs:
             docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: tests
+          path: test/log
 
   deploy-artifacts:
     parameters:

@@ -50,8 +50,9 @@ ARG TEST
 RUN mkdir -p bin/artifacts
 RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 
-RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
-    tar -C /build/tests/logs/ -czf /build/bin/artifacts/tests-logs-cpu.tgz . ;\
+RUN if [ "$TEST" = "1" ]; then \
+        TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
+        tar -C /build/test/logs/ -czf /build/bin/artifacts/test-logs-cpu.tgz . ;\
     fi
 
 #----------------------------------------------------------------------------------------------
