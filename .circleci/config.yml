@@ -295,7 +295,7 @@ workflows:
       - platform-build:
           name: build-bionic
           platform: bionic
-          <<: *platform-build-defs
+#          <<: *platform-build-defs
 #      - platform-build:
 #          name: build-xenial
 #          platform: xenial
