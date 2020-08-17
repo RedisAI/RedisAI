@@ -48,6 +48,12 @@ class RedisAISetup(paella.Setup):
         paella.mkdir_p("%s/profile.d" % ROOT)
         self.run("cp /opt/rh/devtoolset-8/enable %s/profile.d/scl-devtoolset-8.sh" % ROOT)
 
+        self.run("""
+            dir=$(mktemp -d /tmp/tar.XXXXXX)
+            (cd $dir; wget -q -O tar.tgz http://redismodules.s3.amazonaws.com/gnu/gnu-tar-1.32-x64-centos7.tgz; tar -xzf tar.tgz -C /; )
+            rm -rf $dir
+            """)
+
         if not self.dist == "amzn":
             self.install("epel-release")
             self.install("python3-devel libaec-devel")
