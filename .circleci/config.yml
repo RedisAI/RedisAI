@@ -52,8 +52,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshos/*.zip
-            - artifacts/shapshos/*.tgz
+            - artifacts/shapshots/*.zip
+            - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -92,16 +92,6 @@ commands:
             - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
-
-  deploy-steps:
-    parameters:
-      from:
-        type: string
-    steps:
-      - run:
-          name: Deploy to S3
-          command: |
-            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
   build-debian:
@@ -215,23 +205,6 @@ jobs:
       - store_artifacts:
           path: test/log
 
-  deploy-artifacts:
-    parameters:
-      location:
-        type: string
-    docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
-    steps:
-      - attach_workspace:
-          at: workspace
-      - run:
-          name: Deploy to S3
-          command: |
-            cd workspace/artifacts/"<<parameters.location>>"
-            for f in *.zip snapshot/*.tgz; do
-              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
-            done
-
   deploy-snapshot:
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
@@ -298,52 +271,52 @@ on-master-and-version-tags: &on-master-and-version-tags
 
 platform-build-defs: &platform-build-defs
   requires:
-    - build-debian
+#    - build-debian
   #@@ <<: *on-master-and-version-tags
   <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
-    - build-centos7
+#    - build-centos7
     - build-bionic
-    - build-xenial
+#    - build-xenial
 
 
 workflows:
   version: 2
   build_and_package:
     jobs:
-      - build-debian:
-          <<: *on-any-branch
-      - platform-build:
-          name: build-centos7
-          platform: centos7
-          <<: *platform-build-defs
+#      - build-debian:
+#          <<: *on-any-branch
+#      - platform-build:
+#          name: build-centos7
+#          platform: centos7
+#          <<: *platform-build-defs
       - platform-build:
           name: build-bionic
           platform: bionic
           <<: *platform-build-defs
-      - platform-build:
-          name: build-xenial
-          platform: xenial
-          <<: *platform-build-defs
-      - coverage:
-          <<: *on-any-branch
-      - build-and-test-gpu:
-          <<: *on-any-branch
-      - build-macos:
-          <<: *never # temporarily disabled
-          # <<: *on-version-tags
-      - build-multiarch-docker:
-          <<: *never # temporarily disabled
-          # <<: *on-version-tags
+#      - platform-build:
+#          name: build-xenial
+#          platform: xenial
+#          <<: *platform-build-defs
+#      - coverage:
+#          <<: *on-any-branch
+#      - build-and-test-gpu:
+#          <<: *on-any-branch
+#      - build-macos:
+#          <<: *never # temporarily disabled
+#          # <<: *on-version-tags
+#      - build-multiarch-docker:
+#          <<: *never # temporarily disabled
+#          # <<: *on-version-tags
       - deploy-snapshot:
           <<: *after-platform-builds
           #@@ <<: *on-master
           <<: *on-any-branch
-      - deploy-release:
-          <<: *after-platform-builds
-          <<: *on-version-tags
+#      - deploy-release:
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
 
   nightly:
     triggers:
