@@ -52,8 +52,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshots/*.zip
-            - artifacts/shapshots/*.tgz
+            - artifacts/snapshots/*.zip
+            - artifacts/snapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -74,9 +74,10 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            # make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
-            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            ## make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            # make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            # make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            make build $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -88,8 +89,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshots/*.zip
-            - artifacts/shapshots/*.tgz
+            - artifacts/snapshots/*.zip
+            - artifacts/snapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
