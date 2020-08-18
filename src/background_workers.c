@@ -143,8 +143,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
         // We add the current item to the list of evicted items. If it's the
         // first time around this will be the queue front.
-        array_append(evicted_items, item);
-        array_append(batch_rinfo, rinfo);
+        evicted_items = array_append(evicted_items, item);
+        batch_rinfo = array_append(batch_rinfo, rinfo);
 
         // If the item is a scriptrun, we stop looking for matching items to
         // batch because there's no batching for script
@@ -208,8 +208,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
           // If all previous checks pass, then keep track of the item
           // in the list of evicted items
-          array_append(evicted_items, next_item);
-          array_append(batch_rinfo, next_rinfo);
+          evicted_items = array_append(evicted_items, next_item);
+          batch_rinfo = array_append(batch_rinfo, next_rinfo);
 
           // Update the batchsize and go to the next item to see if
           // there's anything else to batch

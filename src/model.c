@@ -193,11 +193,11 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
 
   for (size_t i=0; i<model->ninputs; i++) {
-    array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
+    inputs_ = array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
   }
 
   for (size_t i=0; i<model->noutputs; i++) {
-    array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
+    outputs_ = array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
   long long chunk_size = getModelChunkSize();
@@ -206,7 +206,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
   for (size_t i=0; i<n_chunks; i++) {
     size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
-    array_append(buffers_, RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
+    buffers_ = array_append(buffers_, RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
   }
 
   if (buffer) {
