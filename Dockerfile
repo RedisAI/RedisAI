@@ -52,7 +52,9 @@ RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
 
 RUN if [ "$TEST" = "1" ]; then \
         TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
-        tar -C /build/test/logs/ -czf /build/bin/artifacts/test-logs-cpu.tgz . ;\
+		if [[ -d /build/test/logs ]]; then \
+			tar -C /build/test/logs/ -czf /build/bin/artifacts/test-logs-cpu.tgz . ;\
+		fi ;\
     fi
 
 #----------------------------------------------------------------------------------------------
