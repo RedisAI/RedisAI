@@ -77,10 +77,12 @@ commands:
             make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
             make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            for dev in cpu gpu; do
+              logstar=bin/artifacts/test-logs-${device}.tgz
+              logsdir=test/logs/${dev}
+              mkdir -p $logsdir
+              if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            done
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
