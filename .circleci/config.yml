@@ -28,7 +28,7 @@ commands:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
+            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
@@ -68,7 +68,7 @@ commands:
           name: Setup
           command: |
             git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
+            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
       - run:
           name: Build for platform
           command: |
@@ -127,7 +127,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
+            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
             ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu

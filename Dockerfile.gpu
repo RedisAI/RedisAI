@@ -36,7 +36,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN ./opt/readies/bin/getpy3
+RUN PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
@@ -45,9 +45,7 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN set -e ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+RUN make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK
 ARG TEST
