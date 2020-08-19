@@ -1,0 +1,35 @@
+#!/bin/bash
+
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+ROOT=$(cd $HERE/..; pwd)
+
+getver_c=$(mktemp "${TMPDIR:-/tmp}/getver-XXXXXXX.c")
+if [[ $NUMERIC != 1 ]]; then
+	cat <<- EOF > $getver_c
+		#include <stdio.h>
+
+		#include "src/version.h"
+
+		int main(int argc, char *argv[]) {
+				printf("%d.%d.%d\n", RAI_ENC_VER / 10000, (RAI_ENC_VER / 100) % 100, RAI_ENC_VER % 100);
+				return 0;
+		}
+		EOF
+else
+	cat <<- EOF > $getver_c
+		#include <stdio.h>
+
+		#include "src/version.h"
+
+		int main(int argc, char *argv[]) {
+				printf("%d\n", RAI_ENC_VER);
+				return 0;
+		}
+		EOF
+fi
+prog=$(mktemp "${TMPDIR:-/tmp}/getver.XXXXXXX")
+gcc -I$ROOT -o $prog $getver_c
+ver=`$prog`
+rm -f $prog $getver_c
+echo $ver
+exit 0

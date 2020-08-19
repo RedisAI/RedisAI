@@ -3,19 +3,10 @@
 #include "gtest/gtest.h"
 
 
-#ifdef __cplusplus
 extern "C" {
-#endif
-#include "../../src/backends.h"
-#include "../../src/backends/torch.h"
-#include "../../src/config.h"
-#include "../../src/script_struct.h"
-#include "../../src/script.h"
-
-
-#ifdef __cplusplus
+#include "src/redismodule.h"
+#include "src/err.h"
 }
-#endif
 
 
 namespace {
@@ -28,7 +19,7 @@ namespace {
         RedisModule_Strdup = strdup;
     }
 
-    TEST(RAI_GetError, Default) {
+    TEST(err, RAI_GetError) {
         Alloc_Reset();
         RAI_Error* err;
         EXPECT_EQ(0,RAI_InitError(&err));
@@ -38,7 +29,7 @@ namespace {
         RAI_FreeError(err);
     }
 
-    TEST(RAI_SetError, nullptr) {
+    TEST(err, RAI_SetError_nullptr) {
         Alloc_Reset();
         RAI_Error* err = nullptr;
 
@@ -52,7 +43,7 @@ namespace {
         RAI_ClearError(err);
     }
 
-    TEST(RAI_SetError, Default) {
+    TEST(err, RAI_SetError_default) {
         Alloc_Reset();
         RAI_Error* err;
         EXPECT_EQ(0,RAI_InitError(&err));

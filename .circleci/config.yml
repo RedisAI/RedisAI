@@ -30,7 +30,7 @@ commands:
           command: |
             ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
-            # ./opt/readies/bin/getredis -v 6 --force
+            ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
           paths:
@@ -95,7 +95,7 @@ commands:
 jobs:
   build-debian:
     docker:
-      - image: redisfab/rmbuilder:6.0.1-x64-buster
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
     steps:
       - build-steps:
           platform: debian
@@ -112,7 +112,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.1-x64-buster
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
     steps:
       - checkout
       - run:
@@ -136,7 +136,7 @@ jobs:
       - run:
           name: Test with coverage
           command: |
-            make -C opt test SHOW=1 COV=1
+            make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
           no_output_timeout: 20m
 
@@ -209,7 +209,7 @@ jobs:
       package:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.1-x64-buster
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
     steps:
       - attach_workspace:
           at: workspace
