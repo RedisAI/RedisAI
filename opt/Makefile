@@ -189,12 +189,20 @@ endif
 export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
+export CLUSTER ?= 1
+
+unit_tests: build
+	$(COVERAGE_RESET)
+	$(SHOW)$(MAKE) -C $(BINDIR) test
+	$(COVERAGE_COLLECT_REPORT)
 
 test:
 	$(COVERAGE_RESET)
+	$(SHOW)$(MAKE) -C $(BINDIR) test
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(INSTALLED_TARGET) \
+		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		$(ROOT)/test/tests.sh

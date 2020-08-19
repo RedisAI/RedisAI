@@ -44,6 +44,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -g -ggdb -fno-omit-frame-poi
 
 #----------------------------------------------------------------------------------------------
 
+option(PACKAGE_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
@@ -307,3 +308,10 @@ ENDIF()
 IF (NOT ${installAbs} STREQUAL ${CMAKE_SOURCE_DIR}/install-${DEVICE})
     INSTALL_SYMLINK(${installAbs} ${CMAKE_SOURCE_DIR}/install-${DEVICE})
 ENDIF()
+
+
+if(PACKAGE_UNIT_TESTS)
+    enable_testing()
+    include(GoogleTest)
+    add_subdirectory(test/unit)
+endif()
