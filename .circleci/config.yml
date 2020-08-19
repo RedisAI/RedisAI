@@ -138,7 +138,7 @@ jobs:
           command: |
             make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
-          no_output_timeout: 20m
+          no_output_timeout: 30m
 
   build-macos:
     macos:
