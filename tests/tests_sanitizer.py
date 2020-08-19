@@ -4,7 +4,7 @@ import multiprocessing as mp
 from includes import *
 
 '''
-python -m RLTest --tests tests_sanitizer.py --module path/to/redisai.so
+python -m RLTest --test tests_sanitizer.py --module path/to/redisai.so
 '''
 
 

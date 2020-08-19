@@ -3,7 +3,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --tests tests_pytorch.py --module path/to/redisai.so
+python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 

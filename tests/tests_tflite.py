@@ -3,7 +3,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --tests tests_tflite.py --module path/to/redisai.so
+python -m RLTest --test tests_tflite.py --module path/to/redisai.so
 '''
 
 
