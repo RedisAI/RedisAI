@@ -53,7 +53,7 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
       - store_artifacts:
-          path: test/logs
+          path: tests/logs
 
   platform-build-steps:
     parameters:

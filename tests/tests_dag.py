@@ -5,7 +5,7 @@ from includes import *
 import time 
 
 '''
-python -m RLTest --test tests_dag.py --module path/to/redisai.so
+python -m RLTest --tests tests_dag.py --module path/to/redisai.so
 '''
 
 # change this to make inference tests longer

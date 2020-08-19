@@ -3,7 +3,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
+python -m RLTest --tests tests_pytorch.py --module path/to/redisai.so
 '''
 
 
@@ -725,7 +725,7 @@ def test_pytorch_scriptinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    # env.debugPrint("skipping this test for now", force=True)
+    # env.debugPrint("skipping this tests for now", force=True)
     # return
 
     con = env.getConnection()

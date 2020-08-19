@@ -5,7 +5,7 @@ import multiprocessing as mp
 from includes import *
 
 '''
-python -m RLTest --test tests_tensorflow.py --module path/to/redisai.so
+python -m RLTest --tests tests_tensorflow.py --module path/to/redisai.so
 '''
 
 

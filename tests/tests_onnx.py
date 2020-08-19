@@ -5,7 +5,7 @@ import redis
 from includes import *
 
 '''
-python -m RLTest --test tests_onnx.py --module path/to/redisai.so
+python -m RLTest --tests tests_onnx.py --module path/to/redisai.so
 '''
 
 
