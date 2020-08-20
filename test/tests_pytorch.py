@@ -610,8 +610,8 @@ def test_pytorch_scriptrun_errors(env):
     env.assertEqual(info_dict_0['tag'], 'asdf')
     env.assertTrue(info_dict_0['duration'] > 0)
     env.assertEqual(info_dict_0['samples'], -1)
-    env.assertEqual(info_dict_0['calls'], 4)
-    env.assertEqual(info_dict_0['errors'], 3)
+    env.assertEqual(info_dict_0['calls'], 3)
+    env.assertEqual(info_dict_0['errors'], 2)
 
     values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
