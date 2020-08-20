@@ -1128,7 +1128,11 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
           clockid_t cid;
           sds queue_used_cpu_total = sdscatprintf(sdsempty(),"queue_%s_bthread_#%d_used_cpu_total",queue_name,i+1);
           sds bthread_used_cpu_total = sdsempty();
+          #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) || defined(__cplusplus)
+          const int status = -1;
+          #else
           const int status = pthread_getcpuclockid(current_bg_threads,&cid);
+          #endif
           if (status != 0){
             bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total,"N/A");
           } else {
