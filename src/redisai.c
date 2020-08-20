@@ -1059,6 +1059,9 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
   if (argc < 4) return RedisModule_WrongArity(ctx);
 
   RedisAI_RunInfo *rinfo = NULL;
