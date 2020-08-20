@@ -196,23 +196,34 @@ unit_tests: build
 	$(SHOW)$(MAKE) -C $(BINDIR) test
 	$(COVERAGE_COLLECT_REPORT)
 
-test:
+flow_tests: build
 	$(COVERAGE_RESET)
-	$(SHOW)$(MAKE) -C $(BINDIR) test
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(INSTALLED_TARGET) \
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
-		$(ROOT)/tests/tests.sh
+		$(ROOT)/tests/flow/tests.sh
+	$(COVERAGE_COLLECT_REPORT)
+
+test:
+	$(COVERAGE_RESET)
+	$(ROOT)/tests/flow/tests.sh
+	$(SHOW)\
+		DEVICE=$(DEVICE) \
+		MODULE=$(INSTALLED_TARGET) \
+		CLUSTER=$(CLUSTER) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
+		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 valgrind:
-	$(SHOW)$(ROOT)/tests/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/tests/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 

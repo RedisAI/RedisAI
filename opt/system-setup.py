@@ -83,7 +83,7 @@ class RedisAISetup(paella.Setup):
         self.pip_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
 
         self.pip_install("-r %s/readies/paella/requirements.txt" % HERE)
-        self.pip_install("-r %s/tests/test_requirements.txt" % ROOT)
+        self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")

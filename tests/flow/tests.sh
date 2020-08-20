@@ -14,7 +14,7 @@ error() {
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 . $HERE/../opt/readies/shibumi/functions
 
-export ROOT=$(realpath $HERE/..)
+export ROOT=$(realpath $HERE/../..)
 
 #----------------------------------------------------------------------------------------------
 
@@ -115,7 +115,7 @@ fi
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/tests
+cd $ROOT/tests/flow
 
 install_git_lfs
 check_redis_server
