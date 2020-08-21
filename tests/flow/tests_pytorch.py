@@ -210,7 +210,7 @@ def test_pytorch_modelrun_autobatch(env):
         model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -253,7 +253,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
         model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)

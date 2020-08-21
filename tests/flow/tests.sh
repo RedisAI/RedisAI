@@ -12,7 +12,7 @@ error() {
 [[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../opt/readies/shibumi/functions
+. $HERE/../../opt/readies/shibumi/functions
 
 export ROOT=$(realpath $HERE/../..)
 
@@ -100,7 +100,7 @@ OP=""
 [[ $NOP == 1 ]] && OP="echo"
 
 MODULE=${MODULE:-$1}
-[[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found. Aborting."; exit 1; }
+[[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found at ${MODULE}. Aborting."; exit 1; }
 
 RLTEST_ARGS=""
 

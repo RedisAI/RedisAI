@@ -482,7 +482,7 @@ def test_run_tf_model_autobatch(env):
         model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 2,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
