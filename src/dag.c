@@ -878,7 +878,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     const char* devicestr = rinfo->dagOps[i]->devicestr;
     bool found = false;
     for (long long j=0; j<array_len(devices); j++) {
-      if (strcmp(devicestr, devices[j]) == 0) {
+      if (strcasecmp(devicestr, devices[j]) == 0) {
         found = true;
         break;
       }
