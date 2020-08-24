@@ -392,12 +392,12 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char* devicestr, RAI_Mod
 
   char **inputs_ = array_new(char*, ninputs);
   for (long long i=0; i<ninputs; i++) {
-    array_append(inputs_, RedisModule_Strdup(inputs[i]));
+    inputs_ = array_append(inputs_, RedisModule_Strdup(inputs[i]));
   }
 
   char **outputs_ = array_new(char*, noutputs);
   for (long long i=0; i<noutputs; i++) {
-    array_append(outputs_, RedisModule_Strdup(outputs[i]));
+    outputs_ = array_append(outputs_, RedisModule_Strdup(outputs[i]));
   }
 
   char* buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
