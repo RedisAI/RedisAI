@@ -825,7 +825,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return -1;
       }
       ndims++;
-      array_append(dims, dimension);
+      dims = array_append(dims, dimension);
       len *= dimension;
     }
   }

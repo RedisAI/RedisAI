@@ -420,7 +420,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->use_local_context = 1;
   RAI_DagOp *currentDagOp = NULL;
   RAI_InitDagOp(&currentDagOp);
-  array_append(rinfo->dagOps, currentDagOp);
+  rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
 
   int persistFlag = 0;
   int loadFlag = 0;
@@ -463,7 +463,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->dagNumberCommands++;
         RAI_DagOp *currentDagOp = NULL;
         RAI_InitDagOp(&currentDagOp);
-        array_append(rinfo->dagOps, currentDagOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
       }
       chainingOpCount++;
     } else {
