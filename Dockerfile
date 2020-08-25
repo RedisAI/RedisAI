@@ -54,9 +54,9 @@ RUN set -e ;\
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
         TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
-		if [[ -d test/logs ]]; then \
-			tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
-		fi ;\
+        if [[ -d test/logs ]]; then \
+            tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
+        fi ;\
     fi
 
 #----------------------------------------------------------------------------------------------
