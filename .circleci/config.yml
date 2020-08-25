@@ -28,7 +28,7 @@ commands:
       - run:
           name: Install dependencies
           command: |
-            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
+            ./opt/readies/bin/getpy3
             BREW_NO_UPDATE=1 ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
@@ -52,8 +52,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/snapshots/*.zip
-            - artifacts/snapshots/*.tgz
+            - artifacts/shapshos/*.zip
+            - artifacts/shapshos/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -68,31 +68,40 @@ commands:
           name: Setup
           command: |
             git submodule update --init --recursive
-            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
+            ./opt/readies/bin/getpy3
       - run:
           name: Build for platform
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
+            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             popd > /dev/null
-            for dev in cpu gpu; do
-              logstar=bin/artifacts/test-logs-${device}.tgz
-              logsdir=test/logs/${dev}
-              mkdir -p $logsdir
-              if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            done
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/snapshots/*.zip
-            - artifacts/snapshots/*.tgz
+            - artifacts/shapshots/*.zip
+            - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
+
+  deploy-steps:
+    parameters:
+      from:
+        type: string
+    steps:
+      - run:
+          name: Deploy to S3
+          command: |
+            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
   build-debian:
@@ -127,7 +136,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
+            ./opt/readies/bin/getpy3
             ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
@@ -205,6 +214,23 @@ jobs:
           no_output_timeout: 40m
       - store_artifacts:
           path: test/log
+
+  deploy-artifacts:
+    parameters:
+      location:
+        type: string
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Deploy to S3
+          command: |
+            cd "workspace/artifacts/<<parameters.location>>"
+            for f in *.zip snapshot/*.tgz; do
+              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
+            done
 
   deploy-snapshot:
     docker:
