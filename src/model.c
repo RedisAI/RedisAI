@@ -60,7 +60,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
   size_t len;
   char *buffer = NULL;
 
-  if (encver <= 100) {
+  if (encver < 100) {
     buffer = RedisModule_LoadStringBuffer(io, &len);
   }
   else {
