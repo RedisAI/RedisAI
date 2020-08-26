@@ -270,7 +270,7 @@ def test_dag_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("function name not specified", exception.__str__())
 
 
 def test_dag_modelrun_financialNet_errors(env):
@@ -305,7 +305,7 @@ def test_dag_modelrun_financialNet_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("ERR unsupported command within DAG",exception.__str__())
+        env.assertEqual("Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match", exception.__str__())
 
 
 def test_dag_local_tensorset(env):

@@ -458,7 +458,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("Number of names given as OUTPUTS during MODELSET and keys given as OUTPUTS here do not match", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}')
