@@ -46,14 +46,17 @@ commands:
           no_output_timeout: 20m
       - run:
           name: Package
-          command: make -C opt pack SHOW=1
+          command: |
+            make -C opt pack SHOW=1
+            tar -C bin/artifacts -cf snapshots.tar snapshots/
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshots/*.zip
-            - artifacts/shapshots/*.tgz
+            - artifacts/*.tar
+            # - artifacts/shapshots/*.zip
+            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -82,14 +85,16 @@ commands:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            tar -C bin/artifacts -cf snapshots.tar snapshots/
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshots/*.zip
-            - artifacts/shapshots/*.tgz
+            - artifacts/*.tar
+            # - artifacts/shapshots/*.zip
+            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -241,7 +246,9 @@ jobs:
       - run:
           name: Deploy Snapshots to S3
           command: |
-            cd workspace/artifacts/snapshots
+            cd workspace/artifacts
+            tar xf snapshots.tar
+            cd snapshots
             for f in *.zip *.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
             done
