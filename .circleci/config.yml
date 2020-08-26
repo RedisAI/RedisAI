@@ -52,8 +52,8 @@ commands:
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
-            - artifacts/shapshos/*.zip
-            - artifacts/shapshos/*.tgz
+            - artifacts/shapshots/*.zip
+            - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
