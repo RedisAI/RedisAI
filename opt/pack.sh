@@ -112,8 +112,6 @@ pack_ramp() {
 		>&2 cat /tmp/ramp.err
 		exit 1
 	fi
-
-	echo "Done."
 }
 
 #----------------------------------------------------------------------------------------------
@@ -130,13 +128,13 @@ pack_deps() {
 	local backends_prefix_dir=""
 	
 	if [[ $depname == all ]]; then
-		local backens_dir=.
+		local backends_dir=.
 	else
-		local backens_dir=${PRODUCT}_$depname
+		local backends_dir=${PRODUCT}_$depname
 	fi
 	
 	cd $INSTALL_DIR/backends
-	{ find $backens_dir -name "*.so*" | \
+	{ find $backends_dir -name "*.so*" | \
 	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir," 2>> /tmp/pack.err | \
 	  gzip -n - > $tar_path ; E=$?; } || true
 	sha256sum $tar_path | gawk '{print $1}' > $tar_path.sha256

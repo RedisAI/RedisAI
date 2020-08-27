@@ -46,12 +46,17 @@ commands:
           no_output_timeout: 20m
       - run:
           name: Package
-          command: make -C opt pack SHOW=1
+          command: |
+            make -C opt pack SHOW=1
+            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
+            - artifacts/*.tar
+            # - artifacts/shapshots/*.zip
+            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -71,16 +76,27 @@ commands:
           name: Build for platform
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
+            pushd opt/build/docker
             #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
             make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
             make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
           paths:
             - artifacts/*.zip
             - artifacts/*.tgz
+            - artifacts/*.tar
+            # - artifacts/shapshots/*.zip
+            # - artifacts/shapshots/*.tgz
+      - store_artifacts:
+          path: test/logs
 
   deploy-steps:
     parameters:
@@ -202,11 +218,11 @@ jobs:
             docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: tests
+          path: test/log
 
   deploy-artifacts:
     parameters:
-      package:
+      location:
         type: string
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
@@ -216,8 +232,42 @@ jobs:
       - run:
           name: Deploy to S3
           command: |
-            cd workspace
-            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
+            cd "workspace/artifacts/<<parameters.location>>"
+            for f in *.zip snapshot/*.tgz; do
+              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
+            done
+
+  deploy-snapshot:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Deploy Snapshots to S3
+          command: |
+            cd workspace/artifacts
+            for f in snapshots-*.tar; do
+                tar xf $f
+            done
+            cd snapshots
+            for f in *.zip *.tgz; do
+              aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
+            done
+
+  deploy-release:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - attach_workspace:
+          at: workspace
+      - run:
+          name: Deploy Releases to S3
+          command: |
+            cd workspace/artifacts
+            for f in *.zip *.tgz; do
+              aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
+            done
 
 
 on-any-branch: &on-any-branch
@@ -296,14 +346,10 @@ workflows:
       - build-multiarch-docker:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
-      - deploy-artifacts:
-          name: deploy-branch
-          package: branch
+      - deploy-snapshot:
           <<: *after-platform-builds
-          <<: *on-any-branch
-      - deploy-artifacts:
-          name: deploy-release
-          package: release
+          <<: *on-master
+      - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
 
