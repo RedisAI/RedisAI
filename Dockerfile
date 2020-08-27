@@ -31,7 +31,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN ./opt/readies/bin/getpy3
+RUN PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
@@ -40,17 +40,24 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN set -e ;\
+RUN bash -c "set -e ;\
     . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build $BUILD_ARGS SHOW=1
+    make -C opt build $BUILD_ARGS SHOW=1"
 
 ARG PACK
 ARG TEST
 
 RUN mkdir -p bin/artifacts
-RUN if [ "$PACK" = "1" ]; then make -C opt pack; fi
+RUN set -e ;\
+    if [ "$PACK" = "1" ]; then make -C opt pack; fi
 
-RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test $BUILD_ARGS NO_LFS=1; fi
+RUN set -e ;\
+    if [ "$TEST" = "1" ]; then \
+        TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
+        if [[ -d test/logs ]]; then \
+            tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
+        fi ;\
+    fi
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK}
