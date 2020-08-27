@@ -86,7 +86,7 @@ void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     RAI_Tensor *outTensor = NULL;
     // TODO: check tensor copy return value
     RAI_TensorDeepCopy(t, &outTensor);
-    array_append(currentOp->outTensors, outTensor);
+    currentOp->outTensors = array_append(currentOp->outTensors, outTensor);
   }
 }
 
@@ -624,7 +624,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
   rinfo->use_local_context = 1;
   RAI_DagOp *currentDagOp = NULL;
   RAI_InitDagOp(&currentDagOp);
-  array_append(rinfo->dagOps, currentDagOp);
+  rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
 
   int persistFlag = 0;
   int loadFlag = 0;
@@ -666,7 +666,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         rinfo->dagNumberCommands++;
         RAI_DagOp *currentDagOp = NULL;
         RAI_InitDagOp(&currentDagOp);
-        array_append(rinfo->dagOps, currentDagOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
       }
       chainingOpCount++;
     } else {
@@ -878,7 +878,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     const char* devicestr = rinfo->dagOps[i]->devicestr;
     bool found = false;
     for (long long j=0; j<array_len(devices); j++) {
-      if (strcmp(devicestr, devices[j]) == 0) {
+      if (strcasecmp(devicestr, devices[j]) == 0) {
         found = true;
         break;
       }
