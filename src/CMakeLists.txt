@@ -1,3 +1,7 @@
+if (CMAKE_BUILD_TYPE STREQUAL Debug)
+	SET(DEBUG_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../opt/readies/cetara/diag/gdb.c")
+endif()
+
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
@@ -19,7 +23,8 @@ ADD_LIBRARY(redisai_obj OBJECT
         rmutil/args.c
         rmutil/heap.c
         rmutil/priority_queue.c
-        rmutil/vector.c run_info.c)
+        rmutil/vector.c run_info.c
+		${DEBUG_SRC})
 
 IF(BUILD_TF)
     ADD_LIBRARY(redisai_tensorflow_obj OBJECT
