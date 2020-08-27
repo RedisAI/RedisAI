@@ -48,7 +48,7 @@ commands:
           name: Package
           command: |
             make -C opt pack SHOW=1
-            tar -C bin/artifacts -cf snapshots.tar snapshots/
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
       - persist_to_workspace:
           root: bin/
           paths:
@@ -85,7 +85,7 @@ commands:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            tar -C bin/artifacts -cf snapshots.tar snapshots/
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
