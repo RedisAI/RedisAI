@@ -48,7 +48,7 @@ commands:
           name: Package
           command: |
             make -C opt pack SHOW=1
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
       - persist_to_workspace:
           root: bin/
           paths:
@@ -85,7 +85,7 @@ commands:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -247,7 +247,9 @@ jobs:
           name: Deploy Snapshots to S3
           command: |
             cd workspace/artifacts
-            tar xf snapshots.tar
+            for f in snapshots-*.tar; do
+                tar xf $f
+            done
             cd snapshots
             for f in *.zip *.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
