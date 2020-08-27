@@ -252,7 +252,7 @@ jobs:
             done
             cd snapshots
             for f in *.zip *.tgz; do
-              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
+              aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
             done
 
   deploy-release:
@@ -266,7 +266,7 @@ jobs:
           command: |
             cd workspace/artifacts
             for f in *.zip *.tgz; do
-              aws s3 cp $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
+              aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
 
 
@@ -308,8 +308,8 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  #@@ <<: *on-master-and-version-tags
-  <<: *on-any-branch # debugging
+  <<: *on-master-and-version-tags
+  # <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
@@ -348,8 +348,7 @@ workflows:
           # <<: *on-version-tags
       - deploy-snapshot:
           <<: *after-platform-builds
-          #@@ <<: *on-master
-          <<: *on-any-branch
+          <<: *on-master
       - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
