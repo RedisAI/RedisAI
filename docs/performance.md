@@ -28,7 +28,7 @@ Benchmarking inference performance is made of four phases:
 4. **Inference query execution**: This phase looks at the achievable inference throughput of each Model Serving solution and performs a full percentile inference latency analysis. Model serving with and without reference data is supported across all solutions to enable a deeper insight into the overall weight of the reference data and the extra network hop to fetch it.
 
 ### Inference query execution diagrams per Model Serving Solution
-The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/tfserving_and_redis.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis).
+The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/tfserving_and_redis.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis).
 
 Below you can find simplified versions of the diagrams, including both test cases (with and without reference data).
 
