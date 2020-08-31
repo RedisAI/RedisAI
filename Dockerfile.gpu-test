@@ -29,8 +29,8 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN PIP=19.3.1 ./opt/readies/bin/getpy3
-RUN python3 -m pip install virtualenv
+RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
+# RUN python3 -m pip install virtualenv
 
 RUN set -e ;\
 	python3 -m virtualenv venv --system-site-packages ;\

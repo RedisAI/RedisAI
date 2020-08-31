@@ -31,7 +31,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./test/test_requirements.txt test/
 
-RUN PIP=19.3.1 FORCE=1 ./opt/readies/bin/getpy3
+RUN PIP=1 FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
