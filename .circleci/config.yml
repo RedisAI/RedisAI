@@ -308,13 +308,13 @@ on-master-and-version-tags: &on-master-and-version-tags
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  #@@ <<: *on-master-and-version-tags
+  #@ <<: *on-master-and-version-tags
   <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
   requires:
-    - build-centos7
-    - build-bionic
+#@    - build-centos7
+#@    - build-bionic
     - build-xenial
 
 
@@ -324,22 +324,22 @@ workflows:
     jobs:
       - build-debian:
           <<: *on-any-branch
-      - platform-build:
-          name: build-centos7
-          platform: centos7
-          <<: *platform-build-defs
-      - platform-build:
-          name: build-bionic
-          platform: bionic
-          <<: *platform-build-defs
+#@      - platform-build:
+#@          name: build-centos7
+#@          platform: centos7
+#@          <<: *platform-build-defs
+#@      - platform-build:
+#@          name: build-bionic
+#@          platform: bionic
+#@          <<: *platform-build-defs
       - platform-build:
           name: build-xenial
           platform: xenial
           <<: *platform-build-defs
-      - coverage:
-          <<: *on-any-branch
-      - build-and-test-gpu:
-          <<: *on-any-branch
+#@      - coverage:
+#@          <<: *on-any-branch
+#@      - build-and-test-gpu:
+#@         <<: *on-any-branch
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags

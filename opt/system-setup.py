@@ -27,7 +27,8 @@ class RedisAISetup(paella.Setup):
         self.install("coreutils") # for realpath
 
     def debian_compat(self):
-        # self.pip_install("-IU --force-reinstall setuptools")
+        if self.osnick == 'xenial': 
+            self.pip_install("-IU --force-reinstall setuptools")
         self.install("gawk")
         self.install("build-essential cmake")
         self.install("python3-regex")
