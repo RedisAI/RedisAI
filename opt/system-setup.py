@@ -19,7 +19,9 @@ class RedisAISetup(paella.Setup):
         self.install_downloaders()
         self.setup_pip()
         self.pip_install("wheel virtualenv")
-        # self.pip_install("setuptools --upgrade")
+        if self.osnick == 'xenial': 
+            self.pip_install("setuptools --upgrade")
+            # self.pip_install("-IU --force-reinstall setuptools")
 
         if self.os == 'linux':
             self.install("ca-certificates")
@@ -27,8 +29,6 @@ class RedisAISetup(paella.Setup):
         self.install("coreutils") # for realpath
 
     def debian_compat(self):
-        if self.osnick == 'xenial': 
-            self.pip_install("-IU --force-reinstall setuptools")
         self.install("gawk")
         self.install("build-essential cmake")
         self.install("python3-regex")
