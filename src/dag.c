@@ -434,7 +434,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
     AI_dictEntry *tensor_entry =
         AI_dictFind(rinfo->dagTensorsContext, persist_key_name);
     if (tensor_entry) {
-      RAI_Tensor *tensor = AI_dictGetVal(tensor_entry);
+      RAI_Tensor *tensor = RAI_TensorGetShallowCopy(AI_dictGetVal(tensor_entry));
       RedisModuleKey *key;
       char *demangled_key_name = RedisModule_Strdup(persist_key_name);
       demangled_key_name[strlen(persist_key_name) - 4] = 0;
@@ -444,11 +444,13 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
           ctx, tensor_keyname, &key, REDISMODULE_READ | REDISMODULE_WRITE);
       RedisModule_Free(demangled_key_name);
       if (status == REDISMODULE_ERR) {
+        RAI_TensorFree(tensor);
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         rinfo->dagReplyLength++;
       } else {
         if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) !=
             REDISMODULE_OK) {
+          RAI_TensorFree(tensor);
           RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
           rinfo->dagReplyLength++;
         }
