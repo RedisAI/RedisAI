@@ -19,9 +19,9 @@ class RedisAISetup(paella.Setup):
         self.install_downloaders()
         self.setup_pip()
         self.pip_install("wheel virtualenv")
-        if self.osnick == 'xenial': 
-            self.pip_install("setuptools --upgrade")
-            # self.pip_install("-IU --force-reinstall setuptools")
+        # if self.osnick == 'xenial': 
+        #     self.pip_install("setuptools --upgrade")
+        #     self.pip_install("-IU --force-reinstall setuptools")
 
         if self.os == 'linux':
             self.install("ca-certificates")
