@@ -454,6 +454,8 @@ def test_run_tf_model_errors(env):
         env.assertEqual("Insufficient arguments, missing model BLOB",exception.__str__())
 
     try:
+        con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', '2', 'VALUES', '2', '2')
+        con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', '2', 'VALUES', '2', '2')
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}')
     except Exception as e:
         exception = e

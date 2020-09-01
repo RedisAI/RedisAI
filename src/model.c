@@ -653,7 +653,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       RedisModule_ReplyWithError(
           ctx,
           "Number of names given as OUTPUTS during MODELSET and keys given as "
-          "INPUTS here do not match");
+          "OUTPUTS here do not match");
     }
     return -1;
   }
