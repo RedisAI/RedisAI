@@ -235,18 +235,20 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
     AI_dictEntry *tensor_entry =
         AI_dictFind(rinfo->dagTensorsContext, persist_key_name);
     if (tensor_entry) {
-      RAI_Tensor *tensor = AI_dictGetVal(tensor_entry);
+      RAI_Tensor *tensor = RAI_TensorGetShallowCopy(AI_dictGetVal(tensor_entry));
       RedisModuleKey *key;
       RedisModuleString *tensor_keyname = RedisModule_CreateString(
           ctx, persist_key_name, strlen(persist_key_name));
       const int status = RAI_OpenKey_Tensor(
           ctx, tensor_keyname, &key, REDISMODULE_READ | REDISMODULE_WRITE);
       if (status == REDISMODULE_ERR) {
+        RAI_TensorFree(tensor);
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         rinfo->dagReplyLength++;
       } else {
         if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) !=
             REDISMODULE_OK) {
+          RAI_TensorFree(tensor);
           RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
           rinfo->dagReplyLength++;
         }
