@@ -203,7 +203,7 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
           (3 + strlen(REDISAI_INFOMSG_THREADS_PER_QUEUE) + strlen((val))) *
           sizeof(*buffer));
       sprintf(buffer, "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
-      RedisModule_Log(ctx, "notice", buffer);
+      RedisModule_Log(ctx, "notice", "%s", buffer);
       RedisModule_Free(buffer);
     }
   } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
@@ -214,7 +214,7 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
           sizeof(*buffer));
       sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
               getBackendsIntraOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
+      RedisModule_Log(ctx, "notice", "%s", buffer);
       RedisModule_Free(buffer);
     }
   } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
@@ -225,7 +225,7 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key,
           sizeof(*buffer));
       sprintf(buffer, "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
               getBackendsInterOpParallelism());
-      RedisModule_Log(ctx, "notice", buffer);
+      RedisModule_Log(ctx, "notice", "%s", buffer);
       RedisModule_Free(buffer);
     }
   } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
@@ -274,7 +274,7 @@ int RAI_loadTimeConfig(RedisModuleCtx *ctx,
                              strlen(key) + strlen(val)) *
                             sizeof(*buffer));
       sprintf(buffer, "%s: %s %s", REDISAI_ERRORMSG_PROCESSING_ARG, key, val);
-      RedisModule_Log(ctx, "warning", buffer);
+      RedisModule_Log(ctx, "warning", "%s", buffer);
       RedisModule_Free(buffer);
       return ret;
     }

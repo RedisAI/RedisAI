@@ -276,7 +276,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
       for (size_t opN = 0; opN < array_len(rinfo->dagOps); opN++) {
         RedisModule_Log(
-            ctx, "warning", "DAG's op n#  %d - cmdType %d ( argc %d )", opN,
+            ctx, "warning", "DAG's op n#  %zu - cmdType %d ( argc %d )", opN,
             rinfo->dagOps[opN]->commandType, rinfo->dagOps[opN]->argc);
       }
     }

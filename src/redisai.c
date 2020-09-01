@@ -311,7 +311,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   if (err.code != RAI_OK) {
-    RedisModule_Log(ctx, "error", err.detail);
+    RedisModule_Log(ctx, "error", "%s", err.detail);
     int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
     RAI_ClearError(&err);
     return ret;
@@ -322,7 +322,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (ensureRunQueue(devicestr,&run_queue_info) != REDISMODULE_OK){
     RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
-      RedisModule_Log(ctx, "error", err.detail);
+      RedisModule_Log(ctx, "error", "%s", err.detail);
       int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
       RAI_ClearError(&err);
       return ret;
@@ -339,7 +339,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_CloseKey(key);
     RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
-      RedisModule_Log(ctx, "error", err.detail);
+      RedisModule_Log(ctx, "error", "%s", err.detail);
       int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
       RAI_ClearError(&err);
       return ret;
