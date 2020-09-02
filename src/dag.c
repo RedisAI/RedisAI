@@ -84,7 +84,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
               const char *key_string = RedisModule_StringPtrLen(
                   currentOp->outkeys[outputNumber], NULL);
               const char *dictKey = RedisModule_Strdup(key_string);
-              AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, tensor);
+              AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, RAI_TensorGetShallowCopy(tensor));
             } else {
               RAI_SetError(currentOp->err, RAI_EMODELRUN,
                            "ERR output tensor on DAG's MODELRUN was null");
@@ -126,7 +126,7 @@ void *RedisAI_DagRunSession(RedisAI_RunInfo *rinfo) {
                         const char *key_string = RedisModule_StringPtrLen(
                                 currentOp->outkeys[outputNumber], NULL);
                         const char *dictKey = RedisModule_Strdup(key_string);
-                        AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, tensor);
+                        AI_dictReplace(rinfo->dagTensorsContext, (void*)dictKey, RAI_TensorGetShallowCopy(tensor));
                     } else {
                         RAI_SetError(currentOp->err, RAI_EMODELRUN,
                                      "ERR output tensor on DAG's SCRIPTRUN was null");
@@ -329,7 +329,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       }
       RedisModule_CloseKey(key);
       const char *dictKey = RedisModule_Strdup(arg_string);
-      AI_dictAdd(*localContextDict, (void*)dictKey, t);
+      AI_dictAdd(*localContextDict, (void*)dictKey, RAI_TensorGetShallowCopy(t));
       const char *keyspacePersistKey = RedisModule_Strdup(dictKey);
       AI_dictAdd(*loadedContextDict, (void*)keyspacePersistKey, (void *)1);
       number_loaded_keys++;
