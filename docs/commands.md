@@ -460,14 +460,16 @@ The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its spec
 **Redis API**
 
 ```
-AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] [$ input ...] OUTPUTS <output> [output ...]
 ```
 
 _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
-* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names
+* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names;
+              variadic arguments are supported by prepending the list with `$`, in this case the
+              script is expected an argument of type `List[Tensor]` as its last argument
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by one or more key names
 
 _Return_
@@ -484,6 +486,29 @@ OK
 redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
 OK
 redis> AI.SCRIPTRUN myscript addtwo INPUTS mytensor1 mytensor2 OUTPUTS result
+OK
+redis> AI.TENSORGET result VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
+```
+
+If 'myscript' supports variadic arguments:
+```python
+def addn(a, args : List[Tensor]):
+    return a + torch.stack(args).sum()
+```
+
+then one can provide an arbitrary number of inputs after the `$` sign:
+
+```
+redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 1
+OK
+redis> AI.TENSORSET mytensor3 FLOAT 1 VALUES 1
+OK
+redis> AI.SCRIPTRUN myscript addn INPUTS mytensor1 $ mytensor2 mytensor3 OUTPUTS result
 OK
 redis> AI.TENSORGET result VALUES
 1) FLOAT
@@ -553,6 +578,7 @@ _Arguments_
     * `AI.TENSORSET`
     * `AI.TENSORGET`
     * `AI.MODELRUN`
+    * `AI.SCRIPTRUN`
 
 _Return_
 
@@ -575,6 +601,30 @@ redis> AI.DAGRUN PERSIST 1 predictions |>
       2) (integer) 2
    3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
+
+A common pattern is enqueuing multiple SCRIPTRUN and MODELRUN commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+
+To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
+
+```
+redis> AI.DAGRUN_RO |> 
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
+            AI.SCRIPTRUN imagenet_script pre_process_3ch INPUTS image OUTPUTS temp_key1 |> 
+            AI.MODELRUN imagenet_model INPUTS temp_key1 OUTPUTS temp_key2 |> 
+            AI.SCRIPTRUN imagenet_script post_process INPUTS temp_key2 OUTPUTS output |> 
+            AI.TENSORGET output VALUES
+1) OK
+2) OK
+3) OK
+4) OK
+5) 1) 1) (integer) 111
+```
+
+As visible on the array reply, the label position with higher classification was 111. 
+
+By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
+
+
 
 !!! warning "Intermediate memory overhead"
     The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.

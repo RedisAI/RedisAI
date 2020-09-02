@@ -111,9 +111,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         }
         evicted_items = array_new(queueItem *, run_queue_len);
         batch_rinfo = array_new(RedisAI_RunInfo *, run_queue_len);
-
-        array_append(evicted_items, item);
-        array_append(batch_rinfo, rinfo);
+        // We add the current item to the list of evicted items. If it's the
+        // first time around this will be the queue front.
+        evicted_items = array_append(evicted_items, item);
+        batch_rinfo = array_append(batch_rinfo, rinfo);
 
         if (rinfo->sctx) {
           break;
@@ -152,8 +153,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             break;
           }
 
-          array_append(evicted_items, next_item);
-          array_append(batch_rinfo, next_rinfo);
+          // If all previous checks pass, then keep track of the item
+          // in the list of evicted items
+          evicted_items = array_append(evicted_items, next_item);
+          batch_rinfo = array_append(batch_rinfo, next_rinfo);
 
           current_batchsize += next_batchsize;
           next_item = queueNext(next_item);

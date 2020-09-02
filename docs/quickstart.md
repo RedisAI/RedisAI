@@ -34,7 +34,7 @@ You can compile and build the module from its source code. The [Developer](devel
 You can obtain the module's source code by cloning the project's repository using git like so:
 
 ```sh
-git clone https://github.com/RedisAI/RedisAI
+git clone --recursive https://github.com/RedisAI/RedisAI
 ```
 
 Switch to the project's directory with:

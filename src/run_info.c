@@ -136,6 +136,9 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
 void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
   if (dagOp) {
     RAI_FreeError(dagOp->err);
+    if(dagOp->runkey){
+      RedisModule_FreeString(ctx,dagOp->runkey);
+    }
     if (dagOp->argv) {
       for (size_t i = 0; i < array_len(dagOp->argv); i++) {
         RedisModule_FreeString(ctx, dagOp->argv[i]);
@@ -174,40 +177,9 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   RAI_FreeError(rinfo->err);
 
   if (rinfo->dagTensorsContext) {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    RAI_Tensor *tensor = NULL;
-
-    while (entry) {
-      tensor = AI_dictGetVal(entry);
-      char *key = (char *)AI_dictGetKey(entry);
-
-      if (tensor && key != NULL) {
-        // if the key is persistent then we should not delete it
-        AI_dictEntry *persistent_entry =
-            AI_dictFind(rinfo->dagTensorsPersistentContext, key);
-        // if the key was loaded from the keyspace then we should not delete it
-        AI_dictEntry *loaded_entry =
-            AI_dictFind(rinfo->dagTensorsLoadedContext, key);
-
-        if (persistent_entry == NULL && loaded_entry == NULL) {
-          AI_dictDelete(rinfo->dagTensorsContext, key);
-        }
-
-        if (persistent_entry) {
-          AI_dictDelete(rinfo->dagTensorsPersistentContext, key);
-        }
-        if (loaded_entry) {
-          AI_dictDelete(rinfo->dagTensorsLoadedContext, key);
-        }
-      }
-      entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-
-    RedisModule_Free(rinfo->dagTensorsContext);
-    RedisModule_Free(rinfo->dagTensorsLoadedContext);
-    RedisModule_Free(rinfo->dagTensorsPersistentContext);
+    AI_dictRelease(rinfo->dagTensorsContext);
+    AI_dictRelease(rinfo->dagTensorsLoadedContext);
+    AI_dictRelease(rinfo->dagTensorsPersistentContext);
   }
 
   if (rinfo->dagOps) {

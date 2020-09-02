@@ -12,12 +12,12 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
-    mem_allocator = con.execute_command('info', 'memory')['mem_allocator']
+    mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
         print("exiting sanitizer test given we're not using stdlib allocator")
         return
 
-    model_name = 'mobilenet_v1'
+    model_name = 'mobilenet_v1{s}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v1_test_data()
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
@@ -27,8 +27,8 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
     env.assertEqual(ret, b'OK')
 
     for opnumber in range(1, MAX_ITERATIONS):
-        image_key = 'image{}'.format(opnumber)
-        class_key = 'output'
+        image_key = 'image{{s}}{}'.format(opnumber)
+        class_key = 'output{s}'
 
         ret = con.execute_command(
             'AI.DAGRUN', '|>',
@@ -48,12 +48,12 @@ def test_sanitizer_modelrun_mobilenet_v1(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
-    mem_allocator = con.execute_command('info', 'memory')['mem_allocator']
+    mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
         print("exiting sanitizer test given we're not using stdlib allocator")
         return
 
-    model_name = 'mobilenet_v1'
+    model_name = 'mobilenet_v1{s}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v1_test_data()
 
     ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
@@ -63,10 +63,10 @@ def test_sanitizer_modelrun_mobilenet_v1(env):
     env.assertEqual(ret, b'OK')
 
     for opnumber in range(1, MAX_ITERATIONS):
-        image_key = 'image'
-        temp_key1 = 'temp_key1'
-        temp_key2 = 'temp_key2'
-        class_key = 'output'
+        image_key = 'image{s}'
+        temp_key1 = 'temp_key1{s}'
+        temp_key2 = 'temp_key2{s}'
+        class_key = 'output{s}'
         ret = con.execute_command(
             'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes()
         )

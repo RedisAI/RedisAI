@@ -73,4 +73,33 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
                             int argc, AI_dict **localContextDict,
                             const char *chaining_operator);
 
+/**
+ * When a module command is called in order to obtain the position of
+ * keys, since it was flagged as "getkeys-api" during the registration,
+ * the command implementation checks for this special call using the
+ * RedisModule_IsKeysPositionRequest() API and uses this function in
+ * order to report keys.
+ * No real execution is done on this special call.
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @return
+ */
+int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                            RedisModuleString **argv, int argc);
+
+/**
+ * DAGRUN and DAGRUN_RO parser, which reads the the sequence of
+ * arguments and decides whether the sequence conforms to the syntax
+ * specified by the DAG grammar.
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or REDISAI_DAG_WRITE_MODE
+ * @return
+ */
+int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                 int argc, int dagMode);
+
 #endif /* SRC_DAG_H_ */

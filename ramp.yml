@@ -1,10 +1,11 @@
 display_name: RedisAI
-author: Orobix and RedisLabs
-email: luca.antiga@orobix.com
+author: Tensorwerk and RedisLabs
+email: support@redislabs.com
 description: Serving tensors and executing deep learning graphs
 homepage: https://oss.redislabs.com/redisai/
 license: Redis Source Available License v1.0
-command_line_args: ""
+command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps"
+# command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps/backends"
 min_redis_version: "5.0.7"
 min_redis_pack_version: "5.4.11"
 capabilities:
@@ -22,3 +23,19 @@ exclude_commands:
     - ai.modeldel
     - ai.scriptset
     - ai.scriptdel
+dependencies:
+    {{NAME_tensorflow}}:
+        url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_tensorflow}}
+        sha256: {{SHA256_tensorflow}}
+    {{NAME_torch}}:
+        url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_torch}}
+        sha256: {{SHA256_torch}}
+    {{NAME_onnxruntime}}:
+        url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_onnxruntime}}
+        sha256: {{SHA256_onnxruntime}}
+    {{NAME_tflite}}:
+        url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_tflite}}
+        sha256: {{SHA256_tflite}}
+#    {{NAME_all}}:
+#        url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_all}}
+#        sha256: {{SHA256_all}}

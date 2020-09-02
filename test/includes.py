@@ -24,8 +24,8 @@ TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") !=
 COV = os.environ.get("COV") != "0" and os.environ.get("COV") != "0"
 DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
 VALGRIND = os.environ.get("VALGRIND") == "1"
-print(f"Running tests on {DEVICE}\n")
-print(f"Using a max of {MAX_ITERATIONS} iterations per test\n")
+print("Running tests on {}\n".format(DEVICE))
+print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
@@ -155,12 +155,12 @@ def load_creditcardfraud_data(env,max_tensors=10000):
 
 def run_mobilenet(con, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
-    con.execute_command('AI.TENSORSET', 'input',
+    con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.MODELRUN', 'mobilenet',
-                        'INPUTS', 'input', 'OUTPUTS', 'output')
+    con.execute_command('AI.MODELRUN', 'mobilenet{1}',
+                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
 
 
 def run_test_multiproc(env, n_procs, fn, args=tuple()):

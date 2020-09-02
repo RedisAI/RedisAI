@@ -67,9 +67,25 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
  *
  * @param sctx input RAI_ScriptRunCtx to add the input tensor
  * @param inputTensor input tensor structure
- * @return returns 1 on success ( always returns success )
+ * @param err error data structure to store error message in the case of
+ * failures
+ * @return returns 1 on success, 0 in case of error.
  */
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RAI_Error* err);
+
+/**
+ * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a shallow copy of
+ * the provided input tensor, adding it to the input tensors array of the
+ * RAI_ScriptRunCtx.
+ *
+ * @param sctx input RAI_ScriptRunCtx to add the input tensor
+ * @param inputTensors input tensors array
+ * @param len input tensors array len
+ * @param err error data structure to store error message in the case of
+ * failures
+ * @return returns 1 on success, 0 in case of error.
+ */
+int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err);
 
 /**
  * Allocates a RAI_ScriptCtxParam data structure, and sets the tensor reference
@@ -152,5 +168,66 @@ RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script);
 int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
                               RedisModuleKey** key, RAI_Script** script,
                               int mode);
+
+
+/**
+ * When a module command is called in order to obtain the position of
+ * keys, since it was flagged as "getkeys-api" during the registration,
+ * the command implementation checks for this special call using the
+ * RedisModule_IsKeysPositionRequest() API and uses this function in
+ * order to report keys.
+ * No real execution is done on this special call.
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @return
+ */
+int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                               RedisModuleString **argv, int argc);
+
+/**
+ * Helper method to parse AI.SCRIPTRUN arguments
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param sctx Destination Script context to store the parsed data
+ * @param outkeys array to store the parsed output keys
+ * @param sto script to run the session from
+ * @param useLocalContext flag to enable using local context
+ * @param localContextDict local non-blocking hash table containing DAG's
+ * keynames marked as persistent
+ * @param use_chaining_operator flag to enable enforcing the chaining operator
+ * checking
+ * @param chaining_operator operator used to split operations. Any command
+ * argument after the chaining operator is not considered
+ * @param error error data structure to store error message in the case of
+ * parsing failures
+ * @return processed number of arguments on success, or -1 if the parsing failed
+ */
+int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
+                                         RedisModuleString **argv, int argc,
+                                         RAI_ScriptRunCtx **sctx,
+                                         RedisModuleString ***outkeys,
+                                         struct RAI_Script **sto, int useLocalContext,
+                                         AI_dict **localContextDict,
+                                         int use_chaining_operator,
+                                         const char *chaining_operator, RAI_Error *error);
+
+
+/**
+ * Helper method to reply if the ctx is not NULL or fallback and set the error in the RAI_Error structure
+ * @param ctx Context in which Redis modules operate
+ * @param error the RAI_Error data structure to be populated with the error details in case ctx is NULL
+ * @param code the error code
+ * @param errorMessage the error detail
+ */
+void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCode code, const char* errorMessage );
+
+/**
+ * @brief  Returns the redis module type representing a script.
+ * @return redis module type representing a script.
+ */
+RedisModuleType *RAI_ScriptRedisType(void);
 
 #endif /* SRC_SCRIPT_H_ */

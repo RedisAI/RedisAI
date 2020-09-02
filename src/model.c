@@ -12,7 +12,7 @@
 #include "backends.h"
 #include "stats.h"
 #include "backends/util.h"
-
+#include <pthread.h>
 #include "rmutil/alloc.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
@@ -80,7 +80,7 @@ static void* RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
  
   if (err.code != RAI_OK) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
-    RedisModule_Log(ctx, "error", err.detail);
+    RedisModule_Log(ctx, "error", "%s", err.detail);
     RAI_ClearError(&err);
     if (buffer) {
       RedisModule_Free(buffer);
@@ -170,11 +170,11 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
   RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
 
   for (size_t i=0; i<model->ninputs; i++) {
-    array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
+    inputs_ = array_append(inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
   }
 
   for (size_t i=0; i<model->noutputs; i++) {
-    array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
+    outputs_ = array_append(outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
   }
 
   const char* backendstr = RAI_BackendName(model->backend);
@@ -298,7 +298,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const cha
 }
 
 void RAI_ModelFree(RAI_Model* model, RAI_Error* err) {
-  if (--model->refCount > 0){
+  if (__atomic_sub_fetch(&model->refCount, 1, __ATOMIC_RELAXED) > 0){
     return;
   }
 
@@ -469,7 +469,7 @@ int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err) {
 }
 
 RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model) {
-  ++model->refCount;
+  __atomic_fetch_add(&model->refCount, 1, __ATOMIC_RELAXED);  
   return model;
 }
 
@@ -513,6 +513,18 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
   return ret;
 }
 
+int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                    RedisModuleString **argv, int argc){
+  RedisModule_KeyAtPos(ctx, 1);
+  for (size_t argpos = 3; argpos < argc; argpos++){
+    const char *str = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if (!strcasecmp(str, "OUTPUTS")) {
+      continue;
+    }
+    RedisModule_KeyAtPos(ctx,argpos);
+  }
+  return REDISMODULE_OK;
+}
 
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
                                         RedisModuleString **argv, int argc,
@@ -559,11 +571,6 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
     if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
       is_input = 1;
       outputs_flag_count = 1;
-      const size_t expected_noutputs = argc - argpos - 1;
-      // if (expected_noutputs > 0) {
-      //   *outkeys =
-      //       RedisModule_Calloc(expected_noutputs, sizeof(RedisModuleString *));
-      // }
     } else {
       RedisModule_RetainString(ctx, argv[argpos]);
       if (is_input == 0) {
@@ -613,6 +620,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
           } else {
             RedisModule_ReplyWithError(ctx, "ERR Output key not found");
           }
+          return -1;
         }
         *outkeys=array_append(*outkeys,argv[argpos]);
         // (*outkeys)[noutputs] = argv[argpos];
@@ -620,7 +628,6 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       }
     }
   }
-
   if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
     if (ctx == NULL) {
       RAI_SetError(
@@ -646,9 +653,13 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx,
       RedisModule_ReplyWithError(
           ctx,
           "Number of names given as OUTPUTS during MODELSET and keys given as "
-          "INPUTS here do not match");
+          "OUTPUTS here do not match");
     }
     return -1;
   }
   return argpos;
+}
+
+RedisModuleType *RAI_ModelRedisType(void) {
+    return RedisAI_ModelType;
 }
