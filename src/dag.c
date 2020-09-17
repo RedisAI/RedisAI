@@ -273,6 +273,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
                         localcontext_key_name);
         local_entry = AI_dictNext(local_iter);
       }
+      AI_dictReleaseIterator(local_iter);
 
       for (size_t opN = 0; opN < array_len(rinfo->dagOps); opN++) {
         RedisModule_Log(
