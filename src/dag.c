@@ -447,7 +447,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         rinfo->dagReplyLength++;
       } else {
-        if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) !=
+        if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, RAI_TensorGetShallowCopy(tensor)) !=
             REDISMODULE_OK) {
           RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
           rinfo->dagReplyLength++;
@@ -533,7 +533,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
       RedisModule_CloseKey(key);
       char *dictKey = (char*) RedisModule_Alloc((strlen(arg_string) + 5)*sizeof(char));
       sprintf(dictKey, "%s%04d", arg_string, 1);
-      AI_dictAdd(*localContextDict, (void*)dictKey, (void *)t);
+      AI_dictAdd(*localContextDict, (void*)dictKey, (void *)RAI_TensorGetShallowCopy(t));
       AI_dictAdd(*loadedContextDict, (void*)dictKey, (void *)1);
       RedisModule_Free(dictKey);
       number_loaded_keys++;
@@ -797,6 +797,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       const char* key = RedisModule_StringPtrLen(currentOp->inkeys[j], NULL);
       AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
       if (!entry) {
+        AI_dictRelease(mangled_tensors);
         return RedisModule_ReplyWithError(ctx,
                                           "ERR INPUT key cannot be found in DAG");
       }
@@ -838,6 +839,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       char *key = (char *)AI_dictGetKey(entry);
       AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
       if (!mangled_entry) {
+        AI_dictRelease(mangled_tensors);
+        AI_dictRelease(mangled_persisted);
         return RedisModule_ReplyWithError(ctx,
                                           "ERR PERSIST key cannot be found in DAG");
       } 
@@ -850,6 +853,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     AI_dictReleaseIterator(iter);
   }
 
+  AI_dictRelease(rinfo->dagTensorsPersistedContext);
   rinfo->dagTensorsPersistedContext = mangled_persisted;
 
   {

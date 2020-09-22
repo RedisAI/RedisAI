@@ -246,36 +246,9 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   }
 
   if (rinfo->dagTensorsContext) {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    RAI_Tensor *tensor = NULL;
-
-    while (entry) {
-      tensor = AI_dictGetVal(entry);
-      char *key = (char *)AI_dictGetKey(entry);
-
-      if (tensor && key != NULL) {
-        // if the key is persisted then we should not delete it
-        AI_dictEntry *persisted_entry =
-            AI_dictFind(rinfo->dagTensorsPersistedContext, key);
-        // if the key was loaded from the keyspace then we should not delete it
-        AI_dictEntry *loaded_entry =
-            AI_dictFind(rinfo->dagTensorsLoadedContext, key);
-
-        if (persisted_entry == NULL && loaded_entry == NULL) {
-          AI_dictDelete(rinfo->dagTensorsContext, key);
-        }
-
-        if (persisted_entry) {
-          AI_dictDelete(rinfo->dagTensorsPersistedContext, key);
-        }
-        if (loaded_entry) {
-          AI_dictDelete(rinfo->dagTensorsLoadedContext, key);
-        }
-      }
-      entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
+    AI_dictRelease(rinfo->dagTensorsContext);
+    AI_dictRelease(rinfo->dagTensorsLoadedContext);
+    AI_dictRelease(rinfo->dagTensorsPersistedContext);
   }
 
   if (rinfo->dagOps) {
