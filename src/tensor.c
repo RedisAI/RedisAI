@@ -980,6 +980,7 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
   int meta = 0;
   int blob = 0;
   int values = 0;
+  int fmt_error = 0;
   for (int i=2; i<argc; i++) {
     const char *fmtstr = RedisModule_StringPtrLen(argv[i], NULL);
     if (!strcasecmp(fmtstr, "BLOB")) {
@@ -992,9 +993,13 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
       meta = 1;
       datafmt = REDISAI_DATA_NONE;
     } else {
-      RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
-      return -1;
+      fmt_error = 1;
     }
+  }
+
+  if (fmt_error) {
+    RedisModule_ReplyWithError(ctx, "ERR unsupported data format");
+    return -1;
   }
 
   if (blob && values) {
@@ -1033,14 +1038,15 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
   const long long ndims = RAI_TensorNumDims(t);
   
-  RedisModule_ReplyWithArray(ctx, resplen);
-
   char *dtypestr = NULL;
   const int dtypestr_result = Tensor_DataTypeStr(RAI_TensorDataType(t), &dtypestr);
   if(dtypestr_result==REDISMODULE_ERR){
     RedisModule_ReplyWithError(ctx, "ERR unsupported dtype");
     return -1;
   }
+
+  RedisModule_ReplyWithArray(ctx, resplen);
+
   RedisModule_ReplyWithCString(ctx, "dtype");
   RedisModule_ReplyWithCString(ctx, dtypestr);
 
