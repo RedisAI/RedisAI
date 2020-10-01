@@ -253,7 +253,7 @@ if [[ $WITH_PT != 0 ]]; then
 		
 		echo "Done."
 	else
-		echo "librotch is in place."
+		echo "libtorch is in place."
 	fi
 else
 	echo "SKipping libtorch."

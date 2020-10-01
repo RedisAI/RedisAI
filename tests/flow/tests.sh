@@ -80,7 +80,8 @@ valgrind_config() {
 
 run_tests() {
 	local title="$1"
-	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep0; printf "Tests with $title:\n\n"; }
+	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
+	cd $ROOT/test
 	$OP python3 -m RLTest --clear-logs --module $MODULE $RLTEST_ARGS
 }
 
@@ -102,16 +103,15 @@ OP=""
 MODULE=${MODULE:-$1}
 [[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found at ${MODULE}. Aborting."; exit 1; }
 
-RLTEST_ARGS=""
-
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
 if [[ ! -z $TEST ]]; then
-	RLTEST_ARGS+=" --test $TEST"
+	RLTEST_ARGS+=" --test $TEST -s"
 	export PYDEBUG=${PYDEBUG:-1}
 fi
 
 [[ $VERBOSE == 1 ]] && RLTEST_ARGS+=" -v"
+[[ $GDB == 1 ]] && RLTEST_ARGS+=" -i --verbose"
 
 #----------------------------------------------------------------------------------------------
 

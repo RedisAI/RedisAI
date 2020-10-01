@@ -5,11 +5,11 @@ ARG REDIS_VER=6.0.5
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
 
-# ARCH=x64|arm64v8|arm32v7
-ARG ARCH=x64
-
 # OS=ubuntu18.04|ubuntu16.04|centos7
 ARG OS=ubuntu18.04
+
+# ARCH=x64|arm64v8|arm32v7
+ARG ARCH=x64
 
 ARG CUDA_VER=10.1-cudnn7
 
@@ -22,10 +22,11 @@ FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
 ARG OSNICK
 ARG OS
+ARG ARCH
 ARG REDIS_VER
 ARG CUDA_VER
 
-RUN echo "Building for ${OSNICK} (${OS}) [with Redis ${REDIS_VER}]"
+RUN echo "Building for ${OSNICK} (${OS}) for ${ARCH} [with Redis ${REDIS_VER}]"
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
@@ -36,7 +37,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/
 
-RUN ./opt/readies/bin/getpy3
+RUN PIP=1 FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
@@ -45,17 +46,24 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh gpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN set -e ;\
+RUN bash -c "set -e ;\
     . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+    make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
 
 ARG PACK
 ARG TEST
 
 RUN mkdir -p bin/artifacts
-RUN if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
+RUN set -e ;\
+    if [ "$PACK" = "1" ]; then make -C opt pack GPU=1; fi
 
-RUN if [ "$TEST" = "1" ]; then TEST= make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1; fi
+RUN set -e ;\
+    if [ "$TEST" = "1" ]; then \
+        TEST= make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1 ;\
+        if [[ -d test/logs ]]; then \
+            tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
+        fi ;\
+    fi
 
 #----------------------------------------------------------------------------------------------
 FROM nvidia/cuda:${CUDA_VER}-runtime-${OS}
