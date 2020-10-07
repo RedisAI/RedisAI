@@ -231,9 +231,46 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
   return;
 }
 
+void RedisAI_DagCurrentOpBatchingInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
+                                      int *batchable_op,
+                                      size_t *batchsize, size_t *minbatchsize) {
+  RAI_DagOp *currentOp = NULL;
+
+  *batchable_op = 0;
+  *batchsize = 0;
+  *minbatchsize = 0;
+ 
+  pthread_mutex_lock(rinfo->dagMutex);
+
+  *rinfo->dagRefCount += 1;
+
+  for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
+
+    if (rinfo->dagOps[i]->result >= 0) {
+      continue;
+    }
+
+    if (strcasecmp(devicestr, rinfo->dagOps[i]->devicestr) == 0) {
+      currentOp = rinfo->dagOps[i];
+      break;
+    }
+  }
+
+  if (currentOp && currentOp->mctx) {
+    *batchable_op = 1;
+    *batchsize = currentOp->mctx->model->opts.batchsize;
+    *minbatchsize = currentOp->mctx->model->opts.minbatchsize;
+  }
+
+  *rinfo->dagRefCount -= 1;
+
+  pthread_mutex_unlock(rinfo->dagMutex);
+}
+
 void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr,
                                int *progress,
                                int *device_complete, int *all_devices_complete) {
+  // TODO DAG REFACTORING: use function above to get the current op
   RAI_DagOp *currentOp = NULL;
 
   pthread_mutex_lock(rinfo->dagMutex);
@@ -332,7 +369,10 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   size_t n_dagOps = array_len(rinfo->dagOps);
 
-  RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
+  if (rinfo->single_op_dag == 0) {
+    RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
+  }
+
   for (size_t i = 0; i < n_dagOps; i++) {
     RAI_DagOp *currentOp = rinfo->dagOps[i];
     switch (currentOp->commandType) {
@@ -421,10 +461,18 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   if (dag_error) {
-    RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+    if (rinfo->single_op_dag == 0) {
+      RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+    }
     RAI_FreeRunInfo(ctx, rinfo);
     return REDISMODULE_ERR;
   }
+
+  // return REDISMODULE_OK;
+
+  // TODO DAG REFACTORING: if single_op_dag == 1 then we reply with
+  // a single reply. However, in this case we can't return an error
+  // as we do below here, since we have already set the reply
 
   AI_dictIterator *persist_iter =
       AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
@@ -486,7 +534,11 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
   }
 
   AI_dictReleaseIterator(persist_iter);
-  RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+
+  if (rinfo->single_op_dag == 0) {
+    RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
+  }
+
   RAI_FreeRunInfo(ctx, rinfo);
 
   return REDISMODULE_OK;
@@ -588,33 +640,32 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv,
 
 int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                                                     RedisModuleString **argv, int argc){
-    for (size_t argpos = 1; argpos < argc; argpos++){
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
-            long long n_keys;
-            argpos++;
-            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
-            if(retval != REDISMODULE_OK){
-                return REDISMODULE_ERR;
-            }
-            argpos++;
-            if (n_keys > 0){
-                size_t last_persist_argpos = n_keys+argpos;
-                for (; argpos < last_persist_argpos &&  argpos < argc; argpos++){
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
-            }
+  for (size_t argpos = 1; argpos < argc; argpos++){
+    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+    if ( (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ) && (argpos+1 < argc) ) {
+      long long n_keys;
+      argpos++;
+      const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+      if(retval != REDISMODULE_OK){
+        return REDISMODULE_ERR;
+      }
+      argpos++;
+      if (n_keys > 0){
+        size_t last_persist_argpos = n_keys+argpos;
+        for (; argpos < last_persist_argpos &&  argpos < argc; argpos++){
+          RedisModule_KeyAtPos(ctx, argpos);
         }
+      }
     }
-    return REDISMODULE_OK;
+  }
+  return REDISMODULE_OK;
 }
 
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
-  if (RedisModule_IsKeysPositionRequest(ctx)) {
-     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
-  }
+
   if (argc < 4) return RedisModule_WrongArity(ctx);
+
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(
@@ -622,7 +673,6 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo "
         "structure");
   }
-  rinfo->use_local_context = 1;
   RAI_DagOp *currentDagOp = NULL;
   RAI_InitDagOp(&currentDagOp);
   rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
@@ -631,7 +681,23 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
   int loadFlag = 0;
   int chainingOpCount = 0;
 
-  for (size_t argpos = 1; argpos <= argc - 1; argpos++) {
+  int argstart = 1;
+
+  // If we're parsing a AI.MODELRUN or AI.SCRIPTRUN command, we don't
+  // expect there to be a chaining |> operator
+  if (strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.DAGRUN") != 0) {
+    argstart = 0;
+    chainingOpCount++;
+    rinfo->single_op_dag = 1;
+    rinfo->single_device_dag = 1;
+    // TODO DAG REFACTORING
+    // also, here we should decide that we need to LOAD and PERSIST
+    // INPUTS and OUTPUTS, or at least populate the context accordingly
+    // TODO DAG REFACTORING
+    // In this case we shouldn't mangle, this can be a future optimization
+  }
+
+  for (size_t argpos = argstart; argpos <= argc - 1; argpos++) {
     const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(arg_string, "LOAD")) {
       loadFlag = 1;

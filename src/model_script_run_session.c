@@ -23,6 +23,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 
+#if 0
 /**
  * Actual method running the MODELRUN and SCRIPTRUN Commands in the background
  * thread Called within `RedisAI_Run_ThreadMain`
@@ -73,7 +74,9 @@ void *RAI_ModelRunScriptRunSession(RedisAI_RunInfo **batch_rinfo) {
 
   return NULL;
 }
+#endif
 
+#if 0
 /**
  * Reply Callback called after a successful RedisModule_UnblockClient() after
  * RAI_ModelRunScriptRunSession() in order to reply to the client and unblock it
@@ -137,6 +140,7 @@ int RAI_ModelRunScriptRunReply(RedisModuleCtx *ctx, RedisModuleString **argv,
   RAI_FreeRunInfo(ctx, rinfo);
   return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
+#endif
 
 /**
  * Called in order to free the private data that is passed

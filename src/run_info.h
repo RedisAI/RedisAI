@@ -71,16 +71,8 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
  */
 typedef struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
-  // TODO: completly move modelrun and scriptrun to dagOps
-  RedisModuleString *runkey;
-  RedisModuleString **outkeys;
-  RAI_ModelRunCtx *mctx;
-  RAI_ScriptRunCtx *sctx;
-  int result;  // REDISMODULE_OK or REDISMODULE_ERR
-  long long duration_us;
-  RAI_Error *err;
-  // DAG
-  int use_local_context;
+  int single_op_dag;
+  int single_device_dag;
   AI_dict *dagTensorsContext;
   AI_dict *dagTensorsPersistedContext;  // dict to flag tensors to persist
   AI_dict *dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
@@ -119,7 +111,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
  * @param rinfo context in which RedisAI blocking command operate.
  * @return
  */
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
+size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
 
 /**
  *
@@ -127,7 +119,7 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
  * @param rinfo2 rinfo context 2 in which RedisAI blocking command 2 operates.
  * @return
  */
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2);
+int RAI_RunInfoBatchable(struct RAI_DagOp *op1,
+                         struct RAI_DagOp *op2);
 
 #endif /* SRC_RUN_INFO_H_ */

@@ -146,21 +146,31 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         evicted_items = array_append(evicted_items, item);
         batch_rinfo = array_append(batch_rinfo, rinfo);
 
-        // If the item is a scriptrun, we stop looking for matching items to
-        // batch because there's no batching for script
-        if (rinfo->sctx) {
-          break;
-        }
+        // TODO DAG REFACTORING: we need to move the batching logic out of here 
+        // and have it at the DAG logic level.
+        // We need to know what's next on the DAG. Remember that here we are
+        // already on a specific device.
+        // Look into RAI_DagRunSessionStep.
 
         // If it's a DAG (signaled by the fact that use_local_context equals 1)
-        // then stop looking for matchin items to batch because batching with
+        // then stop looking for matching items to batch because batching with
         // DAG commands is not yet supported.
         // TODO DAG BATCHING
-        if (rinfo->use_local_context==1){
+        // if (rinfo->use_local_context==1){
+        //   break;
+        // }
+
+        int batchable_op;
+        size_t batchsize, minbatchsize;
+        RedisAI_DagCurrentOpBatchingInfo(rinfo, run_queue_info->devicestr,
+                                         &batchable_op,
+                                         &batchsize, &minbatchsize);
+
+        // If the op is not batchable (e.g. scriptrun), we stop looking for matching
+        // items to batch
+        if (batchable_op == 0) {
           break;
         }
-
-        size_t batchsize = rinfo->mctx->model->opts.batchsize;
 
         // If no batching was requested on the first item, then skip the search
         if (batchsize == 0) {
@@ -169,6 +179,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
         // Get the size of the batch so far, that is, the size of the first input
         // tensor in the 0-th dimension
+        // TODO DAG REFACTORING: rinfo should be dagop
         size_t current_batchsize = RAI_RunInfoBatchSize(rinfo);
 
         // If the size is zero or if it already exceeds the desired batch size
@@ -191,12 +202,14 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           // next item in the queue
           // TODO DAG BATCHING
           // make sure we lock properly when we access DagOps
+          // TODO DAG REFACTORING: next_rinfo should be dagop instead
           if (RAI_RunInfoBatchable(rinfo, next_rinfo) == 0) {
             next_item = queueNext(next_item);
             continue;
           }
 
           // Get size of batch of the selected matching item in the queue
+          // TODO DAG REFACTORING: next_rinfo should be dagop instead
           int next_batchsize = RAI_RunInfoBatchSize(next_rinfo);
 
           // If the new batch size would exceed the prescribed batch
@@ -217,7 +230,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           next_item = queueNext(next_item);
         }
 
-        size_t minbatchsize = rinfo->mctx->model->opts.minbatchsize;
 
         // If minbatchsize wasn't been set, or if the current batch
         // size exceeds the minimum batch size already, then we're done
@@ -258,23 +270,36 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       int dag_device_complete = 0;
       int dag_all_devices_complete = 0;
       if (array_len(batch_rinfo) > 0) {
-        if (batch_rinfo[0]->use_local_context == 1) {
-          // Run the first unrealized DAG operation. Several variables can be
-          // filled after the function returns:
-          // dag_progress: there has been progress in the DAG, that is, the first
-          //               unrealized step has produced a result; if not, it means
-          //               that the inputs of the first unrealized step were not
-          //               available yet
-          // dag_device_complete: all DAG operations for the current device have completed,
-          //                      there's nothing more this worker can do
-          // dag_all_devices_complete: all DAG operations for any device have completed,
-          //                           which means that the computation of the DAG is complete
-          RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr,
-                                    &dag_progress, &dag_device_complete, &dag_all_devices_complete);
-        } else {
-          // Run the (potentially batched) model or the (non-batched) script run
-          RAI_ModelRunScriptRunSession(batch_rinfo);
-        }
+        // Run the first unrealized DAG operation. Several variables can be
+        // filled after the function returns:
+        // dag_progress: there has been progress in the DAG, that is, the first
+        //               unrealized step has produced a result; if not, it means
+        //               that the inputs of the first unrealized step were not
+        //               available yet
+        // dag_device_complete: all DAG operations for the current device have completed,
+        //                      there's nothing more this worker can do
+        // dag_all_devices_complete: all DAG operations for any device have completed,
+        //                           which means that the computation of the DAG is complete
+        RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr,
+                                  &dag_progress, &dag_device_complete, &dag_all_devices_complete);
+ 
+        // if (batch_rinfo[0]->use_local_context == 1) {
+        //   // Run the first unrealized DAG operation. Several variables can be
+        //   // filled after the function returns:
+        //   // dag_progress: there has been progress in the DAG, that is, the first
+        //   //               unrealized step has produced a result; if not, it means
+        //   //               that the inputs of the first unrealized step were not
+        //   //               available yet
+        //   // dag_device_complete: all DAG operations for the current device have completed,
+        //   //                      there's nothing more this worker can do
+        //   // dag_all_devices_complete: all DAG operations for any device have completed,
+        //   //                           which means that the computation of the DAG is complete
+        //   RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr,
+        //                             &dag_progress, &dag_device_complete, &dag_all_devices_complete);
+        // } else {
+        //   // Run the (potentially batched) model or the (non-batched) script run
+        //   RAI_ModelRunScriptRunSession(batch_rinfo);
+        // }
       }
 
       // We don't need the run info container for the batch anymore at this point
@@ -288,11 +313,15 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       for (long long i = 0; i < array_len(evicted_items); i++) {
         // Get the current evicted run info
         RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[i]->value);
-        const int use_local_context = evicted_rinfo->use_local_context;
+        // const int use_local_context = evicted_rinfo->use_local_context;
+        const int single_op_dag = evicted_rinfo->single_op_dag;
+        const int single_device_dag = evicted_rinfo->single_device_dag;
         int dagError = 0;
         int dagRefCount = -1;
-        // If it's a DAG
-        if (use_local_context == 1) {
+        // If it's a multi-op DAG
+        // TODO DAG REFACTORING: we could manage single_device_dag similarly (without locks)
+        // if (use_local_context == 1) {
+        if (single_op_dag == 0) {
           // Lock the DAG: a DAG might have more workers operating on different queues
           // operating on the same DAG operations and on a few shared variables, such as:
           // dagError: was there any error any DAG operation so far
@@ -301,6 +330,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           //              otherwise a worker currently running a session might find itself
           //              without the DAG structure, since unblocking leads to structures
           //              being released
+          // TODO DAG REFACTORING: we need to be more conservative with locking, by relying
+          // on information about the topology of the DAG (single op, single device, ...)
           pthread_mutex_lock(evicted_rinfo->dagMutex);
           dagError = *evicted_rinfo->dagError;
           dagRefCount = *evicted_rinfo->dagRefCount;
@@ -359,11 +390,13 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         }
         // If we're done processing a modelrun or scriptrun command
         else {
+          printf("SINGLE OP CLIENT\n");
           // If the client is still connected
           if (evicted_rinfo->client) {
             // Unblock the client. Note that we do this for every evicted info in a batch,
             // which will be associated with a different client. Here we unblock every
             // client appropriately
+            printf("UNBLOCK\n");
             RedisModule_UnblockClient(evicted_rinfo->client, evicted_rinfo);
           }
           RedisModule_Free(evicted_items[i]);

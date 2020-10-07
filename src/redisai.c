@@ -539,7 +539,12 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
   }
+
   if (argc < 3) return RedisModule_WrongArity(ctx);
+
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+
+#if 0
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
@@ -613,6 +618,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
   return REDISMODULE_OK;
+#endif
 }
 
 /** 
@@ -622,7 +628,12 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   if (RedisModule_IsKeysPositionRequest(ctx)) {
     return RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
   }
+
   if (argc < 6) return RedisModule_WrongArity(ctx);
+
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+
+#if 0
   RedisAI_RunInfo *rinfo = NULL;
   if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
     return RedisModule_ReplyWithError(
@@ -698,6 +709,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
   pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
 
   return REDISMODULE_OK;
+#endif
 }
 
 /**
@@ -1000,6 +1012,9 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                 int argc) {
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
   return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
@@ -1012,8 +1027,10 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                                   int argc) {
-  return RedisAI_DagRunSyntaxParser(ctx, argv, argc,
-                                      REDISAI_DAG_READONLY_MODE);
+  if (RedisModule_IsKeysPositionRequest(ctx)) {
+     return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+  }
+  return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_READONLY_MODE);
 }
 
 #define EXECUTION_PLAN_FREE_MSG 100
