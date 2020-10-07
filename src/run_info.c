@@ -107,16 +107,8 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     return REDISMODULE_ERR;
   }
   rinfo->client = NULL;
-  rinfo->runkey = NULL;
-  rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-  rinfo->mctx = NULL;
-  rinfo->sctx = NULL;
-  rinfo->duration_us = 0;
-  RAI_InitError(&rinfo->err);
-  if (!(rinfo->err)) {
-    return REDISMODULE_ERR;
-  }
-  rinfo->use_local_context = 0;
+  rinfo->single_op_dag = 0;
+  rinfo->single_device_dag = 0;
   rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeTensorVals, NULL);
   if (!(rinfo->dagTensorsContext)) {
     return REDISMODULE_ERR;
@@ -152,16 +144,8 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     return REDISMODULE_ERR;
   }
   rinfo->client = src->client;
-  rinfo->runkey = NULL;
-  rinfo->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-  rinfo->mctx = NULL;
-  rinfo->sctx = NULL;
-  rinfo->duration_us = 0;
-  RAI_InitError(&rinfo->err);
-  if (!(rinfo->err)) {
-    return REDISMODULE_ERR;
-  }
-  rinfo->use_local_context = src->use_local_context;
+  rinfo->single_op_dag = src->single_op_dag;
+  rinfo->single_device_dag = src->single_device_dag;
   rinfo->dagTensorsContext = src->dagTensorsContext;
   rinfo->dagTensorsLoadedContext = src->dagTensorsLoadedContext;
   rinfo->dagTensorsPersistedContext = src->dagTensorsPersistedContext;
@@ -226,23 +210,13 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   if (!rinfo) {
     return;
   }
-  if (rinfo->mctx) {
-    RAI_ModelRunCtxFree(rinfo->mctx, true);
+  if (rinfo->dagMaster == 0) {
+    RedisModule_Free(rinfo);
+    return;
   }
-  if (rinfo->sctx) {
-    RAI_ScriptRunCtxFree(rinfo->sctx, true);
-  }
-  RAI_FreeError(rinfo->err);
-
-  if (rinfo->use_local_context) {
-    if (rinfo->dagMaster == 0) {
-      RedisModule_Free(rinfo);
-      return;
-    }
-    else {
-      pthread_mutex_destroy(rinfo->dagMutex);
-      RedisModule_Free(rinfo->dagMutex);
-    }
+  else {
+    pthread_mutex_destroy(rinfo->dagMutex);
+    RedisModule_Free(rinfo->dagMutex);
   }
 
   if (rinfo->dagTensorsContext) {
@@ -264,22 +238,15 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
   RedisModule_Free(rinfo->dagRefCount);
 
-  if (rinfo->outkeys) {
-    for (size_t i = 0; i < array_len(rinfo->outkeys); i++) {
-      RedisModule_FreeString(ctx, rinfo->outkeys[i]);
-    }
-    array_free(rinfo->outkeys);
-  }
-
   RedisModule_Free(rinfo);
 }
 
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
-  if (rinfo->mctx == NULL) {
+size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op) {
+  if (op->mctx == NULL) {
     return -1;
   }
 
-  size_t ninputs = RAI_ModelRunCtxNumInputs(rinfo->mctx);
+  size_t ninputs = RAI_ModelRunCtxNumInputs(op->mctx);
 
   int batchsize = 0;
 
@@ -288,7 +255,7 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
   }
 
   for (size_t i = 0; i < ninputs; i++) {
-    RAI_Tensor *input = RAI_ModelRunCtxInputTensor(rinfo->mctx, i);
+    RAI_Tensor *input = RAI_ModelRunCtxInputTensor(op->mctx, i);
 
     if (i == 0) {
       batchsize = RAI_TensorDim(input, 0);
@@ -304,31 +271,27 @@ size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo) {
   return batchsize;
 }
 
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2) {
-  // DAG case
-  if (rinfo1->use_local_context == 1 || rinfo2->use_local_context == 1) {
+int RAI_RunInfoBatchable(struct RAI_DagOp *op1,
+                         struct RAI_DagOp *op2) {
+
+  if (op1->mctx == NULL || op2->mctx == NULL) {
     return 0;
   }
 
-  if (rinfo1->mctx == NULL || rinfo2->mctx == NULL) {
+  if (op1->mctx->model != op2->mctx->model) {
     return 0;
   }
 
-  if (rinfo1->mctx->model != rinfo2->mctx->model) {
-    return 0;
-  }
-
-  const int ninputs1 = RAI_ModelRunCtxNumInputs(rinfo1->mctx);
-  const int ninputs2 = RAI_ModelRunCtxNumInputs(rinfo2->mctx);
+  const int ninputs1 = RAI_ModelRunCtxNumInputs(op1->mctx);
+  const int ninputs2 = RAI_ModelRunCtxNumInputs(op2->mctx);
 
   if (ninputs1 != ninputs2) {
     return 0;
   }
 
   for (int i = 0; i < ninputs1; i++) {
-    RAI_Tensor *input1 = RAI_ModelRunCtxInputTensor(rinfo1->mctx, i);
-    RAI_Tensor *input2 = RAI_ModelRunCtxInputTensor(rinfo2->mctx, i);
+    RAI_Tensor *input1 = RAI_ModelRunCtxInputTensor(op1->mctx, i);
+    RAI_Tensor *input2 = RAI_ModelRunCtxInputTensor(op2->mctx, i);
 
     int ndims1 = RAI_TensorNumDims(input1);
     int ndims2 = RAI_TensorNumDims(input2);

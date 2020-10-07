@@ -14,6 +14,10 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
+void RedisAI_DagCurrentOpBatchingInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
+                                      int *batchable_op,
+                                      size_t *batchsize, size_t *minbatchsize);
+
 /**
  * Actual method running at most one of the DAGRUN comments in the worker
  * thread comsuming operations on a specific device. After a step is executed,
