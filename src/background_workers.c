@@ -390,13 +390,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         }
         // If we're done processing a modelrun or scriptrun command
         else {
-          printf("SINGLE OP CLIENT\n");
           // If the client is still connected
           if (evicted_rinfo->client) {
             // Unblock the client. Note that we do this for every evicted info in a batch,
             // which will be associated with a different client. Here we unblock every
             // client appropriately
-            printf("UNBLOCK\n");
             RedisModule_UnblockClient(evicted_rinfo->client, evicted_rinfo);
           }
           RedisModule_Free(evicted_items[i]);
