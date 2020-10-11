@@ -24,10 +24,10 @@ RUN pip3 install -U --user pip six numpy wheel setuptools mock 'future>=0.17.1'
 RUN pip3 install -U --user keras_applications --no-deps
 RUN pip3 install -U --user keras_preprocessing --no-deps
 
-RUN cd / &&
-    git clone http://github.com/tensorflow/tensorflow &&
-    cd /tensorflow &&
-    git checkout ${TF_BRANCH}
+RUN cd / && \
+    git clone http://github.com/tensorflow/tensorflow && \
+    cd /tensorflow && \
+    git checkout ${TF_BRANCH} \
 WORKDIR /tensorflow
 
 # Set environment variables for configure.
@@ -38,7 +38,7 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3
 
-RUN yes "" | ./configure &&
+RUN yes "" | ./configure && \
     bazel build --config opt //tensorflow/tools/lib_package:libtensorflow --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs
 
 WORKDIR /root
