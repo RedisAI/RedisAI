@@ -77,7 +77,7 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION},/lib,/lib/aarch64-linux-gnu,/usr,/usr/lib/aarch64-linux-gnu/libfakeroot,/usr/local/cuda-${CUDA_VERSION},/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux,"
+    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION},/lib,/lib/aarch64-linux-gnu,/usr,/usr/lib/aarch64-linux-gnu/libfakeroot,/usr/local/cuda-${CUDA_VERSION},/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux,/usr/lib/cuda/lib64,/usr/lib/cuda--${CUDA_VERSION},"
 
 
 
