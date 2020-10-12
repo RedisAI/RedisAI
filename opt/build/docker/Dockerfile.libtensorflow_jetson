@@ -11,6 +11,7 @@ ARG PY_VERSION_SUFFIX=""
 ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
+ARG TF_CUDA_PATHS=""
 
 RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64
 RUN chmod +x bazel-3.6.0-linux-arm64
@@ -51,7 +52,8 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH}
+    CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH} \
+    TF_CUDA_PATHS=${TF_CUDA_PATHS}
 
 RUN yes "" | ./configure && \
     bazel build \
