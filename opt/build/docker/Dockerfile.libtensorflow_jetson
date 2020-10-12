@@ -32,9 +32,9 @@ RUN apt-get update && apt-get install -y \
     python${PY_VERSION_SUFFIX}-pip \
     swig
 
-RUN cd / &&
-    git clone https://github.com/tensorflow/tensorflow.git &&
-    cd /tensorflow &&
+RUN cd / && \
+    git clone https://github.com/tensorflow/tensorflow.git && \
+    cd /tensorflow && \
     git checkout ${TF_BRANCH}
 
 WORKDIR /tensorflow
