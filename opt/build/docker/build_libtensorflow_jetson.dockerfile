@@ -49,7 +49,7 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH}
+    CUDA_TOOLKIT_PATH=""
 
 RUN yes "" | ./configure && \
     bazel build --config=elinux_aarch64 --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
