@@ -48,6 +48,8 @@ ARG MAKEFLAGS=-j8
 
 RUN printenv
 
+RUN find -name cuda.h
+
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NEED_CUDA=1 \
