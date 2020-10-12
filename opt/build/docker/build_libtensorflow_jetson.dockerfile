@@ -1,9 +1,12 @@
-ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
-FROM ${BUILD_IMAGE}
-
+# ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
+# FROM ${BUILD_IMAGE}
+ARG UBUNTU_VERSION="16.04"
 ARG CUDA_VERSION="10.2"
-ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
 ARG CUDNN_VERSION="8"
+
+FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-ubi8
+
+ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
 ARG PY_VERSION_SUFFIX=""
 ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
