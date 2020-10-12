@@ -47,13 +47,11 @@ ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
 ARG MAKEFLAGS=-j8
 ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH}"
-
+ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 # export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64\
 #                          ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 RUN printenv
-
-RUN find -name cuda.h
 
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
@@ -67,10 +65,14 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH="" \
     TF_CUDA_PATHS="/usr/lib/x86_64-linux-gnu/,/usr/local/cuda,"
 
+RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
+    export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64:${LD_LIBRARY_PATH} && \
+    yes "" | ./configure
 
-RUN ./configure
+# RUN ./configure
 
 RUN bazel build \
+    --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
     --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
     --config opt //tensorflow/tools/lib_package:libtensorflow
 
