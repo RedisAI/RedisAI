@@ -2,11 +2,22 @@ ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-ubuntu18.04
 ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
-ARG PY_VERSION_SUFFIX=""
+ARG PY_VERSION_SUFFIX="3"
 ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
 ARG TF_CUDA_PATHS=""
+
+RUN apt-get update -y && apt-get install -y \
+    wget \
+    build-essential \
+    curl \
+    git \
+    openjdk-8-jdk \
+    python${PY_VERSION_SUFFIX} \
+    python${PY_VERSION_SUFFIX}-dev \
+    python${PY_VERSION_SUFFIX}-pip \
+    swig
 
 RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-x86_64 \
     && chmod +x bazel-3.6.0-linux-x86_64 \
@@ -21,18 +32,8 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc
 RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
     >>/etc/bazel.bazelrc
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    openjdk-8-jdk \
-    python${PY_VERSION_SUFFIX} \
-    python${PY_VERSION_SUFFIX}-dev \
-    python${PY_VERSION_SUFFIX}-pip \
-    swig
-
 RUN cd / && \
-    git clone https://github.com/tensorflow/tensorflow.git --depth 1 && \
+    git clone https://github.com/tensorflow/tensorflow.git  && \
     cd /tensorflow && \
     git checkout ${TF_BRANCH}
 
@@ -50,10 +51,11 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH} \
     TF_CUDA_PATHS=${TF_CUDA_PATHS}
 
-RUN yes "" | ./configure && \
-    bazel build \
+RUN ./configure
+
+RUN bazel build \
         --config=elinux_aarch64 \
         --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
-        --config opt //tensorflow/tools/lib_package:libtensorflow 
+        --config opt //tensorflow/tools/lib_package:libtensorflow
 
 WORKDIR /root
