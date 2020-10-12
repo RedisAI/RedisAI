@@ -1,4 +1,4 @@
-ARG BUILD_IMAGE=nvcr.io/nvidia/tensorflow:20.09-tf2-py3
+ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
 FROM ${BUILD_IMAGE}
 
 ARG CUDA_VERSION="10.2"
@@ -19,7 +19,7 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc
 RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
     >>/etc/bazel.bazelrc
 
-RUN sudo apt install -y python3-dev python3-pip
+RUN apt install -y python3-dev python3-pip
 RUN pip3 install -U --user pip six numpy wheel setuptools mock 'future>=0.17.1'
 RUN pip3 install -U --user keras_applications --no-deps
 RUN pip3 install -U --user keras_preprocessing --no-deps
