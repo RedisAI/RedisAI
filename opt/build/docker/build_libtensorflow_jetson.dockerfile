@@ -32,7 +32,8 @@ RUN apt-get update && apt-get install -y \
 RUN cd / && \
     git clone https://github.com/tensorflow/tensorflow.git && \
     cd /tensorflow && \
-    git checkout ${TF_BRANCH} \
+    git checkout ${TF_BRANCH}
+    
 WORKDIR /tensorflow
 
 # Set environment variables for configure.
