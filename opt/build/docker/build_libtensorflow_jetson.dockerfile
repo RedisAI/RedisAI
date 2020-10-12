@@ -4,7 +4,7 @@ FROM ${BUILD_IMAGE}
 ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
 ARG PY_VERSION_SUFFIX=""
-ARG TF_BRANCH=r2.3
+ARG TF_BRANCH="r2.3"
 
 RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64
 RUN chmod +x bazel-3.6.0-linux-arm64
@@ -37,7 +37,6 @@ WORKDIR /tensorflow
 
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
-    LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
     TF_NEED_CUDA=1 \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
