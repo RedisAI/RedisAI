@@ -60,7 +60,7 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
     CUDA_TOOLKIT_PATH="" \
-    TF_CUDA_PATHS=""
+    TF_CUDA_PATHS="/usr/lib/x86_64-linux-gnu/,/usr/local/cuda,"
 
 
 RUN ./configure
