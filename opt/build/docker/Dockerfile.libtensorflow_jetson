@@ -3,14 +3,13 @@ FROM ${BUILD_IMAGE}
 ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
 ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
-ARG PY_VERSION_SUFFIX="3"
 ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
 ARG TF_CUDA_PATHS=""
 
-RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 && \
-    chmod +x bazel-3.6.0-linux-arm64 && \
+RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 &&
+    chmod +x bazel-3.6.0-linux-arm64 &&
     mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
 
 # Running bazel inside a `docker build` command causes trouble, cf:
@@ -32,61 +31,27 @@ RUN apt-get update && apt-get install -y \
     python${PY_VERSION_SUFFIX}-pip \
     swig
 
-RUN cd / && \
-    git clone https://github.com/tensorflow/tensorflow.git && \
-    cd /tensorflow && \
+RUN cd / &&
+    git clone https://github.com/tensorflow/tensorflow.git &&
+    cd /tensorflow &&
     git checkout ${TF_BRANCH}
 
 WORKDIR /tensorflow
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/usr/local/cuda-10.2/bin:$PATH"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/extras/CUPTI/lib64:/usr/local/cuda-10.2/targets/aarch64-linux/lib:/usr/local/cuda-10.2/targets/aarch64-linux/include:${LD_LIBRARY_PATH}"
-
-# ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
+ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:$PATH"
 ARG MAKEFLAGS=-j8
-# ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:${PATH}"
-# ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH}"
-# ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
-# export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64\
-#                          ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
-
-# RUN printenv
-# RUN export PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH && \
-    # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH && \
-    # ldconfig
-
-#RUN locate libcudart.so
-
-# # Set environment variables for configure.
-# ENV PYTHON_BIN_PATH=/usr/bin/python3 \
-#     TF_NEED_CUDA=1 \
-#     TF_NEED_TENSORRT=1 \
-#     TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
-#     TF_CUDA_VERSION=${CUDA_VERSION} \
-#     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
-#     TF_CUDNN_VERSION=${CUDNN_VERSION} \
-#     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-#     TF_CUDA_PATHS="/usr/lib/aarch64-linux-gnu,/usr/local/cuda-${CUDA_VERSION},"
-
 
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_NEED_CUDA=1 \
     TF_NEED_TENSORRT=1 \
+    TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION},/lib,/lib/aarch64-linux-gnu,/usr,/usr/lib/aarch64-linux-gnu/libfakeroot,/usr/local/cuda-${CUDA_VERSION},/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux,/usr/lib/cuda/lib64,/usr/lib/cuda--${CUDA_VERSION},"
-
-
-
-
-# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
-    # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
-    # ./configure
-
-RUN /usr/local/cuda/bin/nvcc --version
+    TF_CUDA_PATHS="/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
+    CUDA_TOOLKIT_PATH="${CUDA_TOOLKIT_PATH}"
 
 RUN ./configure
 
