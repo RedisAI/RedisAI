@@ -54,7 +54,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 RUN printenv
 
 # Set environment variables for configure.
-ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
+ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_NEED_CUDA=1 \
     TF_NEED_TENSORRT=1 \
     TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
@@ -62,8 +62,10 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH="" \
     TF_CUDA_PATHS="/usr/lib/x86_64-linux-gnu/,/usr/local/cuda,"
+
+#    CUDA_TOOLKIT_PATH="" \
+
 
 RUN ln -s /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1 && \
     export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64:${LD_LIBRARY_PATH} && \
