@@ -12,6 +12,17 @@ ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
 
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    wget \
+    curl \
+    git \
+    openjdk-8-jdk \
+    python${PY_VERSION_SUFFIX} \
+    python${PY_VERSION_SUFFIX}-dev \
+    python${PY_VERSION_SUFFIX}-pip \
+    swig
+
 RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64
 RUN chmod +x bazel-3.6.0-linux-arm64
 RUN mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
@@ -24,16 +35,6 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc
 #   https://github.com/bazelbuild/bazel/issues/418
 RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
     >>/etc/bazel.bazelrc
-
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    openjdk-8-jdk \
-    python${PY_VERSION_SUFFIX} \
-    python${PY_VERSION_SUFFIX}-dev \
-    python${PY_VERSION_SUFFIX}-pip \
-    swig
 
 RUN cd / && \
     git clone https://github.com/tensorflow/tensorflow.git && \
