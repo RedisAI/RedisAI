@@ -3,15 +3,15 @@ FROM ${BUILD_IMAGE}
 ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
 ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
-ARG PY_VERSION_SUFFIX=""
+ARG PY_VERSION_SUFFIX="3"
 ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
 ARG TF_CUDA_PATHS=""
 
-RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 \
-    && chmod +x bazel-3.6.0-linux-arm64 \
-    && mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
+RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 &&
+    chmod +x bazel-3.6.0-linux-arm64 &&
+    mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
 
 # Running bazel inside a `docker build` command causes trouble, cf:
 # https://github.com/bazelbuild/bazel/issues/134
@@ -32,9 +32,9 @@ RUN apt-get update && apt-get install -y \
     python${PY_VERSION_SUFFIX}-pip \
     swig
 
-RUN cd / && \
-    git clone https://github.com/tensorflow/tensorflow.git --depth 1 && \
-    cd /tensorflow && \
+RUN cd / &&
+    git clone https://github.com/tensorflow/tensorflow.git &&
+    cd /tensorflow &&
     git checkout ${TF_BRANCH}
 
 WORKDIR /tensorflow
@@ -51,10 +51,10 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH} \
     TF_CUDA_PATHS=${TF_CUDA_PATHS}
 
-RUN yes "" | ./configure && \
-    bazel build \
-        --config=elinux_aarch64 \
-        --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
-        --config opt //tensorflow/tools/lib_package:libtensorflow 
+RUN ./configure
+
+RUN bazel build \
+    --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
+    --config opt //tensorflow/tools/lib_package:libtensorflow
 
 WORKDIR /root
