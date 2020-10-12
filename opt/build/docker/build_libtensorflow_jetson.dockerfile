@@ -5,6 +5,8 @@ ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
 ARG PY_VERSION_SUFFIX=""
 ARG TF_BRANCH="r2.3"
+ARG TF_TENSORRT_VERSION="7.2"
+ARG TF_NCCL_VERSION=""
 
 RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64
 RUN chmod +x bazel-3.6.0-linux-arm64
@@ -33,17 +35,20 @@ RUN cd / && \
     git clone https://github.com/tensorflow/tensorflow.git && \
     cd /tensorflow && \
     git checkout ${TF_BRANCH}
-    
+
 WORKDIR /tensorflow
 
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NEED_CUDA=1 \
+    TF_NEED_TENSORRT=1 \
+    TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
     TF_CUDA_VERSION=${CUDA_VERSION} \
+    TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3
 
 RUN yes "" | ./configure && \
-    bazel build --config opt //tensorflow/tools/lib_package:libtensorflow --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs
+    bazel build --config=elinux_aarch64 --config opt //tensorflow/tools/lib_package:libtensorflow  --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs
 
 WORKDIR /root
