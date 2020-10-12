@@ -43,6 +43,7 @@ WORKDIR /tensorflow
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NEED_CUDA=1 \
     TF_NEED_TENSORRT=1 \
+    LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
     TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
@@ -51,6 +52,8 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH}
 
 RUN yes "" | ./configure && \
-    bazel build --config=elinux_aarch64 --config opt //tensorflow/tools/lib_package:libtensorflow  --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs
+    bazel build --config=elinux_aarch64 --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
+        --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
+        --config opt //tensorflow/tools/lib_package:libtensorflow 
 
 WORKDIR /root
