@@ -2,6 +2,7 @@ ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
 FROM ${BUILD_IMAGE}
 
 ARG CUDA_VERSION="10.2"
+ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
 ARG CUDNN_VERSION="8"
 ARG PY_VERSION_SUFFIX=""
 ARG TF_BRANCH="r2.3"
@@ -46,7 +47,8 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
-    TF_CUDA_COMPUTE_CAPABILITIES=5.3
+    TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
+    CUDA_TOOLKIT_PATH=${CUDA_TOOLKIT_PATH}
 
 RUN yes "" | ./configure && \
     bazel build --config=elinux_aarch64 --config opt //tensorflow/tools/lib_package:libtensorflow  --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs
