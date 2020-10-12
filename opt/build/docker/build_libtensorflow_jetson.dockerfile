@@ -51,7 +51,8 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
     CUDA_TOOLKIT_PATH=""
 
-RUN yes "" | ./configure && \
+RUN export LD_LIBRARY_PATH=/usr/local/cuda/lib64/stubs:/usr/local/cuda/lib64:${LD_LIBRARY_PATH} && \
+    yes "" | ./configure && \
     bazel build --config=elinux_aarch64 --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
         --config=v2 --config=noaws --config=nogcp --config=cuda --config=nonccl --config=nohdfs \
         --config opt //tensorflow/tools/lib_package:libtensorflow 
