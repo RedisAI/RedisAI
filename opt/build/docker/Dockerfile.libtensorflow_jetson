@@ -39,6 +39,15 @@ RUN cd / && \
 
 WORKDIR /tensorflow
 
+ENV DEBIAN_FRONTEND=noninteractive
+ENV CUDA_HOME="/usr/local/cuda"
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
+ARG MAKEFLAGS=-j8
+
+RUN printenv
+
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_NEED_CUDA=1 \
@@ -51,9 +60,6 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH="" \
     TF_CUDA_PATHS=""
 
-ENV PATH="/usr/local/cuda/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
-RUN echo "$PATH" && echo "$LD_LIBRARY_PATH"
 
 RUN ./configure
 
