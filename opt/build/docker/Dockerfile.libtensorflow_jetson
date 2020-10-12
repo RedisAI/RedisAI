@@ -40,10 +40,8 @@ RUN cd / && \
 WORKDIR /tensorflow
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV CUDA_HOME="/usr/local/cuda"
 ENV PATH="/usr/local/cuda/bin:$PATH"
 ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
-
 
 # ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
 ARG MAKEFLAGS=-j8
@@ -74,16 +72,8 @@ ARG MAKEFLAGS=-j8
 
 RUN ldconfig /usr/local/cuda/lib64
 
-
-RUN LIBCUDA_FOUND=$(ldconfig -p | grep -v compat | awk '{print $1}' | grep libcuda.so | wc -l) && \
-    if [[ "$LIBCUDA_FOUND" -eq 0 ]]; then \
-        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/cuda/lib64/stubs; \
-        ln -fs /usr/local/cuda/lib64/stubs/libcuda.so /usr/local/cuda/lib64/stubs/libcuda.so.1; \
-    fi
-    
 # Set environment variables for configure.
-ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
-    LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
+ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_NEED_CUDA=1 \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
