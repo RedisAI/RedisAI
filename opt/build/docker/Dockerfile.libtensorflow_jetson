@@ -51,6 +51,10 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     CUDA_TOOLKIT_PATH="" \
     TF_CUDA_PATHS=""
 
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+RUN echo "$PATH" && echo "$LD_LIBRARY_PATH"
+
 RUN ./configure
 
 RUN bazel build \
