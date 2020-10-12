@@ -19,13 +19,18 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc
 RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
     >>/etc/bazel.bazelrc
 
-RUN apt install -y python3-dev python3-pip
-RUN pip3 install -U --user pip six numpy wheel setuptools mock 'future>=0.17.1'
-RUN pip3 install -U --user keras_applications --no-deps
-RUN pip3 install -U --user keras_preprocessing --no-deps
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    curl \
+    git \
+    openjdk-8-jdk \
+    python${PY_VERSION_SUFFIX} \
+    python${PY_VERSION_SUFFIX}-dev \
+    python${PY_VERSION_SUFFIX}-pip \
+    swig
 
 RUN cd / && \
-    git clone http://github.com/tensorflow/tensorflow && \
+    git clone https://github.com/tensorflow/tensorflow.git && \
     cd /tensorflow && \
     git checkout ${TF_BRANCH} \
 WORKDIR /tensorflow
