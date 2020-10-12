@@ -77,7 +77,10 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-10.2/targets/aarch64-linux,/usr/local/cuda-10.2/targets/aarch64-linux/include"
+    CUDA_TOOLKIT_PATH="/lib,/lib/aarch64-linux-gnu,/usr,/usr/lib/aarch64-linux-gnu/libfakeroot,/usr/local/cuda,/usr/local/cuda-10.2/targets/aarch64-linux/lib,"
+
+
+
 
 # RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
     # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
