@@ -62,7 +62,7 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    TF_CUDA_PATHS="/usr/lib/x86_64-linux-gnu/,/usr/local/cuda,"
+    TF_CUDA_PATHS="/usr/local/cuda-${CUDA_VERSION},/usr/local/cuda,"
 
 #    CUDA_TOOLKIT_PATH="" \
 
