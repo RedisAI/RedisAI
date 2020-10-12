@@ -58,20 +58,24 @@ RUN export PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH && \
 
 #RUN locate libcudart.so
 
+# # Set environment variables for configure.
+# ENV PYTHON_BIN_PATH=/usr/bin/python3 \
+#     TF_NEED_CUDA=1 \
+#     TF_NEED_TENSORRT=1 \
+#     TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
+#     TF_CUDA_VERSION=${CUDA_VERSION} \
+#     TF_NCCL_VERSION=${TF_NCCL_VERSION} \
+#     TF_CUDNN_VERSION=${CUDNN_VERSION} \
+#     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
+#     TF_CUDA_PATHS="/usr/lib/aarch64-linux-gnu,/usr/local/cuda-${CUDA_VERSION},"
+
 # Set environment variables for configure.
-ENV PYTHON_BIN_PATH=/usr/bin/python3 \
+ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
+    LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH} \
     TF_NEED_CUDA=1 \
-    TF_NEED_TENSORRT=1 \
-    TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
     TF_CUDA_VERSION=${CUDA_VERSION} \
-    TF_NCCL_VERSION=${TF_NCCL_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
-    TF_CUDA_COMPUTE_CAPABILITIES=5.3 
-    #\
-    #TF_CUDA_PATHS="/usr/lib/aarch64-linux-gnu,/usr/local/cuda-${CUDA_VERSION},"
-
-#    CUDA_TOOLKIT_PATH="" \
-
+    TF_CUDA_COMPUTE_CAPABILITIES=5.3
 
 RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
     export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
