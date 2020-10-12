@@ -85,6 +85,8 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
 # RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
     # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
     # ./configure
+    
+RUN /usr/local/cuda/bin/nvcc --version
 
 RUN ./configure
 
