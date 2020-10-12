@@ -52,6 +52,7 @@ ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 #                          ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
 RUN printenv
+RUN locate libcudart.so
 
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=/usr/bin/python3 \
