@@ -40,8 +40,8 @@ RUN cd / && \
 WORKDIR /tensorflow
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/usr/local/cuda/bin:$PATH"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+ENV PATH="/usr/local/cuda-10.2/bin:$PATH"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-10.2/targets/aarch64-linux/lib:${LD_LIBRARY_PATH}"
 
 # ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
 ARG MAKEFLAGS=-j8
