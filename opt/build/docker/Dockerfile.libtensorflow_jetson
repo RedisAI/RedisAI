@@ -41,20 +41,20 @@ WORKDIR /tensorflow
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV CUDA_HOME="/usr/local/cuda"
-ENV PATH="/usr/local/cuda/bin:${PATH}"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
-ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
-ARG MAKEFLAGS=-j8
-ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:${PATH}"
+ENV PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH
 ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH}"
-ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
+# ENV LLVM_CONFIG="/usr/bin/llvm-config-9"
+ARG MAKEFLAGS=-j8
+# ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:${PATH}"
+# ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH}"
+# ENV LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:${LD_LIBRARY_PATH}
 # export LD_LIBRARY_PATH=/usr/local/cuda-11.1/lib64\
 #                          ${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}
 
-RUN printenv
-RUN export PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH && \
-    export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH && \
-    ldconfig
+# RUN printenv
+# RUN export PATH=/usr/local/cuda-${CUDA_VERSION}/bin:$PATH && \
+    # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH && \
+    # ldconfig
 
 #RUN locate libcudart.so
 
@@ -77,11 +77,11 @@ ENV PYTHON_BIN_PATH=python${PY_VERSION_SUFFIX} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3
 
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
-    export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
-    ./configure
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so /usr/local/cuda-${CUDA_VERSION}/lib64/stubs/libcuda.so.1 && \
+    # export LD_LIBRARY_PATH=/usr/local/cuda-${CUDA_VERSION}/lib64/stubs:/usr/local/cuda-${CUDA_VERSION}/lib64:${LD_LIBRARY_PATH} && \
+    # ./configure
 
-# RUN ./configure
+RUN ./configure
 
 RUN bazel build \
     --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
