@@ -8,8 +8,8 @@ ARG TF_TENSORRT_VERSION="7.2"
 ARG TF_NCCL_VERSION=""
 ARG TF_CUDA_PATHS=""
 
-RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 &&
-    chmod +x bazel-3.6.0-linux-arm64 &&
+RUN wget https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 && \
+    chmod +x bazel-3.6.0-linux-arm64 && \
     mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
 
 # Running bazel inside a `docker build` command causes trouble, cf:
@@ -31,9 +31,9 @@ RUN apt-get update && apt-get install -y \
     python${PY_VERSION_SUFFIX}-pip \
     swig
 
-RUN cd / &&
-    git clone https://github.com/tensorflow/tensorflow.git &&
-    cd /tensorflow &&
+RUN cd / && \
+    git clone https://github.com/tensorflow/tensorflow.git && \
+    cd /tensorflow && \
     git checkout ${TF_BRANCH}
 
 WORKDIR /tensorflow
