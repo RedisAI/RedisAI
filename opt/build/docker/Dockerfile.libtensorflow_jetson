@@ -2,14 +2,9 @@ ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
 FROM ${BUILD_IMAGE}
 ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
-ARG CUDA_TOOLKIT_PATH="/usr/local/cuda"
-ARG TF_BRANCH="r2.3"
 ARG TF_TENSORRT_VERSION="7.2"
-ARG TF_NCCL_VERSION=""
-ARG TF_CUDA_PATHS=""
 
 ENV DEBIAN_FRONTEND=noninteractive
-ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin:$PATH"
 ARG MAKEFLAGS=-j8
 
 RUN wget --no-check-certificate https://github.com/bazelbuild/bazel/releases/download/3.6.0/bazel-3.6.0-linux-arm64 && \
@@ -45,10 +40,6 @@ RUN apt-get update && \
         llvm-9 \
         llvm-9-dev
 
-# RUN pip3 install -U pip six 'numpy<1.19.0' wheel setuptools mock 'future>=0.17.1' 'gast==0.3.3' typing_extensions h5py
-# RUN pip3 install -U keras_applications --no-deps
-# RUN pip3 install -U keras_preprocessing --no-deps
-
 RUN export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
 RUN wget --no-check-certificate https://github.com/tensorflow/tensorflow/archive/v2.3.0.tar.gz -O tensorflow.tar.gz \
@@ -61,7 +52,6 @@ WORKDIR /tensorflow
 # Set environment variables for configure.
 ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    TF_CUDA_VERSION=10.2 \
     TF_CUDA_CLANG=0 \
     TF_CUDNN_VERSION=8 \
     TF_NEED_IGNITE=0 \
@@ -103,8 +93,6 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64"
 ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin/:$PATH"
 ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH"
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/"
-
-RUN cd /usr/local/cuda-${CUDA_VERSION}/include && find "*cublas*"
 
 RUN ./configure
 
