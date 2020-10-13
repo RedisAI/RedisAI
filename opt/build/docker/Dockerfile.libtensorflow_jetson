@@ -70,28 +70,28 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_CUDA_VERSION=${CUDA_VERSION} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    TF_CUDA_PATHS="/usr/local/cuda-10.2/lib64,/usr/local/cuda-10.2/targets/aarch64-linux/,/usr/local/cuda-10.2/targets/aarch64-linux/lib/,/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
+    TF_CUDA_PATHS="/usr/local/cuda-${CUDA_VERSION}/lib64,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/,/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
     CUDA_TOOLKIT_PATH="${CUDA_TOOLKIT_PATH}"
 
 #####
 # https://forums.developer.nvidia.com/t/jetpack-4-3-tensorflow-cant-find-cudart-10-0-shared-library/120845/9
 #####
 RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.7
-RUN ln -s /usr/lib/aarch64-linux-gnu/libcublas.so /usr/lib/aarch64-linux-gnu/libcublas.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcupti.so.10 /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcupti.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcusolver.so.10 /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcusolver.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcurand.so.10 /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcurand.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcufft.so.10 /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcufft.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcudart.so /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcudart.so.10.0
-RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcusparse.so.10 /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcusparse.so.10.0
+RUN ln -s /usr/lib/aarch64-linux-gnu/libcublas.so /usr/lib/aarch64-linux-gnu/libcublas.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so.${CUDA_VERSION}
+RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.${CUDA_VERSION}
 RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer.so /usr/lib/aarch64-linux-gnu/libnvinfer.so.6
 RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.7 /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.6
 
-ENV PATH=/usr/local/cuda/bin:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/cuda/lib64
-ENV PATH=/usr/local/cuda-10.2/bin/:$PATH
-ENV LD_LIBRARY_PATH=/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/
+ENV PATH="/usr/local/cuda/bin:$PATH"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64"
+ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin/:$PATH"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH"
+ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/"
 
 RUN ./configure
 
