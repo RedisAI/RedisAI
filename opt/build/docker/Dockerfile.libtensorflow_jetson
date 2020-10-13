@@ -16,97 +16,88 @@ RUN wget --no-check-certificate https://github.com/bazelbuild/bazel/releases/dow
     chmod +x bazel-3.6.0-linux-arm64 && \
     mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
 
-# Running bazel inside a `docker build` command causes trouble, cf:
-# https://github.com/bazelbuild/bazel/issues/134
-# The easiest solution is to set up a bazelrc file forcing --batch.
-RUN echo "startup --batch" >>/etc/bazel.bazelrc
-# Similarly, we need to workaround sandboxing issues:
-#   https://github.com/bazelbuild/bazel/issues/418
-RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
-    >>/etc/bazel.bazelrc
+RUN echo "** Install requirements"
+RUN apt-get install -y libhdf5-serial-dev hdf5-tools
+RUN pip3 install -U pip six 'numpy<1.19.0' wheel setuptools mock 'future>=0.17.1' 'gast==0.3.3' typing_extensions h5py
+RUN pip3 install -U keras_applications --no-deps
+RUN pip3 install -U keras_preprocessing --no-deps
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-          python3-pip \
-		  python3-dev \
-          python3-matplotlib \
-		  build-essential \
-		  gfortran \
-		  git \
-		  cmake \
-		  libopenblas-dev \
-		  liblapack-dev \
-		  libblas-dev \
-		  libhdf5-serial-dev \
-		  hdf5-tools \
-		  libhdf5-dev \
-		  zlib1g-dev \
-		  zip \
-		  libjpeg8-dev \
-		  libopenmpi2 \
-          openmpi-bin \
-          openmpi-common \
-		  nodejs \
-		  npm \
-		  protobuf-compiler \
-          libprotoc-dev \
-		llvm-9 \
-          llvm-9-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
-RUN cd / && \
-    git clone https://github.com/tensorflow/tensorflow.git && \
-    cd /tensorflow && \
-    git checkout ${TF_BRANCH}
+RUN wget --no-check-certificate https://github.com/tensorflow/tensorflow/archive/v2.3.0.tar.gz -O tensorflow.tar.gz \
+    tar xzvf tensorflow \
+    cd tensorflow
 
 WORKDIR /tensorflow
 
+RUN export TMP=/tmp
+PYTHON_BIN_PATH=$(which python3) \
+PYTHON_LIB_PATH=$(python3 -c 'import site; print(site.getsitepackages()[0])') \
+TF_CUDA_COMPUTE_CAPABILITIES=${cuda_compute} \
+TF_CUDA_VERSION=10.2 \
+TF_CUDA_CLANG=0 \
+TF_CUDNN_VERSION=8 \
+TF_TENSORRT_VERSION=7.2 \
+CUDA_TOOLKIT_PATH=/usr/local/cuda \
+CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+TF_NEED_IGNITE=0 \
+TF_ENABLE_XLA=0 \
+TF_NEED_OPENCL_SYCL=0 \
+TF_NEED_COMPUTECPP=0 \
+TF_NEED_ROCM=0 \
+TF_NEED_CUDA=1 \
+TF_NEED_TENSORRT=1 \
+TF_NEED_OPENCL=0 \
+TF_NEED_MPI=0 \
+GCC_HOST_COMPILER_PATH=$(which gcc) \
+CC_OPT_FLAGS="-march=native" \
+TF_SET_ANDROID_WORKSPACE=0 \
+    ./configure
+# # Set environment variables for configure.
+# ENV PYTHON_BIN_PATH=/usr/bin/python3 \
+#     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
+#     TF_CUDA_VERSION=10.2 \
+#     TF_CUDA_CLANG=0 \
+#     TF_CUDNN_VERSION=8 \
+#     TF_NEED_IGNITE=0 \
+#     TF_ENABLE_XLA=0 \
+#     TF_NEED_OPENCL_SYCL=0 \
+#     TF_NEED_COMPUTECPP=0 \
+#     TF_NEED_ROCM=0 \
+#     TF_NEED_CUDA=1 \
+#     TF_NEED_TENSORRT=1 \
+#     TF_NEED_OPENCL=0 \
+#     TF_NEED_MPI=0 \
+#     TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
+#     TF_CUDA_VERSION=${CUDA_VERSION} \
+#     CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+#     TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+#     TF_CUDA_PATHS="/usr/include,/usr/local/cuda-${CUDA_VERSION}/lib64,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/,/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
+#     CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION}"
 
+# #####
+# # https://forums.developer.nvidia.com/t/jetpack-4-3-tensorflow-cant-find-cudart-10-0-shared-library/120845/9
+# #####
+# RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.7
+# RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.8
+# RUN ln -s /usr/lib/aarch64-linux-gnu/libcublas.so /usr/lib/aarch64-linux-gnu/libcublas.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so.${CUDA_VERSION}
+# RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.${CUDA_VERSION}
+# RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer.so /usr/lib/aarch64-linux-gnu/libnvinfer.so.6
+# RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.7 /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.6
 
-# Set environment variables for configure.
-ENV PYTHON_BIN_PATH=/usr/bin/python3 \
-    TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
-    TF_CUDA_VERSION=10.2 \
-    TF_CUDA_CLANG=0 \
-    TF_CUDNN_VERSION=8 \
-    TF_NEED_IGNITE=0 \
-    TF_ENABLE_XLA=0 \
-    TF_NEED_OPENCL_SYCL=0 \
-    TF_NEED_COMPUTECPP=0 \
-    TF_NEED_ROCM=0 \
-    TF_NEED_CUDA=1 \
-    TF_NEED_TENSORRT=1 \
-    TF_NEED_OPENCL=0 \
-    TF_NEED_MPI=0 \
-    TF_TENSORRT_VERSION=${TF_TENSORRT_VERSION} \
-    TF_CUDA_VERSION=${CUDA_VERSION} \
-    CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
-    TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
-    TF_CUDA_PATHS="/usr/include,/usr/local/cuda-${CUDA_VERSION}/lib64,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/,/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION}"
+# ENV PATH="/usr/local/cuda/bin:$PATH"
+# ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64"
+# ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin/:$PATH"
+# ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH"
+# ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/"
 
-#####
-# https://forums.developer.nvidia.com/t/jetpack-4-3-tensorflow-cant-find-cudart-10-0-shared-library/120845/9
-#####
-RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.7
-RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.8
-RUN ln -s /usr/lib/aarch64-linux-gnu/libcublas.so /usr/lib/aarch64-linux-gnu/libcublas.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcupti.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusolver.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcurand.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcufft.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcudart.so.${CUDA_VERSION}
-RUN ln -s /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.10 /usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/libcusparse.so.${CUDA_VERSION}
-RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer.so /usr/lib/aarch64-linux-gnu/libnvinfer.so.6
-RUN ln -s /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.7 /usr/lib/aarch64-linux-gnu/libnvinfer_plugin.so.6
-
-ENV PATH="/usr/local/cuda/bin:$PATH"
-ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64"
-ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin/:$PATH"
-ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH"
-ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/"
-
-RUN ./configure
+# RUN ./configure
 
 RUN bazel build \
     --action_env=LD_LIBRARY_PATH=${LD_LIBRARY_PATH} \
