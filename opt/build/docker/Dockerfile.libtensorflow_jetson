@@ -76,6 +76,8 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
 #####
 # https://forums.developer.nvidia.com/t/jetpack-4-3-tensorflow-cant-find-cudart-10-0-shared-library/120845/9
 #####
+RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.7
+RUN ln -s /usr/lib/aarch64-linux-gnu/libcudnn.so.8.0.0 /usr/lib/aarch64-linux-gnu/libcudnn.so.8
 RUN ln -s /usr/include/cuda/cudnn.h /usr/include/cuda/cudnn.h.${CUDNN_VERSION}
 RUN ln -s /usr/include/cuda/cudnn_version.h /usr/include/cuda/cudnn_version.h.${CUDNN_VERSION}
 RUN ln -s /usr/lib/aarch64-linux-gnu/libcublas.so /usr/lib/aarch64-linux-gnu/libcublas.so.${CUDA_VERSION}
