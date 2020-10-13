@@ -21,15 +21,34 @@ RUN echo "startup --batch" >>/etc/bazel.bazelrc
 RUN echo "build --spawn_strategy=standalone --genrule_strategy=standalone" \
     >>/etc/bazel.bazelrc
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    git \
-    openjdk-8-jdk \
-    python${PY_VERSION_SUFFIX} \
-    python${PY_VERSION_SUFFIX}-dev \
-    python${PY_VERSION_SUFFIX}-pip \
-    swig
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+          python3-pip \
+		  python3-dev \
+          python3-matplotlib \
+		  build-essential \
+		  gfortran \
+		  git \
+		  cmake \
+		  libopenblas-dev \
+		  liblapack-dev \
+		  libblas-dev \
+		  libhdf5-serial-dev \
+		  hdf5-tools \
+		  libhdf5-dev \
+		  zlib1g-dev \
+		  zip \
+		  libjpeg8-dev \
+		  libopenmpi2 \
+          openmpi-bin \
+          openmpi-common \
+		  nodejs \
+		  npm \
+		  protobuf-compiler \
+          libprotoc-dev \
+		llvm-9 \
+          llvm-9-dev \
+    && rm -rf /var/lib/apt/lists/*
 
 RUN cd / && \
     git clone https://github.com/tensorflow/tensorflow.git && \
