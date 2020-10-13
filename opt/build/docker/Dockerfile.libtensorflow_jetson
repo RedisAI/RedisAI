@@ -1,4 +1,4 @@
-ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-base:r32.4.3
+ARG BUILD_IMAGE=nvcr.io/nvidia/l4t-tensorflow:r32.4.3-tf2.2-py3
 FROM ${BUILD_IMAGE}
 ARG CUDA_VERSION="10.2"
 ARG CUDNN_VERSION="8"
