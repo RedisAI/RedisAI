@@ -17,8 +17,34 @@ RUN wget --no-check-certificate https://github.com/bazelbuild/bazel/releases/dow
     mv bazel-3.6.0-linux-arm64 /usr/bin/bazel
 
 RUN echo "** Install requirements"
-RUN apt update -y && \
-    apt install -y libhdf5-serial-dev hdf5-tools
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        python3-pip \
+        python3-dev \
+        python3-matplotlib \
+        build-essential \
+        gfortran \
+        git \
+        cmake \
+        libopenblas-dev \
+        liblapack-dev \
+        libblas-dev \
+        libhdf5-serial-dev \
+        hdf5-tools \
+        libhdf5-dev \
+        zlib1g-dev \
+        zip \
+        libjpeg8-dev \
+        libopenmpi2 \
+        openmpi-bin \
+        openmpi-common \
+        nodejs \
+        npm \
+        protobuf-compiler \
+        libprotoc-dev \
+        llvm-9 \
+        llvm-9-dev
+
 RUN pip3 install -U pip six 'numpy<1.19.0' wheel setuptools mock 'future>=0.17.1' 'gast==0.3.3' typing_extensions h5py
 RUN pip3 install -U keras_applications --no-deps
 RUN pip3 install -U keras_preprocessing --no-deps
