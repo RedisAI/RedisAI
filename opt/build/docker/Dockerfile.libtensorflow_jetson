@@ -78,7 +78,7 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
     TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
     TF_CUDA_PATHS="/usr/include,/usr/local/cuda-${CUDA_VERSION}/lib64,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/,/usr/local/cuda-${CUDA_VERSION}/targets/aarch64-linux/lib/,/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION}"
+    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VERSION}" \
     CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
     TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu
 
