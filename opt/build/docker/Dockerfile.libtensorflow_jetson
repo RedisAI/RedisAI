@@ -104,6 +104,8 @@ ENV PATH="/usr/local/cuda-${CUDA_VERSION}/bin/:$PATH"
 ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VERSION}/lib64:$LD_LIBRARY_PATH"
 ENV LD_LIBRARY_PATH="$LD_LIBRARY_PATH:/usr/lib/aarch64-linux-gnu/"
 
+RUN cd /usr/local/cuda-${CUDA_VERSION}/include && find "*cublas*"
+
 RUN ./configure
 
 RUN bazel build \
