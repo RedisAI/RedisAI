@@ -53,6 +53,8 @@ ENV PYTHON_BIN_PATH=/usr/bin/python3 \
     TF_CUDA_PATHS="/usr/lib/aarch64-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VERSION}," \
     CUDA_TOOLKIT_PATH="${CUDA_TOOLKIT_PATH}"
 
+RUN ln -s /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcudart.so /usr/local/cuda-10.2/targets/aarch64-linux/lib/libcudart.so.10.0
+
 RUN ./configure
 
 RUN bazel build \
