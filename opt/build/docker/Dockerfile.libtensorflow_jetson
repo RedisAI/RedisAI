@@ -30,30 +30,30 @@ RUN wget --no-check-certificate https://github.com/tensorflow/tensorflow/archive
 
 WORKDIR /tensorflow
 
-RUN export TMP=/tmp
-PYTHON_BIN_PATH=$(which python3) \
-PYTHON_LIB_PATH=$(python3 -c 'import site; print(site.getsitepackages()[0])') \
-TF_CUDA_COMPUTE_CAPABILITIES=${cuda_compute} \
-TF_CUDA_VERSION=10.2 \
-TF_CUDA_CLANG=0 \
-TF_CUDNN_VERSION=8 \
-TF_TENSORRT_VERSION=7.2 \
-CUDA_TOOLKIT_PATH=/usr/local/cuda \
-CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
-TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
-TF_NEED_IGNITE=0 \
-TF_ENABLE_XLA=0 \
-TF_NEED_OPENCL_SYCL=0 \
-TF_NEED_COMPUTECPP=0 \
-TF_NEED_ROCM=0 \
-TF_NEED_CUDA=1 \
-TF_NEED_TENSORRT=1 \
-TF_NEED_OPENCL=0 \
-TF_NEED_MPI=0 \
-GCC_HOST_COMPILER_PATH=$(which gcc) \
-CC_OPT_FLAGS="-march=native" \
-TF_SET_ANDROID_WORKSPACE=0 \
-    ./configure
+RUN export TMP=/tmp \
+    PYTHON_BIN_PATH=$(which python3) \
+    PYTHON_LIB_PATH=$(python3 -c 'import site; print(site.getsitepackages()[0])') \
+    TF_CUDA_COMPUTE_CAPABILITIES=${cuda_compute} \
+    TF_CUDA_VERSION=10.2 \
+    TF_CUDA_CLANG=0 \
+    TF_CUDNN_VERSION=8 \
+    TF_TENSORRT_VERSION=7.2 \
+    CUDA_TOOLKIT_PATH=/usr/local/cuda \
+    CUDNN_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+    TENSORRT_INSTALL_PATH=/usr/lib/aarch64-linux-gnu \
+    TF_NEED_IGNITE=0 \
+    TF_ENABLE_XLA=0 \
+    TF_NEED_OPENCL_SYCL=0 \
+    TF_NEED_COMPUTECPP=0 \
+    TF_NEED_ROCM=0 \
+    TF_NEED_CUDA=1 \
+    TF_NEED_TENSORRT=1 \
+    TF_NEED_OPENCL=0 \
+    TF_NEED_MPI=0 \
+    GCC_HOST_COMPILER_PATH=$(which gcc) \
+    CC_OPT_FLAGS="-march=native" \
+    TF_SET_ANDROID_WORKSPACE=0 \
+        ./configure
 # # Set environment variables for configure.
 # ENV PYTHON_BIN_PATH=/usr/bin/python3 \
 #     TF_CUDA_COMPUTE_CAPABILITIES=5.3 \
