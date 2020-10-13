@@ -45,9 +45,9 @@ RUN apt-get update && \
         llvm-9 \
         llvm-9-dev
 
-RUN pip3 install -U pip six 'numpy<1.19.0' wheel setuptools mock 'future>=0.17.1' 'gast==0.3.3' typing_extensions h5py
-RUN pip3 install -U keras_applications --no-deps
-RUN pip3 install -U keras_preprocessing --no-deps
+# RUN pip3 install -U pip six 'numpy<1.19.0' wheel setuptools mock 'future>=0.17.1' 'gast==0.3.3' typing_extensions h5py
+# RUN pip3 install -U keras_applications --no-deps
+# RUN pip3 install -U keras_preprocessing --no-deps
 
 RUN export LD_LIBRARY_PATH=/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
 
