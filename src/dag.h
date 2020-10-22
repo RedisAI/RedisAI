@@ -14,10 +14,23 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
-void RedisAI_DagCurrentOpBatchingInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
-                                      int *batchable_op,
-                                      size_t *batchsize, size_t *minbatchsize);
 
+void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
+                          RAI_DagOp **currentOp);
+ 
+void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
+                                 RAI_DagOp **currentOp, int *currentOpReady,
+                                 int *currentOpBatchable,
+                                 int *deviceComplete, int *dagComplete);
+
+void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
+                            size_t *batchsize, size_t *minbatchsize,
+                            size_t *inbatchsize);
+ 
+void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1,
+                                RedisAI_RunInfo *rinfo2, RAI_DagOp *op2,
+                                int *batched, size_t *inbatchsize);
+ 
 /**
  * Actual method running at most one of the DAGRUN comments in the worker
  * thread comsuming operations on a specific device. After a step is executed,
@@ -30,13 +43,11 @@ void RedisAI_DagCurrentOpBatchingInfo(RedisAI_RunInfo *rinfo, const char *device
  *
  * @param rinfo context in which RedisAI blocking commands operate.
  * @param devicestr device identifier associated with the current queue
- * @param progress value is set to one if a step has been executed
- * @param device_complete value is set if all ops for the device have been executed
- * @param all_devices_complete value is set if all ops for all devices have been executed
  * @return
  */
-void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr,
-                               int *progress, int *device_complete, int *all_devices_complete);
+void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr);
+
+void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **rinfo, const char* devicestr);
 
 /**
  * Reply Callback called after a successful RedisModule_UnblockClient() after
