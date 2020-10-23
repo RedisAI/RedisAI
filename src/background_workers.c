@@ -10,7 +10,6 @@
 
 #include "background_workers.h"
 #include "dag.h"
-#include "model_script_run_session.h"
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
@@ -155,15 +154,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                                     &currentOpBatchable,
                                     &deviceComplete, &dagComplete);
 
-        // TODO DAG REFACTORING
-        // If not ready, then put back and skip to next in queue
-        // If device complete, handle that
-        // If dag complete, handle that
-
         if (dagComplete) {
-          // TODO DAG REFACTORING
-          // analyze what happens here
-          // set an `unblock` variable?
           do_unblock = 1;
           break;
         }
@@ -171,17 +162,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         do_unblock = 0;
 
         if (deviceComplete) {
-          // TODO DAG REFACTORING
-          // we should just evict and do nothing
           do_run = 0;
           do_retry = 0;
           break;
         }
 
         if (currentOpReady == 0) {
-          // TODO DAG REFACTORING
-          // in this case (and only in this case) we should put the second item in the queue as first,
-          // or in case it's the only item in the queue put it back wait
           do_run = 0;
           do_retry = 1;
           break;
@@ -284,10 +270,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         break;
       }
 
-      if (array_len(batch_rinfo) == 0) {
-        // TODO DAG REFACTORING: this should throw an error, we already
-        // checked the case where item is != NULL
-      }
+      // if (array_len(batch_rinfo) == 0) {
+      // }
       assert(array_len(batch_rinfo) != 0);
 
       // We're ready to process the items in the evicted list, so actually
@@ -296,9 +280,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         queueEvict(run_queue_info->run_queue, evicted_items[i]);
       }
 
-      int batched_run = array_len(batch_rinfo) == 1;
+      int batched_run = array_len(batch_rinfo) > 1;
 
-      // TODO DAG REFACTORING: this might not be useful after all
+      // CHECK: this might not be useful after all
       int device_complete = batched_run == 0 && do_run == 0 && do_retry == 0;
 
       int run_error = 0;
@@ -373,8 +357,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       array_free(batch_rinfo);
 
       if (do_unblock == 1) {
-        // TODO DAG REFACTORING: get evicted_rinfo (it's one in case of unblock)
-        // The same unblock must happen when an error occurs on a Dag
         assert(array_len(evicted_items) == 1);
         RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
 
@@ -390,8 +372,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       // current operations were not ready (they depend on other workers on other
       // queues completing their job)
       if (do_retry == 1) {
-        // TODO DAG REFACTORING: get evicted_rinfo (it's one in case of retry)
-        // CHANGE ASSERT TO ERROR
+        // TODO: change assert to error
         assert(array_len(evicted_items) == 1);
         RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
 

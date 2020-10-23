@@ -723,7 +723,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     # Commenting due to: 'ascii' codec can't encode character '\u274c' in position 8: ordinal not in range(128)
     # env.assertEqual(DEVICE, financialNetRunInfo['device']) 
     env.assertTrue(financialNetRunInfo['duration'] > 0)
-    env.assertEqual(0, financialNetRunInfo['samples'])
+    env.assertEqual(2*MAX_TRANSACTIONS*10, financialNetRunInfo['samples'])
     env.assertEqual(2*MAX_TRANSACTIONS*10, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
 

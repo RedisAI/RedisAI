@@ -137,13 +137,6 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
 
   pthread_mutex_unlock(rinfo->dagMutex);
 
-  // TODO DAG REFACTORING
-  // up until this point, we will need to do this in a non-batched fashion
-  // At this point though we can accumulate the mctxs into batches and
-  // send them all.
-  // This means that we will need to figure out how to run a piece of the code,
-  // return the mctx
-
   RAI_ModelRunCtx *mctxs[1];
   mctxs[0] = currentOp->mctx;
   const long long start = ustime();
@@ -185,7 +178,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
  */
 void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo, RAI_DagOp **currentOps) {
 
-  int n_rinfo = array_len(rinfo);
+  int n_rinfo = array_len(batched_rinfo);
 
   RAI_ModelRunCtx *mctxs[n_rinfo];
 
@@ -234,27 +227,24 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     pthread_mutex_unlock(rinfo->dagMutex);
   }
 
-  // TODO DAG REFACTORING
-  // up until this point, we will need to do this in a non-batched fashion
-  // At this point though we can accumulate the mctxs into batches and
-  // send them all.
-  // This means that we will need to figure out how to run a piece of the code,
-  // return the mctx
-
   RAI_Error err = {0};
   const long long start = ustime();
-  int result = RAI_ModelRun(mctxs, 1, &err);
+  int result = RAI_ModelRun(mctxs, n_rinfo, &err);
   const long long end = ustime();
 
   long long duration = end - start;
 
   for (int i=0; i<n_rinfo; i++) {
+    RedisAI_RunInfo *rinfo = batched_rinfo[i];
+    RAI_DagOp *currentOp = currentOps[i];
+
     pthread_mutex_lock(rinfo->dagMutex);
 
     if (result == REDISMODULE_ERR) {
       currentOp->result = result;
+      RAI_SetError(currentOp->err, err.code, err.detail);
       pthread_mutex_unlock(rinfo->dagMutex);
-      return;
+      continue;
     }
 
     currentOp->duration_us = end - start;
@@ -270,6 +260,10 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     currentOp->result = result;
 
     pthread_mutex_unlock(rinfo->dagMutex);
+  }
+
+  if (result == REDISMODULE_ERR) {
+    RAI_ClearError(&err);
   }
 
   return;
@@ -343,7 +337,8 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, AI_dict *opTensorsContext) {
     return -1;
   }
 
-  size_t ninputs = RAI_ModelRunCtxNumInputs(op->mctx);
+  // size_t ninputs = RAI_ModelRunCtxNumInputs(op->mctx);
+  size_t ninputs = array_len(op->inkeys);
 
   int batchsize = 0;
 
@@ -417,10 +412,8 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext,
   return 1;
 }
 
-void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
-                          RAI_DagOp **currentOp) {
-  pthread_mutex_lock(rinfo->dagMutex);
-
+void RedisAI_DagCurrentOpNoLock(RedisAI_RunInfo *rinfo, const char *devicestr,
+                                RAI_DagOp **currentOp) {
   *rinfo->dagRefCount += 1;
 
   RAI_DagOp *currentOp_ = NULL;
@@ -431,7 +424,7 @@ void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
     }
 
     if (strcasecmp(devicestr, rinfo->dagOps[i]->devicestr) == 0) {
-      *currentOp = rinfo->dagOps[i];
+      currentOp_ = rinfo->dagOps[i];
       break;
     }
   }
@@ -439,8 +432,6 @@ void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
   *currentOp = currentOp_;
 
   *rinfo->dagRefCount -= 1;
-
-  pthread_mutex_unlock(rinfo->dagMutex);
 }
  
 void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
@@ -455,7 +446,6 @@ void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
   int dagComplete_ = 1;
   int deviceComplete_ = 1;
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
-
     if (rinfo->dagOps[i]->result >= 0) {
       continue;
     }
@@ -464,7 +454,7 @@ void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
 
     if (strcasecmp(devicestr, rinfo->dagOps[i]->devicestr) == 0) {
       deviceComplete_ = 0;
-      *currentOp = rinfo->dagOps[i];
+      currentOp_ = rinfo->dagOps[i];
       break;
     }
   }
@@ -555,7 +545,7 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
 
   *rinfo->dagRefCount += 1;
 
-  RedisAI_DagCurrentOp(rinfo, devicestr, &currentOp);
+  RedisAI_DagCurrentOpNoLock(rinfo, devicestr, &currentOp);
  
   pthread_mutex_unlock(rinfo->dagMutex);
 
@@ -598,14 +588,13 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
 }
 
 void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const char *devicestr) {
-
   // Assumption: ops are guaranteed to be all MODELRUN
 
-  int n_ops = array_len(rinfo);
+  int n_ops = array_len(batched_rinfo);
 
   assert(n_ops > 1);
 
-  RAI_DagOps *currentOps[n_ops];
+  RAI_DagOp *currentOps[n_ops];
 
   for (int i=0; i<n_ops; i++) {
     RedisAI_RunInfo *rinfo = batched_rinfo[i];
@@ -615,7 +604,7 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
     *rinfo->dagRefCount += 1;
 
     RAI_DagOp *currentOp = NULL;
-    RedisAI_DagCurrentOp(rinfo, devicestr, &currentOp);
+    RedisAI_DagCurrentOpNoLock(rinfo, devicestr, &currentOp);
 
     currentOps[i] = currentOp;
  
@@ -626,10 +615,9 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
 
   for (int i=0; i<n_ops; i++) {
     RedisAI_RunInfo *rinfo = batched_rinfo[i];
+    RAI_DagOp *currentOp = currentOps[i];
 
     pthread_mutex_lock(rinfo->dagMutex);
-
-    RAI_DagOp *currentOp = currentOps[i];
 
     if (currentOp->result != REDISMODULE_OK) {
       *rinfo->dagError = 1;
@@ -762,21 +750,18 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
     return REDISMODULE_ERR;
   }
 
-  // return REDISMODULE_OK;
-
-  // TODO DAG REFACTORING: if single_op_dag == 1 then we reply with
-  // a single reply. However, in this case we can't return an error
-  // as we do below here, since we have already set the reply
-
   AI_dictIterator *persist_iter =
       AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
   AI_dictEntry *persist_entry = AI_dictNext(persist_iter);
   while (persist_entry) {
     const char *persist_key_name = AI_dictGetKey(persist_entry);
+
     AI_dictEntry *tensor_entry =
         AI_dictFind(rinfo->dagTensorsContext, persist_key_name);
+
     if (tensor_entry) {
       RAI_Tensor *tensor = AI_dictGetVal(tensor_entry);
+
       if (tensor == NULL) {
         persist_entry = AI_dictNext(persist_iter);
         continue;
@@ -959,6 +944,13 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
   return REDISMODULE_OK;
 }
 
+void RedisAI_FreeData(RedisModuleCtx *ctx, void *rinfo) {}
+
+void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
+  RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!",
+                  (void *)bc);
+}
+
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
 
@@ -989,8 +981,6 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     chainingOpCount++;
     rinfo->single_op_dag = 1;
     rinfo->single_device_dag = 1;
-    // TODO DAG REFACTORING
-    // In this case we shouldn't mangle, this can be a future optimization
   }
 
   for (size_t argpos = argstart; argpos <= argc - 1; argpos++) {
@@ -1266,7 +1256,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
   }
 
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, NULL, 0);
+  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RedisAI_FreeData, 0);
+  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
 
   const char **devices = array_new(const char *, 10);
 
