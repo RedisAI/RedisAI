@@ -5,7 +5,6 @@
 #include "redismodule.h"
 #include "util/dict.h"
 #include "model_struct.h"
-#include "model_script_run_session.h"
 #include "background_workers.h"
 #include "version.h"
 

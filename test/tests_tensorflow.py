@@ -732,7 +732,9 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
 
     def functor_financialNet(env, key_max, repetitions):
         for tensor_number in range(1, key_max):
+            # print(tensor_number)
             for repetition in range(1, repetitions):
+                # print(tensor_number, repetition)
                 ret = env.execute_command('AI.MODELRUN', 'financialNet{1}', 'INPUTS',
                                           'transactionTensor{{1}}:{}'.format(tensor_number),
                                           'referenceTensor{{1}}:{}'.format(tensor_number), 'OUTPUTS',
