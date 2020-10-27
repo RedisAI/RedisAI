@@ -635,7 +635,7 @@ By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantial
 
 The **`AI.DAGRUN_RO`** command is a read-only variant of `AI.DAGRUN`.
 
-Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' command in the Redis command table. However, even when `PERSIST` isn't used, read-only cluster replicas will refuse tp run the command and it will be redirected to the master even if the connection is using read-only mode.
+Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' command in the Redis command table. However, even when `PERSIST` isn't used, read-only cluster replicas will refuse to run the command and it will be redirected to the master even if the connection is using read-only mode.
 
 `AI.DAGRUN_RO` behaves exactly like the original command, excluding the `PERSIST` option. It is a read-only command that can safely be with read-only replicas.
 
