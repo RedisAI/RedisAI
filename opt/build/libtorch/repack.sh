@@ -30,7 +30,7 @@ ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
 TARGET_DIR=$ROOT/deps//$OS-$ARCH-$DEVICE
 
 # avoid wget warnings on macOS
-[[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8
+[[ $OS == macos ]] && export LC_ALL=en_US.UTF-8
 
 if [[ -z $PT_VERSION ]]; then
 	PT_VERSION="latest"
@@ -46,7 +46,7 @@ if [[ $OS == linux ]]; then
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
 	fi
-elif [[ $OS == macosx ]]; then
+elif [[ $OS == macos ]]; then
 	PT_OS=macos
 	PT_ARCH=x86_64
 	PT_BUILD=cpu
@@ -66,7 +66,7 @@ if [[ $OS == linux ]]; then
 			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}.zip
 		fi
 	fi
-elif [[ $OS == macosx ]]; then
+elif [[ $OS == macos ]]; then
 	LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_VERSION}.zip
 fi
 
@@ -83,5 +83,7 @@ if [[ $OS == linux ]]; then
 fi
 
 unzip -q -o $LIBTORCH_ZIP
-tar czf $TARGET_DIR/libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz libtorch/
+dest=$TARGET_DIR/libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
+mkdir -p $(dirname $dest)
+tar czf $dest libtorch/
 rm -rf libtorch/ $LIBTORCH_ZIP
