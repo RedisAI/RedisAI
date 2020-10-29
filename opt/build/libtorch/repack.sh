@@ -41,7 +41,7 @@ if [[ $OS == linux ]]; then
 	if [[ $GPU != 1 ]]; then
 		PT_BUILD=cpu
 	else
-		PT_BUILD=cu102
+		PT_BUILD=cu101
 	fi
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
@@ -61,9 +61,9 @@ if [[ $OS == linux ]]; then
 		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-latest.zip
 	else
 		if [[ $GPU != 1 ]]; then
-			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2Bcpu.zip
+			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
 		else
-			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}.zip
+			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
 		fi
 	fi
 elif [[ $OS == macos ]]; then
