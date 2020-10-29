@@ -9,10 +9,10 @@ ROOT=$HERE/../../..
 . $ROOT/opt/readies/shibumi/functions
 ROOT=$(realpath $ROOT)
 
-if [[ "$1" == "cpu" ]]; then
+if [[ "$1" == "cpu" || $CPU == 1 ]]; then
 	GPU=0
 	DEVICE=cpu
-elif [[ "$1" == "gpu" ]]; then
+elif [[ "$1" == "gpu" || $GPU == 1 ]]; then
 	GPU=1
 	DEVICE=gpu
 else
@@ -27,7 +27,7 @@ fi
 OS=$(python3 $ROOT/opt/readies/bin/platform --os)
 ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
 
-TARGET_DIR=$ROOT/deps//$OS-$ARCH-$DEVICE
+TARGET_DIR=$ROOT/deps/$OS-$ARCH-$DEVICE
 
 # avoid wget warnings on macOS
 [[ $OS == macos ]] && export LC_ALL=en_US.UTF-8
@@ -41,7 +41,7 @@ if [[ $OS == linux ]]; then
 	if [[ $GPU != 1 ]]; then
 		PT_BUILD=cpu
 	else
-		PT_BUILD=cu101
+		PT_BUILD=cu102
 	fi
 	if [[ $ARCH == x64 ]]; then
 		PT_ARCH=x86_64
