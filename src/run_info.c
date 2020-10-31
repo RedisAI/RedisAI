@@ -106,9 +106,6 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
-  rinfo->client = NULL;
-  rinfo->single_op_dag = 0;
-  rinfo->single_device_dag = 0;
   rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeTensorVals, NULL);
   if (!(rinfo->dagTensorsContext)) {
     return REDISMODULE_ERR;
@@ -126,8 +123,6 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!(rinfo->dagOps)) {
     return REDISMODULE_ERR;
   }
-  rinfo->dagReplyLength = 0;
-  rinfo->dagNumberCommands = 0;
   rinfo->dagMaster = 1;
   rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
   rinfo->dagMutex = RedisModule_Alloc(sizeof(pthread_mutex_t));
