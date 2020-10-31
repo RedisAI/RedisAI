@@ -169,11 +169,11 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
 }
 
 /**
- * Execution of a MODELRUN DAG step.
- * If an error occurs, it is recorded in the DagOp struct.
+ * Execution of a batched (MODELRUN) DAG step.
+ * If an error occurs, it is recorded in all DagOp structs.
  *
- * @param rinfo context in which RedisAI blocking commands operate.
- * @param currentOp MODELRUN DagOp to be executed
+ * @param batched_rinfo array of contexts in which RedisAI blocking commands operate.
+ * @param currentOps MODELRUN DagOps to be executed
  * @return
  */
 void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo, RAI_DagOp **currentOps) {
