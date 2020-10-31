@@ -207,19 +207,19 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     }
 
     for (uint i=0; i<n_inkeys; i++) {
-      const char *opname = NULL;
+      const char *input_name = NULL;
       if (currentOp->mctx->model->inputs) {
-        opname = currentOp->mctx->model->inputs[i];
+        input_name = currentOp->mctx->model->inputs[i];
       }
-      RAI_ModelRunCtxAddInput(currentOp->mctx, opname, inputTensors[i]);
+      RAI_ModelRunCtxAddInput(currentOp->mctx, input_name, inputTensors[i]);
     }
 
     for (uint i=0; i<n_outkeys; i++) {
-      const char *opname = NULL;
-      if (currentOp->mctx->model->inputs) {
-        opname = currentOp->mctx->model->outputs[i];
+      const char *output_name = NULL;
+      if (currentOp->mctx->model->outputs) {
+        output_name = currentOp->mctx->model->outputs[i];
       }
-      RAI_ModelRunCtxAddOutput(currentOp->mctx, opname);
+      RAI_ModelRunCtxAddOutput(currentOp->mctx, output_name);
     }
 
     mctxs[i] = currentOp->mctx;
@@ -247,7 +247,7 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
       continue;
     }
 
-    currentOp->duration_us = end - start;
+    currentOp->duration_us = duration;
 
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
     for (size_t outputNumber = 0; outputNumber<noutputs; outputNumber++) {
@@ -349,6 +349,8 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, AI_dict *opTensorsContext) {
   for (size_t i = 0; i < ninputs; i++) {
     RAI_Tensor *input;
     RAI_getTensorFromLocalContext(NULL, opTensorsContext, RedisModule_StringPtrLen(op->inkeys[i], NULL), &input, op->err);
+    // We are expecting input != NULL, because we only reach this function if all inputs
+    // are available in context for the current dagOp. We could be more defensive eventually.
  
     if (i == 0) {
       batchsize = RAI_TensorDim(input, 0);
