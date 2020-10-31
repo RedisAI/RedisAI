@@ -978,7 +978,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         RAI_FreeRunInfo(ctx, rinfo);
         return REDISMODULE_ERR;
       }
-    } else if (!strcasecmp(arg_string, "|>")) {
+    } else if (!strcasecmp(arg_string, "|>") && argpos < argc - 1) {
       // on the first pipe operator, if LOAD or PERSIST were used, we've already
       // allocated memory
       if (chainingOpCount > 0) {
