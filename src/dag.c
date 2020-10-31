@@ -412,9 +412,9 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext,
   return 1;
 }
 
-void RedisAI_DagCurrentOpNoLock(RedisAI_RunInfo *rinfo, const char *devicestr,
-                                RAI_DagOp **currentOp) {
-  *rinfo->dagRefCount += 1;
+void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
+                          RAI_DagOp **currentOp) {
+  pthread_mutex_lock(rinfo->dagMutex);
 
   RAI_DagOp *currentOp_ = NULL;
   for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
@@ -429,9 +429,9 @@ void RedisAI_DagCurrentOpNoLock(RedisAI_RunInfo *rinfo, const char *devicestr,
     }
   }
 
-  *currentOp = currentOp_;
+  pthread_mutex_unlock(rinfo->dagMutex);
 
-  *rinfo->dagRefCount -= 1;
+  *currentOp = currentOp_;
 }
  
 void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
@@ -439,8 +439,6 @@ void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
                                  int *currentOpBatchable,
                                  int *deviceComplete, int *dagComplete) {
   pthread_mutex_lock(rinfo->dagMutex);
-
-  *rinfo->dagRefCount += 1;
 
   RAI_DagOp *currentOp_ = NULL;
   int dagComplete_ = 1;
@@ -466,7 +464,6 @@ void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
   *currentOpBatchable = 0;
 
   if (deviceComplete_) {
-    *rinfo->dagRefCount -= 1;
     pthread_mutex_unlock(rinfo->dagMutex);
     return;
   }
@@ -480,14 +477,11 @@ void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
   for (int i=0; i<n_inkeys; i++) {
     if (AI_dictFind(rinfo->dagTensorsContext,
                     RedisModule_StringPtrLen(currentOp_->inkeys[i], NULL)) == NULL) {
-      *rinfo->dagRefCount -= 1;
       pthread_mutex_unlock(rinfo->dagMutex);
       *currentOpReady = 0;
       return;
     }
   }
-
-  *rinfo->dagRefCount -= 1;
 
   pthread_mutex_unlock(rinfo->dagMutex);
 }
@@ -500,15 +494,11 @@ void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
  
   pthread_mutex_lock(rinfo->dagMutex);
 
-  *rinfo->dagRefCount += 1;
-
   if (op->mctx) {
     *batchsize = op->mctx->model->opts.batchsize;
     *minbatchsize = op->mctx->model->opts.minbatchsize;
     *inbatchsize = RAI_DagOpBatchSize(op, rinfo->dagTensorsContext);
   }
-
-  *rinfo->dagRefCount -= 1;
 
   pthread_mutex_unlock(rinfo->dagMutex);
 }
@@ -521,8 +511,6 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1,
  
   pthread_mutex_lock(rinfo2->dagMutex);
 
-  *rinfo2->dagRefCount += 1;
-
   if (op2->mctx) {
     int match = RAI_DagOpBatchable(op1, rinfo1->dagTensorsContext,
                                    op2, rinfo2->dagTensorsContext);
@@ -533,21 +521,13 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1,
     }
   }
 
-  *rinfo2->dagRefCount -= 1;
-
   pthread_mutex_unlock(rinfo2->dagMutex);
 }
 
 void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
   RAI_DagOp *currentOp = NULL;
 
-  pthread_mutex_lock(rinfo->dagMutex);
-
-  *rinfo->dagRefCount += 1;
-
-  RedisAI_DagCurrentOpNoLock(rinfo, devicestr, &currentOp);
- 
-  pthread_mutex_unlock(rinfo->dagMutex);
+  RedisAI_DagCurrentOp(rinfo, devicestr, &currentOp);
 
   switch (currentOp->commandType) {
     case REDISAI_DAG_CMD_TENSORSET: {
@@ -574,15 +554,11 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
     }
   }
 
-  pthread_mutex_lock(rinfo->dagMutex);
-
   if (currentOp->result != REDISMODULE_OK) {
+    pthread_mutex_lock(rinfo->dagMutex);
     *rinfo->dagError = 1;
+    pthread_mutex_unlock(rinfo->dagMutex);
   }
-
-  *rinfo->dagRefCount -= 1;
-
-  pthread_mutex_unlock(rinfo->dagMutex);
   
   return;
 }
@@ -599,16 +575,10 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
   for (int i=0; i<n_ops; i++) {
     RedisAI_RunInfo *rinfo = batched_rinfo[i];
 
-    pthread_mutex_lock(rinfo->dagMutex);
-
-    *rinfo->dagRefCount += 1;
-
     RAI_DagOp *currentOp = NULL;
-    RedisAI_DagCurrentOpNoLock(rinfo, devicestr, &currentOp);
+    RedisAI_DagCurrentOp(rinfo, devicestr, &currentOp);
 
     currentOps[i] = currentOp;
- 
-    pthread_mutex_unlock(rinfo->dagMutex);
   }
 
   RedisAI_BatchedDagRunSession_ModelRun_Step(batched_rinfo, currentOps);
@@ -617,15 +587,11 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
     RedisAI_RunInfo *rinfo = batched_rinfo[i];
     RAI_DagOp *currentOp = currentOps[i];
 
-    pthread_mutex_lock(rinfo->dagMutex);
-
     if (currentOp->result != REDISMODULE_OK) {
+      pthread_mutex_lock(rinfo->dagMutex);
       *rinfo->dagError = 1;
+      pthread_mutex_unlock(rinfo->dagMutex);
     }
-
-    *rinfo->dagRefCount -= 1;
-
-    pthread_mutex_unlock(rinfo->dagMutex);
   }
   
   return;
@@ -1072,8 +1038,9 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         currentOp->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
       }
       RedisModule_RetainString(NULL, argv[argpos]);
-      rinfo->dagOps[rinfo->dagNumberCommands]->argv = array_append(rinfo->dagOps[rinfo->dagNumberCommands]->argv, argv[argpos]);
-      rinfo->dagOps[rinfo->dagNumberCommands]->argc++;
+      RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagNumberCommands];
+      currentOp->argv = array_append(currentOp->argv, argv[argpos]);
+      currentOp->argc++;
     }
   }
 
@@ -1136,7 +1103,6 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
       AI_dictAdd(rinfo->dagTensorsPersistedContext, (void*)outkey, (void *)1);
     }
   }
-
 
   // At this point, we have built a sequence of DAG operations, each with its own
   // input and output keys. The names of the keys will be used to look whether the
@@ -1279,7 +1245,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   size_t ndevices = array_len(devices);
 
-  *rinfo->dagRefCount = 0;
+  *rinfo->dagRefCount = ndevices;
 
   RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, ndevices - 1);
   

@@ -172,6 +172,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // If all ops in the DAG, then we decide we will unblock (one thread
         // will actually unblock in practice, according to the reference count)
         if (dagComplete) {
+          device_complete = 1;
           do_unblock = 1;
           break;
         }
@@ -338,14 +339,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // Run is over, now iterate over the run info structs in the batch
         // and see if any error was generated
         int dagError = 0;
-        int dagRefCount = -1;
         for (long long i=0; i<array_len(batch_rinfo); i++) {
           RedisAI_RunInfo *rinfo = batch_rinfo[i];
-          // We lock on the DAG because error and refcount could be set from
-          // other threads operating on the same DAG
+          // We lock on the DAG because error could be set from
+          // other threads operating on the same DAG (TODO: use atomic)
           pthread_mutex_lock(rinfo->dagMutex);
           dagError = *rinfo->dagError;
-          dagRefCount = *rinfo->dagRefCount;
           pthread_mutex_unlock(rinfo->dagMutex);
 
           // We record that there was an error for later on
@@ -353,8 +352,14 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
           // If there was an error and the reference count for the dag
           // has gone to zero and the client is still around, we unblock
-          if (dagError && dagRefCount == 0 && rinfo->client) {
-            RedisModule_UnblockClient(rinfo->client, rinfo);
+          if (dagError) {
+            pthread_mutex_lock(rinfo->dagMutex);
+            *rinfo->dagRefCount -= 1;
+            int dagRefCount = *rinfo->dagRefCount;
+            pthread_mutex_unlock(rinfo->dagMutex);
+            if (dagRefCount == 0 && rinfo->client) {
+              RedisModule_UnblockClient(rinfo->client, rinfo);
+            }
           }
         }
       }
@@ -362,14 +367,19 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       // We don't need the run info container for the batch anymore at this point
       array_free(batch_rinfo);
 
+      int dagRefCount = -1;
+      if (device_complete == 1) {
+        RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
+        // We decrease and get the reference count for the DAG
+        pthread_mutex_lock(evicted_rinfo->dagMutex);
+        *evicted_rinfo->dagRefCount -= 1;
+        dagRefCount = *evicted_rinfo->dagRefCount;
+        pthread_mutex_unlock(evicted_rinfo->dagMutex);
+      }
+
       // If the DAG was complete, then it's time to unblock the client
       if (do_unblock == 1) {
         RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
-
-        // We get the reference count for the DAG
-        pthread_mutex_lock(evicted_rinfo->dagMutex);
-        int dagRefCount = *evicted_rinfo->dagRefCount;
-        pthread_mutex_unlock(evicted_rinfo->dagMutex);
 
         // If the reference count for the DAG is zero and the client is still around,
         // then we actually unblock the client
@@ -431,6 +441,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       array_free(evicted_items);
 
       run_queue_len = queueLength(run_queue_info->run_queue);
+
     }
   }
 }
