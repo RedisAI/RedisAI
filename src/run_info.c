@@ -143,19 +143,8 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
   if (!rinfo) {
     return REDISMODULE_ERR;
   }
-  rinfo->client = src->client;
-  rinfo->single_op_dag = src->single_op_dag;
-  rinfo->single_device_dag = src->single_device_dag;
-  rinfo->dagTensorsContext = src->dagTensorsContext;
-  rinfo->dagTensorsLoadedContext = src->dagTensorsLoadedContext;
-  rinfo->dagTensorsPersistedContext = src->dagTensorsPersistedContext;
-  rinfo->dagOps = src->dagOps;
-  rinfo->dagReplyLength = src->dagReplyLength;
-  rinfo->dagNumberCommands = src->dagNumberCommands;
-  rinfo->dagMutex = src->dagMutex;
+  memcpy(rinfo, src, sizeof(RedisAI_RunInfo));
   rinfo->dagMaster = 0;
-  rinfo->dagError = src->dagError;
-  rinfo->dagRefCount = src->dagRefCount;
   *result = rinfo;
   return REDISMODULE_OK;
 }
