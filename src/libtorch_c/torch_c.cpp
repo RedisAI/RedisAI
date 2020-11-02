@@ -7,6 +7,40 @@
 #include <iostream>
 #include <sstream>
 
+
+#include "torch/csrc/jit/frontend/resolver.h"
+#include "torch/script.h"
+#include "torch/jit.h"
+
+namespace torch {
+    namespace jit {
+        namespace script {
+            struct RedisResolver : public Resolver {
+                
+                std::shared_ptr<SugaredValue> resolveValue(const std::string& name, Function& m, const SourceRange& loc) override {
+                    if(strcasecmp(name.c_str(), "torch") == 0) {
+                        return std::make_shared<BuiltinModule>("aten");
+                    }
+                    else if (strcasecmp(name.c_str(), "redis") == 0) {
+                        return std::make_shared<BuiltinModule>("redis");
+                    }
+                    return nullptr;
+                }
+
+                TypePtr resolveType(const std::string& name, const SourceRange& loc) override {
+                    return nullptr;
+                }
+
+                inline std::shared_ptr<RedisResolver> redisResolver() {
+                    return std::make_shared<RedisResolver>();
+                }
+
+            };
+        }
+    }
+}
+
+
 namespace {
 
 static DLDataType getDLDataType(const at::Tensor &t) {
