@@ -416,6 +416,9 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext,
 
 void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
                           RAI_DagOp **currentOp) {
+
+  // TODO: if we turn devicestr into an integer, we can use atomics and
+  // avoid the lock
   pthread_mutex_lock(rinfo->dagMutex);
 
   RAI_DagOp *currentOp_ = NULL;
@@ -557,9 +560,7 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
   }
 
   if (currentOp->result != REDISMODULE_OK) {
-    pthread_mutex_lock(rinfo->dagMutex);
-    *rinfo->dagError = 1;
-    pthread_mutex_unlock(rinfo->dagMutex);
+    __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
   }
   
   return;
@@ -590,9 +591,7 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
     RAI_DagOp *currentOp = currentOps[i];
 
     if (currentOp->result != REDISMODULE_OK) {
-      pthread_mutex_lock(rinfo->dagMutex);
-      *rinfo->dagError = 1;
-      pthread_mutex_unlock(rinfo->dagMutex);
+      __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
     }
   }
   
