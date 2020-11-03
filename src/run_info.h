@@ -76,17 +76,21 @@ typedef struct RedisAI_RunInfo {
   AI_dict *dagTensorsContext;
   AI_dict *dagTensorsPersistedContext;  // dict to flag tensors to persist
   AI_dict *dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
-  RAI_DagOp **dagOps;
+  RAI_DagOp **dagOps; // all ops in DAG
+  RAI_DagOp **dagDeviceOps; // all ops in DAG for device
   int dagReplyLength;
-  int dagNumberCommands;
+  int dagOpCount; // number of ops in DAG
+  int *dagCompleteOpCount; // number of completed ops in DAG
+  int dagDeviceOpCount; // number of ops in DAG for device
+  int dagDeviceCompleteOpCount; // number of completed ops in DAG for device
   // Pointer to integer signaling whether an error occurred anywhere in the DAG.
   // This is shared across shallow copies in device queues.
   int *dagError;
   // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
-  pthread_mutex_t *dagMutex;
-  int dagMaster;
+  pthread_rwlock_t *dagLock;
   // Pointer to ref count in DAG, shared across multiple worker thread
   long long *dagRefCount;
+  int master;
 } RedisAI_RunInfo;
 
 /**
@@ -105,6 +109,27 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
  * @param rinfo context in which RedisAI blocking command operate.
  */
 void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
+
+/**
+ * Locks the DAG tensor context rwlock for reads. No-op in case of single
+ * op or single device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_ContextReadLock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Locks the DAG tensor context rwlock for writes. No-op in case of single
+ * op or single device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Unlocks the DAG tensor context rwlock. No-op in case of single op or single
+ * device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_ContextUnlock(RedisAI_RunInfo *rinfo);
 
 /**
  * Obtain the batch size for the provided DAG operation, that is, the

@@ -14,6 +14,12 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
+// TODO DOCS
+
+int RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo);
+
+int RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
+
 /**
  * Get current DAG op for the given device. An op is current if it's
  * the first unrealized op for the device.
@@ -22,8 +28,7 @@
  * @param currentOp current op identified
  * @return
  */
-void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
-                          RAI_DagOp **currentOp);
+RAI_DagOp* RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo);
  
 /**
  * Get current DAG op for the given device. An op is current if it's
@@ -40,10 +45,9 @@ void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
  * @param dagComplete were all ops in the DAG already computed
  * @return
  */
-void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
-                                 RAI_DagOp **currentOp, int *currentOpReady,
-                                 int *currentOpBatchable,
-                                 int *deviceComplete, int *dagComplete);
+void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
+                              int *currentOpReady,
+                              int *currentOpBatchable);
 
 /**
  * Get batching information about a DAG op.
