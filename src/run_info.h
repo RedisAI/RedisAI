@@ -107,17 +107,20 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
 void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
 
 /**
- *
- * @param rinfo context in which RedisAI blocking command operate.
- * @return
+ * Obtain the batch size for the provided DAG operation, that is, the
+ * size of the tensor in the zero-th dimension
+ * @param op DAG operation to operate on
+ * @return size of the batch for op
  */
 size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
 
 /**
- *
- * @param rinfo1 rinfo context 1 in which RedisAI blocking command 1 operates.
- * @param rinfo2 rinfo context 2 in which RedisAI blocking command 2 operates.
- * @return
+ * Find out whether two DAG operations are batchable. That means they must be
+ * two MODELRUN operations with the same model, where respective inputs have
+ * compatible shapes (all dimensions except the zero-th must match)
+ * @param op1 first DAG operation
+ * @param op2 second DAG operation
+ * @return 1 if batchable, 0 otherwise
  */
 int RAI_RunInfoBatchable(struct RAI_DagOp *op1,
                          struct RAI_DagOp *op2);

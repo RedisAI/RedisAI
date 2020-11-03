@@ -280,6 +280,10 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1,
     int ndims1 = RAI_TensorNumDims(input1);
     int ndims2 = RAI_TensorNumDims(input2);
 
+    if (!RAI_TensorIsDataTypeEqual(input1, input2)) {
+      return 0;
+    }
+
     if (ndims1 != ndims2) {
       return 0;
     }

@@ -457,6 +457,12 @@ DLDataType RAI_TensorDataType(RAI_Tensor* t) {
   return t->tensor.dl_tensor.dtype;
 }
 
+int RAI_TensorIsDataTypeEqual(RAI_Tensor* t1, RAI_Tensor* t2) {
+  return t1->tensor.dl_tensor.dtype.bits == t2->tensor.dl_tensor.dtype.bits &&
+         t1->tensor.dl_tensor.dtype.code == t2->tensor.dl_tensor.dtype.code &&
+         t1->tensor.dl_tensor.dtype.lanes == t2->tensor.dl_tensor.dtype.lanes;
+}
+
 size_t RAI_TensorLength(RAI_Tensor* t) {
   int64_t* shape = t->tensor.dl_tensor.shape;
   size_t len = 1;
