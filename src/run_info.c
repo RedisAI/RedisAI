@@ -123,11 +123,19 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!(rinfo->dagOps)) {
     return REDISMODULE_ERR;
   }
-  rinfo->dagMaster = 1;
+  rinfo->dagDeviceOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
+  if (!(rinfo->dagDeviceOps)) {
+    return REDISMODULE_ERR;
+  }
   rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
-  rinfo->dagMutex = RedisModule_Alloc(sizeof(pthread_mutex_t));
+  rinfo->dagLock = RedisModule_Alloc(sizeof(pthread_rwlock_t));
   rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
-  pthread_mutex_init(rinfo->dagMutex, NULL);
+  rinfo->dagOpCount = 0;
+  rinfo->dagCompleteOpCount = RedisModule_Calloc(1, sizeof(long long));
+  rinfo->dagDeviceOpCount = 0;
+  rinfo->dagDeviceCompleteOpCount = 0;
+  pthread_rwlock_init(rinfo->dagLock, NULL);
+  rinfo->master = 1;
   *result = rinfo;
   return REDISMODULE_OK;
 }
@@ -139,7 +147,13 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     return REDISMODULE_ERR;
   }
   memcpy(rinfo, src, sizeof(RedisAI_RunInfo));
-  rinfo->dagMaster = 0;
+  rinfo->dagDeviceOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
+  if (!(rinfo->dagDeviceOps)) {
+    return REDISMODULE_ERR;
+  }
+  rinfo->dagDeviceOpCount = 0;
+  rinfo->dagDeviceCompleteOpCount = 0;
+  rinfo->master = 0;
   *result = rinfo;
   return REDISMODULE_OK;
 }
@@ -194,13 +208,16 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
   if (!rinfo) {
     return;
   }
-  if (rinfo->dagMaster == 0) {
+  if (rinfo->master == 0) {
+    if (rinfo->dagDeviceOps) {
+      array_free(rinfo->dagDeviceOps);
+    }
     RedisModule_Free(rinfo);
     return;
   }
   else {
-    pthread_mutex_destroy(rinfo->dagMutex);
-    RedisModule_Free(rinfo->dagMutex);
+    pthread_rwlock_destroy(rinfo->dagLock);
+    RedisModule_Free(rinfo->dagLock);
   }
 
   if (rinfo->dagTensorsContext) {
@@ -216,13 +233,39 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     array_free(rinfo->dagOps);
   }
 
+  if (rinfo->dagDeviceOps) {
+    array_free(rinfo->dagDeviceOps);
+  }
+
   if (rinfo->dagError) {
     RedisModule_Free(rinfo->dagError);
   }
 
   RedisModule_Free(rinfo->dagRefCount);
+  RedisModule_Free(rinfo->dagCompleteOpCount);
 
   RedisModule_Free(rinfo);
+}
+
+void RAI_ContextReadLock(RedisAI_RunInfo *rinfo) {
+  if (rinfo->single_op_dag || rinfo->single_device_dag) {
+    return;
+  }
+  pthread_rwlock_rdlock(rinfo->dagLock);
+}
+
+void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo) {
+  if (rinfo->single_op_dag || rinfo->single_device_dag) {
+    return;
+  }
+  pthread_rwlock_wrlock(rinfo->dagLock);
+}
+
+void RAI_ContextUnlock(RedisAI_RunInfo *rinfo) {
+  if (rinfo->single_op_dag || rinfo->single_device_dag) {
+    return;
+  }
+  pthread_rwlock_unlock(rinfo->dagLock);
 }
 
 size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op) {
