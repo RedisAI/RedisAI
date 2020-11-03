@@ -143,13 +143,12 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
   int result = RAI_ModelRun(mctxs, 1, currentOp->err);
   const long long end = ustime();
 
-  pthread_mutex_lock(rinfo->dagMutex);
-
   if (result == REDISMODULE_ERR) {
-    currentOp->result = result;
-    pthread_mutex_unlock(rinfo->dagMutex);
+    __atomic_store_n(&currentOp->result, result, __ATOMIC_RELAXED);
     return;
   }
+
+  pthread_mutex_lock(rinfo->dagMutex);
 
   currentOp->duration_us = end - start;
 
@@ -238,14 +237,13 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     RedisAI_RunInfo *rinfo = batched_rinfo[i];
     RAI_DagOp *currentOp = currentOps[i];
 
-    pthread_mutex_lock(rinfo->dagMutex);
-
     if (result == REDISMODULE_ERR) {
-      currentOp->result = result;
+      __atomic_store_n(&currentOp->result, result, __ATOMIC_RELAXED);
       RAI_SetError(currentOp->err, err.code, err.detail);
-      pthread_mutex_unlock(rinfo->dagMutex);
       continue;
     }
+
+    pthread_mutex_lock(rinfo->dagMutex);
 
     currentOp->duration_us = duration;
 

@@ -14,39 +14,80 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
-
+/**
+ * Get current DAG op for the given device. An op is current if it's
+ * the first unrealized op for the device.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @param currentOp current op identified
+ * @return
+ */
 void RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo, const char *devicestr,
                           RAI_DagOp **currentOp);
  
+/**
+ * Get current DAG op for the given device. An op is current if it's
+ * the first unrealized op for the device. Also get additional information
+ * about the op.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @param currentOp current op identified
+ * @param currentOpReady have all inputs for the op been computed, that is,
+ *            are they available in the tensor context
+ * @param currentOpBatchable is the op amenable to batching, that is, is it
+ *            a MODELRUN and is BATCHSIZE greater than zero
+ * @param deviceComplete were all ops for the given device already computed
+ * @param dagComplete were all ops in the DAG already computed
+ * @return
+ */
 void RedisAI_DagCurrentOpAndInfo(RedisAI_RunInfo *rinfo, const char *devicestr,
                                  RAI_DagOp **currentOp, int *currentOpReady,
                                  int *currentOpBatchable,
                                  int *deviceComplete, int *dagComplete);
 
+/**
+ * Get batching information about a DAG op.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param op DAG operation
+ * @param batchsize maximum batch size specified by BATCHSIZE
+ * @param minbatchsize minimum batch size specified by MINBATCHSIZE
+ * @param inbatchsize actual size of the batch in the current op, that
+ *            is, the size of the input tensors along the zero-th dimension
+ * @return
+ */
 void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
                             size_t *batchsize, size_t *minbatchsize,
                             size_t *inbatchsize);
  
+/**
+ * Check that a DAG operation can be batched with a given batch operation.
+ * @param rinfo1 given context in which RedisAI blocking commands operate.
+ * @param op1 given DAG operation
+ * @param rinfo2 other context in which RedisAI blocking commands operate.
+ * @param opr other DAG operation to be checked
+ * @param batched can op2 be batched with op1
+ * @param inbatchsize actual size of the batch in op2
+ * @return
+ */
 void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1,
                                 RedisAI_RunInfo *rinfo2, RAI_DagOp *op2,
                                 int *batched, size_t *inbatchsize);
  
 /**
- * Actual method running at most one of the DAGRUN comments in the worker
- * thread comsuming operations on a specific device. After a step is executed,
- * `progress` is set to 1 and the run info is placed back in the queue, until
- * DAGRUN is `complete`, when all steps have been executed on all devices.
- * A step may not be executed if its required inputs are not available in the
- * DAG local context.
- * Completion will trigger the reply callback to be called in order to reply to
- * the client. The 'rinfo' argument will be accessible by the reply callback.
- *
+ * Run the first unrealized DAG operation in rinfo for the given device.
  * @param rinfo context in which RedisAI blocking commands operate.
  * @param devicestr device identifier associated with the current queue
  * @return
  */
 void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr);
 
+/**
+ * Batch the first unrealized DAG operations for the given device for the
+ * provided rinfo and run.
+ * @param rinfo contexts in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @return
+ */
 void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **rinfo, const char* devicestr);
 
 /**
