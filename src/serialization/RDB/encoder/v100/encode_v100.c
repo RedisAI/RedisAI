@@ -1,6 +1,6 @@
 #include "encode_v100.h"
 
-void RAI_RDBSaveTensor_v100(RedisModuleIO *rdb, void *value) {
+void RAI_RDBSaveTensor_v100(RedisModuleIO *io, void *value) {
     RAI_Tensor *tensor = (RAI_Tensor*)value;
 
     size_t ndim = tensor->tensor.dl_tensor.ndim;

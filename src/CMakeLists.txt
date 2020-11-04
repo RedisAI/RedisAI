@@ -2,6 +2,16 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
 	SET(DEBUG_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../opt/readies/cetara/diag/gdb.c")
 endif()
 
+file (GLOB_RECURSE SERIALIZATION_SRC 
+        serialization/*.c)
+
+file (GLOB BACKEND_COMMON_SRC
+        backends/util.c
+        err.c
+        util/dict.c
+        tensor.c
+        ${SERIALIZATION_SRC})
+
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
@@ -23,42 +33,35 @@ ADD_LIBRARY(redisai_obj OBJECT
         rmutil/heap.c
         rmutil/priority_queue.c
         rmutil/vector.c run_info.c
+        ${SERIALIZATION_SRC}
 		${DEBUG_SRC})
 
 IF(BUILD_TF)
     ADD_LIBRARY(redisai_tensorflow_obj OBJECT
             backends/tensorflow.c
-            backends/util.c
-            err.c
-            util/dict.c
-            tensor.c)
+            ${BACKEND_COMMON_SRC}
+)
 ENDIF()
 
 IF(BUILD_TFLITE)
     ADD_LIBRARY(redisai_tflite_obj OBJECT
             backends/tflite.c
-            backends/util.c
-            err.c
-            util/dict.c
-            tensor.c)
+            ${BACKEND_COMMON_SRC}
+)
 ENDIF()
 
 IF(BUILD_TORCH)
     ADD_LIBRARY(redisai_torch_obj OBJECT
             backends/torch.c
-            backends/util.c
-            err.c
-            util/dict.c
-            tensor.c)
+            ${BACKEND_COMMON_SRC}
+)
 ENDIF()
 
 IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
             backends/onnxruntime.c
-            backends/util.c
-            err.c
-            util/dict.c
-            tensor.c)
+            ${BACKEND_COMMON_SRC}
+)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})

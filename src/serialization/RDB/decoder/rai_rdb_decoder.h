@@ -2,4 +2,4 @@
 
 #include "../../serialization_include.h"
 
-void RAI_RDBSaveTensor(RedisModuleIO *io, void *value);
+void* RAI_RDBLoadTensor( RedisModuleIO *io, int encver);

@@ -1,22 +1,7 @@
-#include "tensor_type.h"
+#include "decode_v100.h"
 #include "assert.h"
-#include "../AOF/rai_aof_rewrite.h"
-#include "../RDB/encoder/rai_rdb_encode.h"
 
-
-RedisModuleType *RedisAI_TensorType = NULL;
-
-static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value) {
-    RAI_RDBSaveTensor(io, value);
-}
-
-static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
-  // if (encver != RAI_ENC_VER) {
-  //   /* We should actually log an error here, or try to implement
-  //      the ability to load older versions of our data structure. */
-  //   return NULL;
-  // }
-
+void* RAI_RDBLoadTensor_v100(RedisModuleIO *io) {
   DLContext ctx;
   ctx.device_type = RedisModule_LoadUnsigned(io);
   
@@ -64,26 +49,4 @@ static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
   };
   ret->refCount = 1;
   return ret;
-}
-
-static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
-    RAI_AofRewriteTensor(aof, key, value);
-}
-
-static void RAI_Tensor_DTFree(void *value) {
-    RAI_TensorFree(value);
-}
-
-int TensorType_Register(RedisModuleCtx *ctx) {
-    RedisModuleTypeMethods tmTensor = {
-      .version = REDISMODULE_TYPE_METHOD_VERSION,
-      .rdb_load = RAI_Tensor_RdbLoad,
-      .rdb_save = RAI_Tensor_RdbSave,
-      .aof_rewrite = RAI_Tensor_AofRewrite,
-      .mem_usage = NULL,
-      .free = RAI_Tensor_DTFree,
-      .digest = NULL,
-  };
-  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", RAI_ENC_VER_MM, &tmTensor);
-  return RedisAI_TensorType != NULL;
 }
