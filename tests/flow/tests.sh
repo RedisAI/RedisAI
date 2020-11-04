@@ -81,7 +81,7 @@ valgrind_config() {
 run_tests() {
 	local title="$1"
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
-	cd $ROOT/test
+	cd $ROOT/tests/flow
 	$OP python3 -m RLTest --clear-logs --module $MODULE $RLTEST_ARGS
 }
 

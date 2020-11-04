@@ -36,13 +36,19 @@ make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
 
-make test         # run tests
-  TEST=test         # run only test `test` with Redis output
-  TEST_ARGS=args    # add extra RLTest `args`
-  VERBOSE=1         # verbose tests output
-  COV=1             # perform coverage analysis
-  VALGRIND|VGD=1    # test with Valgrind (implies DEBUG=1)
-  CALLGRIND|CGD=1   # test with Callgrind (implies DEBUG=1)
+make test        # run test suites (flow an unit)
+				 # same as running make unit_tests flow_tests
+
+make unit_tests  # run unit test
+
+make flow_tests  # run flow test
+  TEST=test        # run only test `test` with Redis output
+  TEST_ARGS=args   # add extra RLTest `args`
+  VERBOSE=1        # verbose tests output
+  COV=1            # perform coverage analysis
+  VALGRIND|VGD=1   # test with Valgrind (implies DEBUG=1)
+  CALLGRIND|CGD=1  # test with Callgrind (implies DEBUG=1)
+
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
 make pack             # create installation packages
@@ -192,8 +198,11 @@ export AOF ?= 1
 export CLUSTER ?= 1
 
 unit_tests: build
+	@echo "$(BINDIR)"
 	$(COVERAGE_RESET)
-	$(SHOW)$(MAKE) -C $(BINDIR) test
+	$(SHOW)\
+		BINDIR=$(realpath $(BINDIR)) \
+		$(ROOT)/tests/unit/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 
@@ -210,6 +219,9 @@ flow_tests: build
 
 test: build
 	$(COVERAGE_RESET)
+	$(SHOW)\
+		BINDIR=$(realpath $(BINDIR)) \
+		$(ROOT)/tests/unit/tests.sh
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
