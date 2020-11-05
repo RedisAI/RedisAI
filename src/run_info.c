@@ -35,7 +35,7 @@ static void* RAI_TensorDictKeyDup(void *privdata, const void *key){
   return RedisModule_Strdup((char*)key);
 }
 
-static void RAI_TensorDictValFree(void *privdata, const void *obj){
+static void RAI_TensorDictValFree(void *privdata, void *obj){
   return RAI_TensorFree((RAI_Tensor*)obj);
 }
 

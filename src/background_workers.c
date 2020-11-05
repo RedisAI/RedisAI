@@ -106,8 +106,23 @@ void *RedisAI_Run_ThreadMain(void *arg) {
   RAI_PTHREAD_SETNAME("redisai_bthread");
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
   while (true) {
-    int rc = pthread_cond_wait(&run_queue_info->queue_condition_var,
-                               &run_queue_info->run_queue_mutex);
+
+    // In case a DAG Op can express a MINBATCHSIZE > 0 with a MINBATCHTIMEOUT
+    // in milliseconds, we will use a timedwait of one millisecond to evaluate
+    // whether the run needs to trigger in case nothing else happens on the
+    // queue.
+    // Possible optimization: opt for a longer timeout if there's no minbatchtimeout
+    // involved.
+    struct timeval now;
+    gettimeofday(&now,NULL);
+
+    struct timespec absTimeout;
+    absTimeout.tv_sec = now.tv_sec;
+    absTimeout.tv_nsec = (now.tv_usec + 1000) * 1000; // wait 1 millisecond
+
+    int rc = pthread_cond_timedwait(&run_queue_info->queue_condition_var,
+                                    &run_queue_info->run_queue_mutex,
+                                    &absTimeout);
 
     // This is the length of the queue for this particular device
     // (see run_queue_info->devicestr).
@@ -138,6 +153,14 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       while (item) {
         RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
 
+        // Since we might be looking through the queue for candidates, we need
+        // to reinitialize our findings every time we consider a new item for
+        // running
+        do_unblock = 0;
+        do_run = 0;
+        do_retry = 0;
+        device_complete = 0;
+ 
         // We keep a list of additional items that are evicted from the queue
         // to find oppotunities for batching
         if (evicted_items) {
@@ -218,10 +241,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // Since the current op can be batched, then we collect info on batching, namely
         // - batchsize
         // - minbatchsize
+        // - minbatchtimeout
         // - actual size of the input along the batch (0-th) dimension
-        size_t batchsize, minbatchsize, inbatchsize;
-        RedisAI_DagOpBatchInfo(rinfo, currentOp,
-                               &batchsize, &minbatchsize, &inbatchsize);
+        size_t batchsize, minbatchsize, minbatchtimeout, inbatchsize;
+        RedisAI_DagOpBatchInfo(rinfo, currentOp, &batchsize, &minbatchsize,
+                               &minbatchtimeout, &inbatchsize);
 
         // Get the size of the batch so far, that is, the size of the first input
         // tensor in the 0-th dimension
@@ -285,11 +309,26 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         }
 
         // If minbatchsize hasn't been set, or if the current batch
-        // size exceeds the minimum batch size already, then we're done
+        // size exceeds the minimum batch size already, then we're done.
         // Otherwise, if minbatchsize was set and the size wasn't reached,
         // loop until there's something new on the queue
         if (minbatchsize == 0 || current_batchsize >= minbatchsize) {
           break;
+        }
+
+        // If minbatchsize has been set and we are not past it, we check
+        // if the timeout for min batch has expired, in which case we proceed
+        // anyway
+        if (minbatchsize > 0 && minbatchtimeout > 0) {
+          struct timeval now, sub;
+          gettimeofday(&now, NULL); 
+
+          timersub(&now, &rinfo->queuingTime, &sub);
+          size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+
+          if (time_msec > minbatchtimeout) {
+            break;
+          }
         }
 
         item = item->next;
@@ -300,7 +339,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       if (item == NULL) {
         array_free(evicted_items);
         array_free(batch_rinfo);
-        pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+        // run_queue_len = queueLength(run_queue_info->run_queue);
+        // pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+        // usleep(1000);
+        // pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+        // continue;
+        // pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
         break;
       }
 
@@ -415,10 +459,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         else {
           // We push the DAG back at the front
           queuePushFront(run_queue_info->run_queue, evicted_rinfo);
-          // Sleep for a millisecond since there's nothing else on the queue that has a
-          // chance to run, we give other workers a chance to produce the inputs needed
-          // for this DAG step
-          usleep(1000);
+          // Since there's nothing else on the queue we just break out and give other
+          // workers a chance to produce the inputs needed for this DAG step
+          array_free(evicted_items);
+          break;
         }
       }
 

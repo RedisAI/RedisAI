@@ -173,6 +173,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
       strcasecmp(devicestr, "TAG") == 0 ||
       strcasecmp(devicestr, "BATCHSIZE") == 0 ||
       strcasecmp(devicestr, "MINBATCHSIZE") == 0 ||
+      strcasecmp(devicestr, "MINBATCHTIMEOUT") == 0 ||
       strcasecmp(devicestr, "BLOB") == 0
       ) {
     return RedisModule_ReplyWithError(ctx, "ERR Invalid DEVICE");
@@ -200,6 +201,19 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
     if (AC_GetUnsignedLongLong(&ac, &minbatchsize, 0) != AC_OK) {
       return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHSIZE");
+    }
+  }
+
+  unsigned long long minbatchtimeout = 0;
+  if (AC_AdvanceIfMatch(&ac, "MINBATCHTIMEOUT")) {
+    if (batchsize == 0) {
+      return RedisModule_ReplyWithError(ctx, "ERR MINBATCHTIMEOUT specified without BATCHSIZE");
+    }
+    if (minbatchsize == 0) {
+      return RedisModule_ReplyWithError(ctx, "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
+    }
+    if (AC_GetUnsignedLongLong(&ac, &minbatchtimeout, 0) != AC_OK) {
+      return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHTIMEOUT");
     }
   }
 
@@ -249,6 +263,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
   RAI_ModelOpts opts = {
     .batchsize = batchsize,
     .minbatchsize = minbatchsize,
+    .minbatchtimeout = minbatchtimeout,
     .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
     .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
   };
