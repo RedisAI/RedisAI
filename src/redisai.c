@@ -1051,137 +1051,136 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_Init(ctx, "ai", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1)
+      == REDISMODULE_ERR) return REDISMODULE_ERR;
 
-    getRedisVersion();
-    RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
-                    redisMajorVersion, redisMinorVersion, redisPatchVersion,
-                    IsEnterprise() ? "enterprise" : "oss");
-    if (IsEnterprise()) {
-        RedisModule_Log(ctx, "notice", "Redis Enterprise version found by RedisAI: %d.%d.%d-%d",
-                        rlecMajorVersion, rlecMinorVersion, rlecPatchVersion, rlecBuild);
-    }
+  getRedisVersion();
+  RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
+                      redisMajorVersion, redisMinorVersion, redisPatchVersion,
+                      IsEnterprise() ? "enterprise" : "oss");
+  if (IsEnterprise()) {
+      RedisModule_Log(ctx, "notice", "Redis Enterprise version found by RedisAI: %d.%d.%d-%d",
+                      rlecMajorVersion, rlecMinorVersion, rlecPatchVersion, rlecBuild);
+  }
 
-    if (redisMajorVersion < 5 ||
-        (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
-        RedisModule_Log(ctx, "warning",
-                        "RedisAI requires Redis version equal or greater than 5.0.7");
-        return REDISMODULE_ERR;
-    }
+  if (redisMajorVersion < 5 ||
+      (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
+    RedisModule_Log(ctx, "warning", "RedisAI requires Redis version equal or greater than 5.0.7");
+    return REDISMODULE_ERR;
+  }
 
-    if (redisMajorVersion >= 6) {
-        if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-    }
+  if (redisMajorVersion >= 6){
+    if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR) return REDISMODULE_ERR;
+  }
 
-    RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s", RAI_ENC_VER, REDISAI_GIT_SHA);
+  RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s",
+                  REDISAI_MODULE_VERSION, REDISAI_GIT_SHA);
+ 
+  int flags = RedisModule_GetContextFlags(ctx);
 
-    int flags = RedisModule_GetContextFlags(ctx);
+  if(RedisAI_RegisterApi(ctx) != REDISMODULE_OK){
+    RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
+    return REDISMODULE_ERR;
+  }
 
-    if (RedisAI_RegisterApi(ctx) != REDISMODULE_OK) {
-        RedisModule_Log(ctx, "warning", "could not register RedisAI api\r\n");
-        return REDISMODULE_ERR;
-    }
+  if(!TensorType_Register(ctx)){
+    RedisModule_Log(ctx, "warning", "can not initialize tensor dt\r\n");
+    return REDISMODULE_ERR;
+  }
 
-    if (!RAI_TensorInit(ctx)) {
-        RedisModule_Log(ctx, "warning", "can not initialize tensor dt\r\n");
-        return REDISMODULE_ERR;
-    }
+  if(!ModelType_Register(ctx)){
+    RedisModule_Log(ctx, "warning", "can not initialize model dt\r\n");
+    return REDISMODULE_ERR;
+  }
 
-    if (!RAI_ModelInit(ctx)) {
-        RedisModule_Log(ctx, "warning", "can not initialize model dt\r\n");
-        return REDISMODULE_ERR;
-    }
+  if(!ScriptType_Register(ctx)){
+    RedisModule_Log(ctx, "warning", "can not initialize script dt\r\n");
+    return REDISMODULE_ERR;
+  }
 
-    if (!RAI_ScriptInit(ctx)) {
-        RedisModule_Log(ctx, "warning", "can not initialize script dt\r\n");
-        return REDISMODULE_ERR;
-    }
+  if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand, "write deny-oom", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.tensorset", RedisAI_TensorSet_RedisCommand,
-                                  "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.tensorget", RedisAI_TensorGet_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand, "write deny-oom", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand,
-                                  "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 1,
-                                  1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.modeldel", RedisAI_ModelDel_RedisCommand, "write", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.modeldel", RedisAI_ModelDel_RedisCommand, "write", 1, 1,
-                                  1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand, "write deny-oom getkeys-api", 3, 3, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand,
-                                  "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand, "write deny-oom", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand,
-                                  "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.scriptdel", RedisAI_ScriptDel_RedisCommand, "write", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.scriptdel", RedisAI_ScriptDel_RedisCommand, "write", 1,
-                                  1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand, "write deny-oom getkeys-api", 4, 4, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand,
-                                  "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand,
-                                  "readonly", 1, 1, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.info", RedisAI_Info_RedisCommand, "readonly", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.info", RedisAI_Info_RedisCommand, "readonly", 1, 1, 1) ==
-        REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 1, 1, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 1, 1,
-                                  1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand, "write deny-oom getkeys-api", 3, 3, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand,
-                                  "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand, "readonly getkeys-api", 3, 3, 1)
+      == REDISMODULE_ERR)
+    return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand,
-                                  "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
+  // Default configs
+  RAI_BackendsPath = NULL;
+  perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+  setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
+  setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
+  setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
+  
+  RAI_loadTimeConfig(ctx,argv,argc);
 
-    // Default configs
-    RAI_BackendsPath = NULL;
-    perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
-    setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
-    setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
-    setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
+  run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  RunQueueInfo *run_queue_info = NULL;
+  if (ensureRunQueue("CPU",&run_queue_info) != REDISMODULE_OK){
+    RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU" );
+    return REDISMODULE_ERR;
+  }
 
-    RAI_loadTimeConfig(ctx, argv, argc);
-
-    run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue("CPU", &run_queue_info) != REDISMODULE_OK) {
-        RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU");
-        return REDISMODULE_ERR;
-    }
-
-    run_stats = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-
-    return REDISMODULE_OK;
+  run_stats = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  
+  return REDISMODULE_OK;
 }
 
 extern AI_dictType AI_dictTypeHeapStrings;

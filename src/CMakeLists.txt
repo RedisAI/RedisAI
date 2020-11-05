@@ -3,6 +3,12 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
 endif()
 
 file (GLOB_RECURSE SERIALIZATION_SRC 
+        tensor.c
+        model.c
+        script.c
+        backends.c
+        stats.c
+        config.c
         serialization/*.c)
 
 file (GLOB BACKEND_COMMON_SRC
@@ -10,7 +16,7 @@ file (GLOB BACKEND_COMMON_SRC
         err.c
         util/dict.c
         tensor.c
-        ${SERIALIZATION_SRC})
+        serialization/ai_datatypes.c)
 
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c

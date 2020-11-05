@@ -1,73 +1,29 @@
 #include "tensor_type.h"
-#include "assert.h"
 #include "../AOF/rai_aof_rewrite.h"
 #include "../RDB/encoder/rai_rdb_encode.h"
+#include "../RDB/decoder/rai_rdb_decoder.h"
+#include "../RDB/decoder/decode_previous.h"
 
-
-RedisModuleType *RedisAI_TensorType = NULL;
+extern RedisModuleType *RedisAI_TensorType;
 
 static void RAI_Tensor_RdbSave(RedisModuleIO *io, void *value) {
     RAI_RDBSaveTensor(io, value);
 }
 
 static void* RAI_Tensor_RdbLoad(struct RedisModuleIO *io, int encver) {
-  // if (encver != RAI_ENC_VER) {
-  //   /* We should actually log an error here, or try to implement
-  //      the ability to load older versions of our data structure. */
-  //   return NULL;
-  // }
-
-  DLContext ctx;
-  ctx.device_type = RedisModule_LoadUnsigned(io);
-  
-  ctx.device_id = RedisModule_LoadUnsigned(io);
-
-  // For now we only support CPU tensors (except during model and script run)
-  assert(ctx.device_type == kDLCPU);
-  assert(ctx.device_id == 0);
-
-  DLDataType dtype;
-  dtype.bits = RedisModule_LoadUnsigned(io);
-  dtype.code = RedisModule_LoadUnsigned(io);
-  dtype.lanes = RedisModule_LoadUnsigned(io);
-
-  size_t ndims = RedisModule_LoadUnsigned(io);
-
-  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
-  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
-  for (size_t i = 0 ; i < ndims ; ++i){
-    shape[i] = RedisModule_LoadUnsigned(io);
-  }
-
-  for (size_t i = 0 ; i < ndims ; ++i){
-    strides[i] = RedisModule_LoadUnsigned(io);
-  }
-
-  size_t byte_offset = RedisModule_LoadUnsigned(io);
-  
-  size_t len;
-  char *data = RedisModule_LoadStringBuffer(io, &len);
-
-  RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
-  ret->tensor = (DLManagedTensor){
-    .dl_tensor = (DLTensor){
-      .ctx = ctx,
-      .data = data,
-      .ndim = ndims,
-      .dtype = dtype,
-      .shape = shape,
-      .strides = strides,
-      .byte_offset = 0
-    },
-    .manager_ctx = NULL,
-    .deleter = NULL
-  };
-  ret->refCount = 1;
-  return ret;
+    if(encver > REDISAI_ENC_VER) {
+        RedisModule_LogIOError(io, "error","Failed loading tensor, RedisAI version (%d) is not forward compatible.\n",
+			   REDISAI_MODULE_VERSION);
+		return NULL;
+    } else if (encver < REDISAI_ENC_VER) {
+        return Decode_PreviousTensor(io, encver);
+    } else {
+        return RAI_RDBLoadTensor(io);
+    }
 }
 
 static void RAI_Tensor_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
-    RAI_AofRewriteTensor(aof, key, value);
+    RAI_AOFRewriteTensor(aof, key, value);
 }
 
 static void RAI_Tensor_DTFree(void *value) {
@@ -84,6 +40,6 @@ int TensorType_Register(RedisModuleCtx *ctx) {
       .free = RAI_Tensor_DTFree,
       .digest = NULL,
   };
-  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", RAI_ENC_VER_MM, &tmTensor);
+  RedisAI_TensorType = RedisModule_CreateDataType(ctx, "AI_TENSOR", REDISAI_ENC_VER, &tmTensor);
   return RedisAI_TensorType != NULL;
 }

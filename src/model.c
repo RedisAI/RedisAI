@@ -18,228 +18,6 @@
 #include "util/dict.h"
 #include <pthread.h>
 
-RedisModuleType *RedisAI_ModelType = NULL;
-
-static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
-    // if (encver != RAI_ENC_VER) {
-    //   /* We should actually log an error here, or try to implement
-    //      the ability to load older versions of our data structure. */
-    //   return NULL;
-    // }
-
-    RAI_Backend backend = RedisModule_LoadUnsigned(io);
-    const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
-
-    const char *tag = RedisModule_LoadStringBuffer(io, NULL);
-
-    const size_t batchsize = RedisModule_LoadUnsigned(io);
-    const size_t minbatchsize = RedisModule_LoadUnsigned(io);
-
-    const size_t ninputs = RedisModule_LoadUnsigned(io);
-    const char **inputs = RedisModule_Alloc(ninputs * sizeof(char *));
-
-    for (size_t i = 0; i < ninputs; i++) {
-        inputs[i] = RedisModule_LoadStringBuffer(io, NULL);
-    }
-
-    const size_t noutputs = RedisModule_LoadUnsigned(io);
-
-    const char **outputs = RedisModule_Alloc(ninputs * sizeof(char *));
-
-    for (size_t i = 0; i < noutputs; i++) {
-        outputs[i] = RedisModule_LoadStringBuffer(io, NULL);
-    }
-
-    RAI_ModelOpts opts = {
-        .batchsize = batchsize,
-        .minbatchsize = minbatchsize,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
-    };
-
-    size_t len;
-    char *buffer = NULL;
-
-    if (encver <= 100) {
-        buffer = RedisModule_LoadStringBuffer(io, &len);
-    } else {
-        len = RedisModule_LoadUnsigned(io);
-        buffer = RedisModule_Alloc(len);
-        const size_t n_chunks = RedisModule_LoadUnsigned(io);
-        long long chunk_offset = 0;
-        for (size_t i = 0; i < n_chunks; i++) {
-            size_t chunk_len;
-            char *chunk_buffer = RedisModule_LoadStringBuffer(io, &chunk_len);
-            memcpy(buffer + chunk_offset, chunk_buffer, chunk_len);
-            chunk_offset += chunk_len;
-            RedisModule_Free(chunk_buffer);
-        }
-    }
-
-    RAI_Error err = {0};
-
-    RAI_Model *model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs,
-                                       outputs, buffer, len, &err);
-
-    if (err.code == RAI_EBACKENDNOTLOADED) {
-        RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
-        int ret = RAI_LoadDefaultBackend(ctx, backend);
-        if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default backend");
-            RAI_ClearError(&err);
-            return NULL;
-        }
-        RAI_ClearError(&err);
-        model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs,
-                                buffer, len, &err);
-    }
-
-    if (err.code != RAI_OK) {
-        RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
-        RedisModule_Log(ctx, "error", "%s", err.detail);
-        RAI_ClearError(&err);
-        if (buffer) {
-            RedisModule_Free(buffer);
-        }
-        return NULL;
-    }
-
-    RedisModule_Free(inputs);
-    RedisModule_Free(outputs);
-    RedisModule_Free(buffer);
-
-    RedisModuleCtx *stats_ctx = RedisModule_GetContextFromIO(io);
-    RedisModuleString *stats_keystr =
-        RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
-    const char *stats_devicestr = RedisModule_Strdup(devicestr);
-    const char *stats_tag = RedisModule_Strdup(tag);
-
-    model->infokey =
-        RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
-
-    RedisModule_Free(stats_keystr);
-
-    return model;
-}
-
-static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
-    RAI_Model *model = (RAI_Model *)value;
-    char *buffer = NULL;
-    size_t len = 0;
-    RAI_Error err = {0};
-
-    int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
-
-    if (err.code != RAI_OK) {
-        RedisModuleCtx *stats_ctx = RedisModule_GetContextFromIO(io);
-        printf("ERR: %s\n", err.detail);
-        RAI_ClearError(&err);
-        if (buffer) {
-            RedisModule_Free(buffer);
-        }
-        return;
-    }
-
-    RedisModule_SaveUnsigned(io, model->backend);
-    RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
-    RedisModule_SaveStringBuffer(io, model->tag, strlen(model->tag) + 1);
-    RedisModule_SaveUnsigned(io, model->opts.batchsize);
-    RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
-    RedisModule_SaveUnsigned(io, model->ninputs);
-    for (size_t i = 0; i < model->ninputs; i++) {
-        RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
-    }
-    RedisModule_SaveUnsigned(io, model->noutputs);
-    for (size_t i = 0; i < model->noutputs; i++) {
-        RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
-    }
-    long long chunk_size = getModelChunkSize();
-    const size_t n_chunks = len / chunk_size + 1;
-    RedisModule_SaveUnsigned(io, len);
-    RedisModule_SaveUnsigned(io, n_chunks);
-    for (size_t i = 0; i < n_chunks; i++) {
-        size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
-        RedisModule_SaveStringBuffer(io, buffer + i * chunk_size, chunk_len);
-    }
-
-    if (buffer) {
-        RedisModule_Free(buffer);
-    }
-}
-
-static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, void *value) {
-    RAI_Model *model = (RAI_Model *)value;
-
-    char *buffer = NULL;
-    size_t len = 0;
-    RAI_Error err = {0};
-
-    int ret = RAI_ModelSerialize(model, &buffer, &len, &err);
-
-    if (err.code != RAI_OK) {
-
-        printf("ERR: %s\n", err.detail);
-        RAI_ClearError(&err);
-        if (buffer) {
-            RedisModule_Free(buffer);
-        }
-        return;
-    }
-
-    // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1
-    // name2 ...] model_blob
-
-    RedisModuleString **inputs_ = array_new(RedisModuleString *, model->ninputs);
-    RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);
-
-    RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
-
-    for (size_t i = 0; i < model->ninputs; i++) {
-        inputs_ = array_append(
-            inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
-    }
-
-    for (size_t i = 0; i < model->noutputs; i++) {
-        outputs_ = array_append(
-            outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
-    }
-
-    long long chunk_size = getModelChunkSize();
-    const size_t n_chunks = len / chunk_size + 1;
-    RedisModuleString **buffers_ = array_new(RedisModuleString *, n_chunks);
-
-    for (size_t i = 0; i < n_chunks; i++) {
-        size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
-        buffers_ = array_append(buffers_,
-                                RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
-    }
-
-    if (buffer) {
-        RedisModule_Free(buffer);
-    }
-
-    const char *backendstr = RAI_BackendName(model->backend);
-
-    RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvcv", key, backendstr, model->devicestr,
-                        model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-                        model->opts.minbatchsize, "INPUTS", inputs_, model->ninputs, "OUTPUTS",
-                        outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
-
-    for (size_t i = 0; i < model->ninputs; i++) {
-        RedisModule_FreeString(ctx, inputs_[i]);
-    }
-    array_free(inputs_);
-
-    for (size_t i = 0; i < model->noutputs; i++) {
-        RedisModule_FreeString(ctx, outputs_[i]);
-    }
-    array_free(outputs_);
-
-    for (size_t i = 0; i < n_chunks; i++) {
-        RedisModule_FreeString(ctx, buffers_[i]);
-    }
-    array_free(buffers_);
-}
 
 /* Return REDISMODULE_ERR if there was an error getting the Model.
  * Return REDISMODULE_OK if the model value stored at key was correctly
@@ -261,69 +39,49 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, Re
     return REDISMODULE_OK;
 }
 
-// TODO: pass err in?
-static void RAI_Model_DTFree(void *value) {
-    RAI_Error err = {0};
-    RAI_ModelFree(value, &err);
-    if (err.code != RAI_OK) {
-        printf("ERR: %s\n", err.detail);
-        RAI_ClearError(&err);
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const char* tag, RAI_ModelOpts opts,
+                           size_t ninputs, const char **inputs,
+                           size_t noutputs, const char **outputs,
+                           const char *modeldef, size_t modellen, RAI_Error* err) {
+  RAI_Model *model;
+  if (backend == RAI_BACKEND_TENSORFLOW) {
+    if (!RAI_backends.tf.model_create_with_nodes) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
+      return NULL;
     }
-}
-
-int RAI_ModelInit(RedisModuleCtx *ctx) {
-    RedisModuleTypeMethods tmModel = {.version = REDISMODULE_TYPE_METHOD_VERSION,
-                                      .rdb_load = RAI_Model_RdbLoad,
-                                      .rdb_save = RAI_Model_RdbSave,
-                                      .aof_rewrite = RAI_Model_AofRewrite,
-                                      .mem_usage = NULL,
-                                      .free = RAI_Model_DTFree,
-                                      .digest = NULL};
-
-    RedisAI_ModelType = RedisModule_CreateDataType(ctx, "AI__MODEL", RAI_ENC_VER_MM, &tmModel);
-    return RedisAI_ModelType != NULL;
-}
-
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
-                           RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
-                           const char **outputs, const char *modeldef, size_t modellen,
-                           RAI_Error *err) {
-    RAI_Model *model;
-    if (backend == RAI_BACKEND_TENSORFLOW) {
-        if (!RAI_backends.tf.model_create_with_nodes) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
-            return NULL;
-        }
-        model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs,
-                                                        noutputs, outputs, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_TFLITE) {
-        if (!RAI_backends.tflite.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
-            return NULL;
-        }
-        model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_TORCH) {
-        if (!RAI_backends.torch.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
-            return NULL;
-        }
-        model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_ONNXRUNTIME) {
-        if (!RAI_backends.onnx.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
-            return NULL;
-        }
-        model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
-    } else {
-        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
-        return NULL;
+    model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
+  }
+  else if (backend == RAI_BACKEND_TFLITE) {
+    if (!RAI_backends.tflite.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
+      return NULL;
     }
-
-    if (model) {
-        model->tag = RedisModule_Strdup(tag);
+    model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
+  }
+  else if (backend == RAI_BACKEND_TORCH) {
+    if (!RAI_backends.torch.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
+      return NULL;
     }
+    model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
+  }
+  else if (backend == RAI_BACKEND_ONNXRUNTIME) {
+    if (!RAI_backends.onnx.model_create) {
+      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
+      return NULL;
+    }
+    model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
+  }
+  else {
+    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
+    return NULL;
+  }
 
-    return model;
+  if (model) {
+    model->tag = RedisModule_Strdup(tag);
+  }
+
+  return model;
 }
 
 void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {

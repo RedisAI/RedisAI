@@ -2,4 +2,4 @@
 
 #include "../serialization_include.h"
 
-int Script_Register(RedisModuleCtx *ctx);
+int ScriptType_Register(RedisModuleCtx *ctx);

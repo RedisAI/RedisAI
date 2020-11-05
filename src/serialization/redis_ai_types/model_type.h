@@ -2,4 +2,4 @@
 
 #include "../serialization_include.h"
 
-int Model_Register(RedisModuleCtx *ctx);
+int ModelType_Register(RedisModuleCtx *ctx);
