@@ -55,13 +55,14 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
  * @param op DAG operation
  * @param batchsize maximum batch size specified by BATCHSIZE
  * @param minbatchsize minimum batch size specified by MINBATCHSIZE
+ * @param minbatchtimeout minimum batch timeout specified by MINBATCHTIMEOUT
  * @param inbatchsize actual size of the batch in the current op, that
  *            is, the size of the input tensors along the zero-th dimension
  * @return
  */
 void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
                             size_t *batchsize, size_t *minbatchsize,
-                            size_t *inbatchsize);
+                            size_t *minbatchtimeout, size_t *inbatchsize);
  
 /**
  * Check that a DAG operation can be batched with a given batch operation.

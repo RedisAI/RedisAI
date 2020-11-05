@@ -463,9 +463,11 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
 }
 
 void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
-                            size_t *batchsize, size_t *minbatchsize, size_t *inbatchsize) {
+                            size_t *batchsize, size_t *minbatchsize,
+                            size_t *minbatchtimeout, size_t *inbatchsize) {
   *batchsize = 0;
   *minbatchsize = 0;
+  *minbatchtimeout = 0;
   *inbatchsize = 0;
  
   RAI_ContextReadLock(rinfo);
@@ -473,6 +475,7 @@ void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
   if (op->mctx) {
     *batchsize = op->mctx->model->opts.batchsize;
     *minbatchsize = op->mctx->model->opts.minbatchsize;
+    *minbatchtimeout = op->mctx->model->opts.minbatchtimeout;
     *inbatchsize = RAI_DagOpBatchSize(op, rinfo->dagTensorsContext);
   }
 
@@ -1246,6 +1249,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     RedisAI_RunInfo *rinfo = rinfo_copies[i];
+
+    gettimeofday(&rinfo->queuingTime, NULL); 
 
     pthread_mutex_lock(&run_queue_info->run_queue_mutex);
     queuePush(run_queue_info->run_queue, rinfo);

@@ -91,6 +91,7 @@ typedef struct RedisAI_RunInfo {
   // Pointer to ref count in DAG, shared across multiple worker thread
   long long *dagRefCount;
   int master;
+  struct timeval queuingTime;
 } RedisAI_RunInfo;
 
 /**
