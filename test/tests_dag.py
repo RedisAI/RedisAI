@@ -679,6 +679,35 @@ def test_dag_modelrun_financialNet_autobatch(env):
             env.assertEqual(ret, 1)
 
 
+def test_dag_with_timeout(env):
+    if not TEST_TF:
+        return
+    con = env.getConnection()
+    batch_size = 2
+    minbatch_size = 2
+    timeout = 1000
+    model_name = 'model{1}'
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+
+    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', input_var,
+                        'OUTPUTS', output_var,
+                        'BLOB', model_pb)
+    con.execute_command('AI.TENSORSET', 'input{1}',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    con = env.getConnection()
+    con.execute_command('AI.DAGRUN',
+                        'LOAD', '1', 'input{1}', 
+                        'TIMEOUT', timeout, '|>',
+                        'AI.MODELRUN', model_name,
+                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+
+    env.assertTrue(True)
+
+
 def test_dag_modelrun_financialNet_no_writes(env):
     if not TEST_TF:
         return

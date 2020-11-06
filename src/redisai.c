@@ -543,7 +543,7 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 /**
- * AI.MODELRUN model_key INPUTS input_key1 ... OUTPUTS output_key1 ...
+ * AI.MODELRUN model_key [TIMEOUT t] INPUTS <input_key> [input_key ...] OUTPUTS <output_key> [output_key ...]
  *
  * The request is queued and evaded asynchronously from a separate thread. The
  * client blocks until the computation finishes.
@@ -560,7 +560,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 /** 
-* AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+* AI.SCRIPTRUN <key> <function> INPUTS <input_key> [input_key ...] OUTPUTS <output_key> [output_key ...]
 */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   if (RedisModule_IsKeysPositionRequest(ctx)) {
@@ -864,7 +864,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 }
 
 /**
- * AI.DAGRUN [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ] |>
+ * AI.DAGRUN [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ] [TIMEOUT t] |>
  * [COMMAND1] |> [COMMAND2] |> [COMMANDN]
  *
  * The request is queued and evaded asynchronously from a separate thread. The
@@ -879,7 +879,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 /**
- * AI.DAGRUN_RO [LOAD <nkeys> key1 key2... ] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
+ * AI.DAGRUN_RO [LOAD <nkeys> key1 key2... ] [TIMEOUT t] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
  *
  * Read-only (no PERSIST) DAG execution.
  * The request is queued and evaded asynchronously from a separate thread. The
