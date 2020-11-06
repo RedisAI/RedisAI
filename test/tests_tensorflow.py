@@ -671,6 +671,32 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
 
 @skip_if_no_TF
+def test_tensorflow_modelrun_with_timeout(env):
+    con = env.getConnection()
+    batch_size = 2
+    minbatch_size = 2
+    timeout = 1000
+    model_name = 'model{1}'
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+
+    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', input_var,
+                        'OUTPUTS', output_var,
+                        'BLOB', model_pb)
+    con.execute_command('AI.TENSORSET', 'input{1}',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    con = env.getConnection()
+    con.execute_command('AI.MODELRUN', model_name,
+                        'TIMEOUT', timeout,
+                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+
+    env.assertTrue(True)
+
+
+@skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
     con = env.getConnection()
     batch_size = 2

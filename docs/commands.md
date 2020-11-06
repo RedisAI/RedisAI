@@ -285,7 +285,9 @@ OK
 ## AI.MODELRUN
 The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
-The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model's run is completed. When needed, tensors' data is automatically copied to the device prior to execution.
+The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model run is completed. When needed, tensors data is automatically copied to the device prior to execution.
+
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case).
 
 !!! warning "Intermediate memory overhead"
     The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
@@ -293,18 +295,19 @@ The run request is put in a queue and is executed asynchronously by a worker thr
 **Redis API**
 
 ```
-AI.MODELRUN <key> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+AI.MODELRUN <key> [TIMEOUT t] INPUTS <input> [input ...] OUTPUTS <output> [output ...]
 ```
 
 _Arguments_
 
 * **key**: the model's key name
+* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by one or more key names
 
 _Return_
 
-A simple 'OK' string or an error.
+A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
 
 **Examples**
 
@@ -458,16 +461,24 @@ OK
 ## AI.SCRIPTRUN
 The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors and store output tensors.
 
+The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
+
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case).
+
+!!! warning "Intermediate memory overhead"
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the TORCH backend (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
 **Redis API**
 
 ```
-AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] [$ input ...] OUTPUTS <output> [output ...]
+AI.SCRIPTRUN <key> <function> [TIMEOUT t] INPUTS <input> [input ...] [$ input ...] OUTPUTS <output> [output ...]
 ```
 
 _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
+* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **INPUTS**: denotes the beginning of the input tensors keys' list, followed by one or more key names;
               variadic arguments are supported by prepending the list with `$`, in this case the
               script is expected an argument of type `List[Tensor]` as its last argument
@@ -475,7 +486,7 @@ _Arguments_
 
 _Return_
 
-A simple 'OK' string or an error.
+A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
 
 **Examples**
 
@@ -562,12 +573,15 @@ Loading and persisting tensors from/to keyspace should be done explicitly. The u
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case). Note that individual `MODELRUN` or `SCRIPTRUN` commands within the DAG do not support `TIMEOUT`. `TIMEOUT` only applies to the `DAGRUN` request as a whole.
+
 
 **Redis API**
 
 ```
 AI.DAGRUN [LOAD <n> <key-1> <key-2> ... <key-n>]
           [PERSIST <n> <key-1> <key-2> ... <key-n>]
+          [TIMEOUT t]
           |> <command> [|>  command ...]
 ```
 
@@ -575,6 +589,7 @@ _Arguments_
 
 * **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
+* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
     * `AI.TENSORSET`
     * `AI.TENSORGET`
@@ -586,6 +601,7 @@ _Arguments_
 _Return_
 
 An array with an entry per command's reply. Each entry format respects the specified command reply.
+In case the `DAGRUN` request times out, a `TIMEDOUT` simple string is returned.
 
 **Examples**
 

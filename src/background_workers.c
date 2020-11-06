@@ -118,7 +118,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
     struct timespec absTimeout;
     absTimeout.tv_sec = now.tv_sec;
-    absTimeout.tv_nsec = (now.tv_usec + 1000) * 1000; // wait 1 millisecond
+    absTimeout.tv_nsec = (now.tv_usec + 1000) * 1000; // 1 millisecond
 
     int rc = pthread_cond_timedwait(&run_queue_info->queue_condition_var,
                                     &run_queue_info->run_queue_mutex,
@@ -153,6 +153,34 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       while (item) {
         RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
 
+        if (rinfo->timeout > 0) {
+          int timedOut = __atomic_load_n(rinfo->timedOut, __ATOMIC_RELAXED);
+
+          if (timedOut == 0) {
+            struct timeval now, sub;
+            gettimeofday(&now, NULL); 
+            timersub(&now, &rinfo->queuingTime, &sub);
+            size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+
+            if (time_msec > rinfo->timeout) {
+              timedOut = 1;
+              __atomic_store_n(rinfo->timedOut, timedOut, __ATOMIC_RELAXED);
+            }
+          }
+
+          if (timedOut == 1) {
+            queueEvict(run_queue_info->run_queue, item);
+
+            int dagRefCount = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
+            if (dagRefCount == 0 && rinfo->client) {
+              RedisModule_UnblockClient(rinfo->client, rinfo);
+            }
+
+            item = item->next;
+            continue;
+          }
+        }
+
         // Since we might be looking through the queue for candidates, we need
         // to reinitialize our findings every time we consider a new item for
         // running
@@ -166,6 +194,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         if (evicted_items) {
           array_free(evicted_items);
           array_free(batch_rinfo);
+          *evicted_items = NULL;
+          *batch_rinfo = NULL;
         }
         evicted_items = array_new(queueItem *, run_queue_len);
         batch_rinfo = array_new(RedisAI_RunInfo *, run_queue_len);
@@ -337,14 +367,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       // If there was nothing on the queue, free up the arrays and unlock
       // so we can wait for more items to land on the queue
       if (item == NULL) {
-        array_free(evicted_items);
-        array_free(batch_rinfo);
-        // run_queue_len = queueLength(run_queue_info->run_queue);
-        // pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-        // usleep(1000);
-        // pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-        // continue;
-        // pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+        if (evicted_items) {
+          array_free(evicted_items);
+          array_free(batch_rinfo);
+          *evicted_items = NULL;
+          *batch_rinfo = NULL;
+        }
         break;
       }
 

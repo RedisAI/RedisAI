@@ -114,8 +114,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   if (!(rinfo->dagTensorsLoadedContext)) {
     return REDISMODULE_ERR;
   }
-  rinfo->dagTensorsPersistedContext =
-      AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+  rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
   if (!(rinfo->dagTensorsPersistedContext)) {
     return REDISMODULE_ERR;
   }
@@ -136,6 +135,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
   rinfo->dagDeviceCompleteOpCount = 0;
   pthread_rwlock_init(rinfo->dagLock, NULL);
   rinfo->master = 1;
+  rinfo->timedOut = RedisModule_Calloc(1, sizeof(int));
   *result = rinfo;
   return REDISMODULE_OK;
 }
@@ -243,6 +243,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
   RedisModule_Free(rinfo->dagRefCount);
   RedisModule_Free(rinfo->dagCompleteOpCount);
+  RedisModule_Free(rinfo->timedOut);
 
   RedisModule_Free(rinfo);
 }

@@ -580,6 +580,12 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv,
 
   size_t n_dagOps = array_len(rinfo->dagOps);
 
+  if (*rinfo->timedOut) {
+    RedisModule_ReplyWithSimpleString(ctx, "TIMEDOUT");
+    RAI_FreeRunInfo(ctx, rinfo);
+    return REDISMODULE_OK;
+  }
+
   if (rinfo->single_op_dag == 0) {
     RedisModule_ReplyWithArray(ctx, REDISMODULE_POSTPONED_ARRAY_LEN);
   }
@@ -950,6 +956,28 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
         RAI_FreeRunInfo(ctx, rinfo);
         return REDISMODULE_ERR;
       }
+    } else if (!strcasecmp(arg_string, "TIMEOUT")) {
+      if (!((chainingOpCount == 0) ||
+           (chainingOpCount  == 1 && rinfo->single_op_dag == 1))) {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return RedisModule_ReplyWithError(
+            ctx, "ERR TIMEOUT not allowed within a DAG command");
+      }
+      if (argpos == argc - 1) {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return RedisModule_ReplyWithError(
+            ctx, "ERR No value provided for TIMEOUT");
+      }
+      long long timeout;
+      const int retval = RedisModule_StringToLongLong(argv[argpos + 1], &timeout);
+      if (retval != REDISMODULE_OK || timeout <= 0) {
+        RAI_FreeRunInfo(ctx, rinfo);
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Invalid value for TIMEOUT");
+      }
+      rinfo->timeout = timeout;
+      argpos += 1;
+      continue;
     } else if (!strcasecmp(arg_string, "|>") && argpos < argc - 1) {
       // on the first pipe operator, if LOAD or PERSIST were used, we've already
       // allocated memory
