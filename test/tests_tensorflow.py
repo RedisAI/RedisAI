@@ -689,9 +689,6 @@ def test_tensorflow_modelrun_with_timeout(env):
                         'BLOB', img.tobytes())
 
     con = env.getConnection()
-    print('AI.MODELRUN', model_name,
-                        'TIMEOUT', timeout,
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
     con.execute_command('AI.MODELRUN', model_name,
                         'TIMEOUT', timeout,
                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')

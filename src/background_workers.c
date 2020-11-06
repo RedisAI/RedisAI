@@ -176,9 +176,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
               RedisModule_UnblockClient(rinfo->client, rinfo);
             }
 
-            RedisModule_Free(item);
-
+            queueItem *evicted_item = item;
             item = item->next;
+            RedisModule_Free(evicted_item);
+
             continue;
           }
         }
