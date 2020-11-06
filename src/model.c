@@ -552,11 +552,17 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                                                     RedisModuleString **argv, int argc){
   RedisModule_KeyAtPos(ctx, 1);
   size_t startpos = 2;
+  if (startpos >= argc) {
+    return REDISMODULE_ERR;
+  }
   const char *str = RedisModule_StringPtrLen(argv[startpos], NULL);
   if (!strcasecmp(str, "TIMEOUT")) {
     startpos += 2;
   }
   startpos += 1;
+  if (startpos >= argc) {
+    return REDISMODULE_ERR;
+  }
   for (size_t argpos = startpos; argpos < argc; argpos++){
     str = RedisModule_StringPtrLen(argv[argpos], NULL);
     if (!strcasecmp(str, "OUTPUTS")) {
