@@ -1162,6 +1162,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
       == REDISMODULE_ERR)
     return REDISMODULE_ERR;
 
+  RedisModule_SetModuleOptions(ctx, REDISMODULE_OPTIONS_HANDLE_IO_ERRORS);
+  
   // Default configs
   RAI_BackendsPath = NULL;
   perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;

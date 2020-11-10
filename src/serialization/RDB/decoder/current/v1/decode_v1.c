@@ -2,8 +2,12 @@
 #include "assert.h"
 
 void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
+  int64_t* shape = NULL;
+  int64_t* strides = NULL;
+  char *data = NULL;
   DLContext ctx;
   ctx.device_type = RedisModule_LoadUnsigned(io);
+  if(RedisModule_IsIOError(io)) goto cleanup;
   
   ctx.device_id = RedisModule_LoadUnsigned(io);
 
@@ -18,12 +22,12 @@ void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
 
   size_t ndims = RedisModule_LoadUnsigned(io);
 
-  int64_t* shape = RedisModule_Calloc(ndims, sizeof(*shape));
-  int64_t* strides = RedisModule_Calloc(ndims, sizeof(*strides));
+  shape = RedisModule_Calloc(ndims, sizeof(*shape));
   for (size_t i = 0 ; i < ndims ; ++i){
     shape[i] = RedisModule_LoadUnsigned(io);
   }
 
+  strides = RedisModule_Calloc(ndims, sizeof(*strides));
   for (size_t i = 0 ; i < ndims ; ++i){
     strides[i] = RedisModule_LoadUnsigned(io);
   }
@@ -49,6 +53,12 @@ void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
   };
   ret->refCount = 1;
   return ret;
+
+cleanup:
+  if(shape) RedisModule_Free(shape);
+  if(strides) RedisModule_Free(strides);
+  if(data) RedisModule_Free(data);
+  RedisModule_LogIOError(io, "error", "Experienced a short read while reading from RDB");
 }
 
 void* RAI_RDBLoadModel_v1(RedisModuleIO *io) {
