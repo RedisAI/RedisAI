@@ -2,19 +2,11 @@
 #include "gtest/gtest.h"
 
 extern "C" {
-#include "src/redismodule.h"
+#include "rmalloc.h"
 #include "src/err.h"
 }
 
 namespace {
-
-void Alloc_Reset() {
-    RedisModule_Alloc = malloc;
-    RedisModule_Realloc = realloc;
-    RedisModule_Calloc = calloc;
-    RedisModule_Free = free;
-    RedisModule_Strdup = strdup;
-}
 
 TEST(err, RAI_GetError) {
     Alloc_Reset();
