@@ -426,3 +426,22 @@ extern "C" void torchDeallocContext(void* ctx)
     delete ctx_;
   }
 }
+
+extern "C" void torchSetInterOpThreads(long long num_threads){
+    try {
+        torch::set_num_interop_threads((int)num_threads);
+    }
+    catch(std::exception& e) {
+        std::cout << e.what() << std::endl;
+    }
+}
+
+
+extern "C" void torchSetIntraOpThreads(long long num_threads){
+    try {
+        torch::set_num_threads((int)num_threads);
+    }
+    catch(std::exception& e) {
+        std::cout << e.what() << std::endl;
+    }
+}

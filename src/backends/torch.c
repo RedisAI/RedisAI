@@ -39,6 +39,14 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_
       return NULL;
   }
 
+    if (opts.backends_inter_op_parallelism > 0) {
+        torchSetInterOpThreads(opts.backends_inter_op_parallelism);
+    }
+
+    if (opts.backends_intra_op_parallelism > 0) {
+        torchSetIntraOpThreads(opts.backends_intra_op_parallelism);
+    }
+
   char* error_descr = NULL;
   void* model = torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
 

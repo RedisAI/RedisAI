@@ -34,6 +34,10 @@ void torchSerializeModel(void* modelCtx, char **buffer, size_t *len,
 
 void torchDeallocContext(void* ctx);
 
+void torchSetInterOpThreads(long long num_threads);
+
+void torchSetIntraOpThreads(long long num_threads);
+
 #ifdef __cplusplus
 }
 #endif
