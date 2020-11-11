@@ -6,10 +6,16 @@ extern "C" {
 #include "src/err.h"
 }
 
-namespace {
 
-TEST(err, RAI_GetError) {
-    Alloc_Reset();
+class ErrorStructTest : public ::testing::Test {
+    protected:
+        static void SetUpTestCase() {
+            // Use the malloc family for allocations
+            Alloc_Reset();
+        }
+};
+
+TEST_F(ErrorStructTest, RAI_GetError) {
     RAI_Error* err;
     EXPECT_EQ(0,RAI_InitError(&err));
     EXPECT_STREQ(RAI_GetError(err),nullptr);
@@ -18,8 +24,7 @@ TEST(err, RAI_GetError) {
     RAI_FreeError(err);
 }
 
-TEST(err, RAI_SetError_nullptr) {
-    Alloc_Reset();
+TEST_F(ErrorStructTest, RAI_SetError_nullptr) {
     RAI_Error* err = nullptr;
 
     // Test for nullptr err
@@ -32,8 +37,7 @@ TEST(err, RAI_SetError_nullptr) {
     RAI_ClearError(err);
 }
 
-TEST(err, RAI_SetError_default) {
-    Alloc_Reset();
+TEST_F(ErrorStructTest, RAI_SetError_default) {
     RAI_Error* err;
     EXPECT_EQ(0,RAI_InitError(&err));
     RAI_SetError(err,RAI_OK,nullptr);
@@ -49,5 +53,3 @@ TEST(err, RAI_SetError_default) {
 
     RAI_FreeError(err);
 }
-
-}  // namespace
