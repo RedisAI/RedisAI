@@ -1,15 +1,21 @@
 #include "decode_v1.h"
 #include "assert.h"
 
+/**
+ * In case of IO errors, the default return values are:
+ * numbers - 0
+ * strings - null
+ * So only when it is necessary check for IO errors.
+ */
+
 void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
   int64_t* shape = NULL;
   int64_t* strides = NULL;
-  char *data = NULL;
+
   DLContext ctx;
-  ctx.device_type = RedisModule_LoadUnsigned(io);
-  if(RedisModule_IsIOError(io)) goto cleanup;
-  
+  ctx.device_type = RedisModule_LoadUnsigned(io);  
   ctx.device_id = RedisModule_LoadUnsigned(io);
+  if(RedisModule_IsIOError(io)) goto cleanup;
 
   // For now we only support CPU tensors (except during model and script run)
   assert(ctx.device_type == kDLCPU);
@@ -21,6 +27,7 @@ void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
   dtype.lanes = RedisModule_LoadUnsigned(io);
 
   size_t ndims = RedisModule_LoadUnsigned(io);
+  if(RedisModule_IsIOError(io)) goto cleanup;
 
   shape = RedisModule_Calloc(ndims, sizeof(*shape));
   for (size_t i = 0 ; i < ndims ; ++i){
@@ -36,6 +43,7 @@ void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
   
   size_t len;
   char *data = RedisModule_LoadStringBuffer(io, &len);
+  if(RedisModule_IsIOError(io)) goto cleanup;
 
   RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
   ret->tensor = (DLManagedTensor){
@@ -57,29 +65,40 @@ void* RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
 cleanup:
   if(shape) RedisModule_Free(shape);
   if(strides) RedisModule_Free(strides);
-  if(data) RedisModule_Free(data);
-  RedisModule_LogIOError(io, "error", "Experienced a short read while reading from RDB");
+  RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
+  return NULL;
 }
 
 void* RAI_RDBLoadModel_v1(RedisModuleIO *io) {
-  RAI_Backend backend = RedisModule_LoadUnsigned(io);
-  const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
+  
+  char *devicestr = NULL;
+  char *tag = NULL;
+  size_t ninputs = 0;
+  const char **inputs = NULL;
+  size_t noutputs = 0;
+  const char **outputs = NULL;
+  char *buffer = NULL;
 
-  const char *tag = RedisModule_LoadStringBuffer(io, NULL);
+  RAI_Backend backend = RedisModule_LoadUnsigned(io);
+  devicestr = RedisModule_LoadStringBuffer(io, NULL);
+  tag = RedisModule_LoadStringBuffer(io, NULL);
 
   const size_t batchsize = RedisModule_LoadUnsigned(io);
   const size_t minbatchsize = RedisModule_LoadUnsigned(io);
 
-  const size_t ninputs = RedisModule_LoadUnsigned(io);
-  const char **inputs = RedisModule_Alloc(ninputs * sizeof(char*));
+  ninputs = RedisModule_LoadUnsigned(io);
+  if(RedisModule_IsIOError(io)) goto cleanup;
+
+  inputs = RedisModule_Alloc(ninputs * sizeof(char*));
 
   for (size_t i=0; i<ninputs; i++) {
     inputs[i] = RedisModule_LoadStringBuffer(io, NULL);
   }
 
-  const size_t noutputs = RedisModule_LoadUnsigned(io);
+  noutputs = RedisModule_LoadUnsigned(io);
+  if(RedisModule_IsIOError(io)) goto cleanup;
 
-  const char **outputs = RedisModule_Alloc(ninputs * sizeof(char*));
+  outputs = RedisModule_Alloc(noutputs * sizeof(char*));
 
   for (size_t i=0; i<noutputs; i++) {
     outputs[i] = RedisModule_LoadStringBuffer(io, NULL);
@@ -93,19 +112,21 @@ void* RAI_RDBLoadModel_v1(RedisModuleIO *io) {
   };
 
   size_t len = RedisModule_LoadUnsigned(io);
-  char *buffer = RedisModule_Alloc(len);
+  if(RedisModule_IsIOError(io)) goto cleanup;
+
+  buffer = RedisModule_Alloc(len);
   const size_t n_chunks = RedisModule_LoadUnsigned(io);
   long long chunk_offset = 0;
   for (size_t i=0; i<n_chunks; i++) {
     size_t chunk_len;
     char *chunk_buffer = RedisModule_LoadStringBuffer(io, &chunk_len);
+    if(RedisModule_IsIOError(io)) goto cleanup;
     memcpy(buffer + chunk_offset, chunk_buffer, chunk_len);
     chunk_offset += chunk_len;
     RedisModule_Free(chunk_buffer);
   }
 
   RAI_Error err = {0};
-
   RAI_Model *model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs,
                                      buffer, len, &err);
 
@@ -115,7 +136,7 @@ void* RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     if (ret == REDISMODULE_ERR) {
       RedisModule_Log(ctx, "error", "Could not load default backend");
       RAI_ClearError(&err);
-      return NULL;
+      goto cleanup;
     }
     RAI_ClearError(&err);
     model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs, buffer, len, &err);
@@ -125,37 +146,65 @@ void* RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     RedisModuleCtx* ctx = RedisModule_GetContextFromIO(io);
     RedisModule_Log(ctx, "error", "%s", err.detail);
     RAI_ClearError(&err);
-    if (buffer) {
-      RedisModule_Free(buffer);
-    }
-    return NULL;
+    goto cleanup;
   }
-
-  RedisModule_Free(inputs);
-  RedisModule_Free(outputs);
-  RedisModule_Free(buffer);
 
   RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
   RedisModuleString* stats_keystr = RedisModule_CreateStringFromString(stats_ctx,
                                                                        RedisModule_GetKeyNameFromIO(io));
-  const char* stats_devicestr = RedisModule_Strdup(devicestr);
-  const char* stats_tag = RedisModule_Strdup(tag);
+  model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, tag);
 
-  model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
+  for(size_t i = 0; i < ninputs; i++ ) {
+      RedisModule_Free((void*)inputs[i]);
+  }
+  RedisModule_Free(inputs);
+  for(size_t i = 0; i < noutputs; i++ ) {
+      RedisModule_Free((void*)outputs[i]);
+  }
+  RedisModule_Free(outputs);
+  RedisModule_Free(buffer);
 
+  RedisModule_Free(tag);
+  RedisModule_Free(devicestr);
   RedisModule_Free(stats_keystr);
 
   return model;
+
+cleanup:
+  if(devicestr) RedisModule_Free(devicestr);
+  if(tag) RedisModule_Free(tag);
+  if(inputs){
+    for(size_t i = 0; i < ninputs; i++ ) {
+      RedisModule_Free((void*)inputs[i]);
+    }
+    RedisModule_Free(inputs);
+  }
+  
+  if(outputs) {
+    for(size_t i = 0; i < noutputs; i++ ) {
+        RedisModule_Free((void*)outputs[i]);
+    }
+    RedisModule_Free(outputs);
+  }
+
+  if(buffer) RedisModule_Free(buffer);
+
+  RedisModule_LogIOError(io, "error", "Experienced a short read while reading a model from RDB");
+  return NULL;
 }
 
 void* RAI_RDBLoadScript_v1(RedisModuleIO *io) {
+  char *tag = NULL;
+  char *devicestr = NULL;
+  char* scriptdef = NULL;
   RAI_Error err = {0};
 
-  const char* devicestr = RedisModule_LoadStringBuffer(io, NULL);
-  const char* tag = RedisModule_LoadStringBuffer(io, NULL);
+  devicestr = RedisModule_LoadStringBuffer(io, NULL);
+  tag = RedisModule_LoadStringBuffer(io, NULL);
 
   size_t len;
-  char* scriptdef = RedisModule_LoadStringBuffer(io, &len);
+  scriptdef = RedisModule_LoadStringBuffer(io, &len);
+  if(RedisModule_IsIOError(io)) goto cleanup;
 
   RAI_Script* script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
 
@@ -165,30 +214,36 @@ void* RAI_RDBLoadScript_v1(RedisModuleIO *io) {
     if (ret == REDISMODULE_ERR) {
       RedisModule_Log(ctx, "error", "Could not load default TORCH backend\n");
       RAI_ClearError(&err);
-      return NULL;
+      goto cleanup;
     }
     RAI_ClearError(&err);
     script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
   }
 
-  RedisModule_Free(scriptdef);
-
   if (err.code != RAI_OK) {
     printf("ERR: %s\n", err.detail);
     RAI_ClearError(&err);
+    goto cleanup;
   }
 
   RedisModuleCtx* stats_ctx = RedisModule_GetContextFromIO(io);
   RedisModuleString* stats_keystr = RedisModule_CreateStringFromString(
       stats_ctx, RedisModule_GetKeyNameFromIO(io));
-  const char* stats_devicestr = RedisModule_Strdup(devicestr);
-  const char* stats_tag = RedisModule_Strdup(tag);
 
   script->infokey =
       RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH,
-                        stats_devicestr, stats_tag);
+                        devicestr, tag);
 
+
+  RedisModule_Free(tag);
+  RedisModule_Free(devicestr);
+  RedisModule_Free(scriptdef);
   RedisModule_Free(stats_keystr);
 
   return script;
+cleanup:
+  if(tag) RedisModule_Free(tag);
+  if(devicestr) RedisModule_Free(devicestr);
+  if(scriptdef) RedisModule_Free(scriptdef);
+  return NULL;
 }
