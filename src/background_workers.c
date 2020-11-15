@@ -105,6 +105,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
   pthread_t self = pthread_self();
   RAI_PTHREAD_SETNAME("redisai_bthread");
   pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+
+  queueItem **evicted_items = array_new(queueItem *, 1);
+  RedisAI_RunInfo **batch_rinfo = array_new(RedisAI_RunInfo *, 1);
+
   while (true) {
 
     // In case a DAG Op can express a MINBATCHSIZE > 0 with a MINBATCHTIMEOUT
@@ -131,9 +135,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
     long long run_queue_len = queueLength(run_queue_info->run_queue);
 
     while (run_queue_len > 0) {
-      queueItem **evicted_items = NULL;
-      RedisAI_RunInfo **batch_rinfo = NULL;
-
       // We first peek the front of the queue
       queueItem *item = queueFront(run_queue_info->run_queue);
 
@@ -152,6 +153,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
       while (item) {
         RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
+
+        // We keep a list of additional items that are evicted from the queue
+        // to find opporunities for batching
+        array_clear(evicted_items);
+        array_clear(batch_rinfo);
 
         if (rinfo->timeout > 0) {
           int timedOut = __atomic_load_n(rinfo->timedOut, __ATOMIC_RELAXED);
@@ -192,17 +198,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         do_retry = 0;
         device_complete = 0;
  
-        // We keep a list of additional items that are evicted from the queue
-        // to find oppotunities for batching
-        if (evicted_items) {
-          array_free(evicted_items);
-          array_free(batch_rinfo);
-          *evicted_items = NULL;
-          *batch_rinfo = NULL;
-        }
-        evicted_items = array_new(queueItem *, run_queue_len);
-        batch_rinfo = array_new(RedisAI_RunInfo *, run_queue_len);
-
         // We add the current item to the list of evicted items. If it's the
         // first time around this will be the queue front.
         evicted_items = array_append(evicted_items, item);
@@ -370,12 +365,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       // If there was nothing on the queue, free up the arrays and unlock
       // so we can wait for more items to land on the queue
       if (item == NULL) {
-        if (evicted_items) {
-          array_free(evicted_items);
-          array_free(batch_rinfo);
-          *evicted_items = NULL;
-          *batch_rinfo = NULL;
-        }
         break;
       }
 
@@ -447,9 +436,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
       int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
  
-      // We don't need the run info container for the batch anymore at this point
-      array_free(batch_rinfo);
-
       int dagRefCount = -1;
 
       if (device_complete == 1 || device_complete_after_run == 1) {
@@ -492,7 +478,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           queuePushFront(run_queue_info->run_queue, evicted_rinfo);
           // Since there's nothing else on the queue we just break out and give other
           // workers a chance to produce the inputs needed for this DAG step
-          array_free(evicted_items);
           break;
         }
       }
@@ -521,15 +506,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
       // If there's nothing else to do for the DAG in the current worker or if an error
       // occurred in any worker, we just move on
-      if (device_complete == 1 || device_complete_after_run || do_unblock == 1 || run_error == 1) {
+      if (device_complete == 1 || device_complete_after_run == 1 || do_unblock == 1 || run_error == 1) {
         for (long long i=0; i<array_len(evicted_items); i++) {
           RedisModule_Free(evicted_items[i]);
         }
       }
 
-      array_free(evicted_items);
 
       run_queue_len = queueLength(run_queue_info->run_queue);
     }
   }
+
+  array_free(evicted_items);
+  array_free(batch_rinfo);
 }

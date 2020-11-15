@@ -688,12 +688,13 @@ def test_tensorflow_modelrun_with_timeout(env):
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con = env.getConnection()
+    t = time.time()
     con.execute_command('AI.MODELRUN', model_name,
                         'TIMEOUT', timeout,
                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    elapsed_time = time.time() - t
 
-    env.assertTrue(True)
+    env.assertTrue(1000 * elapsed_time >= timeout)
 
 
 @skip_if_no_TF
@@ -715,7 +716,6 @@ def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con = env.getConnection()
     con.execute_command('AI.MODELRUN', model_name,
                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
 

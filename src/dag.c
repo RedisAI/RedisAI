@@ -99,10 +99,10 @@ void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
  * @return
  */
 void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
-  RAI_ContextReadLock(rinfo);
-
   uint n_inkeys = array_len(currentOp->inkeys);
   uint n_outkeys = array_len(currentOp->outkeys);
+
+  RAI_ContextReadLock(rinfo);
 
   RAI_Tensor* inputTensors[n_inkeys];
   for (uint i=0; i<n_inkeys; i++) {
@@ -276,10 +276,10 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
  * @return
  */
 void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
-  RAI_ContextReadLock(rinfo);
-
   uint n_inkeys = array_len(currentOp->inkeys);
   uint n_outkeys = array_len(currentOp->outkeys);
+
+  RAI_ContextReadLock(rinfo);
 
   RAI_Tensor* inputTensors[n_inkeys];
   for (uint i=0; i<n_inkeys; i++) {
@@ -388,6 +388,10 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext,
  
     RAI_Tensor *input2;
     RAI_getTensorFromLocalContext(NULL, op2TensorsContext, RedisModule_StringPtrLen(op2->inkeys[i], NULL), &input2, op2->err);
+
+    if (input1 == NULL || input2 == NULL) {
+      return 0;
+    }
  
     int ndims1 = RAI_TensorNumDims(input1);
     int ndims2 = RAI_TensorNumDims(input2);
@@ -442,13 +446,14 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
     return;
   }
 
-  RAI_ContextReadLock(rinfo);
-
   if (currentOp_->mctx && currentOp_->mctx->model->opts.batchsize > 0) {
     *currentOpBatchable = 1;
   }
 
   uint n_inkeys = array_len(currentOp_->inkeys);
+
+  RAI_ContextReadLock(rinfo);
+
   *currentOpReady = 1;
   for (int i=0; i<n_inkeys; i++) {
     if (AI_dictFind(rinfo->dagTensorsContext,
@@ -534,8 +539,6 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
   if (currentOp->result != REDISMODULE_OK) {
     __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
   }
-  
-  return;
 }
 
 void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const char *devicestr) {

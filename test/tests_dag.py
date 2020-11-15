@@ -698,14 +698,15 @@ def test_dag_with_timeout(env):
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con = env.getConnection()
+    t = time.time()
     con.execute_command('AI.DAGRUN',
                         'LOAD', '1', 'input{1}', 
                         'TIMEOUT', timeout, '|>',
                         'AI.MODELRUN', model_name,
                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    elapsed_time = time.time() - t
 
-    env.assertTrue(True)
+    env.assertTrue(1000 * elapsed_time >= timeout)
 
 
 def test_dag_modelrun_financialNet_no_writes(env):

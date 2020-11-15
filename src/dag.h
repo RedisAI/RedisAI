@@ -14,35 +14,40 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
-// TODO DOCS
-
+/**
+ * Get whether all DAG ops for the given device have been executed
+ * successfully. Since rinfo carries information on what queue
+ * it has been placed in, there's no need to pass the device identifier.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @return nonzero if all ops are complete for device, 0 otherwise
+ */
 int RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo);
 
+/**
+ * Get whether all DAG ops have been executed successfully irrespective
+ * of the device, i.e. if the DAG has been completely executed.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @return nonzero of all ops in DAG are complete, 0 otherwise
+ */
 int RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
 
 /**
  * Get current DAG op for the given device. An op is current if it's
- * the first unrealized op for the device.
+ * the first unrealized op for the device. Since rinfo carries information
+ * on what queue it has been placed in, there's no need to pass the device
+ * identifier.
  * @param rinfo context in which RedisAI blocking commands operate.
- * @param devicestr device identifier associated with the current queue
- * @param currentOp current op identified
- * @return
+ * @return pointer to current DAG op for device
  */
 RAI_DagOp* RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo);
  
 /**
- * Get current DAG op for the given device. An op is current if it's
- * the first unrealized op for the device. Also get additional information
- * about the op.
+ * Get information about current DAG op for the given device.
  * @param rinfo context in which RedisAI blocking commands operate.
- * @param devicestr device identifier associated with the current queue
- * @param currentOp current op identified
  * @param currentOpReady have all inputs for the op been computed, that is,
  *            are they available in the tensor context
  * @param currentOpBatchable is the op amenable to batching, that is, is it
  *            a MODELRUN and is BATCHSIZE greater than zero
- * @param deviceComplete were all ops for the given device already computed
- * @param dagComplete were all ops in the DAG already computed
  * @return
  */
 void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
@@ -69,7 +74,7 @@ void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
  * @param rinfo1 given context in which RedisAI blocking commands operate.
  * @param op1 given DAG operation
  * @param rinfo2 other context in which RedisAI blocking commands operate.
- * @param opr other DAG operation to be checked
+ * @param op2 other DAG operation to be checked
  * @param batched can op2 be batched with op1
  * @param inbatchsize actual size of the batch in op2
  * @return
