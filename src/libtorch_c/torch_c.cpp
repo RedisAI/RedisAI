@@ -323,7 +323,10 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
     ctx->module = nullptr;
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
     delete ctx;
     return NULL;
   }
@@ -351,7 +354,10 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     ctx->cu = nullptr;
   }
   catch(std::exception& e) {
-   *error = strdup(e.what());
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
     // delete ctx;
     return NULL;
   }
@@ -368,7 +374,10 @@ extern "C" void torchRunScript(void* scriptCtx, const char* fnName, int variadic
     torchRunModule(ctx, fnName, variadic, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
@@ -382,7 +391,10 @@ extern "C" void torchRunModel(void* modelCtx,
     torchRunModule(ctx, "forward", -1, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    *error = strdup(e.what());
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
@@ -400,7 +412,10 @@ extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len,
     *len = size;
   }
   catch(std::exception& e) {
-   *error = strdup(e.what());
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
