@@ -136,7 +136,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
 | 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
 | 1.0.0   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
-| master  | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
+| master  | 1.7.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 
 Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.
 
@@ -152,4 +152,4 @@ Got questions? Feel free to ask at the [RedisAI Forum](https://forum.redislabs.c
 
 Redis Source Available License Agreement - see [LICENSE](LICENSE)
 
-Copyright 2020, [Tensorwerk, Inc](https://tensorwerk.com) & [Redis Labs, Inc](https://redislabs.com)
+Copyright 2020, [Redis Labs, Inc](https://redislabs.com)
