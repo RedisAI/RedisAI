@@ -86,7 +86,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="1.15.0"
+TF_VERSION="2.3.1"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -102,7 +102,6 @@ if [[ $WITH_TF != 0 ]]; then
 				TF_BUILD="gpu"
 			fi
 			if [[ $ARCH == x64 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=x86_64
 				
 				# special case for 1.15.0 as official version does not suport CUDA 10.1
@@ -112,16 +111,13 @@ if [[ $WITH_TF != 0 ]]; then
 					LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
 				fi
 			elif [[ $ARCH == arm64v8 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=arm64
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			elif [[ $ARCH == arm32v7 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=arm
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			fi
 		elif [[ $OS == macosx ]]; then
-			TF_VERSION=1.15.0
 			TF_OS=darwin
 			TF_BUILD=cpu
 			TF_ARCH=x86_64
