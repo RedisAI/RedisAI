@@ -14,7 +14,7 @@ if [[ $OS == linux ]]; then
 	elif [[ $ARCH == arm32v7 ]]; then
 		bash build_rpi_lib.sh
 	fi
-elif [[ $OS == macosx ]]; then
+elif [[ $OS == macos ]]; then
 	TARGET=osx
 	bash build_lib.sh
 fi

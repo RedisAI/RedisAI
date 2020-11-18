@@ -125,6 +125,8 @@ static inline void *array_trimm(array_t arr, uint32_t len, uint32_t cap) {
 #define array_trimm_len(arr, len) array_trimm(arr, len, -1)
 #define array_trimm_cap(arr, len) array_trimm(arr, len, len)
 
+#define array_clear(arr) array_hdr(arr)->len = 0
+
 /* Free the array, without dealing with individual elements */
 static void array_free(array_t arr) {
   array_free_fn(array_hdr(arr));

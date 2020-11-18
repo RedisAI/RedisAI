@@ -14,7 +14,7 @@ ifeq ($(OS),linux)
 OS.publish:=$(OS)
 ARCH.publish:=$(ARCH)
 
-else ifeq ($(OS),macosx)
+else ifeq ($(OS),macos)
 OS.publish:=darwin
 ARCH.publish:=x86_64
 endif
@@ -39,7 +39,7 @@ $(1)_TARGETS += $(if $(findstring $(ARM8),1),$(2)_arm64v8)
 $(1)_TARGETS += $$(if $$(strip $$($(1)_TARGETS)),,$(2)_x64 $(2)_arm32v7 $(2)_arm64v8)
 endef
 
-else ifeq ($(OS),macosx)
+else ifeq ($(OS),macos)
 
 define targets # (1=OP, 2=op)
 $(1)_TARGETS := $(2)_x64
@@ -121,7 +121,7 @@ $(eval $(call publish_arm,arm32v7,arm))
 help:
 	@echo "make [build|publish] [X64=1|ARM7=1|ARM8=1]"
 
-else ifeq ($(OS),macosx)
+else ifeq ($(OS),macos)
 
 build:
 	@VERSION=$(VERSION) ./build.macos
@@ -134,6 +134,6 @@ $(eval $(call publish_x64,x64,x86_64))
 help:
 	@echo "make [build|publish]"
 
-endif # macosx
+endif # macos
 
 .PHONY: all build publish help
