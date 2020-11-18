@@ -73,7 +73,7 @@ class RedisAISetup(paella.Setup):
         self.install("python3 python3-psutil python3-networkx")
         self.install_git_lfs_on_linux()
 
-    def macosx(self):
+    def macos(self):
         if sh('xcode-select -p') == '':
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
 

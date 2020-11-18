@@ -35,7 +35,7 @@ tf_build='cpu'
 platform = paella.Platform()
 
 tf_os = platform.os
-if tf_os == 'macosx':
+if tf_os == 'macos':
     tf_os = 'darwin'
 
 tf_arch = platform.arch

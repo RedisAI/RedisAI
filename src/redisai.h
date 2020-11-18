@@ -5,7 +5,6 @@
 #include "redismodule.h"
 #include "util/dict.h"
 #include "model_struct.h"
-#include "model_script_run_session.h"
 #include "background_workers.h"
 #include "version.h"
 
@@ -137,6 +136,7 @@ static int RedisAI_Initialize(RedisModuleCtx* ctx){
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreate);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateByConcatenatingTensors);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateBySlicingTensor);
+  REDISAI_MODULE_INIT_FUNCTION(ctx, TensorLength);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDataSize);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorFree);
   REDISAI_MODULE_INIT_FUNCTION(ctx, TensorSetData);
