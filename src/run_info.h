@@ -71,30 +71,29 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
  */
 typedef struct RedisAI_RunInfo {
   RedisModuleBlockedClient *client;
-  // TODO: completly move modelrun and scriptrun to dagOps
-  RedisModuleString *runkey;
-  RedisModuleString **outkeys;
-  RAI_ModelRunCtx *mctx;
-  RAI_ScriptRunCtx *sctx;
-  int result;  // REDISMODULE_OK or REDISMODULE_ERR
-  long long duration_us;
-  RAI_Error *err;
-  // DAG
-  int use_local_context;
+  int single_op_dag;
+  int single_device_dag;
   AI_dict *dagTensorsContext;
   AI_dict *dagTensorsPersistedContext;  // dict to flag tensors to persist
   AI_dict *dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
-  RAI_DagOp **dagOps;
+  RAI_DagOp **dagOps; // all ops in DAG
+  RAI_DagOp **dagDeviceOps; // all ops in DAG for device
   int dagReplyLength;
-  int dagNumberCommands;
+  int dagOpCount; // number of ops in DAG
+  int *dagCompleteOpCount; // number of completed ops in DAG
+  int dagDeviceOpCount; // number of ops in DAG for device
+  int dagDeviceCompleteOpCount; // number of completed ops in DAG for device
   // Pointer to integer signaling whether an error occurred anywhere in the DAG.
   // This is shared across shallow copies in device queues.
   int *dagError;
   // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
-  pthread_mutex_t *dagMutex;
-  int dagMaster;
+  pthread_rwlock_t *dagLock;
   // Pointer to ref count in DAG, shared across multiple worker thread
   long long *dagRefCount;
+  int master;
+  long long timeout;
+  int *timedOut;
+  struct timeval queuingTime;
 } RedisAI_RunInfo;
 
 /**
@@ -115,19 +114,43 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
 void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
 
 /**
- *
+ * Locks the DAG tensor context rwlock for reads. No-op in case of single
+ * op or single device DAGS.
  * @param rinfo context in which RedisAI blocking command operate.
- * @return
  */
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
+void RAI_ContextReadLock(RedisAI_RunInfo *rinfo);
 
 /**
- *
- * @param rinfo1 rinfo context 1 in which RedisAI blocking command 1 operates.
- * @param rinfo2 rinfo context 2 in which RedisAI blocking command 2 operates.
- * @return
+ * Locks the DAG tensor context rwlock for writes. No-op in case of single
+ * op or single device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
  */
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2);
+void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Unlocks the DAG tensor context rwlock. No-op in case of single op or single
+ * device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_ContextUnlock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Obtain the batch size for the provided DAG operation, that is, the
+ * size of the tensor in the zero-th dimension
+ * @param op DAG operation to operate on
+ * @return size of the batch for op
+ */
+size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
+
+/**
+ * Find out whether two DAG operations are batchable. That means they must be
+ * two MODELRUN operations with the same model, where respective inputs have
+ * compatible shapes (all dimensions except the zero-th must match)
+ * @param op1 first DAG operation
+ * @param op2 second DAG operation
+ * @return 1 if batchable, 0 otherwise
+ */
+int RAI_RunInfoBatchable(struct RAI_DagOp *op1,
+                         struct RAI_DagOp *op2);
 
 #endif /* SRC_RUN_INFO_H_ */

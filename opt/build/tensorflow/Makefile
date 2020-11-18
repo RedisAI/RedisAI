@@ -9,9 +9,6 @@ OSNICK ?= buster
 S3_URL=redismodules/tensorflow
 
 OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
-ifeq ($(OS),macosx)
-OS:=macos
-endif
 
 STEM=libtensorflow-cpu-$(OS)
 
