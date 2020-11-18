@@ -15,24 +15,90 @@
 #include "util/arr_rm_alloc.h"
 
 /**
- * Actual method running at most one of the DAGRUN comments in the worker
- * thread comsuming operations on a specific device. After a step is executed,
- * `progress` is set to 1 and the run info is placed back in the queue, until
- * DAGRUN is `complete`, when all steps have been executed on all devices.
- * A step may not be executed if its required inputs are not available in the
- * DAG local context.
- * Completion will trigger the reply callback to be called in order to reply to
- * the client. The 'rinfo' argument will be accessible by the reply callback.
- *
+ * Get whether all DAG ops for the given device have been executed
+ * successfully. Since rinfo carries information on what queue
+ * it has been placed in, there's no need to pass the device identifier.
  * @param rinfo context in which RedisAI blocking commands operate.
- * @param devicestr device identifier associated with the current queue
- * @param progress value is set to one if a step has been executed
- * @param device_complete value is set if all ops for the device have been executed
- * @param all_devices_complete value is set if all ops for all devices have been executed
+ * @return nonzero if all ops are complete for device, 0 otherwise
+ */
+int RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo);
+
+/**
+ * Get whether all DAG ops have been executed successfully irrespective
+ * of the device, i.e. if the DAG has been completely executed.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @return nonzero of all ops in DAG are complete, 0 otherwise
+ */
+int RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
+
+/**
+ * Get current DAG op for the given device. An op is current if it's
+ * the first unrealized op for the device. Since rinfo carries information
+ * on what queue it has been placed in, there's no need to pass the device
+ * identifier.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @return pointer to current DAG op for device
+ */
+RAI_DagOp* RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo);
+ 
+/**
+ * Get information about current DAG op for the given device.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param currentOpReady have all inputs for the op been computed, that is,
+ *            are they available in the tensor context
+ * @param currentOpBatchable is the op amenable to batching, that is, is it
+ *            a MODELRUN and is BATCHSIZE greater than zero
  * @return
  */
-void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr,
-                               int *progress, int *device_complete, int *all_devices_complete);
+void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo,
+                              int *currentOpReady,
+                              int *currentOpBatchable);
+
+/**
+ * Get batching information about a DAG op.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param op DAG operation
+ * @param batchsize maximum batch size specified by BATCHSIZE
+ * @param minbatchsize minimum batch size specified by MINBATCHSIZE
+ * @param minbatchtimeout minimum batch timeout specified by MINBATCHTIMEOUT
+ * @param inbatchsize actual size of the batch in the current op, that
+ *            is, the size of the input tensors along the zero-th dimension
+ * @return
+ */
+void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op,
+                            size_t *batchsize, size_t *minbatchsize,
+                            size_t *minbatchtimeout, size_t *inbatchsize);
+ 
+/**
+ * Check that a DAG operation can be batched with a given batch operation.
+ * @param rinfo1 given context in which RedisAI blocking commands operate.
+ * @param op1 given DAG operation
+ * @param rinfo2 other context in which RedisAI blocking commands operate.
+ * @param op2 other DAG operation to be checked
+ * @param batched can op2 be batched with op1
+ * @param inbatchsize actual size of the batch in op2
+ * @return
+ */
+void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1,
+                                RedisAI_RunInfo *rinfo2, RAI_DagOp *op2,
+                                int *batched, size_t *inbatchsize);
+ 
+/**
+ * Run the first unrealized DAG operation in rinfo for the given device.
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @return
+ */
+void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char* devicestr);
+
+/**
+ * Batch the first unrealized DAG operations for the given device for the
+ * provided rinfo and run.
+ * @param rinfo contexts in which RedisAI blocking commands operate.
+ * @param devicestr device identifier associated with the current queue
+ * @return
+ */
+void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **rinfo, const char* devicestr);
 
 /**
  * Reply Callback called after a successful RedisModule_UnblockClient() after

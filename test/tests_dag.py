@@ -612,6 +612,103 @@ def test_dag_modelrun_financialNet(env):
             ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
             env.assertEqual(ret, 1)
 
+
+def test_dag_modelrun_financialNet_autobatch(env):
+    if not TEST_TF:
+        return
+    con = env.getConnection()
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
+        env)
+    model_name = 'financialNet{{hhh}}'
+
+    ret = con.execute_command('AI.MODELSET', model_name, 'TF', 'CPU',
+                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
+                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output',
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
+
+            def run():
+                con = env.getConnection()
+                ret = con.execute_command(
+                    'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname, '|>',
+                    'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                    'AI.MODELRUN', model_name,
+                                'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                                'OUTPUTS', result_tensor_keyname
+                )
+                ensureSlaveSynced(con, env)
+
+            t = threading.Thread(target=run)
+            t.start()
+
+            ret = con.execute_command(
+                'AI.DAGRUN', 'LOAD', '1', reference_tensor_keyname,
+                            'PERSIST', '1', result_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELRUN', model_name,
+                            'INPUTS', transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', result_tensor_keyname, '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'META',
+            )
+
+            ensureSlaveSynced(con, env)
+
+            env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
+
+            # assert that transaction tensor does not exist
+            ret = con.execute_command("EXISTS {}".format(transaction_tensor_keyname))
+            env.assertEqual(ret, 0)
+            # assert that result tensor exists
+            ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
+            env.assertEqual(ret, 1)
+
+
+def test_dag_with_timeout(env):
+    if not TEST_TF:
+        return
+    con = env.getConnection()
+    batch_size = 2
+    minbatch_size = 2
+    timeout = 1000
+    model_name = 'model{1}'
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+
+    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', input_var,
+                        'OUTPUTS', output_var,
+                        'BLOB', model_pb)
+    con.execute_command('AI.TENSORSET', 'input{1}',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    t = time.time()
+    con.execute_command('AI.DAGRUN',
+                        'LOAD', '1', 'input{1}', 
+                        'TIMEOUT', timeout, '|>',
+                        'AI.MODELRUN', model_name,
+                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    elapsed_time = time.time() - t
+
+    env.assertTrue(1000 * elapsed_time >= timeout)
+
+
 def test_dag_modelrun_financialNet_no_writes(env):
     if not TEST_TF:
         return
@@ -723,7 +820,7 @@ def test_dagro_modelrun_financialNet_no_writes_multiple_modelruns(env):
     # Commenting due to: 'ascii' codec can't encode character '\u274c' in position 8: ordinal not in range(128)
     # env.assertEqual(DEVICE, financialNetRunInfo['device']) 
     env.assertTrue(financialNetRunInfo['duration'] > 0)
-    env.assertEqual(0, financialNetRunInfo['samples'])
+    env.assertEqual(2*MAX_TRANSACTIONS*10, financialNetRunInfo['samples'])
     env.assertEqual(2*MAX_TRANSACTIONS*10, financialNetRunInfo['calls'])
     env.assertEqual(0, financialNetRunInfo['errors'])
 
@@ -924,8 +1021,6 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
- 
-    
 
     try:
         ret = con.execute_command(
