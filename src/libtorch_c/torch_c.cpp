@@ -323,9 +323,10 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
     ctx->module = nullptr;
   }
   catch(std::exception& e) {
-    size_t len = strlen(e.what());
+    size_t len = strlen(e.what()) +1;
     *error = (char*)alloc(len * sizeof(char));
     strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
     delete ctx;
     return NULL;
   }
@@ -353,12 +354,10 @@ extern "C" void* torchLoadModel(const char* graph, size_t graphlen, DLDeviceType
     ctx->cu = nullptr;
   }
   catch(std::exception& e) {
-    const char* err_message = e.what(); 
-    const size_t len = strlen(err_message);
+    size_t len = strlen(e.what()) +1;
     *error = (char*)alloc(len * sizeof(char));
-    if(*error){
-       strcpy(*error, err_message);
-    }
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
     // delete ctx;
     return NULL;
   }
@@ -375,11 +374,10 @@ extern "C" void torchRunScript(void* scriptCtx, const char* fnName, int variadic
     torchRunModule(ctx, fnName, variadic, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    const size_t len = strlen(e.what());
+    size_t len = strlen(e.what()) +1;
     *error = (char*)alloc(len * sizeof(char));
-    if(*error!=NULL){
-      strcpy(*error, e.what());
-    }
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
@@ -393,9 +391,10 @@ extern "C" void torchRunModel(void* modelCtx,
     torchRunModule(ctx, "forward", -1, nInputs, inputs, nOutputs, outputs);
   }
   catch(std::exception& e) {
-    const size_t len = strlen(e.what());
+    size_t len = strlen(e.what()) +1;
     *error = (char*)alloc(len * sizeof(char));
     strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
@@ -413,9 +412,10 @@ extern "C" void torchSerializeModel(void* modelCtx, char **buffer, size_t *len,
     *len = size;
   }
   catch(std::exception& e) {
-    const size_t err_len = strlen(e.what());
-    *error = (char*)alloc(err_len * sizeof(char));
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
     strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
   }
 }
 
