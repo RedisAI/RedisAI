@@ -33,7 +33,7 @@ platform = paella.Platform()
 
 tf_os = platform.os
 tf_os_internal = tf_os
-if tf_os == 'macosx':
+if tf_os == 'macos':
     tf_os = 'darwin'
     tf_os_internal = 'osx'
 
