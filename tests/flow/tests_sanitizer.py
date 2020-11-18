@@ -14,7 +14,7 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
     con = env.getConnection()
     mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
-        print("exiting sanitizer test given we're not using stdlib allocator")
+        print("exiting sanitizer tests given we're not using stdlib allocator")
         return
 
     model_name = 'mobilenet_v1{s}'
@@ -50,7 +50,7 @@ def test_sanitizer_modelrun_mobilenet_v1(env):
     con = env.getConnection()
     mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
-        print("exiting sanitizer test given we're not using stdlib allocator")
+        print("exiting sanitizer tests given we're not using stdlib allocator")
         return
 
     model_name = 'mobilenet_v1{s}'
