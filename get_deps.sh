@@ -104,12 +104,7 @@ if [[ $WITH_TF != 0 ]]; then
 			if [[ $ARCH == x64 ]]; then
 				TF_ARCH=x86_64
 				
-				# special case for 1.15.0 as official version does not suport CUDA 10.1
-				if [[ $WITH_TF == S3 || $GPU == 1 ]]; then
-					LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
-				else
-					LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
-				fi
+				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
 			elif [[ $ARCH == arm64v8 ]]; then
 				TF_ARCH=arm64
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
