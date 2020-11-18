@@ -19,6 +19,7 @@ capabilities:
     - backup_restore
     - replica_of
     - flash
+    - reshard_rebalance    
 exclude_commands:
     - ai.modelset
     - ai.modeldel

@@ -36,13 +36,19 @@ make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
 
-make test         # run tests
-  TEST=test         # run only test `test` with Redis output
-  TEST_ARGS=args    # add extra RLTest `args`
-  VERBOSE=1         # verbose tests output
-  COV=1             # perform coverage analysis
-  VALGRIND|VGD=1    # test with Valgrind (implies DEBUG=1)
-  CALLGRIND|CGD=1   # test with Callgrind (implies DEBUG=1)
+make test        # run test suites (flow an unit)
+				 # same as running make unit_tests flow_tests
+
+make unit_tests  # run unit test
+
+make flow_tests  # run flow test
+  TEST=test        # run only test `test` with Redis output
+  TEST_ARGS=args   # add extra RLTest `args`
+  VERBOSE=1        # verbose tests output
+  COV=1            # perform coverage analysis
+  VALGRIND|VGD=1   # test with Valgrind (implies DEBUG=1)
+  CALLGRIND|CGD=1  # test with Callgrind (implies DEBUG=1)
+
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
 make pack             # create installation packages
@@ -191,22 +197,45 @@ export SLAVES ?= 1
 export AOF ?= 1
 export CLUSTER ?= 1
 
-test:
+unit_tests: build
+	@echo "$(BINDIR)"
+	$(COVERAGE_RESET)
+	$(SHOW)\
+		BINDIR=$(realpath $(BINDIR)) \
+		$(ROOT)/tests/unit/tests.sh
+	$(COVERAGE_COLLECT_REPORT)
+
+
+flow_tests: build
 	$(COVERAGE_RESET)
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
-		MODULE=$(INSTALLED_TARGET) \
+		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
-		$(ROOT)/test/tests.sh
+		$(ROOT)/tests/flow/tests.sh
+	$(COVERAGE_COLLECT_REPORT)
+
+test: build
+	$(COVERAGE_RESET)
+	$(SHOW)\
+		BINDIR=$(realpath $(BINDIR)) \
+		$(ROOT)/tests/unit/tests.sh
+	$(SHOW)\
+		DEVICE=$(DEVICE) \
+		MODULE=$(realpath $(INSTALLED_TARGET)) \
+		CLUSTER=$(CLUSTER) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
+		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 valgrind:
-	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 

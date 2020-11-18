@@ -163,6 +163,15 @@ size_t RAI_TensorDataSizeFromString(const char* dataType);
 DLDataType RAI_TensorDataType(RAI_Tensor* t);
 
 /**
+ * Check whether two tensors have the same data type
+ *
+ * @param t1 input tensor
+ * @param t2 input tensor
+ * @return 1 if data types match, 0 otherwise
+ */
+int RAI_TensorIsDataTypeEqual(RAI_Tensor* t1, RAI_Tensor* t2);
+
+/**
  * Returns the DLDataType represented by the input string
  *
  * @param dataType

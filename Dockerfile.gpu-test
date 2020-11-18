@@ -14,6 +14,7 @@ ARG OS=ubuntu18.04
 ARG CUDA_VER=10.1-cudnn7
 
 ARG PACK=1
+
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
 FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
@@ -27,7 +28,7 @@ WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
-COPY ./test/test_requirements.txt test/
+COPY ./tests/flow/test_requirements.txt tests/flow/
 
 RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
 

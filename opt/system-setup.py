@@ -73,7 +73,7 @@ class RedisAISetup(paella.Setup):
         self.install("python3 python3-psutil python3-networkx")
         self.install_git_lfs_on_linux()
 
-    def macosx(self):
+    def macos(self):
         if sh('xcode-select -p') == '':
             fatal("Xcode tools are not installed. Please run xcode-select --install.")
 
@@ -90,7 +90,7 @@ class RedisAISetup(paella.Setup):
         self.pip_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
 
         self.pip_install("-r %s/readies/paella/requirements.txt" % HERE)
-        self.pip_install("-r %s/test/test_requirements.txt" % ROOT)
+        self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")
