@@ -134,7 +134,7 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("wrong number of arguments for 'AI.MODELRUN' command", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'a{1}', 'b{1}', 'c{1}')

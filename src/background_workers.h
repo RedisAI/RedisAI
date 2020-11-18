@@ -21,7 +21,6 @@
 #include "config.h"
 #include "dag.h"
 #include "model.h"
-#include "model_script_run_session.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
