@@ -30,7 +30,19 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.install("gawk")
-        self.install("build-essential cmake")
+        self.install("build-essential")
+        self.install("libssl-dev")
+        self.run("""
+        apt remove -y --purge --auto-remove cmake
+        version=3.19
+        build=0
+        mkdir ~/temp
+        cd ~/temp
+        wget https://cmake.org/files/v$version/cmake-$version.$build-Linux-x86_64.sh 
+        mkdir /opt/cmake
+        sh cmake-$version.$build-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
+        ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
+        """)
         self.install("python3-regex")
         self.install("python3-psutil python3-networkx python3-numpy") # python3-skimage
         self.install_git_lfs_on_linux()
@@ -40,8 +52,6 @@ class RedisAISetup(paella.Setup):
         self.run("%s/readies/bin/enable-utf8" % HERE)
 
         self.group_install("'Development Tools'")
-        self.install("cmake3")
-        self.run("ln -sf `command -v cmake3` /usr/local/bin/cmake")
 
         self.install("centos-release-scl")
         self.install("devtoolset-8")
@@ -63,6 +73,9 @@ class RedisAISetup(paella.Setup):
             self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3-devel")
             self.pip_install("psutil")
+
+        self.install("cmake3")
+        self.run("ln -sf `command -v cmake3` /usr/local/bin/cmake")
 
         self.install_git_lfs_on_linux()
 
