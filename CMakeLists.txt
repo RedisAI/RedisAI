@@ -3,6 +3,7 @@ PROJECT(RedisAI)
 
 # CMake modules should be included in ${PROJECT_SOURCE_DIR}/opt/cmake/modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/cmake/modules)
+list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/GoogleTest)
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
