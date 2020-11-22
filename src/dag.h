@@ -14,6 +14,8 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 
+
+
 /**
  * Get whether all DAG ops for the given device have been executed
  * successfully. Since rinfo carries information on what queue
@@ -175,5 +177,13 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
  */
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode);
+
+/**
+ * @brief Perform unblock client and reply. This is called at the end of a DAG run
+ * which is originated from a Redis command
+ * @param ctx Context object that contains errors and results
+ * @param private_data is a pointer to the DAG run info struct
+ */
+void DAG_FinishBlockingExecution (RedisAI_OnFinishCtx ctx, void *private_data);
 
 #endif /* SRC_DAG_H_ */

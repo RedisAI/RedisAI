@@ -63,6 +63,19 @@ int RAI_InitDagOp(RAI_DagOp **result);
 void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
 
 /**
+ * This structure contains the context data at the end of the execution.
+ * user can access results and errors through LLAPI.
+ */
+typedef void * RedisAI_OnFinishCtx;
+
+/**
+ * @brief User defined callback to execute at the end of the run.
+ * @param ctx parameter includes the running results and errors.
+ * @param private_data is an optional pointer to the user's private data.
+ */
+typedef void (*RAI_OnFinishCB) (RedisAI_OnFinishCtx ctx, void *private_data);
+
+/**
  * This structure represents the context in which RedisAI blocking commands
  * operate.
  *
@@ -94,6 +107,8 @@ typedef struct RedisAI_RunInfo {
   long long timeout;
   int *timedOut;
   struct timeval queuingTime;
+  RAI_OnFinishCB OnFinish;
+  void *private_data; // This is going to be sent to the OnFinish callback.
 } RedisAI_RunInfo;
 
 /**

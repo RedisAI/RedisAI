@@ -10,6 +10,7 @@
 /* Error status return values. */
 #define REDISMODULE_OK 0
 #define REDISMODULE_ERR 1
+#define REDISMODULE_CONTINUE 2
 
 /* API versions. */
 #define REDISMODULE_APIVER_1 1

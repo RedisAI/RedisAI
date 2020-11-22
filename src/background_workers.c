@@ -50,7 +50,7 @@ int freeRunQueueInfo(RunQueueInfo *info) {
   return result;
 }
 
-void *RedisAI_Run_ThreadMain(void *arg);
+_Noreturn void *RedisAI_Run_ThreadMain(void *arg);
 
 char* strToUpper(const char* input) {
   char* output = RedisModule_Strdup(input);
@@ -100,7 +100,7 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
   return result;
 }
 
-void *RedisAI_Run_ThreadMain(void *arg) {
+_Noreturn void *RedisAI_Run_ThreadMain(void *arg) {
   RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
   pthread_t self = pthread_self();
   RAI_PTHREAD_SETNAME("redisai_bthread");
@@ -133,7 +133,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
     // There might be more than one thread operating on the same
     // queue, according to the THREADS_PER_QUEUE config variable.
     long long run_queue_len = queueLength(run_queue_info->run_queue);
-
     while (run_queue_len > 0) {
       // We first peek the front of the queue
       queueItem *item = queueFront(run_queue_info->run_queue);
@@ -179,13 +178,14 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
             int dagRefCount = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
             if (dagRefCount == 0 && rinfo->client) {
-              RedisModule_UnblockClient(rinfo->client, rinfo);
+				RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
+            	rinfo->OnFinish(finish_ctx, rinfo->private_data);
             }
 
             queueItem *evicted_item = item;
             item = item->next;
             RedisModule_Free(evicted_item);
-
+			// Continue with the next item in queue (if exists)
             continue;
           }
         }
@@ -197,7 +197,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         do_run = 0;
         do_retry = 0;
         device_complete = 0;
- 
+
         // We add the current item to the list of evicted items. If it's the
         // first time around this will be the queue front.
         evicted_items = array_append(evicted_items, item);
@@ -309,7 +309,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
           int batched = 0;
           size_t next_batchsize = 0;
-          RedisAI_DagOpBatchingMatch(rinfo, currentOp, 
+          RedisAI_DagOpBatchingMatch(rinfo, currentOp,
                                      next_rinfo, nextOp,
                                      &batched, &next_batchsize);
 
@@ -317,7 +317,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             next_item = queueNext(next_item);
             continue;
           }
- 
+
           // If the new batch size would exceed the prescribed batch
           // size, then quit searching.
           // Here we could consider searching further down the queue.
@@ -349,7 +349,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // anyway
         if (minbatchsize > 0 && minbatchtimeout > 0) {
           struct timeval now, sub;
-          gettimeofday(&now, NULL); 
+          gettimeofday(&now, NULL);
 
           timersub(&now, &rinfo->queuingTime, &sub);
           size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
@@ -419,7 +419,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             int dagRefCount = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
 
             if (dagRefCount == 0 && rinfo->client) {
-              RedisModule_UnblockClient(rinfo->client, rinfo);
+				RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
+				rinfo->OnFinish(finish_ctx, rinfo->private_data);
             }
           }
           else {
@@ -435,7 +436,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
       // to do.
       int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
       int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
- 
+
       int dagRefCount = -1;
 
       if (device_complete == 1 || device_complete_after_run == 1) {
@@ -451,7 +452,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // If the reference count for the DAG is zero and the client is still around,
         // then we actually unblock the client
         if (dagRefCount == 0 && evicted_rinfo->client) {
-          RedisModule_UnblockClient(evicted_rinfo->client, evicted_rinfo);
+			RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)evicted_rinfo;
+			evicted_rinfo->OnFinish(finish_ctx, evicted_rinfo->private_data);
         }
       }
 
@@ -511,12 +513,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
           RedisModule_Free(evicted_items[i]);
         }
       }
-
-
       run_queue_len = queueLength(run_queue_info->run_queue);
     }
   }
-
   array_free(evicted_items);
   array_free(batch_rinfo);
 }

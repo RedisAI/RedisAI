@@ -898,399 +898,417 @@ void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
                   (void *)bc);
 }
 
+static int _DAG_StringParser(RedisModuleCtx *ctx, RedisModuleString **argv,
+  		int argc, int dagMode, RedisAI_RunInfo **rinfo_ptr) {
+
+	RedisAI_RunInfo *rinfo = *rinfo_ptr;
+	RAI_DagOp *currentDagOp = NULL;
+	RAI_InitDagOp(&currentDagOp);
+	rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
+
+	int persistFlag = 0;
+	int loadFlag = 0;
+	int chainingOpCount = 0;
+
+	int argstart = 1;
+
+	// If we're parsing a AI.MODELRUN or AI.SCRIPTRUN command, we don't
+	// expect there to be a chaining |> operator
+	if (!strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.MODELRUN") ||
+		!strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.SCRIPTRUN")) {
+		argstart = 0;
+		chainingOpCount++;
+		rinfo->single_op_dag = 1;
+		rinfo->single_device_dag = 1;
+	}
+
+	for (size_t argpos = argstart; argpos <= argc - 1; argpos++) {
+		const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+		if (!strcasecmp(arg_string, "LOAD")) {
+			loadFlag = 1;
+			const int parse_result = RAI_parseDAGLoadArgs(
+			  ctx, &argv[argpos], argc - argpos, &(rinfo->dagTensorsLoadedContext),
+			  &(rinfo->dagTensorsContext), "|>");
+			if (parse_result > 0) {
+				argpos += parse_result - 1;
+			} else {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return REDISMODULE_ERR;
+			}
+		} else if (!strcasecmp(arg_string, "PERSIST")) {
+			if (dagMode == REDISAI_DAG_READONLY_MODE) {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return RedisModule_ReplyWithError(
+				  ctx, "ERR PERSIST cannot be specified in a read-only DAG");
+			}
+			persistFlag = 1;
+			const int parse_result =
+			  RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
+				&(rinfo->dagTensorsPersistedContext), "|>");
+			if (parse_result > 0) {
+				argpos += parse_result - 1;
+			} else {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return REDISMODULE_ERR;
+			}
+		} else if (!strcasecmp(arg_string, "TIMEOUT")) {
+			if (!((chainingOpCount == 0) ||
+				  (chainingOpCount  == 1 && rinfo->single_op_dag == 1))) {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return RedisModule_ReplyWithError(
+				  ctx, "ERR TIMEOUT not allowed within a DAG command");
+			}
+			if (argpos == argc - 1) {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return RedisModule_ReplyWithError(
+				  ctx, "ERR No value provided for TIMEOUT");
+			}
+			long long timeout;
+			const int retval = RedisModule_StringToLongLong(argv[argpos + 1], &timeout);
+			if (retval != REDISMODULE_OK || timeout <= 0) {
+				RAI_FreeRunInfo(ctx, rinfo);
+				return RedisModule_ReplyWithError(
+				  ctx, "ERR Invalid value for TIMEOUT");
+			}
+			rinfo->timeout = timeout;
+			argpos += 1;
+			continue;
+		} else if (!strcasecmp(arg_string, "|>") && argpos < argc - 1) {
+			// on the first pipe operator, if LOAD or PERSIST were used, we've already
+			// allocated memory
+			if (chainingOpCount > 0) {
+				rinfo->dagOpCount++;
+				RAI_DagOp *currentDagOp = NULL;
+				RAI_InitDagOp(&currentDagOp);
+				rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
+			}
+			chainingOpCount++;
+		} else {
+			if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+				rinfo->dagOps[rinfo->dagOpCount]->commandType =
+				  REDISAI_DAG_CMD_TENSORGET;
+				rinfo->dagOps[rinfo->dagOpCount]->devicestr = "CPU";
+			}
+			if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+				rinfo->dagOps[rinfo->dagOpCount]->commandType =
+				  REDISAI_DAG_CMD_TENSORSET;
+				rinfo->dagOps[rinfo->dagOpCount]->devicestr = "CPU";
+			}
+			if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+				if (argc - 2 < argpos) {
+					return RedisModule_WrongArity(ctx);
+				}
+				RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
+				currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
+				RAI_Model *mto;
+				RedisModuleKey *modelKey;
+				const int status = RAI_GetModelFromKeyspace(
+				  ctx, argv[argpos + 1], &modelKey, &mto, REDISMODULE_READ);
+				if (status == REDISMODULE_ERR) {
+					RAI_FreeRunInfo(ctx, rinfo);
+					return REDISMODULE_ERR;
+				}
+				currentOp->devicestr = mto->devicestr;
+				currentOp->runkey = argv[argpos + 1];
+				currentOp->mctx = RAI_ModelRunCtxCreate(mto);
+			}
+			if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
+				if (argc - 3 < argpos) {
+					return RedisModule_WrongArity(ctx);
+				}
+				RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
+				currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+				RAI_Script *sto;
+				RedisModuleKey *scriptKey;
+				const int status = RAI_GetScriptFromKeyspace(
+				  ctx, argv[argpos + 1], &scriptKey, &sto, REDISMODULE_READ);
+				if (status == REDISMODULE_ERR) {
+					RAI_FreeRunInfo(ctx, rinfo);
+					return REDISMODULE_ERR;
+				}
+				currentOp->devicestr = sto->devicestr;
+				const char *functionName =
+				  RedisModule_StringPtrLen(argv[argpos + 2], NULL);
+				currentOp->runkey = argv[argpos + 1];
+				currentOp->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
+			}
+			RedisModule_RetainString(NULL, argv[argpos]);
+			RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
+			currentOp->argv = array_append(currentOp->argv, argv[argpos]);
+			currentOp->argc++;
+		}
+	}
+
+	rinfo->dagOpCount = array_len(rinfo->dagOps);
+
+	for (long long i=0; i<array_len(rinfo->dagOps); i++) {
+		RAI_DagOp *currentOp = rinfo->dagOps[i];
+		if(currentOp==NULL) continue;
+		int parse_result;
+		switch (currentOp->commandType) {
+			case REDISAI_DAG_CMD_TENSORSET:
+				currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
+				break;
+			case REDISAI_DAG_CMD_TENSORGET:
+				currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
+				break;
+			case REDISAI_DAG_CMD_MODELRUN:
+				parse_result = RedisAI_Parse_ModelRun_RedisCommand(
+				  NULL, currentOp->argv, currentOp->argc, &(currentOp->mctx),
+				  &(currentOp->inkeys), &(currentOp->outkeys),
+				  &(currentOp->mctx->model), currentOp->err);
+				if (parse_result < 0) {
+					return RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+				}
+				break;
+			case REDISAI_DAG_CMD_SCRIPTRUN:
+				parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
+				  NULL, currentOp->argv, currentOp->argc,
+				  &(currentOp->inkeys), &(currentOp->outkeys),
+				  &(currentOp->sctx->variadic), currentOp->err);
+				if (parse_result < 0) {
+					return RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
+				}
+				break;
+		}
+	}
+
+	if (rinfo->single_op_dag) {
+		RAI_DagOp* op = rinfo->dagOps[0];
+		RAI_Tensor *t;
+		RedisModuleKey *key;
+		for (size_t i=0; i<array_len(op->inkeys); i++) {
+			const char* inkey = RedisModule_StringPtrLen(op->inkeys[i], NULL);
+			const int status = RAI_GetTensorFromKeyspace(ctx, op->inkeys[i], &key, &t, REDISMODULE_READ);
+			if (status == REDISMODULE_ERR) {
+				RedisModule_Log(
+				  ctx, "warning",
+				  "on DAGRUN's LOAD could not load tensor %s from keyspace",
+				  RedisModule_StringPtrLen(op->inkeys[i], NULL));
+				return -1;
+			}
+			RedisModule_CloseKey(key);
+			char *dictKey = (char*) RedisModule_Alloc((strlen(inkey) + 5)*sizeof(char));
+			sprintf(dictKey, "%s%04d", inkey, 1);
+			AI_dictAdd(rinfo->dagTensorsContext, (void*)dictKey, (void *)RAI_TensorGetShallowCopy(t));
+			AI_dictAdd(rinfo->dagTensorsLoadedContext, (void*)dictKey, (void *)1);
+			RedisModule_Free(dictKey);
+		}
+
+		for (size_t i=0; i<array_len(op->outkeys); i++) {
+			const char* outkey = RedisModule_StringPtrLen(op->outkeys[i], NULL);
+			AI_dictAdd(rinfo->dagTensorsPersistedContext, (void*)outkey, (void *)1);
+		}
+	}
+
+	// At this point, we have built a sequence of DAG operations, each with its own
+	// input and output keys. The names of the keys will be used to look whether the
+	// inputs to a DAG operation have all been realized by previous operations (or if
+	// they are available as part of LOADed keys from keyspace).
+	// This strategy is fine if keys are not aliased, that is, if a command's output
+	// overwrites the key of a previous command. This would trick DAG operations into
+	// thinking that their input is ready when it's not.
+	// To overcome this, we make key names unique, so that names are not aliased. We
+	// mangle the names by appending a numerical suffix ":0001". After computing, we
+	// demangle the keys in order to persist them.
+
+	AI_dict* mangled_tensors = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+	if (!mangled_tensors) {
+		return REDISMODULE_ERR;
+	}
+
+	{
+		AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsLoadedContext);
+		AI_dictEntry *entry = AI_dictNext(iter);
+		while (entry) {
+			char *key = (char *)AI_dictGetKey(entry);
+			char *demangled_key = RedisModule_Strdup(key);
+			demangled_key[strlen(key) - 4] = 0;
+			int *instance = RedisModule_Alloc(sizeof(int));
+			*instance = 1;
+			AI_dictAdd(mangled_tensors, (void *)demangled_key, (void *)instance);
+			RedisModule_Free(demangled_key);
+			entry = AI_dictNext(iter);
+		}
+		AI_dictReleaseIterator(iter);
+	}
+
+	for (long long i=0; i<array_len(rinfo->dagOps); i++) {
+		RAI_DagOp *currentOp = rinfo->dagOps[i];
+
+		RedisModuleString **mangled_inkeys = array_new(RedisModuleString*, array_len(currentOp->inkeys));
+		for (long long j=0; j<array_len(currentOp->inkeys); j++) {
+			const char* key = RedisModule_StringPtrLen(currentOp->inkeys[j], NULL);
+			AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
+			if (!entry) {
+				AI_dictRelease(mangled_tensors);
+				return RedisModule_ReplyWithError(ctx,
+				  "ERR INPUT key cannot be found in DAG");
+			}
+			int *instance = AI_dictGetVal(entry);
+			RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
+			mangled_inkeys = array_append(mangled_inkeys, mangled_key);
+		}
+
+		RedisModuleString **mangled_outkeys = array_new(RedisModuleString*, array_len(currentOp->outkeys));
+		for (long long j=0; j<array_len(currentOp->outkeys); j++) {
+			const char* key = RedisModule_StringPtrLen(currentOp->outkeys[j], NULL);
+			AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
+			int *instance = NULL;
+			if (entry) {
+				instance = AI_dictGetVal(entry);
+				*instance += 1;
+			}
+			else {
+				instance = RedisModule_Alloc(sizeof(int));
+				*instance = 1;
+				AI_dictAdd(mangled_tensors, (void *)key, (void *)instance);
+			}
+			RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
+			mangled_outkeys = array_append(mangled_outkeys, mangled_key);
+		}
+
+		array_free(currentOp->inkeys);
+		array_free(currentOp->outkeys);
+
+		currentOp->inkeys = mangled_inkeys;
+		currentOp->outkeys = mangled_outkeys;
+	}
+
+	AI_dict* mangled_persisted = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+	{
+		AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
+		AI_dictEntry *entry = AI_dictNext(iter);
+		while (entry) {
+			char *key = (char *)AI_dictGetKey(entry);
+			AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
+			if (!mangled_entry) {
+				AI_dictRelease(mangled_tensors);
+				AI_dictRelease(mangled_persisted);
+				return RedisModule_ReplyWithError(ctx,
+				  "ERR PERSIST key cannot be found in DAG");
+			}
+			int *instance = AI_dictGetVal(mangled_entry);
+			RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
+			const char* mangled_key_str = RedisModule_StringPtrLen(mangled_key, NULL);
+			AI_dictAdd(mangled_persisted, (void *)mangled_key_str, (void *)1);
+			entry = AI_dictNext(iter);
+		}
+		AI_dictReleaseIterator(iter);
+	}
+
+	AI_dictRelease(rinfo->dagTensorsPersistedContext);
+	rinfo->dagTensorsPersistedContext = mangled_persisted;
+
+	{
+		AI_dictIterator *iter = AI_dictGetSafeIterator(mangled_tensors);
+		AI_dictEntry *entry = AI_dictNext(iter);
+		while (entry) {
+			int *val = (int *)AI_dictGetVal(entry);
+			RedisModule_Free(val);
+			entry = AI_dictNext(iter);
+		}
+		AI_dictReleaseIterator(iter);
+	}
+	AI_dictRelease(mangled_tensors);
+	mangled_tensors = NULL;
+
+	for (long long i=0; i<array_len(rinfo->dagOps); i++) {
+		if (rinfo->dagOps[i]->devicestr == NULL) {
+			rinfo->dagOps[i]->devicestr = "CPU";
+		}
+	}
+	return REDISMODULE_CONTINUE;
+}
+
+static int DAG_InsertDAGToQueue (RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
+	const char **devices = array_new(const char *, 10);
+
+	for (long long i=0; i<array_len(rinfo->dagOps); i++) {
+		const char* devicestr = rinfo->dagOps[i]->devicestr;
+		bool found = false;
+		for (long long j=0; j<array_len(devices); j++) {
+			if (strcasecmp(devicestr, devices[j]) == 0) {
+				found = true;
+				break;
+			}
+		}
+		if (!found) {
+			devices = array_append(devices, devicestr);
+		}
+	}
+
+	size_t ndevices = array_len(devices);
+
+	*rinfo->dagRefCount = ndevices;
+
+	RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, ndevices);
+	rinfo_copies = array_append(rinfo_copies, rinfo);
+
+	for (long long i=1; i<ndevices; i++) {
+		RedisAI_RunInfo *rinfo_copy;
+		RAI_ShallowCopyDagRunInfo(&rinfo_copy, rinfo);
+		rinfo_copies = array_append(rinfo_copies, rinfo_copy);
+	}
+
+	for (long long i=0; i<ndevices; i++) {
+		RedisAI_RunInfo *rinfo = rinfo_copies[i];
+		for (long long j=0; j<rinfo->dagOpCount; j++) {
+			if (strcasecmp(rinfo->dagOps[j]->devicestr, devices[i]) == 0) {
+				rinfo->dagDeviceOps = array_append(rinfo->dagDeviceOps, rinfo->dagOps[j]);
+			}
+		}
+
+		rinfo->dagDeviceOpCount = array_len(rinfo->dagDeviceOps);
+	}
+
+	for (long long i=0; i<ndevices; i++) {
+		const char* devicestr = devices[i];
+		RunQueueInfo *run_queue_info = NULL;
+		if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
+			RAI_FreeRunInfo(ctx, rinfo);
+			return RedisModule_ReplyWithError(ctx,
+			  "ERR Queue not initialized for device");
+		}
+
+		RedisAI_RunInfo *rinfo = rinfo_copies[i];
+
+		gettimeofday(&rinfo->queuingTime, NULL);
+
+		pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+		queuePush(run_queue_info->run_queue, rinfo);
+		pthread_cond_signal(&run_queue_info->queue_condition_var);
+		pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
+	}
+	array_free(devices);
+	array_free(rinfo_copies);
+
+
+	return REDISMODULE_OK;
+}
+
+
+void DAG_FinishBlockingExecution (RedisAI_OnFinishCtx ctx, void *private_data) {
+
+	RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)private_data;
+	RedisModule_UnblockClient(rinfo->client, rinfo);
+}
+
 int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
                                  int argc, int dagMode) {
 
-  if (argc < 4) return RedisModule_WrongArity(ctx);
-
-  RedisAI_RunInfo *rinfo = NULL;
-  if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-    return RedisModule_ReplyWithError(
-        ctx,
-        "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo "
-        "structure");
-  }
-  RAI_DagOp *currentDagOp = NULL;
-  RAI_InitDagOp(&currentDagOp);
-  rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
-
-  int persistFlag = 0;
-  int loadFlag = 0;
-  int chainingOpCount = 0;
-
-  int argstart = 1;
-
-  // If we're parsing a AI.MODELRUN or AI.SCRIPTRUN command, we don't
-  // expect there to be a chaining |> operator
-  if (!strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.MODELRUN") ||
-      !strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.SCRIPTRUN")) {
-    argstart = 0;
-    chainingOpCount++;
-    rinfo->single_op_dag = 1;
-    rinfo->single_device_dag = 1;
-  }
-
-  for (size_t argpos = argstart; argpos <= argc - 1; argpos++) {
-    const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-    if (!strcasecmp(arg_string, "LOAD")) {
-      loadFlag = 1;
-      const int parse_result = RAI_parseDAGLoadArgs(
-          ctx, &argv[argpos], argc - argpos, &(rinfo->dagTensorsLoadedContext),
-          &(rinfo->dagTensorsContext), "|>");
-      if (parse_result > 0) {
-        argpos += parse_result - 1;
-      } else {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return REDISMODULE_ERR;
-      }
-    } else if (!strcasecmp(arg_string, "PERSIST")) {
-      if (dagMode == REDISAI_DAG_READONLY_MODE) {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return RedisModule_ReplyWithError(
-            ctx, "ERR PERSIST cannot be specified in a read-only DAG");
-      }
-      persistFlag = 1;
-      const int parse_result =
-          RAI_parseDAGPersistArgs(ctx, &argv[argpos], argc - argpos,
-                                  &(rinfo->dagTensorsPersistedContext), "|>");
-      if (parse_result > 0) {
-        argpos += parse_result - 1;
-      } else {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return REDISMODULE_ERR;
-      }
-    } else if (!strcasecmp(arg_string, "TIMEOUT")) {
-      if (!((chainingOpCount == 0) ||
-           (chainingOpCount  == 1 && rinfo->single_op_dag == 1))) {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return RedisModule_ReplyWithError(
-            ctx, "ERR TIMEOUT not allowed within a DAG command");
-      }
-      if (argpos == argc - 1) {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return RedisModule_ReplyWithError(
-            ctx, "ERR No value provided for TIMEOUT");
-      }
-      long long timeout;
-      const int retval = RedisModule_StringToLongLong(argv[argpos + 1], &timeout);
-      if (retval != REDISMODULE_OK || timeout <= 0) {
-        RAI_FreeRunInfo(ctx, rinfo);
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Invalid value for TIMEOUT");
-      }
-      rinfo->timeout = timeout;
-      argpos += 1;
-      continue;
-    } else if (!strcasecmp(arg_string, "|>") && argpos < argc - 1) {
-      // on the first pipe operator, if LOAD or PERSIST were used, we've already
-      // allocated memory
-      if (chainingOpCount > 0) {
-        rinfo->dagOpCount++;
-        RAI_DagOp *currentDagOp = NULL;
-        RAI_InitDagOp(&currentDagOp);
-        rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
-      }
-      chainingOpCount++;
-    } else {
-      if (!strcasecmp(arg_string, "AI.TENSORGET")) {
-        rinfo->dagOps[rinfo->dagOpCount]->commandType =
-            REDISAI_DAG_CMD_TENSORGET;
-        rinfo->dagOps[rinfo->dagOpCount]->devicestr = "CPU";
-      }
-      if (!strcasecmp(arg_string, "AI.TENSORSET")) {
-        rinfo->dagOps[rinfo->dagOpCount]->commandType =
-            REDISAI_DAG_CMD_TENSORSET;
-        rinfo->dagOps[rinfo->dagOpCount]->devicestr = "CPU";
-      }
-      if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-        if (argc - 2 < argpos) {
-          return RedisModule_WrongArity(ctx);
-        }
-        RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
-        currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-        RAI_Model *mto;
-        RedisModuleKey *modelKey;
-        const int status = RAI_GetModelFromKeyspace(
-            ctx, argv[argpos + 1], &modelKey, &mto, REDISMODULE_READ);
-        if (status == REDISMODULE_ERR) {
-          RAI_FreeRunInfo(ctx, rinfo);
-          return REDISMODULE_ERR;
-        }
-        currentOp->devicestr = mto->devicestr;
-        currentOp->runkey = argv[argpos + 1];
-        currentOp->mctx = RAI_ModelRunCtxCreate(mto);
-      }
-      if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
-        if (argc - 3 < argpos) {
-          return RedisModule_WrongArity(ctx);
-        }
-        RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
-        currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-        RAI_Script *sto;
-        RedisModuleKey *scriptKey;
-        const int status = RAI_GetScriptFromKeyspace(
-            ctx, argv[argpos + 1], &scriptKey, &sto, REDISMODULE_READ);
-        if (status == REDISMODULE_ERR) {
-          RAI_FreeRunInfo(ctx, rinfo);
-          return REDISMODULE_ERR;
-        }
-        currentOp->devicestr = sto->devicestr;
-        const char *functionName =
-            RedisModule_StringPtrLen(argv[argpos + 2], NULL);
-        currentOp->runkey = argv[argpos + 1];
-        currentOp->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
-      }
-      RedisModule_RetainString(NULL, argv[argpos]);
-      RAI_DagOp *currentOp = rinfo->dagOps[rinfo->dagOpCount];
-      currentOp->argv = array_append(currentOp->argv, argv[argpos]);
-      currentOp->argc++;
-    }
-  }
-
-  rinfo->dagOpCount = array_len(rinfo->dagOps);
-
-  for (long long i=0; i<array_len(rinfo->dagOps); i++) {
-    RAI_DagOp *currentOp = rinfo->dagOps[i];
-    if(currentOp==NULL) continue;
-    int parse_result;
-    switch (currentOp->commandType) {
-      case REDISAI_DAG_CMD_TENSORSET:
-        currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-        break;
-      case REDISAI_DAG_CMD_TENSORGET:
-        currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
-        break;
-      case REDISAI_DAG_CMD_MODELRUN:
-        parse_result = RedisAI_Parse_ModelRun_RedisCommand(
-            NULL, currentOp->argv, currentOp->argc, &(currentOp->mctx),
-            &(currentOp->inkeys), &(currentOp->outkeys),
-            &(currentOp->mctx->model), currentOp->err);
-        if (parse_result < 0) {
-          return RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-        }
-        break;
-      case REDISAI_DAG_CMD_SCRIPTRUN:
-        parse_result = RedisAI_Parse_ScriptRun_RedisCommand(
-                NULL, currentOp->argv, currentOp->argc,
-                &(currentOp->inkeys), &(currentOp->outkeys),
-                &(currentOp->sctx->variadic), currentOp->err);
-        if (parse_result < 0) {
-          return RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-        }
-        break;
-    }
-  }
-
-  if (rinfo->single_op_dag) {
-    RAI_DagOp* op = rinfo->dagOps[0];
-    RAI_Tensor *t;
-    RedisModuleKey *key;
-    for (size_t i=0; i<array_len(op->inkeys); i++) {
-      const char* inkey = RedisModule_StringPtrLen(op->inkeys[i], NULL);
-      const int status = RAI_GetTensorFromKeyspace(ctx, op->inkeys[i], &key, &t, REDISMODULE_READ);
-      if (status == REDISMODULE_ERR) {
-        RedisModule_Log(
-            ctx, "warning",
-            "on DAGRUN's LOAD could not load tensor %s from keyspace",
-            RedisModule_StringPtrLen(op->inkeys[i], NULL));
-        return -1;
-      }
-      RedisModule_CloseKey(key);
-      char *dictKey = (char*) RedisModule_Alloc((strlen(inkey) + 5)*sizeof(char));
-      sprintf(dictKey, "%s%04d", inkey, 1);
-      AI_dictAdd(rinfo->dagTensorsContext, (void*)dictKey, (void *)RAI_TensorGetShallowCopy(t));
-      AI_dictAdd(rinfo->dagTensorsLoadedContext, (void*)dictKey, (void *)1);
-      RedisModule_Free(dictKey);
-    } 
-
-    for (size_t i=0; i<array_len(op->outkeys); i++) {
-      const char* outkey = RedisModule_StringPtrLen(op->outkeys[i], NULL);
-      AI_dictAdd(rinfo->dagTensorsPersistedContext, (void*)outkey, (void *)1);
-    }
-  }
-
-  // At this point, we have built a sequence of DAG operations, each with its own
-  // input and output keys. The names of the keys will be used to look whether the
-  // inputs to a DAG operation have all been realized by previous operations (or if
-  // they are available as part of LOADed keys from keyspace).
-  // This strategy is fine if keys are not aliased, that is, if a command's output
-  // overwrites the key of a previous command. This would trick DAG operations into
-  // thinking that their input is ready when it's not.
-  // To overcome this, we make key names unique, so that names are not aliased. We
-  // mangle the names by appending a numerical suffix ":0001". After computing, we
-  // demangle the keys in order to persist them.
-
-  AI_dict* mangled_tensors = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-  if (!mangled_tensors) {
-    return REDISMODULE_ERR;
-  }
-
-  {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsLoadedContext);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-      char *key = (char *)AI_dictGetKey(entry);
-      char *demangled_key = RedisModule_Strdup(key);
-      demangled_key[strlen(key) - 4] = 0;
-      int *instance = RedisModule_Alloc(sizeof(int));
-      *instance = 1;
-      AI_dictAdd(mangled_tensors, (void *)demangled_key, (void *)instance);
-      RedisModule_Free(demangled_key);
-      entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-  }
-
-  for (long long i=0; i<array_len(rinfo->dagOps); i++) {
-    RAI_DagOp *currentOp = rinfo->dagOps[i];
-
-    RedisModuleString **mangled_inkeys = array_new(RedisModuleString*, array_len(currentOp->inkeys));
-    for (long long j=0; j<array_len(currentOp->inkeys); j++) {
-      const char* key = RedisModule_StringPtrLen(currentOp->inkeys[j], NULL);
-      AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
-      if (!entry) {
-        AI_dictRelease(mangled_tensors);
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR INPUT key cannot be found in DAG");
-      }
-      int *instance = AI_dictGetVal(entry);
-      RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
-      mangled_inkeys = array_append(mangled_inkeys, mangled_key);
-    }
-
-    RedisModuleString **mangled_outkeys = array_new(RedisModuleString*, array_len(currentOp->outkeys));
-    for (long long j=0; j<array_len(currentOp->outkeys); j++) {
-      const char* key = RedisModule_StringPtrLen(currentOp->outkeys[j], NULL);
-      AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
-      int *instance = NULL;
-      if (entry) {
-        instance = AI_dictGetVal(entry);
-        *instance += 1;
-      }
-      else {
-        instance = RedisModule_Alloc(sizeof(int));
-        *instance = 1;
-        AI_dictAdd(mangled_tensors, (void *)key, (void *)instance);
-      }
-      RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
-      mangled_outkeys = array_append(mangled_outkeys, mangled_key);
-    }
-  
-    array_free(currentOp->inkeys);
-    array_free(currentOp->outkeys);
-
-    currentOp->inkeys = mangled_inkeys;
-    currentOp->outkeys = mangled_outkeys;
-  }
-
-  AI_dict* mangled_persisted = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-  {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-      char *key = (char *)AI_dictGetKey(entry);
-      AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
-      if (!mangled_entry) {
-        AI_dictRelease(mangled_tensors);
-        AI_dictRelease(mangled_persisted);
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR PERSIST key cannot be found in DAG");
-      } 
-      int *instance = AI_dictGetVal(mangled_entry);
-      RedisModuleString *mangled_key = RedisModule_CreateStringPrintf(ctx, "%s%04d", key, *instance);
-      const char* mangled_key_str = RedisModule_StringPtrLen(mangled_key, NULL);
-      AI_dictAdd(mangled_persisted, (void *)mangled_key_str, (void *)1);
-      entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-  }
-
-  AI_dictRelease(rinfo->dagTensorsPersistedContext);
-  rinfo->dagTensorsPersistedContext = mangled_persisted;
-
-  {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(mangled_tensors);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-      int *val = (int *)AI_dictGetVal(entry);
-      RedisModule_Free(val);
-      entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-  }
-  AI_dictRelease(mangled_tensors);
-  mangled_tensors = NULL;
-
-  for (long long i=0; i<array_len(rinfo->dagOps); i++) {
-    if (rinfo->dagOps[i]->devicestr == NULL) {
-      rinfo->dagOps[i]->devicestr = "CPU";
-    }
-  }
-
-  rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RedisAI_FreeData, 0);
-  RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
-
-  const char **devices = array_new(const char *, 10);
-
-  for (long long i=0; i<array_len(rinfo->dagOps); i++) {
-    const char* devicestr = rinfo->dagOps[i]->devicestr;
-    bool found = false;
-    for (long long j=0; j<array_len(devices); j++) {
-      if (strcasecmp(devicestr, devices[j]) == 0) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) {
-      devices = array_append(devices, devicestr);
-    }
-  }
-  
-  size_t ndevices = array_len(devices);
-
-  *rinfo->dagRefCount = ndevices;
-
-  RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo*, ndevices);
-  rinfo_copies = array_append(rinfo_copies, rinfo);
-
-  for (long long i=1; i<ndevices; i++) {
-    RedisAI_RunInfo *rinfo_copy;
-    RAI_ShallowCopyDagRunInfo(&rinfo_copy, rinfo);
-    rinfo_copies = array_append(rinfo_copies, rinfo_copy);
-  }
- 
-  for (long long i=0; i<ndevices; i++) {
-    RedisAI_RunInfo *rinfo = rinfo_copies[i];
-    for (long long j=0; j<rinfo->dagOpCount; j++) {
-      if (strcasecmp(rinfo->dagOps[j]->devicestr, devices[i]) == 0) {
-        rinfo->dagDeviceOps = array_append(rinfo->dagDeviceOps, rinfo->dagOps[j]);
-      }
-    }
-
-    rinfo->dagDeviceOpCount = array_len(rinfo->dagDeviceOps);
-  }
-
-  for (long long i=0; i<ndevices; i++) {
-    const char* devicestr = devices[i];
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
-      RAI_FreeRunInfo(ctx, rinfo);
-      return RedisModule_ReplyWithError(ctx,
-                                        "ERR Queue not initialized for device");
-    }
-
-    RedisAI_RunInfo *rinfo = rinfo_copies[i];
-
-    gettimeofday(&rinfo->queuingTime, NULL); 
-
-    pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-    queuePush(run_queue_info->run_queue, rinfo);
-    pthread_cond_signal(&run_queue_info->queue_condition_var);
-    pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-  }
-
-  array_free(devices);
-  array_free(rinfo_copies);
-
-  return REDISMODULE_OK;
+	RedisAI_RunInfo *rinfo = NULL;
+	if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
+		return RedisModule_ReplyWithError(
+		  ctx,
+		  "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo "
+		  "structure");
+	}
+	int curr_status = _DAG_StringParser(ctx, argv, argc, dagMode, &rinfo);
+	if(curr_status != REDISMODULE_CONTINUE) return curr_status;
+	rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RedisAI_FreeData, 0);
+	RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+	rinfo->private_data = rinfo;
+	rinfo->OnFinish = DAG_FinishBlockingExecution;
+	return DAG_InsertDAGToQueue(ctx, rinfo);
 }
