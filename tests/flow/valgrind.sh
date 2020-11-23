@@ -13,7 +13,7 @@ error() {
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 # . $HERE/../
 
-export ROOT=$(realpath $HERE/..)
+export ROOT=$(realpath $HERE/../..)
 
 #----------------------------------------------------------------------------------------------
 
@@ -59,6 +59,7 @@ valgrind_config() {
 	else
 		VALGRIND_OPTIONS+="\
 			-q \
+			--suppressions=$VALGRIND_SUPRESSIONS \
 			--leak-check=full \
 			--show-reachable=no \
 			--show-possibly-lost=no \
@@ -83,7 +84,7 @@ valgrind_config
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/flow
+cd $ROOT/tests/flow
 
 check_redis_server
 $OP valgrind $(echo "$VALGRIND_OPTIONS") redis-server --protected-mode no --save '' --appendonly no --loadmodule $MODULE
