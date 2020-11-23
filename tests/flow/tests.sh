@@ -69,10 +69,8 @@ valgrind_config() {
 	VALGRIND_SUPRESSIONS=$ROOT/opt/redis_valgrind.sup
 
 	RLTEST_ARGS+="\
-		--no-output-catch \
 		--use-valgrind \
 		--vg-no-fail-on-errors \
-		--vg-verbose \
 		--vg-suppressions $VALGRIND_SUPRESSIONS"
 }
 
@@ -83,6 +81,10 @@ run_tests() {
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
 	cd $ROOT/tests/flow
 	$OP python3 -m RLTest --clear-logs --module $MODULE $RLTEST_ARGS
+}
+
+run_memcheck() {
+	./memcheck.sh
 }
 
 #----------------------------------------------------------------------------------------------
@@ -121,6 +123,7 @@ install_git_lfs
 check_redis_server
 
 [[ $GEN == 1 ]]    && run_tests
+[[ $VGD == 1 ]] && run_memcheck
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
 [[ $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"

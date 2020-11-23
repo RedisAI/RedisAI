@@ -161,6 +161,35 @@ jobs:
             make -C opt cov-upload
           no_output_timeout: 30m
 
+  memcheck:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getpy3
+            ./opt/system-setup.py
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VGD=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VGD=1
+          no_output_timeout: 60m
+
   build-macos:
     macos:
       xcode: 11.3.0
@@ -342,6 +371,8 @@ workflows:
           platform: xenial
           <<: *platform-build-defs
       - coverage:
+          <<: *on-any-branch
+      - memcheck:
           <<: *on-any-branch
       - build-and-test-gpu:
           <<: *on-any-branch
