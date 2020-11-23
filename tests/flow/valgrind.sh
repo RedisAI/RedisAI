@@ -11,7 +11,7 @@ error() {
 # trap error ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../opt/readies/shibumi/functions
+# . $HERE/../
 
 export ROOT=$(realpath $HERE/..)
 
@@ -83,7 +83,7 @@ valgrind_config
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/test
+cd $ROOT/flow
 
 check_redis_server
 $OP valgrind $(echo "$VALGRIND_OPTIONS") redis-server --protected-mode no --save '' --appendonly no --loadmodule $MODULE
