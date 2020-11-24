@@ -157,7 +157,8 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
     const char *key_string = RedisModule_StringPtrLen(
         currentOp->outkeys[outputNumber], NULL);
-    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, RAI_TensorGetShallowCopy(tensor));
+    tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
   }
 
   currentOp->result = result;
@@ -252,7 +253,8 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
       RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
       const char *key_string = RedisModule_StringPtrLen(
           currentOp->outkeys[outputNumber], NULL);
-      AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, RAI_TensorGetShallowCopy(tensor));
+      tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+      AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
     }
 
     currentOp->result = result;
@@ -319,7 +321,8 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
           RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
     const char *key_string = RedisModule_StringPtrLen(
             currentOp->outkeys[outputNumber], NULL);
-    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, RAI_TensorGetShallowCopy(tensor));
+    tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
   }
 
   currentOp->result = result;
