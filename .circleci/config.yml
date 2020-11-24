@@ -332,7 +332,7 @@ workflows:
       - platform-build:
           name: build-centos7
           platform: centos7
-          <<: *on-any-branch
+          <<: *never # temporarily disabled
       - platform-build:
           name: build-bionic
           platform: bionic
