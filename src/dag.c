@@ -157,7 +157,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
     const char *key_string = RedisModule_StringPtrLen(
         currentOp->outkeys[outputNumber], NULL);
-    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, tensor);
+    AI_dictReplace(rinfo->dagTensorsContext, (void*)key_string, RAI_TensorGetShallowCopy(tensor));
   }
 
   currentOp->result = result;
