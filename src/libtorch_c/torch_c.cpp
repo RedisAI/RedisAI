@@ -431,7 +431,7 @@ extern "C" void torchSetInterOpThreads(int num_threads, char **error,
                                        void* (*alloc)(size_t))
 {
   int current_num_interop_threads = torch::get_num_interop_threads();
-  if (current_num_interop_threads == num_threads){
+  if (current_num_interop_threads != num_threads){
     try {
       torch::set_num_interop_threads(num_threads);
     }
@@ -449,7 +449,7 @@ extern "C" void torchSetInterOpThreads(int num_threads, char **error,
 extern "C" void torchSetIntraOpThreads(int num_threads, char **error,
                                        void* (*alloc)(size_t)){
   int current_num_threads = torch::get_num_threads();
-  if (current_num_threads == num_threads) {
+  if (current_num_threads != num_threads) {
     try {
       torch::set_num_threads(num_threads);
     }
