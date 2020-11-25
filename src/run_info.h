@@ -60,7 +60,7 @@ int RAI_InitDagOp(RAI_DagOp **result);
  * @param ctx Context in which Redis modules operate
  * @param RAI_DagOp context in which RedisAI command operates.
  */
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
+void RAI_FreeDagOp(RAI_DagOp *dagOp);
 
 /**
  * This structure contains the context data at the end of the execution.
@@ -126,7 +126,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
  * @param ctx Context in which Redis modules operate
  * @param rinfo context in which RedisAI blocking command operate.
  */
-void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
+void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo);
 
 /**
  * Locks the DAG tensor context rwlock for reads. No-op in case of single

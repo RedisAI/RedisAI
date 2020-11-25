@@ -158,15 +158,15 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
   return REDISMODULE_OK;
 }
 
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
+void RAI_FreeDagOp(RAI_DagOp *dagOp) {
   if (dagOp) {
     RAI_FreeError(dagOp->err);
     if(dagOp->runkey){
-      RedisModule_FreeString(ctx,dagOp->runkey);
+      RedisModule_FreeString(NULL, dagOp->runkey);
     }
     if (dagOp->argv) {
       for (size_t i = 0; i < array_len(dagOp->argv); i++) {
-        RedisModule_FreeString(ctx, dagOp->argv[i]);
+        RedisModule_FreeString(NULL, dagOp->argv[i]);
       }
       array_free(dagOp->argv);
     }
@@ -188,14 +188,14 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
 
     if (dagOp->inkeys) {
       for (size_t i=0; i<array_len(dagOp->inkeys); i++) {
-        RedisModule_FreeString(ctx,dagOp->inkeys[i]);
+        RedisModule_FreeString(NULL, dagOp->inkeys[i]);
       }
       array_free(dagOp->inkeys);
     }
 
     if (dagOp->outkeys) {
       for (size_t i=0; i<array_len(dagOp->outkeys); i++) {
-        RedisModule_FreeString(ctx,dagOp->outkeys[i]);
+        RedisModule_FreeString(NULL, dagOp->outkeys[i]);
       }
       array_free(dagOp->outkeys);
     }
@@ -204,7 +204,7 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
   }
 }
 
-void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
+void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo) {
   if (!rinfo) {
     return;
   }
@@ -228,7 +228,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
 
   if (rinfo->dagOps) {
     for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
-      RAI_FreeDagOp(ctx, rinfo->dagOps[i]);
+      RAI_FreeDagOp(rinfo->dagOps[i]);
     }
     array_free(rinfo->dagOps);
   }

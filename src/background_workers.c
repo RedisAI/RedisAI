@@ -177,7 +177,7 @@ _Noreturn void *RedisAI_Run_ThreadMain(void *arg) {
             queueEvict(run_queue_info->run_queue, item);
 
             int dagRefCount = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
-            if (dagRefCount == 0 && rinfo->client) {
+            if (dagRefCount == 0) {
 				RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
             	rinfo->OnFinish(finish_ctx, rinfo->private_data);
             }
@@ -418,7 +418,7 @@ _Noreturn void *RedisAI_Run_ThreadMain(void *arg) {
           if (dagError) {
             int dagRefCount = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
 
-            if (dagRefCount == 0 && rinfo->client) {
+            if (dagRefCount == 0) {
 				RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
 				rinfo->OnFinish(finish_ctx, rinfo->private_data);
             }
@@ -451,7 +451,7 @@ _Noreturn void *RedisAI_Run_ThreadMain(void *arg) {
 
         // If the reference count for the DAG is zero and the client is still around,
         // then we actually unblock the client
-        if (dagRefCount == 0 && evicted_rinfo->client) {
+        if (dagRefCount == 0) {
 			RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)evicted_rinfo;
 			evicted_rinfo->OnFinish(finish_ctx, evicted_rinfo->private_data);
         }
