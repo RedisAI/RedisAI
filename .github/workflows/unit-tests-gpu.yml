@@ -16,6 +16,10 @@ jobs:
         fi
     - name: Setup testing-infrastructure
       run: |
+        if ${{ env.EC2_REGION == '' }} || ${{ env.EC2_ACCESS_KEY == '' }} || ${{ env.EC2_SECRET_KEY == '' }} ; then
+          echo "ec2 secrets are not set"
+          exit 1
+        fi
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
         ./install_deps.sh
