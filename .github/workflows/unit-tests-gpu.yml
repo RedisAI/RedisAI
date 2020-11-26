@@ -4,11 +4,11 @@ jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
     steps:
+    - name: Setup testing-infrastructure
       env:
       - EC2_REGION: ${{ secrets.EC2_REGION }}
       - EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
       - EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
-    - name: Setup testing-infrastructure
       run: |
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
@@ -25,6 +25,10 @@ jobs:
         "add test logic here"
 
     - name: Tear down testing-infrastructure
+      env:
+      - EC2_REGION: ${{ secrets.EC2_REGION }}
+      - EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
+      - EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
       run: |
         cd testing-infrastructure/terraform/redisai-cuda11-baseimage
         terraform destroy --auto-approve
