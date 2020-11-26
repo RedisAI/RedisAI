@@ -188,7 +188,7 @@ jobs:
           name: Test with valgrind
           command: |
             make -C opt test VGD=1
-          no_output_timeout: 60m
+          no_output_timeout: 120m
 
   build-macos:
     macos:
