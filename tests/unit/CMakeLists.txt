@@ -28,6 +28,7 @@ macro(package_add_test TESTNAME)
 endmacro()
 
 package_add_test(unit_tests_err unit_tests_err.cpp)
+package_add_test(unit_tests_AsyncDagRun unit_tests_AsyncDagRun.cpp)
 
 
 
