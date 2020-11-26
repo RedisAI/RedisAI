@@ -47,6 +47,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}"
 #----------------------------------------------------------------------------------------------
 
 option(PACKAGE_UNIT_TESTS "Build unit tests" ON)
+option(PACKAGE_MICRO_BENCHMARKS "Build micro benchmarks" ON)
 option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
@@ -316,4 +317,10 @@ if(PACKAGE_UNIT_TESTS)
     enable_testing()
     include(GoogleTest)
     add_subdirectory(tests/unit)
+endif()
+
+
+if(PACKAGE_MICRO_BENCHMARKS)
+    enable_testing()
+    add_subdirectory(tests/microbenchmarks)
 endif()
