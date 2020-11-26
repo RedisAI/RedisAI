@@ -33,9 +33,9 @@ jobs:
         echo "setting github_actor=${{ env.GITHUB_ACTOR }}"
         echo "setting github_repo=${{ env.GITHUB_REPO }}"
         echo "setting github_sha=${{ env.GITHUB_SHA }}"
-        terraform apply --auto-approve -var 'github_actor=${{ env.GITHUB_ACTOR }}' \
-                                       -var 'github_repo=${{ env.GITHUB_REPO }}' \
-                                       -var 'github_sha=${{ env.GITHUB_SHA }}'
+        terraform apply --auto-approve -var 'github_actor=${{ github.actor }}' \
+                                       -var 'github_repo=${{ github.repo }}' \
+                                       -var 'github_sha=${{ github.sha }}'
         terraform output -json > ~/deployment_info.json
         MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
         echo "MACHINE IP: ${MACHINE_EIP}"
