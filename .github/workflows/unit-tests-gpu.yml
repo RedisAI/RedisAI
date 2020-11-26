@@ -8,7 +8,6 @@ jobs:
       - EC2_REGION: ${{ secrets.EC2_REGION }}
       - EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
       - EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
-      - OBJC_DISABLE_INITIALIZE_FORK_SAFETY: "yes"
     - name: Setup testing-infrastructure
       run: |
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
