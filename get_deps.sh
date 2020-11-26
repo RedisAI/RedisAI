@@ -52,7 +52,7 @@ OS=$(python3 $HERE/opt/readies/bin/platform --os)
 ARCH=$(python3 $HERE/opt/readies/bin/platform --arch)
 
 # avoid wget warnings on macOS
-[[ $OS == macosx ]] && export LC_ALL=en_US.UTF-8
+[[ $OS == macos ]] && export LC_ALL=en_US.UTF-8
 
 DEPS_DIR=$HERE/deps/$OS-$ARCH-$DEVICE
 mkdir -p ${DEPS_DIR}
@@ -86,14 +86,13 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="1.15.0"
+TF_VERSION="2.3.1"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
 
 	if [[ ! -d $LIBTENSORFLOW ]]; then
 		echo "Installing TensorFlow ..."
-		
 		if [[ $OS == linux ]]; then
 			TF_OS="linux"
 			if [[ $GPU != 1 ]]; then
@@ -102,26 +101,17 @@ if [[ $WITH_TF != 0 ]]; then
 				TF_BUILD="gpu"
 			fi
 			if [[ $ARCH == x64 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=x86_64
 				
-				# special case for 1.15.0 as official version does not suport CUDA 10.1
-				if [[ $WITH_TF == S3 || $GPU == 1 ]]; then
-					LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
-				else
-					LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
-				fi
+				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
 			elif [[ $ARCH == arm64v8 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=arm64
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			elif [[ $ARCH == arm32v7 ]]; then
-				TF_VERSION=1.15.0
 				TF_ARCH=arm
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			fi
-		elif [[ $OS == macosx ]]; then
-			TF_VERSION=1.15.0
+		elif [[ $OS == macos ]]; then
 			TF_OS=darwin
 			TF_BUILD=cpu
 			TF_ARCH=x86_64
@@ -175,7 +165,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 			elif [[ $ARCH == arm32v7 ]]; then
 				TFLITE_ARCH=arm
 			fi
-		elif [[ $OS == macosx ]]; then
+		elif [[ $OS == macos ]]; then
 			TFLITE_OS=darwin
 			# TFLITE_BUILD=cpu
 			TFLITE_ARCH=x86_64
@@ -225,7 +215,7 @@ if [[ $WITH_PT != 0 ]]; then
 			elif [[ $ARCH == arm32v7 ]]; then
 				PT_ARCH=arm
 			fi
-		elif [[ $OS == macosx ]]; then
+		elif [[ $OS == macos ]]; then
 			PT_OS=macos
 			PT_ARCH=x86_64
 			PT_BUILD=cpu
@@ -264,7 +254,7 @@ fi # WITH_PT
 if [[ ! -d mkl ]]; then
 	MKL_VERSION=0.18
 	MKL_BUNDLE_VER=2019.0.3.20190220
-	if [[ $OS == macosx ]]; then
+	if [[ $OS == macos ]]; then
 		echo "Installing MKL ..."
 
 		MKL_OS=mac
@@ -309,7 +299,7 @@ if [[ $WITH_ORT != 0 ]]; then
 				ORT_ARCH=arm
 				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			fi
-		elif [[ $OS == macosx ]]; then
+		elif [[ $OS == macos ]]; then
 			ORT_OS=osx
 			ORT_ARCH=x64
 			ORT_BUILD=""

@@ -426,3 +426,39 @@ extern "C" void torchDeallocContext(void* ctx)
     delete ctx_;
   }
 }
+
+extern "C" void torchSetInterOpThreads(int num_threads, char **error,
+                                       void* (*alloc)(size_t))
+{
+  int current_num_interop_threads = torch::get_num_interop_threads();
+  if (current_num_interop_threads != num_threads){
+    try {
+      torch::set_num_interop_threads(num_threads);
+    }
+    catch (std::exception) {
+      std::string error_msg = "Cannot set number of inter-op threads after parallel work has started";
+      size_t len = error_msg.length() +1;
+      *error = (char *)alloc(len * sizeof(char));
+      strcpy(*error, error_msg.c_str());
+      (*error)[len-1] = '\0';
+    }
+  }
+}
+
+
+extern "C" void torchSetIntraOpThreads(int num_threads, char **error,
+                                       void* (*alloc)(size_t)){
+  int current_num_threads = torch::get_num_threads();
+  if (current_num_threads != num_threads) {
+    try {
+      torch::set_num_threads(num_threads);
+    }
+    catch (std::exception) {
+      std::string error_msg = "Cannot set number of intra-op threads after parallel work has started";
+      size_t len = error_msg.length() +1;
+      *error = (char *)alloc(len * sizeof(char));
+      strcpy(*error, error_msg.c_str());
+      (*error)[len-1] = '\0';
+    }
+  }
+}

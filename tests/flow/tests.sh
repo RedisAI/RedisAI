@@ -12,9 +12,9 @@ error() {
 [[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../opt/readies/shibumi/functions
+. $HERE/../../opt/readies/shibumi/functions
 
-export ROOT=$(realpath $HERE/..)
+export ROOT=$(realpath $HERE/../..)
 
 #----------------------------------------------------------------------------------------------
 
@@ -81,7 +81,7 @@ valgrind_config() {
 run_tests() {
 	local title="$1"
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
-	cd $ROOT/test
+	cd $ROOT/tests/flow
 	$OP python3 -m RLTest --clear-logs --module $MODULE $RLTEST_ARGS
 }
 
@@ -101,7 +101,7 @@ OP=""
 [[ $NOP == 1 ]] && OP="echo"
 
 MODULE=${MODULE:-$1}
-[[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found. Aborting."; exit 1; }
+[[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found at ${MODULE}. Aborting."; exit 1; }
 
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
@@ -115,7 +115,7 @@ fi
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/test
+cd $ROOT/tests/flow
 
 install_git_lfs
 check_redis_server

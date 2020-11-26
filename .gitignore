@@ -2,9 +2,9 @@
 /deps/
 /build/
 /install*
-/test/venv/
+/tests/venv/
 logs/
-/test/logs/
+/tests/logs/
 .env/
 env*/
 .venv/
