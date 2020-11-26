@@ -1311,21 +1311,22 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv,
 
 	RedisAI_RunInfo *rinfo = NULL;
 	if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-		return RedisModule_ReplyWithError(
-		  ctx,
-		  "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo "
-		  "structure");
+		return RedisModule_ReplyWithError(ctx,
+		  "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
 	}
+	// Parse DAG string command and store the data in rinfo obj.
 	int curr_status = DAG_StringParser(ctx, argv, argc, dagMode, &rinfo);
 	if(curr_status != REDISMODULE_OK) return REDISMODULE_ERR;
+	// Block the client before adding rinfo to the run queues (sync call)
 	rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RedisAI_FreeData, 0);
 	RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+	// Use the entire rinfo obj as the on finish's private data.
 	rinfo->private_data = rinfo;
 	rinfo->OnFinish = DAG_FinishBlockingExecution;
 	curr_status = DAG_InsertDAGToQueue(rinfo);
 	if(curr_status == REDISMODULE_ERR) {
-		return RedisModule_ReplyWithError(ctx,
-		  "ERR Queue not initialized for device");
+		RedisModule_AbortBlock(rinfo->client);
+		return RedisModule_ReplyWithError(ctx, "ERR Queue not initialized for device");
 	}
 	return REDISMODULE_OK;
 }
