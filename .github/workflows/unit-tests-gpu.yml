@@ -4,20 +4,37 @@ jobs:
   deploy-infrastructure:
     runs-on: ubuntu-latest
     steps:
-    - name: Install deployment dependencies
-      run: |
-        sudo apt install -y awscli ansible zip 
-    - name: Install deployment dependencies
-      run: |
-        wget https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip
-        unzip terraform_0.13.5_linux_amd64.zip
-        sudo mv terraform /usr/local/bin
-        rm terraform_0.13.5_linux_amd64.zip
-        terraform --version
-
-    
-    - name: Generate coverage report
+    - name: Setup testing-infrastructure
+      env:
+      EC2_REGION: "${{ secrets.EC2_REGION }}"
+      EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
+      EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
+      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: yes
       run: |
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
+        ./install_deps.sh
         ./setup.sh
+        cd terraform/redisai-cuda11-baseimage
+        terraform init
+        terraform apply --auto-approve
+        terraform output -json > ~/deployment_info.json
+        MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
+        echo "MACHINE IP: ${MACHINE_EIP}"
+        
+    steps:
+    - name: RedisAI GPU build/test
+      run: |
+        "add test logic here"
+
+    steps:
+    - name: Tear down testing-infrastructure
+      env:
+      EC2_REGION: "${{ secrets.EC2_REGION }}"
+      EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
+      EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
+      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: yes
+      run: |
+        cd testing-infrastructure/terraform/redisai-cuda11-baseimage
+        terraform destroy --auto-approve
+      
