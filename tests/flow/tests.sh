@@ -123,7 +123,11 @@ install_git_lfs
 check_redis_server
 
 [[ $GEN == 1 ]]    && run_tests
-[[ $VGD == 1 ]] && run_memcheck
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
-[[ $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
+if [[ ! $VALGRIND ]]; then
+	[[ 	$SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
+fi
 [[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
+if [[ $VALGRIND ]]; then
+	run_memcheck 
+fi
