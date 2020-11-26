@@ -5,10 +5,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Setup testing-infrastructure
-      env:
-      - EC2_REGION: ${{ secrets.EC2_REGION }}
-      - EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
-      - EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
       run: |
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
@@ -19,17 +15,22 @@ jobs:
         terraform output -json > ~/deployment_info.json
         MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
         echo "MACHINE IP: ${MACHINE_EIP}"
+      env:
+        EC2_REGION: "${{ secrets.EC2_REGION }}"
+        EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
+        EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
     
     - name: RedisAI GPU build/test
       run: |
         "add test logic here"
 
     - name: Tear down testing-infrastructure
-      env:
-      - EC2_REGION: ${{ secrets.EC2_REGION }}
-      - EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
-      - EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
+      
       run: |
         cd testing-infrastructure/terraform/redisai-cuda11-baseimage
         terraform destroy --auto-approve
+      env:
+        EC2_REGION: "${{ secrets.EC2_REGION }}"
+        EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
+        EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
       
