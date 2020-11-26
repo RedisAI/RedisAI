@@ -14,7 +14,6 @@ jobs:
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
         ./install_deps.sh
-        ./setup.sh
         cd terraform/redisai-cuda11-baseimage
         terraform init
         terraform apply --auto-approve
