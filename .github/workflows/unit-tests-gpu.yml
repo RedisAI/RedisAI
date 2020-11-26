@@ -1,0 +1,23 @@
+on: [push]
+name: Deploy redisai-cuda11-baseimage
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install deployment dependencies
+      run: |
+        apt install -y awscli ansible zip 
+    - name: Install deployment dependencies
+      run: |
+        wget https://releases.hashicorp.com/terraform/0.13.5/terraform_0.13.5_linux_amd64.zip
+        unzip terraform_0.13.5_linux_amd64.zip
+        mv terraform /usr/local/bin
+        rm terraform_0.13.5_linux_amd64.zip
+        terraform --version
+
+    
+    - name: Generate coverage report
+      run: |
+        git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
+        cd testing-infrastructure
+        ./setup.sh
