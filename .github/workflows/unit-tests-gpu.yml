@@ -36,7 +36,7 @@ jobs:
     
     - name: RedisAI GPU build/test
       run: |
-        "add test logic here"
+        echo "add test logic here"
 
     - name: Tear down testing-infrastructure
       run: |
