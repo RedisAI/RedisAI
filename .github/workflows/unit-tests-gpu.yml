@@ -24,11 +24,15 @@ jobs:
 
     - name: Setup testing-infrastructure
       run: |
+        set -x
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
         ./install_deps.sh
         cd terraform/redisai-cuda11-baseimage
         terraform init
+        echo "setting github_actor=${{ env.GITHUB_ACTOR }}"
+        echo "setting github_repo=${{ env.GITHUB_REPO }}"
+        echo "setting github_sha=${{ env.GITHUB_SHA }}"
         terraform apply --auto-approve -var 'github_actor=${{ env.GITHUB_ACTOR }}' \
                                        -var 'github_repo=${{ env.GITHUB_REPO }}' \
                                        -var 'github_sha=${{ env.GITHUB_SHA }}'
