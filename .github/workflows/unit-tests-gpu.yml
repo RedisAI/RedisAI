@@ -2,14 +2,14 @@ on: [push]
 name: Deploy redisai-cuda11-baseimage
 jobs:
   deploy-infrastructure:
+    env:
+      EC2_REGION: ${{ secrets.EC2_REGION }}
+      EC2_ACCESS_KEY: ${{ secrets.EC2_ACCESS_KEY }}
+      EC2_SECRET_KEY: ${{ secrets.EC2_SECRET_KEY }}
+      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: yes
     runs-on: ubuntu-latest
     steps:
     - name: Setup testing-infrastructure
-      env:
-      EC2_REGION: "${{ secrets.EC2_REGION }}"
-      EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
-      EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
-      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: yes
       run: |
         git clone https://github.com/RedisLabsModules/testing-infrastructure --branch redisai-cuda11-baseimage
         cd testing-infrastructure
@@ -21,7 +21,7 @@ jobs:
         terraform output -json > ~/deployment_info.json
         MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
         echo "MACHINE IP: ${MACHINE_EIP}"
-        
+
     steps:
     - name: RedisAI GPU build/test
       run: |
@@ -29,11 +29,6 @@ jobs:
 
     steps:
     - name: Tear down testing-infrastructure
-      env:
-      EC2_REGION: "${{ secrets.EC2_REGION }}"
-      EC2_ACCESS_KEY: "${{ secrets.EC2_ACCESS_KEY }}"
-      EC2_SECRET_KEY: "${{ secrets.EC2_SECRET_KEY }}"
-      OBJC_DISABLE_INITIALIZE_FORK_SAFETY: yes
       run: |
         cd testing-infrastructure/terraform/redisai-cuda11-baseimage
         terraform destroy --auto-approve
