@@ -7,7 +7,6 @@
 
 #include "config.h"
 
-int parseDeviceStr(const char* devicestr, RAI_Device* device,
-                   int64_t* deviceid);
+int parseDeviceStr(const char *devicestr, RAI_Device *device, int64_t *deviceid);
 
 #endif /* SRC_BACKENDS_UTIL_H_ */

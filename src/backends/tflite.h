@@ -8,9 +8,8 @@
 
 int RAI_InitBackendTFLite(int (*get_api_fn)(const char *, void *));
 
-RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
-                                 const char *modeldef, size_t modellen,
-                                 RAI_Error *err);
+RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
+                                 const char *modeldef, size_t modellen, RAI_Error *err);
 
 void RAI_ModelFreeTFLite(RAI_Model *model, RAI_Error *error);
 
