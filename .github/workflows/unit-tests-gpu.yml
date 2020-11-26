@@ -21,13 +21,11 @@ jobs:
         terraform output -json > ~/deployment_info.json
         MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
         echo "MACHINE IP: ${MACHINE_EIP}"
-
-    steps:
+    
     - name: RedisAI GPU build/test
       run: |
         "add test logic here"
 
-    steps:
     - name: Tear down testing-infrastructure
       run: |
         cd testing-infrastructure/terraform/redisai-cuda11-baseimage
