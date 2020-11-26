@@ -180,10 +180,10 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     array_free(dagOp->outTensors);
 
     if (dagOp->mctx) {
-      RAI_ModelRunCtxFree(dagOp->mctx, false);
+      RAI_ModelRunCtxFree(dagOp->mctx, true);
     }
     if (dagOp->sctx) {
-      RAI_ScriptRunCtxFree(dagOp->sctx, false);
+      RAI_ScriptRunCtxFree(dagOp->sctx, true);
     }
 
     if (dagOp->inkeys) {
