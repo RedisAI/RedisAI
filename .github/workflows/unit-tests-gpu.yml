@@ -29,7 +29,9 @@ jobs:
         ./install_deps.sh
         cd terraform/redisai-cuda11-baseimage
         terraform init
-        terraform apply --auto-approve
+        terraform apply --auto-approve -var 'github_actor=${{ env.GITHUB_ACTOR }}' \
+                                       -var 'github_repo=${{ env.GITHUB_REPO }}' \
+                                       -var 'github_sha=${{ env.GITHUB_SHA }}'
         terraform output -json > ~/deployment_info.json
         MACHINE_EIP=$(cat ~/deployment_info.json | jq -r '.server_public_ip.value[0]')
         echo "MACHINE IP: ${MACHINE_EIP}"
