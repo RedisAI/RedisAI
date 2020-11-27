@@ -12,9 +12,10 @@ error() {
 [[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../../opt/readies/shibumi/functions
+export ROOT=$(cd $HERE/../..; pwd)
+. $ROOT/opt/readies/shibumi/functions
 
-export ROOT=$(realpath $HERE/../..)
+cd $HERE
 
 #----------------------------------------------------------------------------------------------
 
@@ -83,10 +84,6 @@ run_tests() {
 	$OP python3 -m RLTest --clear-logs --module $MODULE $RLTEST_ARGS
 }
 
-run_memcheck() {
-	./memcheck.sh
-}
-
 #----------------------------------------------------------------------------------------------
 
 [[ $1 == --help || $1 == help ]] && { help; exit 0; }
@@ -124,10 +121,6 @@ check_redis_server
 
 [[ $GEN == 1 ]]    && run_tests
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
-if [[ ! $VALGRIND ]]; then
-	[[ 	$SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
-fi
+[[ ! $VALGRIND && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
-if [[ $VALGRIND ]]; then
-	run_memcheck 
-fi
+[[ $VALGRIND ]] && ./valgrind_summary

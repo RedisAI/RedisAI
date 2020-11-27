@@ -12,6 +12,14 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
+  setup-automation:
+    steps:
+      - run:
+          name: Setup automation
+          command: |
+            PIP=1 ./opt/readies/bin/getpy3
+            ./opt/system-setup.py
+
   build-steps:
     parameters:
       platform:
@@ -25,11 +33,10 @@ commands:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
+      - setup-automation
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            BREW_NO_UPDATE=1 ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
@@ -60,8 +67,6 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: tests/logs
 
@@ -98,8 +103,6 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -143,11 +146,10 @@ jobs:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
+      - setup-automation
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
@@ -161,7 +163,7 @@ jobs:
             make -C opt cov-upload
           no_output_timeout: 30m
 
-  memcheck:
+  valgrind:
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
     steps:
@@ -173,21 +175,20 @@ jobs:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
+      - setup-automation
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
           name: Build for valgrind
           command: |
-            make -C opt all VGD=1 SHOW=1
+            make -C opt all VALGRIND=1 SHOW=1
       - run:
           name: Test with valgrind
           command: |
-            make -C opt test VGD=1
+            make -C opt test VALGRIND=1
           no_output_timeout: 120m
 
   build-macos:
@@ -338,7 +339,6 @@ on-master-and-version-tags: &on-master-and-version-tags
     tags:
       only: /^v[0-9].*/
 
-
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
@@ -372,8 +372,9 @@ workflows:
           <<: *platform-build-defs
       - coverage:
           <<: *on-any-branch
-      - memcheck:
-          <<: *on-any-branch
+      - valgrind:
+          #@@ <<: *on-master
+		  <<: *on-any-branch
       - build-and-test-gpu:
           <<: *on-any-branch
       - build-macos:
