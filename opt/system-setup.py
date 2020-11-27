@@ -43,6 +43,7 @@ class RedisAISetup(paella.Setup):
         sh cmake-$version.$build-Linux-x86_64.sh --prefix=/opt/cmake --skip-license
         ln -s /opt/cmake/bin/cmake /usr/local/bin/cmake
         """)
+        self.install("clang-format")
         self.install("python3-regex")
         self.install("python3-psutil python3-networkx python3-numpy") # python3-skimage
         self.install_git_lfs_on_linux()
@@ -56,6 +57,9 @@ class RedisAISetup(paella.Setup):
         self.install("centos-release-scl")
         self.install("devtoolset-8")
         self.run("cp /opt/rh/devtoolset-8/enable /etc/profile.d/scl-devtoolset-8.sh")
+        
+        self.install("llvm-toolset-7")
+
         paella.mkdir_p("%s/profile.d" % ROOT)
         self.run("cp /opt/rh/devtoolset-8/enable %s/profile.d/scl-devtoolset-8.sh" % ROOT)
 
@@ -64,6 +68,7 @@ class RedisAISetup(paella.Setup):
             (cd $dir; wget -q -O tar.tgz http://redismodules.s3.amazonaws.com/gnu/gnu-tar-1.32-x64-centos7.tgz; tar -xzf tar.tgz -C /; )
             rm -rf $dir
             """)
+        
 
         if not self.dist == "amzn":
             self.install("epel-release")
@@ -84,6 +89,7 @@ class RedisAISetup(paella.Setup):
         self.install("cmake")
         self.run("ln -sf `command -v cmake3` /usr/local/bin/cmake")
         self.install("python3 python3-psutil python3-networkx")
+        self.install("clang")
         self.install_git_lfs_on_linux()
 
     def macos(self):
@@ -94,6 +100,7 @@ class RedisAISetup(paella.Setup):
         self.install("cmake")
         self.install("git-lfs")
         self.install("redis")
+        self.install("clang-format")
 
     def common_last(self):
         self.run("python3 -m pip uninstall -y ramp-packer RLTest || true")
