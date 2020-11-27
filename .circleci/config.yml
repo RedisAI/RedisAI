@@ -350,7 +350,7 @@ workflows:
       - platform-build:
           name: build-centos7
           platform: centos7
-          <<: *platform-build-defs
+          <<: *never # temporarily disabled
       - platform-build:
           name: build-bionic
           platform: bionic
@@ -358,7 +358,7 @@ workflows:
       - platform-build:
           name: build-xenial
           platform: xenial
-          <<: *platform-build-defs
+          <<: *on-any-branch
       - coverage:
           <<: *on-any-branch
           <<: *after-linter
