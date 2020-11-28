@@ -392,8 +392,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
-          #@@ <<: *on-master
-          <<: *on-any-branch
+          <<: *on-master
           <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
