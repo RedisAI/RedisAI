@@ -92,6 +92,9 @@ class RedisAISetup(paella.Setup):
         self.install("clang")
         self.install_git_lfs_on_linux()
 
+    def linux_last(self):
+        self.install("valgrind")
+
     def macos(self):
         if sh('xcode-select -p') == '':
             fatal("Xcode tools are not installed. Please run xcode-select --install.")

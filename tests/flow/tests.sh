@@ -35,6 +35,7 @@ help() {
 		SLAVES=0|1      Tests with --test-slaves
 		
 		TEST=test        Run specific test (e.g. test.py:test_name)
+		LOG=0|1          Write to log
 		VALGRIND|VGD=1   Run with Valgrind
 		CALLGRIND|CGD=1  Run with Callgrind
 
@@ -75,6 +76,19 @@ valgrind_config() {
 		--vg-suppressions $VALGRIND_SUPRESSIONS"
 }
 
+valgrind_summary() {
+	# Collect name of each flow log that contains leaks
+	FILES_WITH_LEAKS=$(grep -l "definitely lost" logs/*.valgrind.log)
+	if [[ ! -z $FILES_WITH_LEAKS ]]; then
+		echo "Memory leaks introduced in flow tests."
+		# Print the full Valgrind output for each leaking file
+		echo $FILES_WITH_LEAKS | xargs cat
+		exit 1
+	else
+		echo Valgrind test ok
+	fi
+}
+
 #----------------------------------------------------------------------------------------------
 
 run_tests() {
@@ -105,8 +119,11 @@ MODULE=${MODULE:-$1}
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
 if [[ ! -z $TEST ]]; then
-	RLTEST_ARGS+=" --test $TEST -s"
-	export PYDEBUG=${PYDEBUG:-1}
+	RLTEST_ARGS+=" --test $TEST"
+	if [[ $LOG != 1 ]]; then
+		RLTEST_ARGS+=" -s"
+		export PYDEBUG=${PYDEBUG:-1}
+	fi
 fi
 
 [[ $VERBOSE == 1 ]] && RLTEST_ARGS+=" -v"
@@ -121,6 +138,6 @@ check_redis_server
 
 [[ $GEN == 1 ]]    && run_tests
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
-[[ ! $VALGRIND && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
+[[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
-[[ $VALGRIND ]] && ./valgrind_summary
+[[ $VALGRIND == 1 ]] && valgrind_summary

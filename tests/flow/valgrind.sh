@@ -28,7 +28,6 @@ help() {
 		VERBOSE=1         Print commands
 		IGNERR=1          Do not abort on error
 		
-		SUPRESSIONS       Suppressions file
 		CALLGRIND|CGD=1   Run with Callgrind
 
 	END
@@ -61,7 +60,7 @@ valgrind_config() {
 	else
 		VALGRIND_OPTIONS+="\
 			-q \
-			--suppressions=$SUPRESSIONS \
+			--suppressions=$VALGRIND_SUPRESSIONS \
 			--leak-check=full \
 			--show-reachable=no \
 			--show-possibly-lost=no \
