@@ -212,39 +212,41 @@ export SLAVES ?= 1
 export AOF ?= 1
 export CLUSTER ?= 1
 
-unit_tests: build
-	@echo "$(BINDIR)"
-	$(COVERAGE_RESET)
-	$(SHOW)\
-		BINDIR=$(realpath $(BINDIR)) \
-		$(ROOT)/tests/unit/tests.sh
-	$(COVERAGE_COLLECT_REPORT)
+define UNIT_TESTS
+$(SHOW)echo Running unit tests ...
+$(SHOW)\
+BINDIR=$(realpath $(BINDIR)) \
+$(ROOT)/tests/unit/tests.sh
+endef
 
+define FLOW_TESTS
+$(SHOW)echo Running flow tests ...
+$(SHOW)\
+DEVICE=$(DEVICE) \
+MODULE=$(realpath $(INSTALLED_TARGET)) \
+CLUSTER=$(CLUSTER) \
+GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+VALGRIND=$(VALGRIND) \
+$(ROOT)/tests/flow/tests.sh
+endef
+
+unit_tests: build
+	$(COVERAGE_RESET)
+	$(UNIT_TESTS)
+	$(COVERAGE_COLLECT_REPORT)
 
 flow_tests: build
 	$(COVERAGE_RESET)
-	$(SHOW)\
-		DEVICE=$(DEVICE) \
-		MODULE=$(realpath $(INSTALLED_TARGET)) \
-		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
-		VALGRIND=$(VALGRIND) \
-		$(ROOT)/tests/flow/tests.sh
+	$(FLOW_TESTS)
 	$(COVERAGE_COLLECT_REPORT)
 
 test: build
 	$(COVERAGE_RESET)
-	$(SHOW)\
-		BINDIR=$(realpath $(BINDIR)) \
-		$(ROOT)/tests/unit/tests.sh
-	$(SHOW)\
-		DEVICE=$(DEVICE) \
-		MODULE=$(realpath $(INSTALLED_TARGET)) \
-		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
-		VALGRIND=$(VALGRIND) \
-		$(ROOT)/tests/flow/tests.sh
+	$(UNIT_TESTS)
+	$(FLOW_TESTS)
 	$(COVERAGE_COLLECT_REPORT)
+
+#----------------------------------------------------------------------------------------------
 
 valgrind:
 	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
