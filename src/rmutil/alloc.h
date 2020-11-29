@@ -23,10 +23,10 @@ char *rmalloc_strndup(const char *s, size_t n);
 
 #ifdef REDIS_MODULE_TARGET /* Set this when compiling your code as a module */
 
-#define malloc(size) RedisModule_Alloc(size)
+#define malloc(size)        RedisModule_Alloc(size)
 #define calloc(count, size) RedisModule_Calloc(count, size)
-#define realloc(ptr, size) RedisModule_Realloc(ptr, size)
-#define free(ptr) RedisModule_Free(ptr)
+#define realloc(ptr, size)  RedisModule_Realloc(ptr, size)
+#define free(ptr)           RedisModule_Free(ptr)
 
 #ifdef strdup
 #undef strdup

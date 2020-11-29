@@ -17,18 +17,18 @@
 #include "util/dict.h"
 
 struct RedisAI_RunStats {
-  RedisModuleString* key;
-  RAI_RunType type;
-  RAI_Backend backend;
-  char* devicestr;
-  char* tag;
-  long long duration_us;
-  long long samples;
-  long long calls;
-  long long nerrors;
+    RedisModuleString *key;
+    RAI_RunType type;
+    RAI_Backend backend;
+    char *devicestr;
+    char *tag;
+    long long duration_us;
+    long long samples;
+    long long calls;
+    long long nerrors;
 };
 
-AI_dict* run_stats;
+AI_dict *run_stats;
 
 long long ustime(void);
 mstime_t mstime(void);
@@ -46,16 +46,15 @@ mstime_t mstime(void);
  * @param tag optional tag of Model/Script
  * @return
  */
-void* RAI_AddStatsEntry(RedisModuleCtx* ctx, RedisModuleString* key,
-                        RAI_RunType type, RAI_Backend backend,
-                        const char* devicestr, const char* tag);
+void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType type,
+                        RAI_Backend backend, const char *devicestr, const char *tag);
 
 /**
  * Removes the statistical entry with the provided unique stats identifier
  *
  * @param infokey
  */
-void RAI_RemoveStatsEntry(void* infokey);
+void RAI_RemoveStatsEntry(void *infokey);
 
 /**
  * Returns a list of all statistical entries that match a specific RAI_RunType (
@@ -67,15 +66,15 @@ void RAI_RemoveStatsEntry(void* infokey);
  * @param keys output variable containing the list of returned keys
  * @param tags output variable containing the list of returned tags
  */
-void RAI_ListStatsEntries(RAI_RunType type, long long* nkeys,
-                          RedisModuleString*** keys, const char*** tags);
+void RAI_ListStatsEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,
+                          const char ***tags);
 
 /**
  *
  * @param rstats
  * @return 0 on success, or 1 if the reset failed
  */
-int RAI_ResetRunStats(struct RedisAI_RunStats* rstats);
+int RAI_ResetRunStats(struct RedisAI_RunStats *rstats);
 
 /**
  * Safely add datapoint to the run stats. Protected against null pointer
@@ -87,10 +86,10 @@ int RAI_ResetRunStats(struct RedisAI_RunStats* rstats);
  * @param samples
  * @return 0 on success, or 1 if the addition failed
  */
-int RAI_SafeAddDataPoint(struct RedisAI_RunStats* rstats, long long duration,
-                         long long calls, long long errors, long long samples);
+int RAI_SafeAddDataPoint(struct RedisAI_RunStats *rstats, long long duration, long long calls,
+                         long long errors, long long samples);
 
-void RAI_FreeRunStats(struct RedisAI_RunStats* rstats);
+void RAI_FreeRunStats(struct RedisAI_RunStats *rstats);
 
 /**
  *
@@ -98,8 +97,8 @@ void RAI_FreeRunStats(struct RedisAI_RunStats* rstats);
  * @param rstats
  * @return 0 on success, or 1 if the the run stats with runkey does not exist
  */
-int RAI_GetRunStats(const char* runkey, struct RedisAI_RunStats** rstats);
+int RAI_GetRunStats(const char *runkey, struct RedisAI_RunStats **rstats);
 
-void RedisAI_FreeRunStats(RedisModuleCtx* ctx, struct RedisAI_RunStats* rstats);
+void RedisAI_FreeRunStats(RedisModuleCtx *ctx, struct RedisAI_RunStats *rstats);
 
 #endif /* SRC_SATTS_H_ */
