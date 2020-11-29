@@ -1176,6 +1176,7 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv, in
             if (!mangled_entry) {
                 AI_dictRelease(mangled_tensors);
                 AI_dictRelease(mangled_persisted);
+                AI_dictReleaseIterator(iter);
                 return RedisModule_ReplyWithError(ctx, "ERR PERSIST key cannot be found in DAG");
             }
             int *instance = AI_dictGetVal(mangled_entry);
