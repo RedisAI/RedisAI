@@ -4,11 +4,11 @@
 #include "vector.h"
 
 /* Priority queue
- * Priority queues are designed such that its first element is always the greatest of the elements it contains.
- * This context is similar to a heap, where elements can be inserted at any moment, and only the max heap element can be
- * retrieved (the one at the top in the priority queue).
- * Priority queues are implemented as Vectors. Elements are popped from the "back" of Vector, which is known as the top
- * of the priority queue.
+ * Priority queues are designed such that its first element is always the greatest of the elements
+ * it contains. This context is similar to a heap, where elements can be inserted at any moment, and
+ * only the max heap element can be retrieved (the one at the top in the priority queue). Priority
+ * queues are implemented as Vectors. Elements are popped from the "back" of Vector, which is known
+ * as the top of the priority queue.
  */
 typedef struct {
     Vector *v;
@@ -42,9 +42,9 @@ size_t __priority_Queue_PushPtr(PriorityQueue *pq, void *elem);
 #define Priority_Queue_Push(pq, elem) __priority_Queue_PushPtr(pq, &(typeof(elem)){elem})
 
 /* Remove top element
- * Removes the element on top of the priority_queue, effectively reducing its size by one. The element removed is the
- * one with the highest value.
- * The value of this element can be retrieved before being popped by calling Priority_Queue_Top.
+ * Removes the element on top of the priority_queue, effectively reducing its size by one. The
+ * element removed is the one with the highest value. The value of this element can be retrieved
+ * before being popped by calling Priority_Queue_Top.
  */
 void Priority_Queue_Pop(PriorityQueue *pq);
 

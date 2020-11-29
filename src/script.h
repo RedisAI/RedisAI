@@ -15,7 +15,7 @@
 #include "script_struct.h"
 #include "tensor.h"
 
-extern RedisModuleType* RedisAI_ScriptType;
+extern RedisModuleType *RedisAI_ScriptType;
 
 /**
  * Helper method to register the script type exported by the module.
@@ -23,7 +23,7 @@ extern RedisModuleType* RedisAI_ScriptType;
  * @param ctx Context in which Redis modules operate
  * @return
  */
-int RAI_ScriptInit(RedisModuleCtx* ctx);
+int RAI_ScriptInit(RedisModuleCtx *ctx);
 
 /**
  * Helper method to allocated and initialize a RAI_Script. Relies on Pytorch
@@ -36,8 +36,8 @@ int RAI_ScriptInit(RedisModuleCtx* ctx);
  * failures
  * @return RAI_Script script structure on success, or NULL if failed
  */
-RAI_Script* RAI_ScriptCreate(const char* devicestr, const char* tag,
-                             const char* scriptdef, RAI_Error* err);
+RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char *scriptdef,
+                             RAI_Error *err);
 
 /**
  * Frees the memory of the RAI_Script when the script reference count reaches
@@ -47,7 +47,7 @@ RAI_Script* RAI_ScriptCreate(const char* devicestr, const char* tag,
  * @param error error data structure to store error message in the case of
  * failures
  */
-void RAI_ScriptFree(RAI_Script* script, RAI_Error* err);
+void RAI_ScriptFree(RAI_Script *script, RAI_Error *err);
 
 /**
  * Allocates the RAI_ScriptRunCtx data structure required for async background
@@ -57,8 +57,7 @@ void RAI_ScriptFree(RAI_Script* script, RAI_Error* err);
  * @param fnname function name to used from the script
  * @return RAI_ScriptRunCtx to be used within
  */
-RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
-                                         const char* fnname);
+RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname);
 
 /**
  * Allocates a RAI_ScriptCtxParam data structure, and enforces a shallow copy of
@@ -71,7 +70,7 @@ RAI_ScriptRunCtx* RAI_ScriptRunCtxCreate(RAI_Script* script,
  * failures
  * @return returns 1 on success, 0 in case of error.
  */
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RAI_Error* err);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *err);
 
 /**
  * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a shallow copy of
@@ -85,7 +84,8 @@ int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx* sctx, RAI_Tensor* inputTensor, RA
  * failures
  * @return returns 1 on success, 0 in case of error.
  */
-int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTensors, size_t len, RAI_Error* err);
+int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors, size_t len,
+                                 RAI_Error *err);
 
 /**
  * Allocates a RAI_ScriptCtxParam data structure, and sets the tensor reference
@@ -95,7 +95,7 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx* sctx, RAI_Tensor** inputTenso
  * @param sctx input RAI_ScriptRunCtx to add the output tensor
  * @return returns 1 on success ( always returns success )
  */
-int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx);
+int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx);
 
 /**
  * Returns the total number of output tensors of the RAI_ScriptRunCtx
@@ -103,7 +103,7 @@ int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx* sctx);
  * @param sctx RAI_ScriptRunCtx
  * @return the total number of output tensors of the RAI_ScriptRunCtx
  */
-size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx);
+size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx);
 
 /**
  * Get the RAI_Tensor at the output array index position
@@ -112,7 +112,7 @@ size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx* sctx);
  * @param index input array index position
  * @return RAI_Tensor
  */
-RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index);
+RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index);
 
 /**
  * Frees the RAI_ScriptRunCtx data structure used within for async background
@@ -121,7 +121,7 @@ RAI_Tensor* RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx* sctx, size_t index);
  * @param sctx
  * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx, int freeTensors);
 
 /**
  * Given the input script context, run associated script
@@ -135,7 +135,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx* sctx, int freeTensors);
  * @return REDISMODULE_OK if the underlying backend `script_run` ran
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err);
+int RAI_ScriptRun(RAI_ScriptRunCtx *sctx, RAI_Error *err);
 
 /**
  * Every call to this function, will make the RAI_Script 'script' requiring an
@@ -145,7 +145,7 @@ int RAI_ScriptRun(RAI_ScriptRunCtx* sctx, RAI_Error* err);
  * @param script input script
  * @return script
  */
-RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script);
+RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script);
 
 /* Return REDISMODULE_ERR if there was an error getting the Script.
  * Return REDISMODULE_OK if the model value stored at key was correctly
@@ -165,10 +165,8 @@ RAI_Script* RAI_ScriptGetShallowCopy(RAI_Script* script);
  * returned and available at *script variable, or REDISMODULE_ERR if there was
  * an error getting the Script
  */
-int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
-                              RedisModuleKey** key, RAI_Script** script,
-                              int mode);
-
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
+                              RAI_Script **script, int mode);
 
 /**
  * When a module command is called in order to obtain the position of
@@ -183,7 +181,7 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * @return
  */
 int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
-                               RedisModuleString **argv, int argc);
+                                                       RedisModuleString **argv, int argc);
 
 /**
  * Helper method to parse AI.SCRIPTRUN arguments
@@ -198,13 +196,9 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx,
-                                         RedisModuleString **argv, int argc,
-                                         RedisModuleString ***inkeys,
-                                         RedisModuleString ***outkeys,
-                                         int *variadic,
-                                         RAI_Error *error);
-
+int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                         RedisModuleString ***inkeys, RedisModuleString ***outkeys,
+                                         int *variadic, RAI_Error *error);
 
 #if 0
 /**
