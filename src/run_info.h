@@ -96,6 +96,8 @@ typedef struct RedisAI_RunInfo {
     // Pointer to integer signaling whether an error occurred anywhere in the DAG.
     // This is shared across shallow copies in device queues.
     int *dagError;
+    // DAG global error.
+    RAI_Error *err;
     // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
     pthread_rwlock_t *dagLock;
     // Pointer to ref count in DAG, shared across multiple worker thread

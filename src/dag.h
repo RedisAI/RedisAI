@@ -166,15 +166,15 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
  * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or REDISAI_DAG_WRITE_MODE
  * @return
  */
-int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                               int dagMode);
+int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                 int dagMode);
 
 /**
- * @brief Perform unblock client and reply. This is called at the end of a DAG run
- * which is originated from a Redis command
+ * @brief This callback is called at the end of a DAG run and performs unblock client and reply.
+ * This is the callback of RedisAI AI.MODELRUN, AI.SCRIPTRUN, AI.DAGRUN
  * @param ctx Context object that contains errors and results
  * @param private_data is a pointer to the DAG run info struct
  */
-void DAG_FinishBlockingExecution(RedisAI_OnFinishCtx ctx, void *private_data);
+void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx ctx, void *private_data);
 
 #endif /* SRC_DAG_H_ */

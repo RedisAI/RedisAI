@@ -122,6 +122,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
         return REDISMODULE_ERR;
     }
     rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
+    RAI_InitError(&rinfo->err);
     rinfo->dagLock = RedisModule_Alloc(sizeof(pthread_rwlock_t));
     rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagOpCount = 0;
@@ -234,7 +235,7 @@ void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo) {
     if (rinfo->dagError) {
         RedisModule_Free(rinfo->dagError);
     }
-
+    RAI_FreeError(rinfo->err);
     RedisModule_Free(rinfo->dagRefCount);
     RedisModule_Free(rinfo->dagCompleteOpCount);
     RedisModule_Free(rinfo->timedOut);

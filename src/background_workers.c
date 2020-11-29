@@ -50,7 +50,7 @@ int freeRunQueueInfo(RunQueueInfo *info) {
     return result;
 }
 
-_Noreturn void *RedisAI_Run_ThreadMain(void *arg);
+void *RedisAI_Run_ThreadMain(void *arg);
 
 char *strToUpper(const char *input) {
     char *output = RedisModule_Strdup(input);
@@ -100,7 +100,7 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
     return result;
 }
 
-_Noreturn void *RedisAI_Run_ThreadMain(void *arg) {
+void *RedisAI_Run_ThreadMain(void *arg) {
     RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
     pthread_t self = pthread_self();
     RAI_PTHREAD_SETNAME("redisai_bthread");
