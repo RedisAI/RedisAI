@@ -11,7 +11,7 @@ ARG ARCH=x64
 # OS=ubuntu18.04|ubuntu16.04|centos7
 ARG OS=ubuntu18.04
 
-ARG CUDA_VER=11.1-cudnn8
+ARG CUDA_VER=10.1-cudnn8
 
 ARG PACK=1
 
@@ -47,6 +47,10 @@ RUN set -e ;\
 	else \
 		env $DEPS_ARGS ./get_deps.sh gpu ;\
 	fi
+
+# Fix paths so that CUDNN can be found: https://github.com/tensorflow/tensorflow/issues/8264
+RUN ln -s /usr/include/cudnn.h /usr/local/cuda/include/cudnn.h
+RUN apt-get install pkg-config -y 
 
 ARG BUILD_ARGS=""
 ADD ./ /build
