@@ -23,8 +23,8 @@ SHELL ["/bin/bash", "-c"]
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-ENV LD_LIBRARY_PATH /usr/local/cuda-${CUDA_VER}/targets/x86_64-linux/lib/:$LD_LIBRARY_PATH
-RUN ldconfig
+ENV PATH="/usr/local/cuda-${CUDA_VER}/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VER}/targets/x86_64-linux/lib/:${LD_LIBRARY_PATH}"
 
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
