@@ -9,9 +9,8 @@
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *));
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char* devicestr, RAI_ModelOpts opts,
-                                const char *modeldef, size_t modellen,
-                                RAI_Error *err);
+RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
+                                const char *modeldef, size_t modellen, RAI_Error *err);
 
 void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error);
 
@@ -19,8 +18,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
-RAI_Script *RAI_ScriptCreateTorch(const char* devicestr, const char *scriptdef,
-                                  RAI_Error *error);
+RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, RAI_Error *error);
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 

@@ -114,6 +114,19 @@ commands:
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
+  lint:
+    docker:
+      - image: redislabsmodules/llvm-toolset:latest
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - run:
+          name: lint
+          command: |
+            make -C opt lint
+
   build-debian:
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
@@ -322,17 +335,22 @@ after-platform-builds: &after-platform-builds
     - build-bionic
     - build-xenial
 
+after-linter: &after-linter
+  requires:
+    - lint
 
 workflows:
   version: 2
   build_and_package:
     jobs:
+      - lint
       - build-debian:
           <<: *on-any-branch
+          <<: *after-linter
       - platform-build:
           name: build-centos7
           platform: centos7
-          <<: *platform-build-defs
+          <<: *never # temporarily disabled
       - platform-build:
           name: build-bionic
           platform: bionic
@@ -340,11 +358,13 @@ workflows:
       - platform-build:
           name: build-xenial
           platform: xenial
-          <<: *platform-build-defs
+          <<: *on-any-branch
       - coverage:
           <<: *on-any-branch
+          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
+          <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags

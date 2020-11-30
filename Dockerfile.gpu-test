@@ -50,7 +50,8 @@ RUN set -e ;\
 	fi
 
 # Fix paths so that CUDNN can be found: https://github.com/tensorflow/tensorflow/issues/8264
-RUN  ln -s /usr/include/cudnn.h /usr/local/cuda/include/cudnn.h
+RUN ln -s /usr/include/cudnn.h /usr/local/cuda/include/cudnn.h
+RUN apt-get install pkg-config -y 
 
 ARG BUILD_ARGS=""
 ADD ./ /build

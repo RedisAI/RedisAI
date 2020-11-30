@@ -19,7 +19,7 @@
 #include "tensor.h"
 #include "util/dict.h"
 
-extern RedisModuleType* RedisAI_ModelType;
+extern RedisModuleType *RedisAI_ModelType;
 
 /**
  * Helper method to register the RedisModuleType type exported by the module.
@@ -27,7 +27,7 @@ extern RedisModuleType* RedisAI_ModelType;
  * @param ctx Context in which Redis modules operate
  * @return
  */
-int RAI_ModelInit(RedisModuleCtx* ctx);
+int RAI_ModelInit(RedisModuleCtx *ctx);
 
 /**
  * Helper method to allocated and initialize a RAI_Model. Depending on the
@@ -49,11 +49,10 @@ int RAI_ModelInit(RedisModuleCtx* ctx);
  * failures
  * @return RAI_Model model structure on success, or NULL if failed
  */
-RAI_Model* RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
-                           const char* tag, RAI_ModelOpts opts, size_t ninputs,
-                           const char** inputs, size_t noutputs,
-                           const char** outputs, const char* modeldef,
-                           size_t modellen, RAI_Error* err);
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
+                           RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
+                           const char **outputs, const char *modeldef, size_t modellen,
+                           RAI_Error *err);
 
 /**
  * Frees the memory of the RAI_Model when the model reference count reaches
@@ -63,7 +62,7 @@ RAI_Model* RAI_ModelCreate(RAI_Backend backend, const char* devicestr,
  * @param error error data structure to store error message in the case of
  * failures
  */
-void RAI_ModelFree(RAI_Model* model, RAI_Error* err);
+void RAI_ModelFree(RAI_Model *model, RAI_Error *err);
 
 /**
  * Allocates the RAI_ModelRunCtx data structure required for async background
@@ -72,7 +71,7 @@ void RAI_ModelFree(RAI_Model* model, RAI_Error* err);
  * @param model input model
  * @return RAI_ModelRunCtx to be used within
  */
-RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model);
+RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model);
 
 /**
  * Frees the RAI_ModelRunCtx data structure used within for async background
@@ -81,7 +80,7 @@ RAI_ModelRunCtx* RAI_ModelRunCtxCreate(RAI_Model* model);
  * @param mctx
  * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx, int freeTensors);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx, int freeTensors);
 
 /**
  * Allocates a RAI_ModelCtxParam data structure, and enforces a shallow copy of
@@ -93,8 +92,7 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx* mctx, int freeTensors);
  * @param inputTensor input tensor structure
  * @return returns 1 on success ( always returns success )
  */
-int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName,
-                            RAI_Tensor* inputTensor);
+int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor);
 
 /**
  * Allocates a RAI_ModelCtxParam data structure, and sets the tensor reference
@@ -105,7 +103,7 @@ int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx* mctx, const char* inputName,
  * @param outputName output tensor name
  * @return returns 1 on success ( always returns success )
  */
-int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName);
+int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName);
 
 /**
  * Returns the total number of input tensors of the RAI_ModelRunCtx
@@ -113,7 +111,7 @@ int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx* mctx, const char* outputName);
  * @param mctx RAI_ModelRunCtx
  * @return the total number of input tensors of the RAI_ModelRunCtx
  */
-size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx* mctx);
+size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx);
 
 /**
  * Returns the total number of output tensors of the RAI_ModelCtxParam
@@ -121,7 +119,7 @@ size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx* mctx);
  * @param mctx RAI_ModelRunCtx
  * @return the total number of output tensors of the RAI_ModelCtxParam
  */
-size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx);
+size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx);
 
 /**
  * Get the RAI_Tensor at the input array index position
@@ -130,7 +128,7 @@ size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx* mctx);
  * @param index input array index position
  * @return RAI_Tensor
  */
-RAI_Tensor* RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx* mctx, size_t index);
+RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index);
 
 /**
  * Get the RAI_Tensor at the output array index position
@@ -139,7 +137,7 @@ RAI_Tensor* RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx* mctx, size_t index);
  * @param index input array index position
  * @return RAI_Tensor
  */
-RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index);
+RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index);
 
 /**
  * Given the input array of mctxs, run the associated backend
@@ -157,7 +155,7 @@ RAI_Tensor* RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx* mctx, size_t index);
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err);
+int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
 
 /**
  * Every call to this function, will make the RAI_Model 'model' requiring an
@@ -167,7 +165,7 @@ int RAI_ModelRun(RAI_ModelRunCtx** mctxs, long long n, RAI_Error* err);
  * @param input model
  * @return model
  */
-RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model);
+RAI_Model *RAI_ModelGetShallowCopy(RAI_Model *model);
 
 /**
  * Serializes a model given the RAI_Model pointer, saving the serialized data
@@ -181,8 +179,7 @@ RAI_Model* RAI_ModelGetShallowCopy(RAI_Model* model);
  * @return REDISMODULE_OK if the underlying backend `model_serialize` ran
  * successfully, or REDISMODULE_ERR if failed.
  * */
-int RAI_ModelSerialize(RAI_Model* model, char** buffer, size_t* len,
-                       RAI_Error* err);
+int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
 
 /**
  * Helper method to get a Model from keyspace. In the case of failure the key is
@@ -198,8 +195,8 @@ int RAI_ModelSerialize(RAI_Model* model, char** buffer, size_t* len,
  * returned and available at *model variable, or REDISMODULE_ERR if there was
  * an error getting the Model
  */
-int RAI_GetModelFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
-                             RedisModuleKey** key, RAI_Model** model, int mode);
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
+                             RAI_Model **model, int mode);
 
 /**
  * When a module command is called in order to obtain the position of
@@ -213,8 +210,8 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * @param argc Redis command number of arguments
  * @return
  */
-int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
-                            RedisModuleString **argv, int argc);
+int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                                      int argc);
 
 /**
  * Helper method to parse AI.MODELRUN arguments
@@ -229,10 +226,10 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RedisAI_Parse_ModelRun_RedisCommand(
-    RedisModuleCtx* ctx, RedisModuleString** argv, int argc,
-    RAI_ModelRunCtx** mctx, RedisModuleString*** inkeys, RedisModuleString*** outkeys,
-    RAI_Model** mto, RAI_Error* error);
+int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                        RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
+                                        RedisModuleString ***outkeys, RAI_Model **mto,
+                                        RAI_Error *error);
 
 /**
  * @brief  Returns the redis module type representing a model.

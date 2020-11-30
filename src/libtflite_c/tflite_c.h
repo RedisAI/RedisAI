@@ -9,18 +9,16 @@ extern "C" {
 
 // void tfliteBasicTest();
 
-void* tfliteLoadModel(const char* model, size_t modellen, DLDeviceType device, int64_t device_id,
-                      char **error, void* (*alloc)(size_t));
+void *tfliteLoadModel(const char *model, size_t modellen, DLDeviceType device, int64_t device_id,
+                      char **error, void *(*alloc)(size_t));
 
-void tfliteRunModel(void* ctx,
-                    long nInputs, DLManagedTensor** inputs,
-                    long nOutputs, DLManagedTensor** outputs,
-                    char **error, void* (*alloc)(size_t));
+void tfliteRunModel(void *ctx, long nInputs, DLManagedTensor **inputs, long nOutputs,
+                    DLManagedTensor **outputs, char **error, void *(*alloc)(size_t));
 
-void tfliteSerializeModel(void* ctx, char **buffer, size_t *len,
-                          char **error, void* (*alloc)(size_t));
+void tfliteSerializeModel(void *ctx, char **buffer, size_t *len, char **error,
+                          void *(*alloc)(size_t));
 
-void tfliteDeallocContext(void* ctx);
+void tfliteDeallocContext(void *ctx);
 
 #ifdef __cplusplus
 }
