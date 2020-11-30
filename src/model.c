@@ -8,15 +8,15 @@
  */
 
 #include "model.h"
-#include "model_struct.h"
 #include "backends.h"
-#include "stats.h"
 #include "backends/util.h"
-#include <pthread.h>
+#include "model_struct.h"
 #include "rmutil/alloc.h"
+#include "run_info.h"
+#include "stats.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
-#include "run_info.h"
+#include <pthread.h>
 
 RedisModuleType *RedisAI_ModelType = NULL;
 
@@ -186,8 +186,8 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
         return;
     }
 
-    // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...]
-    // model_blob
+    // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1
+    // name2 ...] model_blob
 
     RedisModuleString **inputs_ = array_new(RedisModuleString *, model->ninputs);
     RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);

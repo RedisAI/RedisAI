@@ -1,26 +1,26 @@
 #include "redismodule.h"
 #include "tensor.h"
 
-#include "model.h"
-#include "dag.h"
-#include "background_workers.h"
-#include "script.h"
 #include "backends.h"
-#include "stats.h"
-#include <string.h>
-#include <pthread.h>
-#include <sys/time.h>
-#include <sys/resource.h>
-#include <unistd.h>
-#include <stdbool.h>
 #include "backends/util.h"
+#include "background_workers.h"
+#include "dag.h"
+#include "model.h"
+#include "script.h"
+#include "stats.h"
+#include <pthread.h>
+#include <stdbool.h>
+#include <string.h>
+#include <sys/resource.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include "rmutil/alloc.h"
+#include "rmutil/args.h"
+#include "run_info.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
-#include "rmutil/args.h"
-#include "run_info.h"
 #include "version.h"
 
 #define REDISAI_H_INCLUDE
@@ -132,8 +132,8 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 /**
- * AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]] [INPUTS name1 name2
- * ... OUTPUTS name1 name2 ...] BLOB model_blob
+ * AI.MODELSET model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
+ * [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModule_AutoMemory(ctx);
@@ -545,8 +545,8 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 }
 
 /**
- * AI.MODELRUN model_key [TIMEOUT t] INPUTS <input_key> [input_key ...] OUTPUTS <output_key>
- * [output_key ...]
+ * AI.MODELRUN model_key [TIMEOUT t] INPUTS <input_key> [input_key ...] OUTPUTS
+ * <output_key> [output_key ...]
  *
  * The request is queued and evaded asynchronously from a separate thread. The
  * client blocks until the computation finishes.
@@ -564,8 +564,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 }
 
 /**
- * AI.SCRIPTRUN <key> <function> INPUTS <input_key> [input_key ...] OUTPUTS <output_key> [output_key
- * ...]
+ * AI.SCRIPTRUN <key> <function> INPUTS <input_key> [input_key ...] OUTPUTS
+ * <output_key> [output_key ...]
  */
 int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (RedisModule_IsKeysPositionRequest(ctx)) {
@@ -873,8 +873,8 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 }
 
 /**
- * AI.DAGRUN [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ] [TIMEOUT t] |>
- * [COMMAND1] |> [COMMAND2] |> [COMMANDN]
+ * AI.DAGRUN [LOAD <nkeys> key1 key2... ] [PERSIST <nkeys> key1 key2... ]
+ * [TIMEOUT t] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
  *
  * The request is queued and evaded asynchronously from a separate thread. The
  * client blocks until the computation finishes.
@@ -887,7 +887,8 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 }
 
 /**
- * AI.DAGRUN_RO [LOAD <nkeys> key1 key2... ] [TIMEOUT t] |> [COMMAND1] |> [COMMAND2] |> [COMMANDN]
+ * AI.DAGRUN_RO [LOAD <nkeys> key1 key2... ] [TIMEOUT t] |> [COMMAND1] |>
+ * [COMMAND2] |> [COMMANDN]
  *
  * Read-only (no PERSIST) DAG execution.
  * The request is queued and evaded asynchronously from a separate thread. The
@@ -916,8 +917,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
 
     if (!RedisModule_ExportSharedAPI) {
         RedisModule_Log(ctx, "warning",
-                        "Redis version does not support SharedAPI; running without exposing C API "
-                        "to other modules");
+                        "Redis version does not support SharedAPI; running without "
+                        "exposing C API to other modules");
     }
 
     REGISTER_API(GetLLAPIVersion, ctx);

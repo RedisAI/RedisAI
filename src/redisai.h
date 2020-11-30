@@ -1,12 +1,12 @@
 #ifndef SRC_REDISAI_H_
 #define SRC_REDISAI_H_
 
-#include <stdbool.h>
+#include "background_workers.h"
+#include "model_struct.h"
 #include "redismodule.h"
 #include "util/dict.h"
-#include "model_struct.h"
-#include "background_workers.h"
 #include "version.h"
+#include <stdbool.h>
 
 #define MODULE_API_FUNC(x) (*x)
 
@@ -128,9 +128,9 @@ int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 static int RedisAI_Initialize(RedisModuleCtx *ctx) {
 
     if (!RedisModule_GetSharedAPI) {
-        RedisModule_Log(
-            ctx, "warning",
-            "redis version is not compatible with module shared api, use redis 5.0.4 or above.");
+        RedisModule_Log(ctx, "warning",
+                        "redis version is not compatible with module shared api, "
+                        "use redis 5.0.4 or above.");
         return REDISMODULE_ERR;
     }
 

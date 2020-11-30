@@ -73,9 +73,9 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *err);
 
 /**
- * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a shallow copy of
- * the provided input tensor, adding it to the input tensors array of the
- * RAI_ScriptRunCtx.
+ * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a
+ * shallow copy of the provided input tensor, adding it to the input tensors
+ * array of the RAI_ScriptRunCtx.
  *
  * @param sctx input RAI_ScriptRunCtx to add the input tensor
  * @param inputTensors input tensors array

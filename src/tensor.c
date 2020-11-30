@@ -9,15 +9,15 @@
 
 #include "tensor.h"
 #include "err.h"
-#include "tensor_struct.h"
-#include <stddef.h>
-#include <strings.h>
-#include <string.h>
+#include "redisai.h"
 #include "rmutil/alloc.h"
+#include "tensor_struct.h"
 #include "util/dict.h"
 #include <assert.h>
-#include "redisai.h"
 #include <pthread.h>
+#include <stddef.h>
+#include <string.h>
+#include <strings.h>
 
 RedisModuleType *RedisAI_TensorType = NULL;
 
@@ -676,7 +676,8 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
 }
 
 /* Return REDISMODULE_ERR if there was an error getting the Tensor.
- * Return REDISMODULE_OK if the tensor value is present at the localContextDict. */
+ * Return REDISMODULE_OK if the tensor value is present at the localContextDict.
+ */
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
                                   const char *localContextKey, RAI_Tensor **tensor,
                                   RAI_Error *error) {

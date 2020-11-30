@@ -13,8 +13,8 @@
 #include "script_struct.h"
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
-#include <pthread.h>
 #include "version.h"
+#include <pthread.h>
 
 RedisModuleType *RedisAI_ScriptType = NULL;
 
@@ -284,7 +284,8 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 }
 
 /**
- * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+ * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output>
+ * [output ...]
  */
 int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                          RedisModuleString ***inkeys, RedisModuleString ***outkeys,

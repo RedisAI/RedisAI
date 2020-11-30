@@ -21,7 +21,10 @@ ifeq ($(COV),1)
 DEBUG ?= 1
 endif
 
-#---------------------------------------------------------------------------------------------- 
+username := $(shell sh -c 'id -u')
+usergroup := $(shell sh -c 'id -g')
+
+#----------------------------------------------------------------------------------------------
 
 define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
@@ -139,7 +142,7 @@ include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
 
-.PHONY: fetch deps pack pack_ramp pack_deps test
+.PHONY: fetch deps pack pack_ramp pack_deps test format lint
 
 include $(MK)/rules
 
@@ -178,6 +181,18 @@ setup:
 fetch deps:
 	@echo Fetching dependencies...
 	$(SHOW)VERBOSE=$(_SHOW) $(ROOT)/get_deps.sh $(DEPS_FLAGS)
+
+format:
+	./clang-format-all.sh
+
+format-docker:
+	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt format"
+
+lint:
+	./clang-check-all.sh
+
+lint-docker:
+	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt lint"
 
 #----------------------------------------------------------------------------------------------
 

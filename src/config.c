@@ -16,7 +16,7 @@
 #include "util/queue.h"
 
 long long backends_intra_op_parallelism; //  number of threads used within an
-//  individual op for parallelism.
+                                         //  individual op for parallelism.
 long long backends_inter_op_parallelism; //  number of threads used for parallelism
                                          //  between independent operations.
 long long model_chunk_size;              // size of chunks used to break up model payloads.
