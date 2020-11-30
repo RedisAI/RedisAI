@@ -41,9 +41,9 @@ jobs:
       run: |
         echo "add test logic here"
 
-    - name: Tear down testing-infrastructure
-      run: |
-        cd testing-infrastructure/terraform/redisai-cuda11-baseimage
-        terraform destroy --auto-approve
+    # - name: Tear down testing-infrastructure
+    #   run: |
+    #     cd testing-infrastructure/terraform/redisai-cuda11-baseimage
+    #     terraform destroy --auto-approve
 
       
