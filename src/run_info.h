@@ -88,7 +88,6 @@ typedef struct RedisAI_RunInfo {
     pthread_rwlock_t *dagLock;
     // Pointer to ref count in DAG, shared across multiple worker thread
     long long *dagRefCount;
-    int master;
     long long timeout;
     int *timedOut;
     struct timeval queuingTime;
