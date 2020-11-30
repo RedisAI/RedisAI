@@ -30,7 +30,7 @@ macro(package_add_test TESTNAME)
     set_target_properties(${TESTNAME} PROPERTIES FOLDER tests)
 endmacro()
 
-package_add_test(unit_tests_err unit_tests_err.cpp)
+#package_add_test(unit_tests_err unit_tests_err.cpp)
 
 
 
