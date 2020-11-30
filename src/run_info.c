@@ -129,7 +129,6 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
     pthread_rwlock_init(rinfo->dagLock, NULL);
-    rinfo->master = 1;
     rinfo->timedOut = RedisModule_Calloc(1, sizeof(int));
     *result = rinfo;
     return REDISMODULE_OK;
@@ -148,7 +147,6 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     }
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
-    rinfo->master = 0;
     *result = rinfo;
     return REDISMODULE_OK;
 }
@@ -203,7 +201,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     if (!rinfo) {
         return;
     }
-    if (rinfo->master == 0) {
+    if (*rinfo->dagRefCount > 0) {
         if (rinfo->dagDeviceOps) {
             array_free(rinfo->dagDeviceOps);
         }
