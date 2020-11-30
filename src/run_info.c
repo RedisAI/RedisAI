@@ -201,7 +201,8 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     if (!rinfo) {
         return;
     }
-    if (*rinfo->dagRefCount > 0) {
+	long long ref_count = __atomic_load_n(rinfo->dagRefCount, __ATOMIC_RELAXED);
+    if (ref_count > 0) {
         if (rinfo->dagDeviceOps) {
             array_free(rinfo->dagDeviceOps);
         }
