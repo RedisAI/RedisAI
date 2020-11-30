@@ -104,6 +104,13 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result);
 int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
 
 /**
+ * Frees the shallow copy of RedisAI_RunInfo pointed by rinfo.
+ * @param rinfo copy to be freed.
+ * @retval The ref_count of the rinfo object after freeing this copy.
+ */
+long long RAI_DagRunInfoDecreaseFetch(RedisAI_RunInfo *rinfo);
+
+/**
  * Frees the memory allocated on RedisAI_RunInfo
  * @param ctx Context in which Redis modules operate
  * @param rinfo context in which RedisAI blocking command operate.
