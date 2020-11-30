@@ -11,7 +11,7 @@ ARG ARCH=x64
 # OS=ubuntu18.04|ubuntu16.04|centos7
 ARG OS=ubuntu18.04
 
-ARG CUDA_VER=10.1-cudnn7
+ARG CUDA_VER=11.0
 
 ARG PACK=1
 
@@ -23,7 +23,8 @@ SHELL ["/bin/bash", "-c"]
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-ENV LD_LIBRARY_PATH /usr/local/cuda/lib64:/usr/local/cuda/extras/CUPTI/lib64:$LD_LIBRARY_PATH
+ENV LD_LIBRARY_PATH /usr/local/cuda-${CUDA_VER}/targets/x86_64-linux/lib/:$LD_LIBRARY_PATH
+RUN ldconfig
 
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
