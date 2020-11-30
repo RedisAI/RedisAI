@@ -20,6 +20,11 @@ IF(NOT CMAKE_BUILD_TYPE)
             "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 ENDIF()
 
+IF (${DEVICE} STREQUAL "gpu")
+    find_package(CUDA 11 REQUIRED)
+    find_package(CUDNN 8.0 EXACT REQUIRED)
+ENDIF()
+
 #----------------------------------------------------------------------------------------------
 
 SET(CMAKE_CC_COMMON_FLAGS "-fPIC")
