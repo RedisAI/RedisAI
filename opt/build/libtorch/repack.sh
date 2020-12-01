@@ -61,7 +61,7 @@ if [[ $OS == linux ]]; then
 		LIBTORCH_ARCHIVE=libtorch-shared-with-deps-latest.zip
 	else
 		if [[ $GPU != 1 ]]; then
-			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}.zip
+			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
 		else
 			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}.zip
 		fi
