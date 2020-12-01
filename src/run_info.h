@@ -88,7 +88,6 @@ typedef struct RedisAI_RunInfo {
     pthread_rwlock_t *dagLock;
     // Pointer to ref count in DAG, shared across multiple worker thread
     long long *dagRefCount;
-    int master;
     long long timeout;
     int *timedOut;
     struct timeval queuingTime;
@@ -103,6 +102,13 @@ typedef struct RedisAI_RunInfo {
 int RAI_InitRunInfo(RedisAI_RunInfo **result);
 
 int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
+
+/**
+ * Frees the shallow copy of RedisAI_RunInfo pointed by rinfo.
+ * @param rinfo copy to be freed.
+ * @retval The ref_count of the rinfo object after freeing this copy.
+ */
+long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo);
 
 /**
  * Frees the memory allocated on RedisAI_RunInfo
