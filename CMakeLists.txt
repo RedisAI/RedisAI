@@ -24,6 +24,9 @@ ENDIF()
 #----------------------------------------------------------------------------------------------
 
 SET(CMAKE_CC_COMMON_FLAGS "-fPIC")
+IF (PROFILE)
+    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -g -ggdb -fno-omit-frame-pointer")
+ENDIF()
 
 IF (USE_COVERAGE)
     IF (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
