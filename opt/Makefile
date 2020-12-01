@@ -69,7 +69,7 @@ fetch and build options:
   WITH_TFLITE=0       # SKip TensofFlowLite
   WITH_PT=0           # Skip PyTorch
   WITH_ORT=0          # SKip ONNXRuntime
-  WITH_UNIT_TESTS=0   # SKip ONNXRuntime
+  WITH_UNIT_TESTS=0   # SKip unit tests
 
 device selection options (fetch, build, and test):
   CPU=1         # build for CPU
