@@ -11,11 +11,13 @@ macro(package_add_test TESTNAME)
     # create an exectuable in which the tests will be stored
     add_executable(${TESTNAME} ${ARGN})
 
-    target_include_directories(${TESTNAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>)
+    target_include_directories(${TESTNAME}
+		PUBLIC $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
+		PUBLIC ${CMAKE_SOURCE_DIR}/src)
 
     # link the Google tests infrastructure, mocking library, and a default main fuction to
     # the tests executable.  Remove g_test_main if writing your own main function.
-    target_link_libraries(${TESTNAME} gtest gmock gtest_main redisai redisai_torch redisai_tensorflow)
+    target_link_libraries(${TESTNAME} gtest gmock gtest_main redisai)
 
     # gtest_discover_tests replaces gtest_add_tests,
     # see https://cmake.org/cmake/help/v3.10/module/GoogleTest.html for more options to pass to it

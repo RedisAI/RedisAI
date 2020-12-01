@@ -1,11 +1,9 @@
 #include <limits.h>
 #include "gtest/gtest.h"
 
-extern "C" {
 #include "rmalloc.h"
 #include "src/dag.h"
 #include <pthread.h>
-}
 
 // Declaration of thread condition variable
 pthread_cond_t cond1 = PTHREAD_COND_INITIALIZER;
