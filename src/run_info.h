@@ -108,7 +108,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
  * @param rinfo copy to be freed.
  * @retval The ref_count of the rinfo object after freeing this copy.
  */
-long long RAI_DagRunInfoDecreaseFetch(RedisAI_RunInfo *rinfo);
+long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo);
 
 /**
  * Frees the memory allocated on RedisAI_RunInfo

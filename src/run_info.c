@@ -123,7 +123,8 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     }
     rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
     rinfo->dagLock = RedisModule_Alloc(sizeof(pthread_rwlock_t));
-    rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
+    rinfo->dagRefCount = RedisModule_Alloc(sizeof(long long));
+    *(rinfo->dagRefCount) = 0;
     rinfo->dagOpCount = 0;
     rinfo->dagCompleteOpCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagDeviceOpCount = 0;
@@ -145,6 +146,7 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     if (!(rinfo->dagDeviceOps)) {
         return REDISMODULE_ERR;
     }
+    (*rinfo->dagRefCount)++;
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
     *result = rinfo;
@@ -197,9 +199,9 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp) {
     }
 }
 
-long long RAI_DagRunInfoDecreaseFetch(RedisAI_RunInfo *rinfo) {
+long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
     long long ref_count = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
-    RedisModule_Assert(ref_count >= 0);
+    RedisModule_Assert(ref_count >= 0 && "Tried to free the original RunInfo object");
     if (rinfo->dagDeviceOps) {
         array_free(rinfo->dagDeviceOps);
     }
@@ -213,7 +215,7 @@ void RAI_FreeRunInfo(RedisModuleCtx *ctx, struct RedisAI_RunInfo *rinfo) {
     if (!rinfo) {
         return;
     }
-    long long ref_count = __atomic_load_n(rinfo->dagRefCount, __ATOMIC_RELAXED);
+    long long ref_count = *rinfo->dagRefCount;
     RedisModule_Assert(ref_count == 0);
     pthread_rwlock_destroy(rinfo->dagLock);
     RedisModule_Free(rinfo->dagLock);

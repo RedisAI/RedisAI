@@ -176,7 +176,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     if (timedOut == 1) {
                         queueEvict(run_queue_info->run_queue, item);
 
-                        long long dagRefCount = RAI_DagRunInfoDecreaseFetch(rinfo);
+                        long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0 && rinfo->client) {
                             RedisModule_UnblockClient(rinfo->client, rinfo);
                         }
@@ -415,7 +415,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (dagError) {
-                        long long dagRefCount = RAI_DagRunInfoDecreaseFetch(rinfo);
+                        long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0 && rinfo->client) {
                             RedisModule_UnblockClient(rinfo->client, rinfo);
                         }
@@ -438,7 +438,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             if (device_complete == 1 || device_complete_after_run == 1) {
                 RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
                 // We decrease and get the reference count for the DAG
-                dagRefCount = RAI_DagRunInfoDecreaseFetch(evicted_rinfo);
+                dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
             }
 
             // If the DAG was complete, then it's time to unblock the client
