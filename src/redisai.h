@@ -118,12 +118,22 @@ RedisModuleType *MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
+#ifndef __cplusplus
 #define REDISAI_MODULE_INIT_FUNCTION(ctx, name)                                                    \
     RedisAI_##name = RedisModule_GetSharedAPI(ctx, "RedisAI_" #name);                              \
     if (!RedisAI_##name) {                                                                         \
         RedisModule_Log(ctx, "warning", "could not initialize RedisAI_" #name "\r\n");             \
         return REDISMODULE_ERR;                                                                    \
     }
+#else
+#define REDISAI_MODULE_INIT_FUNCTION(ctx, name)                                                    \
+    RedisAI_##name = reinterpret_cast<decltype(RedisAI_##name)>(                                   \
+        RedisModule_GetSharedAPI((RedisModuleCtx *)(ctx), "RedisAI_" #name));                      \
+    if (!RedisAI_##name) {                                                                         \
+        RedisModule_Log(ctx, "warning", "could not initialize RedisAI_" #name "\r\n");             \
+        return REDISMODULE_ERR;                                                                    \
+    }
+#endif
 
 static int RedisAI_Initialize(RedisModuleCtx *ctx) {
 
