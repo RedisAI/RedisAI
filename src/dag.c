@@ -1231,10 +1231,8 @@ int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv, in
     }
 
     size_t ndevices = array_len(devices);
-
-    *rinfo->dagRefCount = ndevices;
-
     RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo *, ndevices);
+    *rinfo->dagRefCount = 1;
     rinfo_copies = array_append(rinfo_copies, rinfo);
 
     for (long long i = 1; i < ndevices; i++) {
