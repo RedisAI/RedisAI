@@ -115,8 +115,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // in milliseconds, we will use a timedwait of one millisecond to evaluate
         // whether the run needs to trigger in case nothing else happens on the
         // queue.
-        // Possible optimization: opt for a longer timeout if there's no minbatchtimeout
-        // involved.
+        // Possible optimization: opt for a longer timeout if there's no
+        // minbatchtimeout involved.
         struct timeval now;
         gettimeofday(&now, NULL);
 
@@ -175,8 +175,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     if (timedOut == 1) {
                         queueEvict(run_queue_info->run_queue, item);
 
-                        int dagRefCount =
-                            __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
+                        long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
                             RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
                             rinfo->OnFinish(finish_ctx, rinfo->private_data);
@@ -226,8 +225,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     break;
                 }
 
-                // If we made it to here, we won't unblock (unless there's an error during
-                // the run, see below)
+                // If we made it to here, we won't unblock (unless there's an error
+                // during the run, see below)
                 do_unblock = 0;
 
                 // If all ops on the device have a result, then we don't schedule to run
@@ -414,9 +413,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (dagError) {
-                        int dagRefCount =
-                            __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
-
+                        long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
                             RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)rinfo;
                             rinfo->OnFinish(finish_ctx, rinfo->private_data);
@@ -435,12 +432,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 
-            int dagRefCount = -1;
+            long long dagRefCount = -1;
 
             if (device_complete == 1 || device_complete_after_run == 1) {
                 RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
                 // We decrease and get the reference count for the DAG
-                dagRefCount = __atomic_sub_fetch(evicted_rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
+                dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
             }
 
             // If the DAG was complete, then it's time to unblock the client

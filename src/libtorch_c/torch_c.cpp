@@ -347,7 +347,7 @@ extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType
         *error = (char *)alloc(len * sizeof(char));
         strcpy(*error, e.what());
         (*error)[len - 1] = '\0';
-        // delete ctx;
+        delete ctx;
         return NULL;
     }
     return ctx;

@@ -124,13 +124,13 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
     RAI_InitError(&rinfo->err);
     rinfo->dagLock = RedisModule_Alloc(sizeof(pthread_rwlock_t));
-    rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
+    rinfo->dagRefCount = RedisModule_Alloc(sizeof(long long));
+    *(rinfo->dagRefCount) = 0;
     rinfo->dagOpCount = 0;
     rinfo->dagCompleteOpCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
     pthread_rwlock_init(rinfo->dagLock, NULL);
-    rinfo->master = 1;
     rinfo->timedOut = RedisModule_Calloc(1, sizeof(int));
     *result = rinfo;
     return REDISMODULE_OK;
@@ -147,9 +147,9 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     if (!(rinfo->dagDeviceOps)) {
         return REDISMODULE_ERR;
     }
+    (*rinfo->dagRefCount)++;
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
-    rinfo->master = 0;
     *result = rinfo;
     return REDISMODULE_OK;
 }
@@ -200,20 +200,34 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     }
 }
 
-void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo) {
+long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
+    long long ref_count = __atomic_sub_fetch(rinfo->dagRefCount, 1, __ATOMIC_RELAXED);
+    RedisModule_Assert(ref_count >= 0 && "Tried to free the original RunInfo object");
+    if (rinfo->dagDeviceOps) {
+        array_free(rinfo->dagDeviceOps);
+    }
+    // If this is the last run info copy we do not free it, the OnFinish callback may free.
+    if (ref_count > 0)
+        RedisModule_Free(rinfo);
+    return ref_count;
+}
+
+void RAI_DagRunInfoFreeAllCopies(RedisAI_RunInfo **rinfo) {
+
+    int ndevices = array_len(rinfo);
+    for (int i = 0; i < ndevices; i++) {
+        RAI_DagRunInfoFreeShallowCopy(rinfo[i]);
+    }
+}
+
+void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
     if (!rinfo) {
         return;
     }
-    if (rinfo->master == 0) {
-        if (rinfo->dagDeviceOps) {
-            array_free(rinfo->dagDeviceOps);
-        }
-        RedisModule_Free(rinfo);
-        return;
-    } else {
-        pthread_rwlock_destroy(rinfo->dagLock);
-        RedisModule_Free(rinfo->dagLock);
-    }
+    long long ref_count = *rinfo->dagRefCount;
+    RedisModule_Assert(ref_count == 0);
+    pthread_rwlock_destroy(rinfo->dagLock);
+    RedisModule_Free(rinfo->dagLock);
 
     if (rinfo->dagTensorsContext) {
         AI_dictRelease(rinfo->dagTensorsContext);
@@ -226,10 +240,6 @@ void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo) {
             RAI_FreeDagOp(rinfo->dagOps[i]);
         }
         array_free(rinfo->dagOps);
-    }
-
-    if (rinfo->dagDeviceOps) {
-        array_free(rinfo->dagDeviceOps);
     }
 
     if (rinfo->dagError) {
