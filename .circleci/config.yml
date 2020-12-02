@@ -221,6 +221,22 @@ jobs:
       resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
+      - run:
+          name: update cuda
+          command: |
+            sudo dpkg -i cuda-repo-ubuntu1604_x86_x64.deb
+            sudo apt-key add /var/cuda-repo-11.1/7fa2af80.pub
+            sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-11.1.pin
+            sudo mv cuda-11-1.pin /etc/apt/preferences.d/cuda-repository-pin-600
+            sudo apt-get update
+            sudo apt-get install cuda
+      - run:
+          name: cuda post install
+          command: |
+            export PATH=/usr/local/cuda-11.1/bin${PATH:+:${PATH}}
+            cat /proc/driver/nvidia/version
+
       - checkout
       - run:
           name: Submodule checkout
