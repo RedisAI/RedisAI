@@ -33,6 +33,8 @@ make fetch  # download and prepare dependant artifacts
 make build      # compile and link
   DEBUG=1         # build for debugging
   COV=1           # build for coverage analysis (implies DEBUG=1)
+  PROFILE=1       # enable profiling compile flags (and debug symbols) for release type.
+                  # You can consider this as build type release with debug symbols and -fno-omit-frame-pointer
   VARIANT=name    # build variant `name`
   WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
 make clean      # remove build artifacts
@@ -63,10 +65,11 @@ make docker           # build docker image
 make docker-gpu-test  # run GPU tests
 
 fetch and build options:
-  WITH_TF=0     # SKip TensofFlow
-  WITH_TFLITE=0 # SKip TensofFlowLite
-  WITH_PT=0     # Skip PyTorch
-  WITH_ORT=0    # SKip ONNXRuntime
+  WITH_TF=0           # SKip TensofFlow
+  WITH_TFLITE=0       # SKip TensofFlowLite
+  WITH_PT=0           # Skip PyTorch
+  WITH_ORT=0          # SKip ONNXRuntime
+  WITH_UNIT_TESTS=0   # SKip unit tests
 
 device selection options (fetch, build, and test):
   CPU=1         # build for CPU
@@ -115,10 +118,17 @@ else
 USE_COVERAGE=off
 endif
 
+ifeq ($(PROFILE),1)
+USE_PROFILE=on
+else
+USE_PROFILE=off
+endif
+
 CMAKE_FLAGS += \
 	-DDEPS_PATH=$(abspath $(DEPS_DIR)) \
 	-DINSTALL_PATH=$(abspath $(INSTALL_DIR)) \
 	-DUSE_COVERAGE=$(USE_COVERAGE) \
+	-DUSE_PROFILE=$(USE_PROFILE) \
 	-DREDISAI_GIT_SHA=\"$(GIT_SHA)\" \
 	-DDEVICE=$(DEVICE)
 
@@ -136,6 +146,10 @@ endif
 
 ifeq ($(WITH_ORT),0)
 CMAKE_FLAGS += -DBUILD_ORT=off
+endif
+
+ifeq ($(WITH_UNIT_TESTS),0)
+CMAKE_FLAGS += -DPACKAGE_UNIT_TESTS=off
 endif
 
 include $(MK)/defs
