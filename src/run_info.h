@@ -79,7 +79,10 @@ typedef void (*RAI_OnFinishCB)(RedisAI_OnFinishCtx ctx, void *private_data);
  * Note that not all the context structure is always filled with actual values
  * but only the fields needed in a given operation.
  */
-typedef struct RedisAI_RunInfo {
+
+typedef struct RedisAI_RunInfo RedisAI_RunInfo;
+
+struct RedisAI_RunInfo {
     RedisModuleBlockedClient *client;
     int single_op_dag;
     int single_device_dag;
@@ -106,8 +109,9 @@ typedef struct RedisAI_RunInfo {
     int *timedOut;
     struct timeval queuingTime;
     RAI_OnFinishCB OnFinish;
+	RedisAI_RunInfo *orig_copy;
     void *private_data; // This is going to be sent to the OnFinish callback.
-} RedisAI_RunInfo;
+};
 
 /**
  * Allocate the memory and initialise the RedisAI_RunInfo.

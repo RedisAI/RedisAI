@@ -130,6 +130,7 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     rinfo->dagCompleteOpCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
+    rinfo->orig_copy = rinfo;
     pthread_rwlock_init(rinfo->dagLock, NULL);
     rinfo->timedOut = RedisModule_Calloc(1, sizeof(int));
     *result = rinfo;
@@ -206,9 +207,7 @@ long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
     if (rinfo->dagDeviceOps) {
         array_free(rinfo->dagDeviceOps);
     }
-    // If this is the last run info copy we do not free it, the OnFinish callback may free.
-    if (ref_count > 0)
-        RedisModule_Free(rinfo);
+    RedisModule_Free(rinfo);
     return ref_count;
 }
 

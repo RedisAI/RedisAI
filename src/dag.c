@@ -1302,7 +1302,7 @@ static bool DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
 
 void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx ctx, void *private_data) {
 
-    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)private_data;
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client)
         RedisModule_UnblockClient(rinfo->client, rinfo);
 }
@@ -1323,8 +1323,6 @@ int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, 
     // Block the client before adding rinfo to the run queues (sync call).
     rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RedisAI_FreeData, 0);
     RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
-    // Use the entire rinfo obj as the on finish's private data.
-    rinfo->private_data = rinfo;
     rinfo->OnFinish = DAG_ReplyAndUnblock;
     return DAG_InsertDAGToQueue(rinfo);
 }
