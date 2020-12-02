@@ -221,26 +221,30 @@ jobs:
       resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-10.1:201909-23
     steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - run:
+          name: remove cuda 10.2
+          command: |
+            sudo apt-get purge cuda
       - run:
           name: update cuda
           command: |
-            sudo dpkg -i cuda-repo-ubuntu1604_x86_x64.deb
-            sudo apt-key add /var/cuda-repo-11.1/7fa2af80.pub
-            sudo apt-key adv --fetch-keys http://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/7fa2af80.pub
-            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-11.1.pin
-            sudo mv cuda-11-1.pin /etc/apt/preferences.d/cuda-repository-pin-600
+            wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1604/x86_64/cuda-ubuntu1604.pin
+            sudo mv cuda-ubuntu1604.pin /etc/apt/preferences.d/cuda-repository-pin-600
+            wget https://developer.download.nvidia.com/compute/cuda/11.1.1/local_installers/cuda-repo-ubuntu1604-11-1-local_11.1.1-455.32.00-1_amd64.deb
+            sudo dpkg -i cuda-repo-ubuntu1604-11-1-local_11.1.1-455.32.00-1_amd64.deb
+            sudo apt-key add /var/cuda-repo-ubuntu1604-11-1-local/7fa2af80.pub
             sudo apt-get update
-            sudo apt-get install cuda
+            sudo apt-get -y install cuda
+            sudo reboot
       - run:
           name: cuda post install
           command: |
             export PATH=/usr/local/cuda-11.1/bin${PATH:+:${PATH}}
             cat /proc/driver/nvidia/version
-
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive 
       - run:
           name: Build
           command: |
