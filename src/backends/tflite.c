@@ -1,3 +1,4 @@
+#define REDISMODULE_MAIN
 #include "backends/tflite.h"
 #include "backends/util.h"
 #include "tensor.h"
