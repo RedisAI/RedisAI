@@ -1,3 +1,4 @@
+#define REDISMODULE_MAIN
 #include "backends/tensorflow.h"
 #include "backends/util.h"
 #include "tensor.h"
