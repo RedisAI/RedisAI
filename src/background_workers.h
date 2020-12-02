@@ -9,12 +9,12 @@
  *
  */
 
-#if defined(__linux__)
-#define _GNU_SOURCE
-#endif
-
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
+
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 
 #include <pthread.h>
 
