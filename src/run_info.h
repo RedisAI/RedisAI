@@ -44,6 +44,10 @@ typedef struct RAI_DagOp {
     int argc;
 } RAI_DagOp;
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
  * Allocate the memory and initialise the RAI_DagOp.
  * @param result Output parameter to capture allocated RAI_DagOp.
@@ -109,7 +113,7 @@ struct RedisAI_RunInfo {
     int *timedOut;
     struct timeval queuingTime;
     RAI_OnFinishCB OnFinish;
-	RedisAI_RunInfo *orig_copy;
+    RedisAI_RunInfo *orig_copy;
     void *private_data; // This is going to be sent to the OnFinish callback.
 };
 
@@ -181,5 +185,9 @@ size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
  * @return 1 if batchable, 0 otherwise
  */
 int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif /* SRC_RUN_INFO_H_ */

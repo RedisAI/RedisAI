@@ -175,11 +175,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     if (timedOut == 1) {
                         queueEvict(run_queue_info->run_queue, item);
 
-						RedisAI_RunInfo *orig = rinfo->orig_copy;
+                        RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
                             RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
-							orig->OnFinish(finish_ctx, orig->private_data);
+                            orig->OnFinish(finish_ctx, orig->private_data);
                         }
 
                         queueItem *evicted_item = item;
@@ -414,11 +414,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (dagError) {
-						RedisAI_RunInfo *orig = rinfo->orig_copy;
+                        RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
                             RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
-							orig->OnFinish(finish_ctx, orig->private_data);
+                            orig->OnFinish(finish_ctx, orig->private_data);
                         }
                     } else {
                         rinfo->dagDeviceCompleteOpCount += 1;
@@ -435,10 +435,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 
             long long dagRefCount = -1;
-			RedisAI_RunInfo *orig;
+            RedisAI_RunInfo *orig;
             if (device_complete == 1 || device_complete_after_run == 1) {
-				RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
-				orig = evicted_rinfo->orig_copy;
+                RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
+                orig = evicted_rinfo->orig_copy;
                 // We decrease and get the reference count for the DAG.
                 dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
             }
