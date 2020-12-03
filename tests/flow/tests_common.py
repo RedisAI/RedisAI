@@ -307,7 +307,7 @@ def test_lua_multi(env):
     con = env.getConnection()
     ret = con.execute_command('MULTI')
     env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.MODELRUN', "no_model", "INPUTS", "no_input", "OUTPUTS", "no_output")
+    ret = con.execute_command('AI.MODELRUN', "no_model{1}", "INPUTS", "no_input{1}", "OUTPUTS", "no_output{1}")
     env.assertEqual(ret, b'QUEUED')
     try:
         ret = con.execute_command('EXEC')
@@ -316,8 +316,8 @@ def test_lua_multi(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("ERR Cannot run RedisAI command within a transaction or a LUA script", exception.__str__())
     try:
-        ret = con.execute_command('EVAL', "return redis.pcall('AI.MODELRUN', 'no_model', 'INPUTS', 'NO_INPUT',"
-                                          " 'OUTPUTS', 'NO_OUTPUT')", 0)
+        ret = con.execute_command('EVAL', "return redis.pcall('AI.MODELRUN', 'no_model{1}', 'INPUTS', 'NO_INPUT{1}',"
+                                          " 'OUTPUTS', 'NO_OUTPUT{1}')", 0)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
