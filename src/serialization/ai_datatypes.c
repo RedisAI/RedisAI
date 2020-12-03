@@ -2,4 +2,4 @@
 
 RedisModuleType *RedisAI_TensorType = NULL;
 RedisModuleType *RedisAI_ModelType = NULL;
-RedisModuleType* RedisAI_ScriptType = NULL;
+RedisModuleType *RedisAI_ScriptType = NULL;

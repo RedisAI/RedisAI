@@ -19,7 +19,6 @@
 #include <string.h>
 #include <strings.h>
 
-
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
         return (DLDataType){.code = kDLFloat, .bits = 32, .lanes = 1};
@@ -102,11 +101,12 @@ int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
     return result;
 }
 
-RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims, int ndims, int tensorAllocMode) {
-  const size_t dtypeSize = Tensor_DataTypeSize(dtype);
-  if ( dtypeSize == 0){
-    return NULL;
-  }
+RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
+                                           int tensorAllocMode) {
+    const size_t dtypeSize = Tensor_DataTypeSize(dtype);
+    if (dtypeSize == 0) {
+        return NULL;
+    }
 
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));

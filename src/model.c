@@ -18,7 +18,6 @@
 #include "util/dict.h"
 #include <pthread.h>
 
-
 /* Return REDISMODULE_ERR if there was an error getting the Model.
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
@@ -39,49 +38,46 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, Re
     return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char* devicestr, const char* tag, RAI_ModelOpts opts,
-                           size_t ninputs, const char **inputs,
-                           size_t noutputs, const char **outputs,
-                           const char *modeldef, size_t modellen, RAI_Error* err) {
-  RAI_Model *model;
-  if (backend == RAI_BACKEND_TENSORFLOW) {
-    if (!RAI_backends.tf.model_create_with_nodes) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
-      return NULL;
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
+                           RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
+                           const char **outputs, const char *modeldef, size_t modellen,
+                           RAI_Error *err) {
+    RAI_Model *model;
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        if (!RAI_backends.tf.model_create_with_nodes) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
+            return NULL;
+        }
+        model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs,
+                                                        noutputs, outputs, modeldef, modellen, err);
+    } else if (backend == RAI_BACKEND_TFLITE) {
+        if (!RAI_backends.tflite.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
+            return NULL;
+        }
+        model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
+    } else if (backend == RAI_BACKEND_TORCH) {
+        if (!RAI_backends.torch.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
+            return NULL;
+        }
+        model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
+    } else if (backend == RAI_BACKEND_ONNXRUNTIME) {
+        if (!RAI_backends.onnx.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
+            return NULL;
+        }
+        model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
+    } else {
+        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
+        return NULL;
     }
-    model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs, noutputs, outputs, modeldef, modellen, err);
-  }
-  else if (backend == RAI_BACKEND_TFLITE) {
-    if (!RAI_backends.tflite.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
-      return NULL;
-    }
-    model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
-  }
-  else if (backend == RAI_BACKEND_TORCH) {
-    if (!RAI_backends.torch.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
-      return NULL;
-    }
-    model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
-  }
-  else if (backend == RAI_BACKEND_ONNXRUNTIME) {
-    if (!RAI_backends.onnx.model_create) {
-      RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
-      return NULL;
-    }
-    model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
-  }
-  else {
-    RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
-    return NULL;
-  }
 
-  if (model) {
-    model->tag = RedisModule_Strdup(tag);
-  }
+    if (model) {
+        model->tag = RedisModule_Strdup(tag);
+    }
 
-  return model;
+    return model;
 }
 
 void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
