@@ -21,13 +21,13 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 #include "util/queue.h"
-#include <ctype.h>
-#include <errno.h>
 #include <pthread.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 int freeRunQueueInfo(RunQueueInfo *info) {
     int result = REDISMODULE_OK;
@@ -132,7 +132,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
         // There might be more than one thread operating on the same
         // queue, according to the THREADS_PER_QUEUE config variable.
         long long run_queue_len = queueLength(run_queue_info->run_queue);
-
         while (run_queue_len > 0) {
             // We first peek the front of the queue
             queueItem *item = queueFront(run_queue_info->run_queue);
@@ -176,15 +175,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     if (timedOut == 1) {
                         queueEvict(run_queue_info->run_queue, item);
 
+                        RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
-                        if (dagRefCount == 0 && rinfo->client) {
-                            RedisModule_UnblockClient(rinfo->client, rinfo);
+                        if (dagRefCount == 0) {
+                            RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                            orig->OnFinish(finish_ctx, orig->private_data);
                         }
 
                         queueItem *evicted_item = item;
                         item = item->next;
                         RedisModule_Free(evicted_item);
-
+                        // Continue with the next item in queue (if exists)
                         continue;
                     }
                 }
@@ -244,9 +245,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 int currentOpReady, currentOpBatchable;
                 RedisAI_DagCurrentOpInfo(rinfo, &currentOpReady, &currentOpBatchable);
 
-                // If any of the inputs of the current op is not in the context, it
-                // means that some parent ops did not execute. In this case we don't
-                // schedule to run, but we will place the entry back on the queue
+                // If any of the inputs of the current op is not in the context, it means
+                // that some parent ops did not execute. In this case we don't schedule
+                // to run, but we will place the entry back on the queue
                 if (currentOpReady == 0) {
                     do_run = 0;
                     do_retry = 1;
@@ -256,9 +257,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 // If we made it this far, we will run the currentOp
                 do_run = 1;
 
-                // If the current op is not batchable (that is, if it's not a modelrun
-                // or if it's a modelrun but batchsize was set to 0), we stop looking
-                // further
+                // If the current op is not batchable (that is, if it's not a modelrun or
+                // if it's a modelrun but batchsize was set to 0), we stop looking further
                 if (currentOpBatchable == 0) {
                     break;
                 }
@@ -266,8 +266,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 // If we are here, then we scheduled to run and we currently have an
                 // operation that can be batched.
 
-                // Since the current op can be batched, then we collect info on
-                // batching, namely
+                // Since the current op can be batched, then we collect info on batching, namely
                 // - batchsize
                 // - minbatchsize
                 // - minbatchtimeout
@@ -276,8 +275,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 RedisAI_DagOpBatchInfo(rinfo, currentOp, &batchsize, &minbatchsize,
                                        &minbatchtimeout, &inbatchsize);
 
-                // Get the size of the batch so far, that is, the size of the first
-                // input tensor in the 0-th dimension
+                // Get the size of the batch so far, that is, the size of the first input
+                // tensor in the 0-th dimension
                 size_t current_batchsize = inbatchsize;
 
                 // If the size is zero or if it already exceeds the desired batch size
@@ -396,8 +395,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr);
                 }
 
-                // Lock the queue again: we're done operating on evicted items only, we
-                // need to update the queue with the new information after run
+                // Lock the queue again: we're done operating on evicted items only, we need
+                // to update the queue with the new information after run
                 pthread_mutex_lock(&run_queue_info->run_queue_mutex);
 
                 // Run is over, now iterate over the run info structs in the batch
@@ -415,9 +414,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (dagError) {
+                        RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
-                        if (dagRefCount == 0 && rinfo->client) {
-                            RedisModule_UnblockClient(rinfo->client, rinfo);
+                        if (dagRefCount == 0) {
+                            RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                            orig->OnFinish(finish_ctx, orig->private_data);
                         }
                     } else {
                         rinfo->dagDeviceCompleteOpCount += 1;
@@ -426,29 +427,30 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 }
             }
 
-            // We initialize variables where we'll store the fact hat, after the
-            // current run, all ops for the device or all ops in the dag could be
-            // complete. This way we can avoid placing the op back on the queue if
-            // there's nothing left to do.
+            // We initialize variables where we'll store the fact hat, after the current
+            // run, all ops for the device or all ops in the dag could be complete. This
+            // way we can avoid placing the op back on the queue if there's nothing left
+            // to do.
             int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 
             long long dagRefCount = -1;
-
+            RedisAI_RunInfo *orig;
             if (device_complete == 1 || device_complete_after_run == 1) {
                 RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
-                // We decrease and get the reference count for the DAG
+                orig = evicted_rinfo->orig_copy;
+                // We decrease and get the reference count for the DAG.
                 dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
             }
 
             // If the DAG was complete, then it's time to unblock the client
             if (do_unblock == 1 || dag_complete_after_run == 1) {
-                RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
 
-                // If the reference count for the DAG is zero and the client is still
-                // around, then we actually unblock the client
-                if (dagRefCount == 0 && evicted_rinfo->client) {
-                    RedisModule_UnblockClient(evicted_rinfo->client, evicted_rinfo);
+                // If the reference count for the DAG is zero and the client is still around,
+                // then we actually unblock the client
+                if (dagRefCount == 0) {
+                    RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                    orig->OnFinish(finish_ctx, orig->private_data);
                 }
             }
 
@@ -463,10 +465,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     queueItem *next_item = queuePop(run_queue_info->run_queue);
                     RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
                     // Push the DAG to the front of the queue, and then the item we just
-                    // popped in front of it, so that it becomes the first item in the
-                    // queue. The rationale is, since the DAG needs to wait for other
-                    // workers, we are giving way to the next item and we'll get back to
-                    // the DAG when that is done
+                    // popped in front of it, so that it becomes the first item in the queue.
+                    // The rationale is, since the DAG needs to wait for other workers, we are
+                    // giving way to the next item and we'll get back to the DAG when that is done
                     queuePushFront(run_queue_info->run_queue, evicted_rinfo);
                     queuePushFront(run_queue_info->run_queue, next_rinfo);
                 }
@@ -474,20 +475,18 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 else {
                     // We push the DAG back at the front
                     queuePushFront(run_queue_info->run_queue, evicted_rinfo);
-                    // Since there's nothing else on the queue we just break out and give
-                    // other workers a chance to produce the inputs needed for this DAG
-                    // step
+                    // Since there's nothing else on the queue we just break out and give other
+                    // workers a chance to produce the inputs needed for this DAG step
                     break;
                 }
             }
 
-            // If the op was ran successfully and without any error, then put the
-            // entry back on the queue unless all ops for the device have been
-            // executed
+            // If the op was ran successfully and without any error, then put the entry back
+            // on the queue unless all ops for the device have been executed
             if (do_run == 1 && run_error == 0) {
                 // Here we iterate backwards to keep the first evicted on top
-                // A side effect of this is that we are potentially changing priority in
-                // the queue We could solve this using a priority queue, TODO for later
+                // A side effect of this is that we are potentially changing priority in the queue
+                // We could solve this using a priority queue, TODO for later
                 for (long long i = array_len(evicted_items) - 1; i >= 0; i--) {
                     // Get the current evicted run info
                     RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[i]->value);
@@ -500,24 +499,22 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 }
             }
 
-            // TODO now we can figure out of the device is complete or the dag is
-            // complete if (dag_complete_op_count == evicted_rinfo[0]->dagOpCount) ->
-            // ublock, free if (dag_device_complete_op_count ==
-            // evicted_rinfo[0]->dagDeviceOpCount) -> device complete
+            // TODO now we can figure out of the device is complete or the dag is complete
+            // if (dag_complete_op_count == evicted_rinfo[0]->dagOpCount) -> ublock, free
+            // if (dag_device_complete_op_count == evicted_rinfo[0]->dagDeviceOpCount) -> device
+            // complete
 
-            // If there's nothing else to do for the DAG in the current worker or if
-            // an error occurred in any worker, we just move on
+            // If there's nothing else to do for the DAG in the current worker or if an error
+            // occurred in any worker, we just move on
             if (device_complete == 1 || device_complete_after_run == 1 || do_unblock == 1 ||
                 run_error == 1) {
                 for (long long i = 0; i < array_len(evicted_items); i++) {
                     RedisModule_Free(evicted_items[i]);
                 }
             }
-
             run_queue_len = queueLength(run_queue_info->run_queue);
         }
     }
-
     array_free(evicted_items);
     array_free(batch_rinfo);
 }

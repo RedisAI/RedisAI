@@ -24,7 +24,7 @@ endif
 username := $(shell sh -c 'id -u')
 usergroup := $(shell sh -c 'id -g')
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 define HELP
 make setup  # install prerequisited (CAUTION: THIS WILL MODIFY YOUR SYSTEM)
