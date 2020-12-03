@@ -1052,7 +1052,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                 struct timespec ts;
                 clockid_t cid;
                 sds queue_used_cpu_total = sdscatprintf(
-                    sdsempty(), "queue_%s_bthread_#%d_used_cpu_total", queue_name, i + 1);
+                    sdsempty(), "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
                 sds bthread_used_cpu_total = sdsempty();
 #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) ||         \
     defined(__cplusplus)
@@ -1068,7 +1068,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                     } else {
                         bthread_used_cpu_total =
                             sdscatprintf(bthread_used_cpu_total, "%ld.%06ld", (long)ts.tv_sec,
-                                         (long)(ts.tv_nsec / 1000000));
+                                         (long)(ts.tv_nsec / 1000));
                     }
                 }
                 RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);
