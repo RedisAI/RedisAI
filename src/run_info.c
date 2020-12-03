@@ -211,14 +211,6 @@ long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
     return ref_count;
 }
 
-void RAI_DagRunInfoFreeAllCopies(RedisAI_RunInfo **rinfo) {
-
-    int ndevices = array_len(rinfo);
-    for (int i = 0; i < ndevices; i++) {
-        RAI_DagRunInfoFreeShallowCopy(rinfo[i]);
-    }
-}
-
 void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
     if (!rinfo) {
         return;

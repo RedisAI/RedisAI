@@ -1274,7 +1274,9 @@ static bool DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
             // A device run queue was not created properly, so we free everything,
             // set an error and finish.
             array_free(devices);
-            RAI_DagRunInfoFreeAllCopies(rinfo_copies);
+            for (int j = 0; j < ndevices; j++) {
+                RAI_DagRunInfoFreeShallowCopy(rinfo_copies[j]);
+            }
             array_free(rinfo_copies);
             array_free(run_queues_info);
             RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR Queue not initialized for device");
