@@ -197,7 +197,7 @@ In our examples, we'll use one of the graphs that RedisAI uses in its tests, nam
     Use a web browser or the command line to download 'graph.pb':
 
     ```
-    wget https://github.com/RedisAI/RedisAI/raw/master/tests/test_data/graph.pb
+    wget https://github.com/RedisAI/RedisAI/blob/master/tests/flow/test_data/graph.pb
     ```
 
 You can view the computation graph using [Netron](https://lutzroeder.github.io/netron/), which supports all frameworks supported by RedisAI.
