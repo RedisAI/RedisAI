@@ -16,6 +16,7 @@ if [[ $1 == --help || $1 == help ]]; then
 		Argument variables:
 		CPU=1              Get CPU dependencies
 		GPU=1              Get GPU dependencies
+		JETSON=1           Get Jetson Nano dependencies
 		VERBOSE=1          Print commands
 		FORCE=1            Download even if present
 		WITH_DLPACK=0      Skip dlpack
@@ -86,7 +87,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.3.1"
+TF_VERSION="2.3.0"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -106,6 +107,9 @@ if [[ $WITH_TF != 0 ]]; then
 				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
 			elif [[ $ARCH == arm64v8 ]]; then
 				TF_ARCH=arm64
+				if [[ $JETSON == 1 ]]; then
+					TF_BUILD="gpu-jetson"
+				fi
 				LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 			elif [[ $ARCH == arm32v7 ]]; then
 				TF_ARCH=arm
@@ -205,7 +209,11 @@ if [[ $WITH_PT != 0 ]]; then
 			if [[ $GPU != 1 ]]; then
 				PT_BUILD=cpu
 			else
-				PT_BUILD=cu101
+				if [[ $JETSON == 1 ]]; then
+					PT_BUILD=cu102-jetson
+				else
+					PT_BUILD=cu101
+				fi
 			fi
 			if [[ $ARCH == x64 ]]; then
 				PT_ARCH=x86_64
