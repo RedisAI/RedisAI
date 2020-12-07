@@ -12,6 +12,8 @@
 #include "torch/script.h"
 #include "torch/jit.h"
 
+#include "torch_extensions/torch_redis_value.h"
+
 namespace torch {
     namespace jit {
         namespace script {
@@ -42,6 +44,10 @@ namespace torch {
 
 
 namespace {
+
+static RedisValue redisExecute(const std::string& command, ...){
+    
+}
 
 static DLDataType getDLDataType(const at::Tensor &t) {
     DLDataType dtype;
