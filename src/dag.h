@@ -1,8 +1,8 @@
 /**
  * dag.h
  *
- * Contains headers for the helper methods for both parsing, running the command
- * in the background, and replying DAG structured commands.
+ * Contains headers for the helper methods for both parsing, running the command in the
+ * background, and replying DAG structured commands.
  */
 
 #ifndef SRC_DAG_H_
@@ -163,11 +163,18 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or
- * REDISAI_DAG_WRITE_MODE
+ * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or REDISAI_DAG_WRITE_MODE
  * @return
  */
-int RedisAI_DagRunSyntaxParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                               int dagMode);
+int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                 int dagMode);
+
+/**
+ * @brief This callback is called at the end of a DAG run and performs unblock client and reply.
+ * This is the callback of RedisAI AI.MODELRUN, AI.SCRIPTRUN, AI.DAGRUN
+ * @param ctx Context object that contains errors and results
+ * @param private_data is a pointer to the DAG run info struct
+ */
+void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data);
 
 #endif /* SRC_DAG_H_ */

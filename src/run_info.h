@@ -61,7 +61,22 @@ int RAI_InitDagOp(RAI_DagOp **result);
  * @param ctx Context in which Redis modules operate
  * @param RAI_DagOp context in which RedisAI command operates.
  */
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
+void RAI_FreeDagOp(RAI_DagOp *dagOp);
+
+typedef struct RedisAI_RunInfo RedisAI_RunInfo;
+
+/**
+ * This structure contains the context data at the end of the execution.
+ * user can access results and errors through LLAPI.
+ */
+typedef RedisAI_RunInfo RedisAI_OnFinishCtx;
+
+/**
+ * @brief User defined callback to execute at the end of the run.
+ * @param ctx parameter includes the running results and errors.
+ * @param private_data is an optional pointer to the user's private data.
+ */
+typedef void (*RAI_OnFinishCB)(RedisAI_OnFinishCtx *ctx, void *private_data);
 
 /**
  * This structure represents the context in which RedisAI blocking commands
@@ -70,7 +85,8 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
  * Note that not all the context structure is always filled with actual values
  * but only the fields needed in a given operation.
  */
-typedef struct RedisAI_RunInfo {
+
+struct RedisAI_RunInfo {
     RedisModuleBlockedClient *client;
     int single_op_dag;
     int single_device_dag;
@@ -87,15 +103,19 @@ typedef struct RedisAI_RunInfo {
     // Pointer to integer signaling whether an error occurred anywhere in the DAG.
     // This is shared across shallow copies in device queues.
     int *dagError;
-    // Pointer to mutex used to exclusively access DagOps from multiple worker
-    // threads.
+    // DAG global error.
+    RAI_Error *err;
+    // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
     pthread_rwlock_t *dagLock;
     // Pointer to ref count in DAG, shared across multiple worker thread
     long long *dagRefCount;
     long long timeout;
     int *timedOut;
     struct timeval queuingTime;
-} RedisAI_RunInfo;
+    RAI_OnFinishCB OnFinish;
+    RedisAI_RunInfo *orig_copy;
+    void *private_data; // This is going to be sent to the OnFinish callback.
+};
 
 /**
  * Allocate the memory and initialise the RedisAI_RunInfo.
@@ -119,7 +139,7 @@ long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo);
  * @param ctx Context in which Redis modules operate
  * @param rinfo context in which RedisAI blocking command operate.
  */
-void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
+void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo);
 
 /**
  * Locks the DAG tensor context rwlock for reads. No-op in case of single
