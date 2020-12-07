@@ -43,9 +43,9 @@ COPY ./get_deps.sh .
 RUN set -e ;\
 	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
-		VERBOSE=1 ./get_deps.sh gpu ;\
+	VERBOSE=1 ./get_deps.sh gpu ;\
 	else \
-		env $DEPS_ARGS ./get_deps.sh gpu ;\
+	env $DEPS_ARGS ./get_deps.sh gpu ;\
 	fi
 
 # Fix paths so that CUDNN can be found: https://github.com/tensorflow/tensorflow/issues/8264
@@ -57,16 +57,16 @@ RUN apt-get install pkg-config -y
 ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
-    . venv/bin/activate ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+	. venv/bin/activate ;\
+	. ./opt/readies/bin/sourced ./profile.d ;\
+	make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK
 
 RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \
-		. venv/bin/activate ;\
-		make -C opt pack GPU=1 VERBOSE=1 ;\
+	. venv/bin/activate ;\
+	make -C opt pack GPU=1 VERBOSE=1 ;\
 	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI

@@ -11,7 +11,7 @@ ARG OS=ubuntu18.04
 # ARCH=x64|arm64v8|arm32v7
 ARG ARCH=x64
 
-ARG CUDA_VER=11.1-cudnn8
+ARG CUDA_VER=10.2-cudnn8
 
 ARG PACK=0
 ARG TEST=0
@@ -59,10 +59,10 @@ RUN set -e ;\
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
-        TEST= make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1 ;\
-        if [[ -d test/logs ]]; then \
-            tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
-        fi ;\
+    TEST= make -C opt test GPU=1 $BUILD_ARGS NO_LFS=1 ;\
+    if [[ -d test/logs ]]; then \
+    tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
+    fi ;\
     fi
 
 #----------------------------------------------------------------------------------------------
