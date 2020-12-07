@@ -46,3 +46,4 @@ int ModelType_Register(RedisModuleCtx *ctx) {
     RedisAI_ModelType = RedisModule_CreateDataType(ctx, "AI__MODEL", REDISAI_ENC_VER, &tmModel);
     return RedisAI_ModelType != NULL;
 }
+    
