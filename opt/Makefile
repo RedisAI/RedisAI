@@ -53,6 +53,7 @@ make flow_tests  # run flow test
   COV=1            # perform coverage analysis
   VALGRIND|VGD=1   # test with Valgrind (implies DEBUG=1)
   CALLGRIND|CGD=1  # test with Callgrind (implies DEBUG=1)
+  REDIS=addr       # Address of Redis server for testing
 
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
@@ -247,6 +248,7 @@ flow_tests: build
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
+		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
@@ -261,6 +263,7 @@ test: build
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
+		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
