@@ -18,7 +18,7 @@ struct RedisValue : torch::CustomClassHolder {
             for (auto i = 0; i < len; ++i) {
                 RedisModuleCallReply *subReply = RedisModule_CallReplyArrayElement(reply, i);
                 RedisValue value(subReply);
-                arrayValue.push_back(value);
+                // arrayValue.push_back(value);
             }
         }
 
@@ -26,17 +26,21 @@ struct RedisValue : torch::CustomClassHolder {
             RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_ERROR) {
             size_t len;
             const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
-            PyObject *ret = PyUnicode_FromStringAndSize(replyStr, len);
-            if (!ret) {
-                PyErr_Clear();
-                ret = PyByteArray_FromStringAndSize(replyStr, len);
-            }
-            return ret;
+            // PyObject *ret = PyUnicode_FromStringAndSize(replyStr, len);
+            // if (!ret) {
+            //     PyErr_Clear();
+            //     ret = PyByteArray_FromStringAndSize(replyStr, len);
+            // }
+            // return ret;
         }
 
         if (RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_INTEGER) {
             long long val = RedisModule_CallReplyInteger(reply);
-            return PyLong_FromLongLong(val);
+            // return PyLong_FromLongLong(val);
         }
+    }
+
+    virtual ~RedisValue() {
+
     }
 };

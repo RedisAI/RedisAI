@@ -7,12 +7,13 @@
 #include <iostream>
 #include <sstream>
 
+#include "torch_extensions/torch_redis_value.h"
+
+#include "../redismodule.h"
 
 #include "torch/csrc/jit/frontend/resolver.h"
 #include "torch/script.h"
 #include "torch/jit.h"
-
-#include "torch_extensions/torch_redis_value.h"
 
 namespace torch {
     namespace jit {
@@ -33,21 +34,17 @@ namespace torch {
                     return nullptr;
                 }
 
-                inline std::shared_ptr<RedisResolver> redisResolver() {
+            };
+            inline std::shared_ptr<RedisResolver> redisResolver() {
                     return std::make_shared<RedisResolver>();
                 }
-
-            };
         }
     }
 }
 
 
-namespace {
 
-static RedisValue redisExecute(const std::string& command, ...){
-    
-}
+namespace {
 
 static DLDataType getDLDataType(const at::Tensor &t) {
     DLDataType dtype;
@@ -340,28 +337,53 @@ extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t
     return dl_tensor;
 }
 
-extern "C" void *torchCompileScript(const char *script, DLDeviceType device, int64_t device_id,
-                                    char **error, void *(*alloc)(size_t)) {
-    ModuleContext *ctx = new ModuleContext();
-    ctx->device = device;
-    ctx->device_id = device_id;
-    try {
-        auto cu = torch::jit::compile(script);
-        auto aten_device_type = getATenDeviceType(device);
-        if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
-            throw std::logic_error("GPU requested but Torch couldn't find CUDA");
-        }
-        ctx->cu = cu;
-        ctx->module = nullptr;
-    } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
-        delete ctx;
-        return NULL;
+void redisExecute(const std::string& fn_name ) {
+//   RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
+//   size_t len = args.size();
+//   RedisModuleString** arguments = array_new(RedisModuleString*, 10);
+//   va_list l;
+//   va_start(l, fn_name);
+//   const std::string arg = va_arg(l, const std::string);
+//   while(arg)
+//   for (torch::List<const std::string>::iterator it = args.begin(); it != args.end(); it++) {
+//       const std::string& arg = it;
+//       const char* str = arg.c_str();
+//       arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
+//   }
+//   RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len);
+//   RedisModule_FreeThreadSafeContext(ctx);
+}
+
+static auto registry = torch::RegisterOperators("redis::execute", &redisExecute);
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
+                                    char **error, void* (*alloc)(size_t))
+{
+  ModuleContext* ctx = new ModuleContext();
+  ctx->device = device;
+  ctx->device_id = device_id;
+  try {
+    auto cu = std::make_shared<torch::jit::script::CompilationUnit>();
+    cu->define(
+        c10::nullopt,
+        script,
+        torch::jit::script::redisResolver(),
+        nullptr);
+    auto aten_device_type = getATenDeviceType(device);
+    if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+      throw std::logic_error("GPU requested but Torch couldn't find CUDA");
     }
-    return ctx;
+    ctx->cu = cu;
+    ctx->module = nullptr;
+  }
+  catch(std::exception& e) {
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
+    delete ctx;
+    return NULL;
+  }
+  return ctx;
 }
 
 extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
