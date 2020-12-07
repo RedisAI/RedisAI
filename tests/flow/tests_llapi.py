@@ -6,8 +6,6 @@ import os
 '''
 python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 '''
-
-#TEST_MODULE_PATH = "/home/alon/CLionProjects/RedisAI/bin/linux-x64-release/install-cpu/tests/redisai_testmodule/redisai_testmodule.so"
 goal_dir = os.path.join(os.getcwd(), "../module/LLAPI.so")
 TEST_MODULE_PATH = os.path.abspath(goal_dir)
 
