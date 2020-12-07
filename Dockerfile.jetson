@@ -74,8 +74,8 @@ RUN set -e ;\
 #----------------------------------------------------------------------------------------------
 # FROM nvidia/cuda:${CUDA_VER}-runtime-${OS}
 # FROM nvidia/cuda-arm64:11.1-runtime-ubuntu18.04
-FROM nvcr.io/nvidia/l4t-base:${L4T_VER}
-# FROM redisfab/jetpack:4.4.1-arm64v8-l4t
+# FROM nvcr.io/nvidia/l4t-base:${L4T_VER}
+FROM redisfab/jetpack:4.4.1-arm64v8-l4t
 
 ARG OS
 ARG L4T_VER
