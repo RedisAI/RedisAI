@@ -113,6 +113,7 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
     const char *stats_devicestr = RedisModule_Strdup(devicestr);
+    // TODO REDIS_STRING
     const char *stats_tag = RedisModule_Strdup(tag);
 
     model->infokey =
@@ -143,6 +144,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
 
     RedisModule_SaveUnsigned(io, model->backend);
     RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
+    // TODO REDIS_STRING
     RedisModule_SaveStringBuffer(io, model->tag, strlen(model->tag) + 1);
     RedisModule_SaveUnsigned(io, model->opts.batchsize);
     RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
@@ -321,6 +323,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const cha
     }
 
     if (model) {
+        // TODO REDIS_STRING
         model->tag = RedisModule_Strdup(tag);
     }
 

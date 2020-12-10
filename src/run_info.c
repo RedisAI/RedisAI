@@ -17,18 +17,22 @@
 #include "util/dict.h"
 
 static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
+    // TODO REDIS_STRING
     return AI_dictGenHashFunction(key, strlen((char *)key));
 }
 
 static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2) {
+    // TODO REDIS_STRING
     const char *strKey1 = key1;
     const char *strKey2 = key2;
     return strcmp(strKey1, strKey2) == 0;
 }
 
+// TODO REDIS_STRING
 static void RAI_TensorDictKeyFree(void *privdata, void *key) { RedisModule_Free(key); }
 
 static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
+    // TODO REDIS_STRING
     return RedisModule_Strdup((char *)key);
 }
 

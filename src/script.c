@@ -58,6 +58,7 @@ static void *RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
     const char *stats_devicestr = RedisModule_Strdup(devicestr);
+    // TODO REDIS_STRING
     const char *stats_tag = RedisModule_Strdup(tag);
 
     script->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH,
@@ -71,9 +72,13 @@ static void *RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
 static void RAI_Script_RdbSave(RedisModuleIO *io, void *value) {
     RAI_Script *script = (RAI_Script *)value;
 
+    // TODO REDIS_STRING
     size_t len = strlen(script->scriptdef) + 1;
 
+    // TODO REDIS_STRING
     RedisModule_SaveStringBuffer(io, script->devicestr, strlen(script->devicestr) + 1);
+    // TODO REDIS_STRING
+    // tag should probably be binary safe
     RedisModule_SaveStringBuffer(io, script->tag, strlen(script->tag) + 1);
     RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }
@@ -116,6 +121,7 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char 
     RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
 
     if (script) {
+        // TODO REDIS_STRING
         script->tag = RedisModule_Strdup(tag);
     }
 

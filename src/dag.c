@@ -57,6 +57,7 @@ void RedisAI_DagRunSession_TensorSet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     const int parse_result =
         RAI_parseTensorSetArgs(NULL, currentOp->argv, currentOp->argc, &t, 0, currentOp->err);
     if (parse_result > 0) {
+        // TODO REDIS_STRING
         const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[0], NULL);
         RAI_ContextWriteLock(rinfo);
         AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, t);
@@ -76,9 +77,11 @@ void RedisAI_DagRunSession_TensorSet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
  * @return
  */
 void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+    // TODO REDIS_STRING
     const char *key_string = RedisModule_StringPtrLen(currentOp->inkeys[0], NULL);
     RAI_Tensor *t = NULL;
     RAI_ContextReadLock(rinfo);
+    // TODO REDIS_STRING
     currentOp->result = RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext, key_string,
                                                       &t, currentOp->err);
     RAI_ContextUnlock(rinfo);
@@ -107,6 +110,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     RAI_Tensor *inputTensors[n_inkeys];
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
+        // TODO REDIS_STRING
         const int get_result = RAI_getTensorFromLocalContext(
             NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
             &inputTensor, currentOp->err);
@@ -156,8 +160,10 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
+        // TODO REDIS_STRING
         const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+        // TODO REDIS_STRING
         AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
     }
 
@@ -195,6 +201,7 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         RAI_Tensor *inputTensors[n_inkeys];
         for (uint i = 0; i < n_inkeys; i++) {
             RAI_Tensor *inputTensor;
+            // TODO REDIS_STRING
             const int get_result = RAI_getTensorFromLocalContext(
                 NULL, rinfo->dagTensorsContext,
                 RedisModule_StringPtrLen(currentOp->inkeys[i], NULL), &inputTensor, currentOp->err);
@@ -253,9 +260,11 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
         for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
             RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
+            // TODO REDIS_STRING
             const char *key_string =
                 RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
             tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+            // TODO REDIS_STRING
             AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
         }
 
@@ -288,6 +297,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     RAI_Tensor *inputTensors[n_inkeys];
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
+        // TODO REDIS_STRING
         const int get_result = RAI_getTensorFromLocalContext(
             NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
             &inputTensor, currentOp->err);
@@ -320,8 +330,10 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
+        // TODO REDIS_STRING
         const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+        // TODO REDIS_STRING
         AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
     }
 
@@ -349,6 +361,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, AI_dict *opTensorsContext) {
 
     for (size_t i = 0; i < ninputs; i++) {
         RAI_Tensor *input;
+        // TODO REDIS_STRING
         RAI_getTensorFromLocalContext(
             NULL, opTensorsContext, RedisModule_StringPtrLen(op->inkeys[i], NULL), &input, op->err);
         // We are expecting input != NULL, because we only reach this function if all inputs
@@ -388,11 +401,13 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext, RAI_DagOp *op
 
     for (int i = 0; i < ninputs1; i++) {
         RAI_Tensor *input1;
+        // TODO REDIS_STRING
         RAI_getTensorFromLocalContext(NULL, op1TensorsContext,
                                       RedisModule_StringPtrLen(op1->inkeys[i], NULL), &input1,
                                       op1->err);
 
         RAI_Tensor *input2;
+        // TODO REDIS_STRING
         RAI_getTensorFromLocalContext(NULL, op2TensorsContext,
                                       RedisModule_StringPtrLen(op2->inkeys[i], NULL), &input2,
                                       op2->err);
@@ -463,6 +478,7 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, int *currentOpReady,
 
     *currentOpReady = 1;
     for (int i = 0; i < n_inkeys; i++) {
+        // TODO REDIS_STRING
         if (AI_dictFind(rinfo->dagTensorsContext,
                         RedisModule_StringPtrLen(currentOp_->inkeys[i], NULL)) == NULL) {
             RAI_ContextUnlock(rinfo);
@@ -710,8 +726,11 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
                 continue;
             }
             RedisModuleKey *key;
+            // TODO REDIS_STRING
             char *demangled_key_name = RedisModule_Strdup(persist_key_name);
+            // TODO REDIS_STRING
             demangled_key_name[strlen(persist_key_name) - 4] = 0;
+            // TODO REDIS_STRING
             RedisModuleString *tensor_keyname =
                 RedisModule_CreateString(ctx, demangled_key_name, strlen(demangled_key_name));
             const int status =
@@ -807,6 +826,7 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
                 return -1;
             }
             RedisModule_CloseKey(key);
+            // TODO REDIS_STRING
             char *dictKey = (char *)RedisModule_Alloc((strlen(arg_string) + 5) * sizeof(char));
             sprintf(dictKey, "%s%04d", arg_string, 1);
             AI_dictAdd(*localContextDict, (void *)dictKey, (void *)RAI_TensorGetShallowCopy(t));
@@ -849,6 +869,7 @@ int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int a
             separator_flag = 1;
             break;
         } else {
+            // TODO REDIS_STRING
             AI_dictAdd(*persistContextDict, (void *)arg_string, (void *)1);
             number_loaded_keys++;
         }
@@ -1078,7 +1099,9 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         RAI_Tensor *t;
         RedisModuleKey *key;
         for (size_t i = 0; i < array_len(op->inkeys); i++) {
+            // TODO REDIS_STRING
             const char *inkey = RedisModule_StringPtrLen(op->inkeys[i], NULL);
+            // TODO REDIS_STRING
             const int status =
                 RAI_GetTensorFromKeyspace(ctx, op->inkeys[i], &key, &t, REDISMODULE_READ);
             if (status == REDISMODULE_ERR) {
@@ -1097,6 +1120,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         }
 
         for (size_t i = 0; i < array_len(op->outkeys); i++) {
+            // TODO REDIS_STRING
             const char *outkey = RedisModule_StringPtrLen(op->outkeys[i], NULL);
             AI_dictAdd(rinfo->dagTensorsPersistedContext, (void *)outkey, (void *)1);
         }
@@ -1123,7 +1147,9 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         AI_dictEntry *entry = AI_dictNext(iter);
         while (entry) {
             char *key = (char *)AI_dictGetKey(entry);
+            // TODO REDIS_STRING
             char *demangled_key = RedisModule_Strdup(key);
+            // TODO REDIS_STRING
             demangled_key[strlen(key) - 4] = 0;
             int *instance = RedisModule_Alloc(sizeof(int));
             *instance = 1;
@@ -1140,6 +1166,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         RedisModuleString **mangled_inkeys =
             array_new(RedisModuleString *, array_len(currentOp->inkeys));
         for (long long j = 0; j < array_len(currentOp->inkeys); j++) {
+            // TODO REDIS_STRING
             const char *key = RedisModule_StringPtrLen(currentOp->inkeys[j], NULL);
             AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
             if (!entry) {
@@ -1156,6 +1183,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         RedisModuleString **mangled_outkeys =
             array_new(RedisModuleString *, array_len(currentOp->outkeys));
         for (long long j = 0; j < array_len(currentOp->outkeys); j++) {
+            // TODO REDIS_STRING
             const char *key = RedisModule_StringPtrLen(currentOp->outkeys[j], NULL);
             AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
             int *instance = NULL;
