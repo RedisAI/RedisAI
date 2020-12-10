@@ -4,6 +4,7 @@ ARG TF_VERSION=2.3.1
 ARG CUDA_VER=10.2
 ARG CUDNN_VERSION=8
 ARG TENSORRT_VERSION=7.2
+ARG MACH=aarch64
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/jetpack:4.4.1-arm64v8-l4t
