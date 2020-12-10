@@ -9,8 +9,12 @@ VARIANT=jetson
 #----------------------------------------------------------------------------------------------
 
 OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
+# OSNICK:=$(shell $(ROOT)/opt/readies/bin/platform --osnick)
+OSNICK:=bionic
 ARCH:=$(shell $(ROOT)/opt/readies/bin/platform --arch)
 MACH:=$(shell uname -m)
+
+DEVICE=gpu
 
 DOCKER_OS.xenial=ubuntu:xenial
 DOCKER_OS.bionic=ubuntu:bionic
@@ -19,12 +23,16 @@ DOCKER_OS.stretch=debian:stretch-slim
 DOCKER_OS.buster=debian:buster-slim
 DOCKER_OS.centos7=centos:7.8.2003
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
+
+TAR_ARCH.x64=x86_64
+TAR_ARCH.arm64v8=arm64
+TAR_ARCH.arm32v7=arm
+
 #----------------------------------------------------------------------------------------------
 
 S3_URL=redismodules/tensorflow
 
-STEM=libtensorflow-gpu-jetson-$(OS)
+STEM=libtensorflow
 
 #----------------------------------------------------------------------------------------------
 
@@ -63,10 +71,10 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_native:
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(VARIANT)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(OS)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(VARIANT)-$(2)-$(OSNICK)-$(VERSION).tar.gz .
 
 .PHONY: build_native
 endef
@@ -78,10 +86,10 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_$(1):
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(DEVICE)-$(OSNICK)-$(VARIANT)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_$(1)
 endef
