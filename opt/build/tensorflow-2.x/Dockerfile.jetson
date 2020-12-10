@@ -96,4 +96,4 @@ RUN set -e ;\
 
 WORKDIR /build
 ADD collect.py /build/
-RUN python ./collect.py 
+RUN python ./collect.py --version ${TF_VERSION} --variant gpu-jetson

@@ -74,7 +74,7 @@ build_native:
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(VARIANT)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(VARIANT)-$(2)-$(OSNICK)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_native
 endef
@@ -89,7 +89,7 @@ build_$(1):
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(DEVICE)-$(OSNICK)-$(VARIANT)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_$(1)
 endef
@@ -100,7 +100,7 @@ endif # CROSS
 
 define publish_native # (1=arch, 2=tar-arch)
 publish_native:
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_native
 endef
@@ -109,7 +109,7 @@ ifeq ($(CROSS),1)
 
 define publish_arm # (1=arch, 2=tar-arch)
 publish_$(1):
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_$(1)
 endef
@@ -136,7 +136,7 @@ endif
 
 publish: $(PUBLISH_TARGETS)
 
-$(eval $(call publish_x64,x64,x86_64))
+$(eval $(call publish_native,$(ARCH),$(TAR_ARCH.$(ARCH))))
 ifeq ($(CROSS),1)
 $(eval $(call publish_arm,arm64v8,arm64))
 $(eval $(call publish_arm,arm32v7,arm))
