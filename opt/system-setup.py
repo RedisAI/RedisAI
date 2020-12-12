@@ -70,7 +70,7 @@ class RedisAISetup(paella.Setup):
         self.install("clang-format")
 
     def common_last(self):
-        self.run(%s/bin/getcmake" % READIES)
+        self.run("%s/bin/getcmake" % READIES)
 
         self.run("python3 -m pip uninstall -y ramp-packer RLTest || true")
         # redis-py-cluster should be installed from git due to redis-py dependency
