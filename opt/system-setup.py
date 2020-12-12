@@ -44,11 +44,7 @@ class RedisAISetup(paella.Setup):
         self.install("llvm-toolset-7")
 
         if self.arch == 'x64':
-            self.run("""
-                dir=$(mktemp -d /tmp/tar.XXXXXX)
-                (cd $dir; wget -q -O tar.tgz http://redismodules.s3.amazonaws.com/gnu/gnu-tar-1.32-x64-centos7.tgz; tar -xzf tar.tgz -C /; )
-                rm -rf $dir
-                """)
+            self.install_linux_gnu_tar()
 
         if not self.dist == "amzn":
             self.install("epel-release")
