@@ -40,7 +40,7 @@ class RedisAISetup(paella.Setup):
         self.run("%s/readies/bin/enable-utf8" % HERE)
 
         self.group_install("'Development Tools'")
-        self.run(%s/bin/getgcc --modern" % READIES)
+        self.run("%s/bin/getgcc --modern" % READIES)
         self.install("llvm-toolset-7")
 
         if self.arch == 'x64':
