@@ -45,7 +45,7 @@ RUN git checkout v${TF_VERSION}
 ENV TF_NEED_CUDA=1 \
     TF_CUDA_COMPUTE_CAPABILITIES=6.1,5.3,3.5,7.2 \
     TF_NEED_TENSORRT=0 \
-	\
+    \
     TF_NEED_GCP=0 \
     TF_NEED_HDFS=0 \
     TF_NEED_OPENCL=0 \
@@ -63,19 +63,19 @@ ENV TF_NEED_CUDA=1 \
     TF_SET_ANDROID_WORKSPACE=0 \
     TF_NEED_COMPUTECPP=0 \
     TF_NEED_KAFKA=0 \
-	\
-    TF_CUDA_VERSION=${CUDA_VER} \
+
+ENV TF_CUDA_VERSION=${CUDA_VER} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
     TF_CUBLAS_VERSION=${TF_CUDA_VERSION} \
     TF_TENSORRT_VERSION=${TENSORRT_VERSION} \
-	\
+    \
     CUDA_TOOLKIT_PATH="/usr/local/cuda-${TF_CUDA_VERSION}" \
     TF_CUDA_PATHS="/usr/include,/usr/include/cuda,/opt/cuda/include,/usr/local/cuda-${TF_CUDA_VERSION}/include,/usr/local/cuda-${TF_CUDA_VERSION}/lib64,/usr/local/cuda-${TF_CUDA_VERSION}/targets/${MACH}-linux/,/usr/local/cuda-${TF_CUDA_VERSION}/targets/${MACH}-linux/lib/,/usr/lib/${MACH}-linux-gnu,/usr/local/lib,/usr/local/cuda-${TF_CUDA_VERSION},"
-
-ENV CUDNN_INSTALL_PATH=/usr/lib/${MACH}-linux-gnu \
+    \
+    CUDNN_INSTALL_PATH=/usr/lib/${MACH}-linux-gnu \
     TENSORRT_INSTALL_PATH=/usr/lib/${MACH}-linux-gnu
-
-ENV PATH="/usr/local/cuda-${TF_CUDA_VERSION}/bin:$PATH" \
+    \
+    PATH="/usr/local/cuda-${TF_CUDA_VERSION}/bin:${PATH}" \
     LD_LIBRARY_PATH="/usr/local/cuda-${TF_CUDA_VERSION}/lib64:/usr/lib/${MACH}-linux-gnu:${LD_LIBRARY_PATH}"
 
 RUN yes "" | ./configure

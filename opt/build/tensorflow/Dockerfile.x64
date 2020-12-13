@@ -1,4 +1,4 @@
-# BUILD redisfab/tensorflow-x64:$(TF_VER)
+# BUILD redisfab/tensorflow:${TF_VER}-x64-${OSNICK}
 
 ARG OS=debian:buster
 

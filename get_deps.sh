@@ -87,7 +87,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.3.0"
+TF_VERSION="2.3.1"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
