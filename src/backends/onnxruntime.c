@@ -1,3 +1,4 @@
+#define REDISMODULE_MAIN
 #include <cuda_provider_factory.h>
 #include "backends/onnxruntime.h"
 #include "backends/util.h"

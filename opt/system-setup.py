@@ -57,7 +57,7 @@ class RedisAISetup(paella.Setup):
         self.install("centos-release-scl")
         self.install("devtoolset-8")
         self.run("cp /opt/rh/devtoolset-8/enable /etc/profile.d/scl-devtoolset-8.sh")
-        
+
         self.install("llvm-toolset-7")
 
         paella.mkdir_p("%s/profile.d" % ROOT)
@@ -68,7 +68,7 @@ class RedisAISetup(paella.Setup):
             (cd $dir; wget -q -O tar.tgz http://redismodules.s3.amazonaws.com/gnu/gnu-tar-1.32-x64-centos7.tgz; tar -xzf tar.tgz -C /; )
             rm -rf $dir
             """)
-        
+
 
         if not self.dist == "amzn":
             self.install("epel-release")

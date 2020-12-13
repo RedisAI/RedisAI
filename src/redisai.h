@@ -1,14 +1,11 @@
 #ifndef SRC_REDISAI_H_
 #define SRC_REDISAI_H_
 
-#include "background_workers.h"
-#include "model_struct.h"
-#include "redismodule.h"
-#include "util/dict.h"
-#include "version.h"
 #include <stdbool.h>
+#include "redismodule.h"
 
-#define MODULE_API_FUNC(x) (*x)
+#define REDISAI_LLAPI_VERSION 1
+#define MODULE_API_FUNC(x)    (*x)
 
 #ifndef REDISAI_H_INCLUDE
 typedef struct RAI_Tensor RAI_Tensor;
@@ -18,6 +15,8 @@ typedef struct RAI_Script RAI_Script;
 typedef struct RAI_ModelRunCtx RAI_ModelRunCtx;
 typedef struct RAI_ScriptRunCtx RAI_ScriptRunCtx;
 typedef struct RAI_Error RAI_Error;
+typedef struct RAI_ModelOpts RAI_ModelOpts;
+typedef struct RAI_OnFinishCtx RAI_OnFinishCtx;
 #endif
 
 #define REDISAI_BACKEND_TENSORFLOW  0
@@ -118,12 +117,22 @@ RedisModuleType *MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
+#ifndef __cplusplus
 #define REDISAI_MODULE_INIT_FUNCTION(ctx, name)                                                    \
     RedisAI_##name = RedisModule_GetSharedAPI(ctx, "RedisAI_" #name);                              \
     if (!RedisAI_##name) {                                                                         \
         RedisModule_Log(ctx, "warning", "could not initialize RedisAI_" #name "\r\n");             \
         return REDISMODULE_ERR;                                                                    \
     }
+#else
+#define REDISAI_MODULE_INIT_FUNCTION(ctx, name)                                                    \
+    RedisAI_##name = reinterpret_cast<decltype(RedisAI_##name)>(                                   \
+        RedisModule_GetSharedAPI((RedisModuleCtx *)(ctx), "RedisAI_" #name));                      \
+    if (!RedisAI_##name) {                                                                         \
+        RedisModule_Log(ctx, "warning", "could not initialize RedisAI_" #name "\r\n");             \
+        return REDISMODULE_ERR;                                                                    \
+    }
+#endif
 
 static int RedisAI_Initialize(RedisModuleCtx *ctx) {
 

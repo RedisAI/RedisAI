@@ -1,3 +1,9 @@
+
+#ifdef __linux__
+#define _GNU_SOURCE
+#endif
+
+#define REDISMODULE_MAIN
 #include "redismodule.h"
 #include "tensor.h"
 
@@ -29,6 +35,12 @@
 
 #ifndef REDISAI_GIT_SHA
 #define REDISAI_GIT_SHA "unknown"
+#endif
+
+#ifdef __linux__
+#ifndef RUSAGE_THREAD
+#define RUSAGE_THREAD 1
+#endif
 #endif
 
 int redisMajorVersion;
@@ -559,7 +571,8 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (argc < 3)
         return RedisModule_WrongArity(ctx);
 
-    return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    // Convert The model run command into A DAG command that contains a single op.
+    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -574,7 +587,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (argc < 6)
         return RedisModule_WrongArity(ctx);
 
-    return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    // Convert The script run command into A DAG command that contains a single op.
+    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -881,7 +895,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -896,7 +910,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_DagRunSyntaxParser(ctx, argv, argc, REDISAI_DAG_READONLY_MODE);
+    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_READONLY_MODE);
 }
 
 #define EXECUTION_PLAN_FREE_MSG 100
@@ -983,10 +997,31 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
     struct rusage self_ru, c_ru;
+
     // Return resource usage statistics for the calling process,
     // which is the sum of resources used by all threads in the
     // process
     getrusage(RUSAGE_SELF, &self_ru);
+
+    // Return resource usage statistics for the calling thread
+    // which in this case is Redis/RedisAI main thread
+    // RUSAGE_THREAD is Linux-specific.
+    sds main_thread_used_cpu_sys = sdsempty();
+    sds main_thread_used_cpu_user = sdsempty();
+#if (defined(__linux__) && defined(RUSAGE_THREAD))
+    struct rusage main_thread_ru;
+    getrusage(RUSAGE_THREAD, &main_thread_ru);
+    main_thread_used_cpu_sys =
+        sdscatprintf(main_thread_used_cpu_sys, "%ld.%06ld", (long)main_thread_ru.ru_stime.tv_sec,
+                     (long)self_ru.ru_stime.tv_usec);
+    main_thread_used_cpu_user =
+        sdscatprintf(main_thread_used_cpu_user, "%ld.%06ld", (long)main_thread_ru.ru_utime.tv_sec,
+                     (long)self_ru.ru_utime.tv_usec);
+#else
+    sdscatprintf(main_thread_used_cpu_sys, "N/A");
+    sdscatprintf(main_thread_used_cpu_user, "N/A");
+#endif
+
     // Return resource usage statistics for all of its
     // terminated child processes
     getrusage(RUSAGE_CHILDREN, &c_ru);
@@ -1003,6 +1038,8 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldCString(ctx, "self_used_cpu_user", self_used_cpu_user);
     RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_sys", children_used_cpu_sys);
     RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_user", children_used_cpu_user);
+    RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_sys", main_thread_used_cpu_sys);
+    RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_user", main_thread_used_cpu_user);
 
     AI_dictIterator *iter = AI_dictGetSafeIterator(run_queues);
     AI_dictEntry *entry = AI_dictNext(iter);
@@ -1015,7 +1052,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                 struct timespec ts;
                 clockid_t cid;
                 sds queue_used_cpu_total = sdscatprintf(
-                    sdsempty(), "queue_%s_bthread_#%d_used_cpu_total", queue_name, i + 1);
+                    sdsempty(), "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
                 sds bthread_used_cpu_total = sdsempty();
 #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) ||         \
     defined(__cplusplus)
@@ -1031,7 +1068,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                     } else {
                         bthread_used_cpu_total =
                             sdscatprintf(bthread_used_cpu_total, "%ld.%06ld", (long)ts.tv_sec,
-                                         (long)(ts.tv_nsec / 1000000));
+                                         (long)(ts.tv_nsec / 1000));
                     }
                 }
                 RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);

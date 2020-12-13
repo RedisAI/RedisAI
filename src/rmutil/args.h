@@ -247,5 +247,5 @@ class ArgsCursorCXX : public ArgsCursor {
     void init(const char **s, size_t n) { ArgsCursor_InitCString(this, s, n); }
     void init(RedisModuleString **s, size_t n) { ArgsCursor_InitRString(this, s, n); }
 };
-#endif
+#endif // __cplusplus
 #endif

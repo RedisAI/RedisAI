@@ -1,3 +1,4 @@
+#define REDISMODULE_MAIN
 #include "backends/torch.h"
 #include "backends/util.h"
 #include "tensor.h"

@@ -124,7 +124,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: lint
           command: |
@@ -154,7 +154,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -223,7 +223,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Checkout LFS
           command: |
@@ -254,7 +254,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Build
           command: |
