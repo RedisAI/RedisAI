@@ -108,39 +108,6 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **rinfo, const char *devic
 int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
- * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @param loadedContextDict local non-blocking hash table containing key names
- * loaded from the keyspace tensors
- * @param localContextDict local non-blocking hash table containing DAG's
- * tensors
- * @param chaining_operator operator used to split operations. Any command
- * argument after the chaining operator is not considered
- * @return processed number of arguments on success, or -1 if the parsing failed
- */
-int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                         AI_dict **loadedContextDict, AI_dict **localContextDict,
-                         const char *chaining_operator);
-
-/**
- * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @param localContextDict local non-blocking hash table containing DAG's
- * keynames marked as persistent
- * @param chaining_operator operator used to split operations. Any command
- * argument after the chaining operator is not considered
- * @return processed number of arguments on success, or -1 if the parsing failed
- */
-int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                            AI_dict **localContextDict, const char *chaining_operator);
-
-/**
  * When a module command is called in order to obtain the position of
  * keys, since it was flagged as "getkeys-api" during the registration,
  * the command implementation checks for this special call using the
@@ -176,5 +143,22 @@ int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, 
  * @param private_data is a pointer to the DAG run info struct
  */
 void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data);
+
+/**
+ * @brief Insert DAG runInfo to the worker queues
+ * @param RunInfo object to insert.
+ */
+int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo);
+
+/**
+ * @brief A callback to send to BlockClient (we only send this function but we
+ * don't use it for freeing the runInfo object, we use RAI_FreeRunInfo)
+ */
+void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
+
+/**
+ * @brief A callback to send to BlockClient.
+ */
+void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
 #endif /* SRC_DAG_H_ */

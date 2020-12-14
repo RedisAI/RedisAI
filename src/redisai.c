@@ -7,6 +7,8 @@
 #include "background_workers.h"
 #include "dag.h"
 #include "model.h"
+#include "modelRun_ctx.h"
+#include "dag_llapi.h"
 #include "script.h"
 #include "stats.h"
 #include <pthread.h>
@@ -557,11 +559,33 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
 
-    if (argc < 3)
-        return RedisModule_WrongArity(ctx);
+    // Build a ModelRunCtx from command.
+	RAI_Error error = {0};
+	RAI_Model *model;
+	RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
+	RedisModuleString **outkys = array_new(RedisModuleString *, 1);
+	RedisModuleString *runkey;
+	long long timeout = 0;
+	if(RedisAI_Validate_ModelRun_RedisCommand(ctx, argv, argc, &model, &error,
+	  &inkeys, &outkys, &runkey, &timeout) == REDISMODULE_ERR)
+		return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+	RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
 
-    // Convert The model run command into A DAG command that contains a single op.
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+	// Set params in ModelRunCtx, bring inputs from key space.
+	if(RedisAI_ModelRunCtx_SetParams(ctx, argv, argc, mctx, &error, timeout)
+	== REDISMODULE_ERR)
+		return REDISMODULE_OK;
+
+	RedisAI_RunInfo *rinfo = Dag_CreateFromSingleModelRunOp(mctx, &error, inkeys,
+	  outkys, runkey, timeout);
+	if(!rinfo) {
+		return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+	}
+	// Block the client before adding rinfo to the run queues (sync call).
+	rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
+	RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+	rinfo->OnFinish = DAG_ReplyAndUnblock;
+	return DAG_InsertDAGToQueue(rinfo);
 }
 
 /**
@@ -961,6 +985,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelSerialize, ctx);
     REGISTER_API(ModelGetShallowCopy, ctx);
     REGISTER_API(ModelRedisType, ctx);
+	REGISTER_API(ModelRunAsync, ctx);
+	REGISTER_API(GetModelRunCtx, ctx)
 
     REGISTER_API(ScriptCreate, ctx);
     REGISTER_API(ScriptFree, ctx);

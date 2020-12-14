@@ -14,9 +14,12 @@ typedef struct RAI_Script RAI_Script;
 
 typedef struct RAI_ModelRunCtx RAI_ModelRunCtx;
 typedef struct RAI_ScriptRunCtx RAI_ScriptRunCtx;
+typedef struct RAI_DAGRunCtx RAI_DAGRunCtx;
 typedef struct RAI_Error RAI_Error;
 typedef struct RAI_ModelOpts RAI_ModelOpts;
 typedef struct RAI_OnFinishCtx RAI_OnFinishCtx;
+
+typedef void (*RAI_OnFinishCB)(RAI_OnFinishCtx *ctx, void *private_data);
 #endif
 
 #define REDISAI_BACKEND_TENSORFLOW  0
@@ -44,7 +47,7 @@ typedef struct RAI_OnFinishCtx RAI_OnFinishCtx;
 #define RedisAI_ErrorCode_ESCRIPTFREE         13
 #define RedisAI_ErrorCode_ETENSORSET          14
 #define RedisAI_ErrorCode_ETENSORGET          15
-#define RedisAI_ErrorCode_EDAGRUN             17
+#define RedisAI_ErrorCode_EDAGRUN             16
 
 enum RedisAI_DataFmt { REDISAI_DATA_BLOB = 0, REDISAI_DATA_VALUES, REDISAI_DATA_NONE };
 
@@ -96,6 +99,9 @@ RAI_Model *MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model *model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len,
                                             RAI_Error *err);
 RedisModuleType *MODULE_API_FUNC(RedisAI_ModelRedisType)(void);
+int MODULE_API_FUNC(RedisAI_ModelRunAsync)(RAI_ModelRunCtx* mctxs,
+  					RAI_OnFinishCB DAGAsyncFinish, void *private_data);
+RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_GetModelRunCtx)(RAI_OnFinishCtx *ctx);
 
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptCreate)(char *devicestr, char *tag, const char *scriptdef,
                                                   RAI_Error *err);
@@ -114,6 +120,12 @@ void MODULE_API_FUNC(RedisAI_ScriptRunCtxFree)(RAI_ScriptRunCtx *sctx);
 int MODULE_API_FUNC(RedisAI_ScriptRun)(RAI_ScriptRunCtx *sctx, RAI_Error *err);
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script *script);
 RedisModuleType *MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
+
+/*RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DagFromString)(const char* dag_str, RAI_Error* err);
+int MODULE_API_FUNC(RedisAI_DagRunAsync)(RAI_DAGRunCtx *run_info,
+  					RAI_OnFinishCB DAGAsyncFinish, void *private_data);
+RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DagRunCtxCreate)(void);*/
+
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
@@ -182,6 +194,8 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelGetShallowCopy);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelSerialize);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRedisType);
+	REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunAsync);
+	REDISAI_MODULE_INIT_FUNCTION(ctx, GetModelRunCtx);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
@@ -195,6 +209,10 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRun);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptGetShallowCopy);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRedisType);
+
+	/*REDISAI_MODULE_INIT_FUNCTION(ctx, DagFromString);
+	REDISAI_MODULE_INIT_FUNCTION(ctx, DagRunAsync);
+	REDISAI_MODULE_INIT_FUNCTION(ctx, DagRunCtxCreate);*/
 
     if (RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION) {
         return REDISMODULE_ERR;

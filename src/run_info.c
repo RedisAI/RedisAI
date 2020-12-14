@@ -9,12 +9,14 @@
 
 #include "err.h"
 #include "model.h"
+#include "modelRun_ctx.h"
 #include "model_struct.h"
 #include "redismodule.h"
 #include "script.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include <pthread.h>
 
 static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
     return AI_dictGenHashFunction(key, strlen((char *)key));
@@ -342,3 +344,7 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
 
     return 1;
 }
+RAI_ModelRunCtx *RAI_GetModelRunCtx(RedisAI_RunInfo *rinfo) {
+    return rinfo->dagOps[0]->mctx;
+}
+

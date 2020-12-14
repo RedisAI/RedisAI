@@ -322,6 +322,8 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const cha
 
     if (model) {
         model->tag = RedisModule_Strdup(tag);
+        model->ninputs = ninputs;
+        model->noutputs = noutputs;
     }
 
     return model;
@@ -366,76 +368,6 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
     RAI_RemoveStatsEntry(model->infokey);
 
     RedisModule_Free(model);
-}
-
-RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
-#define PARAM_INITIAL_SIZE 10
-    RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
-    mctx->model = RAI_ModelGetShallowCopy(model);
-    mctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
-    mctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
-    return mctx;
-#undef PARAM_INITIAL_SIZE
-}
-
-static int Model_RunCtxAddParam(RAI_ModelRunCtx *mctx, RAI_ModelCtxParam **paramArr,
-                                const char *name, RAI_Tensor *tensor) {
-
-    RAI_ModelCtxParam param = {
-        .name = name,
-        .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
-    };
-    *paramArr = array_append(*paramArr, param);
-    return 1;
-}
-
-int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor) {
-    return Model_RunCtxAddParam(mctx, &mctx->inputs, inputName, inputTensor);
-}
-
-int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
-    return Model_RunCtxAddParam(mctx, &mctx->outputs, outputName, NULL);
-}
-
-size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) { return array_len(mctx->inputs); }
-
-size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) { return array_len(mctx->outputs); }
-
-RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    assert(RAI_ModelRunCtxNumInputs(mctx) > index && index >= 0);
-    return mctx->inputs[index].tensor;
-}
-
-RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    assert(RAI_ModelRunCtxNumOutputs(mctx) > index && index >= 0);
-    return mctx->outputs[index].tensor;
-}
-
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx, int freeTensors) {
-    if (freeTensors) {
-        for (size_t i = 0; i < array_len(mctx->inputs); ++i) {
-            RAI_TensorFree(mctx->inputs[i].tensor);
-        }
-
-        for (size_t i = 0; i < array_len(mctx->outputs); ++i) {
-            if (mctx->outputs[i].tensor) {
-                RAI_TensorFree(mctx->outputs[i].tensor);
-            }
-        }
-    }
-
-    array_free(mctx->inputs);
-    array_free(mctx->outputs);
-
-    RAI_Error err = {0};
-    RAI_ModelFree(mctx->model, &err);
-
-    if (err.code != RAI_OK) {
-        // TODO: take it to client somehow
-        RAI_ClearError(&err);
-    }
-
-    RedisModule_Free(mctx);
 }
 
 int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err) {
@@ -560,58 +492,87 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
     return REDISMODULE_OK;
 }
 
-int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                        RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
-                                        RedisModuleString ***outkeys, RAI_Model **mto,
-                                        RAI_Error *error) {
-    if (argc < 3) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "ERR wrong number of arguments for 'AI.MODELRUN' command");
-        return -1;
-    }
+RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
 
-    const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
-    if (strcasecmp(inputstr, "INPUTS")) {
-        RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
-        return -1;
-    }
+static int parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error,
+  long long *timeout) {
 
-    int is_input = 0;
-    size_t ninputs = 0;
-    size_t noutputs = 0;
-    int outputs_flag_count = 0;
-    size_t argpos = 3;
-
-    for (; argpos <= argc - 1; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
-            is_input = 1;
-            outputs_flag_count = 1;
-        } else {
-            RedisModule_RetainString(ctx, argv[argpos]);
-            if (is_input == 0) {
-                *inkeys = array_append(*inkeys, argv[argpos]);
-                ninputs++;
-            } else {
-                *outkeys = array_append(*outkeys, argv[argpos]);
-                noutputs++;
-            }
-        }
-    }
-    if ((*mto)->inputs && array_len((*mto)->inputs) != ninputs) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of names given as INPUTS during MODELSET and keys given as "
-                     "INPUTS here do not match");
-        return -1;
-    }
-
-    if ((*mto)->outputs && array_len((*mto)->outputs) != noutputs) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of names given as OUTPUTS during MODELSET and keys given as "
-                     "OUTPUTS here do not match");
-        return -1;
-    }
-    return argpos;
+	const int retval = RedisModule_StringToLongLong(timeout_arg, timeout);
+	if (retval != REDISMODULE_OK || timeout <= 0) {
+		RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid value for TIMEOUT");
+		return REDISMODULE_ERR;
+	}
+	return REDISMODULE_OK;
 }
 
-RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
+int RedisAI_Validate_ModelRun_RedisCommand(RedisModuleCtx *ctx,
+  RedisModuleString **argv, int argc, RAI_Model **model, RAI_Error *error,
+  RedisModuleString ***inkeys, RedisModuleString ***outkeys,
+  RedisModuleString **runkey, long long *timeout) {
+
+	if (argc < 4) {
+		RAI_SetError(error, RAI_EMODELRUN,
+		  "ERR wrong number of arguments for 'AI.MODELRUN' command");
+		return REDISMODULE_ERR;
+	}
+	size_t argpos = 1;
+	RedisModuleKey *modelKey;
+	const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey,
+	  model, REDISMODULE_READ);
+	if (status == REDISMODULE_ERR) {
+		RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
+		return REDISMODULE_ERR;
+	}
+    RedisModule_RetainString(NULL, argv[argpos]);
+	*runkey = argv[argpos];
+	const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
+
+	// Parse timeout arg if given and store it in timeout
+	if (!strcasecmp(arg_string, "TIMEOUT")) {
+		if (parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+			return REDISMODULE_ERR;
+		arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
+	}
+	if (strcasecmp(arg_string, "INPUTS") != 0) {
+		RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
+		return REDISMODULE_ERR;
+	}
+
+	bool is_input = true;
+	bool is_output = false;
+	size_t ninputs = 0;
+	size_t noutputs = 0;
+
+	while (++argpos < argc) {
+		arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+		if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
+			is_input = false;
+			is_output = true;
+		} else {
+			RedisModule_RetainString(NULL, argv[argpos]);
+			if(is_input) {
+				ninputs++;
+				*inkeys = array_append(*inkeys, argv[argpos]);
+			}
+			else {
+				noutputs++;
+				*outkeys = array_append(*outkeys, argv[argpos]);
+			}
+		}
+	}
+	if ((*model)->inputs && (*model)->ninputs != ninputs) {
+		RAI_SetError(error, RAI_EMODELRUN,
+		  "Number of names given as INPUTS during MODELSET and keys given as "
+		  "INPUTS here do not match");
+		return REDISMODULE_ERR;
+	}
+
+	if ((*model)->outputs && (*model)->noutputs != noutputs) {
+		RAI_SetError(error, RAI_EMODELRUN,
+		  "Number of names given as OUTPUTS during MODELSET and keys given as "
+		  "OUTPUTS here do not match");
+		return REDISMODULE_ERR;
+	}
+	return REDISMODULE_OK;
+}
+
