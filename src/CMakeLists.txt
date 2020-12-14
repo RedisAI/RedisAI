@@ -10,6 +10,9 @@ ADD_LIBRARY(redisai_obj OBJECT
         background_workers.c
         config.c
         dag.c
+        dag_parser.c
+        modelRun_ctx.c
+        dag_llapi.c
         backends.c
         backends/util.c
         model.c
