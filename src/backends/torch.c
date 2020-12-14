@@ -11,6 +11,10 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
     get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
     get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
+    get_api_fn("RedisModule_CreateString", ((void **)&RedisModule_CreateString));
+    get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
+    get_api_fn("RedisModule_Call", ((void **)&RedisModule_Call));
+    get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
 
     return REDISMODULE_OK;
 }

@@ -8,8 +8,8 @@
 #include <sstream>
 
 #include "torch_extensions/torch_redis_value.h"
-
 #include "../redismodule.h"
+#include "../util/arr.h"
 
 #include "torch/csrc/jit/frontend/resolver.h"
 #include "torch/script.h"
@@ -337,21 +337,18 @@ extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t
     return dl_tensor;
 }
 
-void redisExecute(const std::string& fn_name ) {
-//   RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
-//   size_t len = args.size();
-//   RedisModuleString** arguments = array_new(RedisModuleString*, 10);
-//   va_list l;
-//   va_start(l, fn_name);
-//   const std::string arg = va_arg(l, const std::string);
-//   while(arg)
-//   for (torch::List<const std::string>::iterator it = args.begin(); it != args.end(); it++) {
-//       const std::string& arg = it;
-//       const char* str = arg.c_str();
-//       arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
-//   }
-//   RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len);
-//   RedisModule_FreeThreadSafeContext(ctx);
+void redisExecute(std::string fn_name, std::vector<std::string> args ) {
+  RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
+  size_t len = args.size();
+  RedisModuleString* arguments[len];
+  len = 0;
+  for (std::vector<std::string>::iterator it = args.begin(); it != args.end(); it++) {
+      const std::string arg = *it;
+      const char* str = arg.c_str();
+      arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
+  }
+  RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len);
+  RedisModule_FreeThreadSafeContext(ctx);
 }
 
 static auto registry = torch::RegisterOperators("redis::execute", &redisExecute);
