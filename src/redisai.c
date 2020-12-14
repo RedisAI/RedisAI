@@ -7,8 +7,8 @@
 #include "background_workers.h"
 #include "dag.h"
 #include "model.h"
+#include "async_llapi.h"
 #include "modelRun_ctx.h"
-#include "dag_llapi.h"
 #include "script.h"
 #include "stats.h"
 #include <pthread.h>
@@ -560,32 +560,31 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     // Build a ModelRunCtx from command.
-	RAI_Error error = {0};
-	RAI_Model *model;
-	RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
-	RedisModuleString **outkys = array_new(RedisModuleString *, 1);
-	RedisModuleString *runkey;
-	long long timeout = 0;
-	if(RedisAI_Validate_ModelRun_RedisCommand(ctx, argv, argc, &model, &error,
-	  &inkeys, &outkys, &runkey, &timeout) == REDISMODULE_ERR)
-		return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
-	RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
+    RAI_Error error = {0};
+    RAI_Model *model;
+    RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
+    RedisModuleString **outkys = array_new(RedisModuleString *, 1);
+    RedisModuleString *runkey;
+    long long timeout = 0;
+    if (RedisAI_Validate_ModelRun_RedisCommand(ctx, argv, argc, &model, &error, &inkeys, &outkys,
+                                               &runkey, &timeout) == REDISMODULE_ERR)
+        return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+    RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
 
-	// Set params in ModelRunCtx, bring inputs from key space.
-	if(RedisAI_ModelRunCtx_SetParams(ctx, argv, argc, mctx, &error, timeout)
-	== REDISMODULE_ERR)
-		return REDISMODULE_OK;
+    // Set params in ModelRunCtx, bring inputs from key space.
+    if (RedisAI_ModelRunCtx_SetParams(ctx, argv, argc, mctx, timeout) == REDISMODULE_ERR)
+        return REDISMODULE_OK;
 
-	RedisAI_RunInfo *rinfo = Dag_CreateFromSingleModelRunOp(mctx, &error, inkeys,
-	  outkys, runkey, timeout);
-	if(!rinfo) {
-		return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
-	}
-	// Block the client before adding rinfo to the run queues (sync call).
-	rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-	RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
-	rinfo->OnFinish = DAG_ReplyAndUnblock;
-	return DAG_InsertDAGToQueue(rinfo);
+    RedisAI_RunInfo *rinfo =
+        Dag_CreateFromSingleModelRunOp(mctx, &error, inkeys, outkys, runkey, timeout);
+    if (!rinfo) {
+        return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+    }
+    // Block the client before adding rinfo to the run queues (sync call).
+    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
+    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
+    rinfo->OnFinish = DAG_ReplyAndUnblock;
+    return DAG_InsertDAGToQueue(rinfo);
 }
 
 /**
@@ -985,8 +984,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelSerialize, ctx);
     REGISTER_API(ModelGetShallowCopy, ctx);
     REGISTER_API(ModelRedisType, ctx);
-	REGISTER_API(ModelRunAsync, ctx);
-	REGISTER_API(GetModelRunCtx, ctx)
+    REGISTER_API(ModelRunAsync, ctx);
+    REGISTER_API(GetModelRunCtx, ctx)
 
     REGISTER_API(ScriptCreate, ctx);
     REGISTER_API(ScriptFree, ctx);

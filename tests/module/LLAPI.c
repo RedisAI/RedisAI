@@ -29,6 +29,8 @@ static void ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 	RAI_Tensor *tensor = RedisAI_ModelRunCtxOutputTensor(mctx, 0);
 	double expceted[4] = {4, 9, 4, 9};
 	double val[4];
+
+	// Verify that we received the expected tensor at the end of the run.
 	for (long long i = 0; i < 4; i++) {
 		if(RedisAI_TensorGetValueAsDouble(tensor, i, &val[i]) != 0) {
 			pthread_cond_signal(&global_cond);
@@ -50,7 +52,7 @@ int RAI_llapi_modelRunAsync(RedisModuleCtx *ctx, RedisModuleString **argv, int a
 		RedisModule_WrongArity(ctx);
 		return REDISMODULE_OK;
 	}
-	// The module m{1} exists in key space.
+	// The model m{1} should exist in key space.
 	const char *keyNameStr = "m{1}";
 	RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
 	RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
@@ -59,6 +61,7 @@ int RAI_llapi_modelRunAsync(RedisModuleCtx *ctx, RedisModuleString **argv, int a
 	RedisModule_FreeString(ctx, keyRedisStr);
 	RedisModule_CloseKey(key);
 
+	// The tensors a{1} and b{1} should exist in key space.
 	// Load the tensors a{1} and b{1} and add them as inputs for m{1}.
 	keyNameStr = "a{1}";
 	keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
@@ -72,16 +75,20 @@ int RAI_llapi_modelRunAsync(RedisModuleCtx *ctx, RedisModuleString **argv, int a
 	RAI_Tensor *input2 = RedisModule_ModuleTypeGetValue(key);
 	RedisAI_ModelRunCtxAddInput(mctx, "b", input2);
 
-	// Add c{1} as expected output tensor.
+	// Add the expected output tensor.
 	RedisAI_ModelRunCtxAddOutput(mctx, "mul");
 	int status = REDISMODULE_ERR;
-	// Wait until the onFinish callback returns.
 	pthread_mutex_lock(&global_lock);
-	RedisAI_ModelRunAsync(mctx, ModelFinishFunc, &status);
+	if (RedisAI_ModelRunAsync(mctx, ModelFinishFunc, &status) == REDISMODULE_ERR) {
+		pthread_mutex_unlock(&global_lock);
+		return RedisModule_ReplyWithError(ctx, "Async run could not start");
+	}
+
+	// Wait until the onFinish callback returns.
 	pthread_cond_wait(&global_cond, &global_lock);
 	if (status == REDISMODULE_OK)
-		return RedisModule_ReplyWithSimpleString(ctx, "Async Run Success");
-	return RedisModule_ReplyWithSimpleString(ctx, "Async Run Failed");
+		return RedisModule_ReplyWithSimpleString(ctx, "Async run success");
+	return RedisModule_ReplyWithSimpleString(ctx, "Async run failed");
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
