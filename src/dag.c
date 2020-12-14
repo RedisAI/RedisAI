@@ -875,6 +875,11 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                  int dagMode) {
 
+    int flags = RedisModule_GetContextFlags(ctx);
+    bool blocking_not_allowed = (flags & (REDISMODULE_CTX_FLAGS_MULTI | REDISMODULE_CTX_FLAGS_LUA));
+    if (blocking_not_allowed)
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Cannot run RedisAI command within a transaction or a LUA script");
     RedisAI_RunInfo *rinfo = NULL;
     if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(

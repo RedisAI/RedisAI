@@ -1,4 +1,6 @@
 
+#define REDISMODULE_MAIN
+
 #include "../../src/redisai.h"
 #include <errno.h>
 #include <string.h>
