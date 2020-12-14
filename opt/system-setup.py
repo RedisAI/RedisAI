@@ -32,7 +32,10 @@ class RedisAISetup(paella.Setup):
         self.install("libssl-dev")
         self.install("clang-format")
         self.install("python3-regex")
-        self.install("python3-psutil python3-networkx python3-numpy") # python3-skimage
+        self.install("python3-psutil python3-networkx python3-numpy")
+        if self.arch == 'arm64v8' or self.arch == 'arm32v7':
+            self.install("python3-dev") # python3-skimage
+        self.install("libmpich-dev libopenblas-dev") # for libtorch
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
