@@ -18,8 +18,8 @@
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-  AI_dict **loadedContextDict, AI_dict **localContextDict,
-  const char *chaining_operator);
+                         AI_dict **loadedContextDict, AI_dict **localContextDict,
+                         const char *chaining_operator);
 
 /**
  * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
@@ -34,10 +34,9 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-  AI_dict **localContextDict, const char *chaining_operator);
-
+                            AI_dict **localContextDict, const char *chaining_operator);
 
 int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, int dagMode,
-  RedisAI_RunInfo **rinfo_ptr);
+                      RedisAI_RunInfo **rinfo_ptr);
 
-#endif //REDISAI_DAG_PARSER_H
+#endif // REDISAI_DAG_PARSER_H

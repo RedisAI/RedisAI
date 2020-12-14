@@ -92,15 +92,22 @@ RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index);
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-  RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
-  RedisModuleString ***outkeys, RAI_Model **mto,
-  RAI_Error *error);
+                                        RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
+                                        RedisModuleString ***outkeys, RAI_Model **mto,
+                                        RAI_Error *error);
 
-int RedisAI_ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **argv,
-  int argc, RAI_ModelRunCtx *mctx, RAI_Error *error, bool timeout);
+/**
+ * Extract the params for the ModelCtxRun object from AI.MODELRUN arguments.
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param mctx Destination Model context to store the parsed data
+ * @param timeout Indicates weather a timeout argument was given in the command
+ * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
+ */
 
-RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(RAI_ModelRunCtx *mctx, RAI_Error *error,
-  RedisModuleString **inkeys, RedisModuleString **outkeys,
-  RedisModuleString *runkey, long long timeout);
+int RedisAI_ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                  RAI_ModelRunCtx *mctx, bool timeout);
 
-#endif //REDISAI_MODELRUN_CTX_H
+#endif // REDISAI_MODELRUN_CTX_H

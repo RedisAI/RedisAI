@@ -494,85 +494,83 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 
 RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
 
-static int parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error,
-  long long *timeout) {
+static int parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *timeout) {
 
-	const int retval = RedisModule_StringToLongLong(timeout_arg, timeout);
-	if (retval != REDISMODULE_OK || timeout <= 0) {
-		RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid value for TIMEOUT");
-		return REDISMODULE_ERR;
-	}
-	return REDISMODULE_OK;
+    const int retval = RedisModule_StringToLongLong(timeout_arg, timeout);
+    if (retval != REDISMODULE_OK || timeout <= 0) {
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid value for TIMEOUT");
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }
 
-int RedisAI_Validate_ModelRun_RedisCommand(RedisModuleCtx *ctx,
-  RedisModuleString **argv, int argc, RAI_Model **model, RAI_Error *error,
-  RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-  RedisModuleString **runkey, long long *timeout) {
+int RedisAI_Validate_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                           RAI_Model **model, RAI_Error *error,
+                                           RedisModuleString ***inkeys,
+                                           RedisModuleString ***outkeys, RedisModuleString **runkey,
+                                           long long *timeout) {
 
-	if (argc < 4) {
-		RAI_SetError(error, RAI_EMODELRUN,
-		  "ERR wrong number of arguments for 'AI.MODELRUN' command");
-		return REDISMODULE_ERR;
-	}
-	size_t argpos = 1;
-	RedisModuleKey *modelKey;
-	const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey,
-	  model, REDISMODULE_READ);
-	if (status == REDISMODULE_ERR) {
-		RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
-		return REDISMODULE_ERR;
-	}
+    if (argc < 4) {
+        RAI_SetError(error, RAI_EMODELRUN,
+                     "ERR wrong number of arguments for 'AI.MODELRUN' command");
+        return REDISMODULE_ERR;
+    }
+    size_t argpos = 1;
+    RedisModuleKey *modelKey;
+    const int status =
+        RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey, model, REDISMODULE_READ);
+    if (status == REDISMODULE_ERR) {
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
+        return REDISMODULE_ERR;
+    }
     RedisModule_RetainString(NULL, argv[argpos]);
-	*runkey = argv[argpos];
-	const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
+    *runkey = argv[argpos];
+    const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
-	// Parse timeout arg if given and store it in timeout
-	if (!strcasecmp(arg_string, "TIMEOUT")) {
-		if (parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
-			return REDISMODULE_ERR;
-		arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-	}
-	if (strcasecmp(arg_string, "INPUTS") != 0) {
-		RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
-		return REDISMODULE_ERR;
-	}
+    // Parse timeout arg if given and store it in timeout
+    if (!strcasecmp(arg_string, "TIMEOUT")) {
+        if (parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+            return REDISMODULE_ERR;
+        arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
+    }
+    if (strcasecmp(arg_string, "INPUTS") != 0) {
+        RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
+        return REDISMODULE_ERR;
+    }
 
-	bool is_input = true;
-	bool is_output = false;
-	size_t ninputs = 0;
-	size_t noutputs = 0;
+    bool is_input = true;
+    bool is_output = false;
+    size_t ninputs = 0;
+    size_t noutputs = 0;
 
-	while (++argpos < argc) {
-		arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-		if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
-			is_input = false;
-			is_output = true;
-		} else {
-			RedisModule_RetainString(NULL, argv[argpos]);
-			if(is_input) {
-				ninputs++;
-				*inkeys = array_append(*inkeys, argv[argpos]);
-			}
-			else {
-				noutputs++;
-				*outkeys = array_append(*outkeys, argv[argpos]);
-			}
-		}
-	}
-	if ((*model)->inputs && (*model)->ninputs != ninputs) {
-		RAI_SetError(error, RAI_EMODELRUN,
-		  "Number of names given as INPUTS during MODELSET and keys given as "
-		  "INPUTS here do not match");
-		return REDISMODULE_ERR;
-	}
+    while (++argpos < argc) {
+        arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+        if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
+            is_input = false;
+            is_output = true;
+        } else {
+            RedisModule_RetainString(NULL, argv[argpos]);
+            if (is_input) {
+                ninputs++;
+                *inkeys = array_append(*inkeys, argv[argpos]);
+            } else {
+                noutputs++;
+                *outkeys = array_append(*outkeys, argv[argpos]);
+            }
+        }
+    }
+    if ((*model)->inputs && (*model)->ninputs != ninputs) {
+        RAI_SetError(error, RAI_EMODELRUN,
+                     "Number of names given as INPUTS during MODELSET and keys given as "
+                     "INPUTS here do not match");
+        return REDISMODULE_ERR;
+    }
 
-	if ((*model)->outputs && (*model)->noutputs != noutputs) {
-		RAI_SetError(error, RAI_EMODELRUN,
-		  "Number of names given as OUTPUTS during MODELSET and keys given as "
-		  "OUTPUTS here do not match");
-		return REDISMODULE_ERR;
-	}
-	return REDISMODULE_OK;
+    if ((*model)->outputs && (*model)->noutputs != noutputs) {
+        RAI_SetError(error, RAI_EMODELRUN,
+                     "Number of names given as OUTPUTS during MODELSET and keys given as "
+                     "OUTPUTS here do not match");
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }
-

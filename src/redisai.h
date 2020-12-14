@@ -99,8 +99,8 @@ RAI_Model *MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model *model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len,
                                             RAI_Error *err);
 RedisModuleType *MODULE_API_FUNC(RedisAI_ModelRedisType)(void);
-int MODULE_API_FUNC(RedisAI_ModelRunAsync)(RAI_ModelRunCtx* mctxs,
-  					RAI_OnFinishCB DAGAsyncFinish, void *private_data);
+int MODULE_API_FUNC(RedisAI_ModelRunAsync)(RAI_ModelRunCtx *mctxs, RAI_OnFinishCB DAGAsyncFinish,
+                                           void *private_data);
 RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_GetModelRunCtx)(RAI_OnFinishCtx *ctx);
 
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptCreate)(char *devicestr, char *tag, const char *scriptdef,
@@ -120,12 +120,6 @@ void MODULE_API_FUNC(RedisAI_ScriptRunCtxFree)(RAI_ScriptRunCtx *sctx);
 int MODULE_API_FUNC(RedisAI_ScriptRun)(RAI_ScriptRunCtx *sctx, RAI_Error *err);
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script *script);
 RedisModuleType *MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
-
-/*RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DagFromString)(const char* dag_str, RAI_Error* err);
-int MODULE_API_FUNC(RedisAI_DagRunAsync)(RAI_DAGRunCtx *run_info,
-  					RAI_OnFinishCB DAGAsyncFinish, void *private_data);
-RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DagRunCtxCreate)(void);*/
-
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
@@ -194,8 +188,8 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelGetShallowCopy);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelSerialize);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRedisType);
-	REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunAsync);
-	REDISAI_MODULE_INIT_FUNCTION(ctx, GetModelRunCtx);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunAsync);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, GetModelRunCtx);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
@@ -209,10 +203,6 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRun);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptGetShallowCopy);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRedisType);
-
-	/*REDISAI_MODULE_INIT_FUNCTION(ctx, DagFromString);
-	REDISAI_MODULE_INIT_FUNCTION(ctx, DagRunAsync);
-	REDISAI_MODULE_INIT_FUNCTION(ctx, DagRunCtxCreate);*/
 
     if (RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION) {
         return REDISMODULE_ERR;

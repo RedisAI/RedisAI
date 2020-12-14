@@ -6,9 +6,9 @@ import os
 '''
 python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 '''
+
 goal_dir = os.path.join(os.getcwd(), "../module/LLAPI.so")
 TEST_MODULE_PATH = os.path.abspath(goal_dir)
-
 
 def test_basic_check(env):
 
@@ -37,4 +37,4 @@ def test_model_run_async(env):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     ret = con.execute_command("RAI_llapi.modelRunAsync")
-    env.assertEqual(ret, b'Async Run Success')
+    env.assertEqual(ret, b'Async run success')

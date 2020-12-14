@@ -12,7 +12,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         dag.c
         dag_parser.c
         modelRun_ctx.c
-        dag_llapi.c
+        async_llapi.c
         backends.c
         backends/util.c
         model.c
