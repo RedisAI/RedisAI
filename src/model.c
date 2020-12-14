@@ -8,6 +8,7 @@
  */
 
 #include "model.h"
+#include "version.h"
 #include "backends.h"
 #include "backends/util.h"
 #include "model_struct.h"

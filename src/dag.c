@@ -34,6 +34,7 @@
 
 #include "model.h"
 #include "redisai.h"
+#include "background_workers.h"
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
 #include "run_info.h"
@@ -889,7 +890,7 @@ void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
     RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void *)bc);
 }
 
-// Parse the DAG run command and return true if it is a valid command to execute.
+// Parse the DAG run command and return REDISMODULE_OK only if it is a valid command to execute.
 static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, int dagMode,
                              RedisAI_RunInfo **rinfo_ptr) {
 
@@ -1229,7 +1230,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
 // Add Shallow copies of the DAG run info to the devices' queues.
 // Return REDISMODULE_OK in case of success, REDISMODULE_ERR if (at least) one insert op had failed.
-static bool DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
+static int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
     const char **devices = array_new(const char *, 10);
 
     for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
@@ -1280,7 +1281,7 @@ static bool DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
             array_free(rinfo_copies);
             array_free(run_queues_info);
             RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR Queue not initialized for device");
-            rinfo->OnFinish((RedisAI_OnFinishCtx)rinfo, rinfo->private_data);
+            rinfo->OnFinish((RedisAI_OnFinishCtx *)rinfo, rinfo->private_data);
             return REDISMODULE_ERR;
         }
         run_queues_info = array_append(run_queues_info, run_queue_info);
@@ -1302,7 +1303,7 @@ static bool DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
     return REDISMODULE_OK;
 }
 
-void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx ctx, void *private_data) {
+void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client)

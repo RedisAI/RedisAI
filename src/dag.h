@@ -175,6 +175,6 @@ int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, 
  * @param ctx Context object that contains errors and results
  * @param private_data is a pointer to the DAG run info struct
  */
-void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx ctx, void *private_data);
+void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data);
 
 #endif /* SRC_DAG_H_ */
