@@ -569,6 +569,11 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
+	int flags = RedisModule_GetContextFlags(ctx);
+	bool blocking_not_allowed = (flags & (REDISMODULE_CTX_FLAGS_MULTI | REDISMODULE_CTX_FLAGS_LUA));
+	if (blocking_not_allowed)
+		return RedisModule_ReplyWithError(
+		  ctx, "ERR Cannot run RedisAI command within a transaction or a LUA script");
 
     // Build a ModelRunCtx from command.
 	RAI_Error error = {0};
