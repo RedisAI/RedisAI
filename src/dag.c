@@ -95,199 +95,190 @@ void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
 static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
     uint n_inkeys = array_len(currentOp->inkeys);
     uint n_outkeys = array_len(currentOp->outkeys);
-    static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo * rinfo, RAI_DagOp * currentOp) {
-        uint n_inkeys = array_len(currentOp->inkeys);
-        uint n_outkeys = array_len(currentOp->outkeys);
 
-        RAI_ContextReadLock(rinfo);
+    RAI_ContextReadLock(rinfo);
 
-        RAI_Tensor *inputTensors[n_inkeys];
-        for (uint i = 0; i < n_inkeys; i++) {
-            RAI_Tensor *inputTensor;
-            const int get_result = RAI_getTensorFromLocalContext(
-                NULL, rinfo->dagTensorsContext,
-                RedisModule_StringPtrLen(currentOp->inkeys[i], NULL), &inputTensor, currentOp->err);
-            if (get_result == REDISMODULE_ERR) {
-                // We check for this outside the function
-                // this check cannot be covered by tests
-                currentOp->result = REDISMODULE_ERR;
-                RAI_ContextUnlock(rinfo);
-                return;
-            }
-            inputTensors[i] = inputTensor;
+    RAI_Tensor *inputTensors[n_inkeys];
+    for (uint i = 0; i < n_inkeys; i++) {
+        RAI_Tensor *inputTensor;
+        const int get_result = RAI_getTensorFromLocalContext(
+            NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
+            &inputTensor, currentOp->err);
+        if (get_result == REDISMODULE_ERR) {
+            // We check for this outside the function
+            // this check cannot be covered by tests
+            currentOp->result = REDISMODULE_ERR;
+            RAI_ContextUnlock(rinfo);
+            return;
         }
-
-        RAI_ContextUnlock(rinfo);
-
-        // Input and output names should match to the one specified when the model was set, only in
-        // TF. For other backends, model->inputs and model->outputs is null.
-        for (uint i = 0; i < n_inkeys; i++) {
-            const char *opname = NULL;
-            if (currentOp->mctx->model->inputs) {
-                opname = currentOp->mctx->model->inputs[i];
-            }
-            RAI_ModelRunCtxAddInput(currentOp->mctx, opname, inputTensors[i]);
-        }
-
-        for (uint i = 0; i < n_outkeys; i++) {
-            const char *opname = NULL;
-            if (currentOp->mctx->model->outputs) {
-                opname = currentOp->mctx->model->outputs[i];
-            }
-            RAI_ModelRunCtxAddOutput(currentOp->mctx, opname);
-        }
+        inputTensors[i] = inputTensor;
     }
 
-    static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo * rinfo, RAI_DagOp * currentOp) {
+    RAI_ContextUnlock(rinfo);
 
-        RAI_ContextReadLock(rinfo);
-        const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
-        for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
-            RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
-            const char *key_string =
-                RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
-            tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
-            AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
+    // Input and output names should match to the one specified when the model was set, only in TF.
+    // For other backends, model->inputs and model->outputs is null.
+    for (uint i = 0; i < n_inkeys; i++) {
+        const char *opname = NULL;
+        if (currentOp->mctx->model->inputs) {
+            opname = currentOp->mctx->model->inputs[i];
         }
-        RAI_ContextUnlock(rinfo);
+        RAI_ModelRunCtxAddInput(currentOp->mctx, opname, inputTensors[i]);
     }
 
-    /**
-     * Execution of a MODELRUN DAG step.
-     * If an error occurs, it is recorded in the DagOp struct.
-     *
-     * @param rinfo context in which RedisAI blocking commands operate.
-     * @param currentOp MODELRUN DagOp to be executed
-     * @return
-     */
-    void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo * rinfo, RAI_DagOp * currentOp) {
+    for (uint i = 0; i < n_outkeys; i++) {
+        const char *opname = NULL;
+        if (currentOp->mctx->model->outputs) {
+            opname = currentOp->mctx->model->outputs[i];
+        }
+        RAI_ModelRunCtxAddOutput(currentOp->mctx, opname);
+    }
+}
+
+static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+
+    RAI_ContextReadLock(rinfo);
+    const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
+    for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
+        RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
+        const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
+        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+        AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
+    }
+    RAI_ContextUnlock(rinfo);
+}
+
+/**
+ * Execution of a MODELRUN DAG step.
+ * If an error occurs, it is recorded in the DagOp struct.
+ *
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param currentOp MODELRUN DagOp to be executed
+ * @return
+ */
+void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+
+	// Get the needed tensors from the DAG local context. If the DAG originated
+	// from a model run command, we are ready to execute.
+	if (rinfo->single_op_dag == 0)
+		Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
+
+    RAI_ModelRunCtx *mctxs[1];
+    mctxs[0] = currentOp->mctx;
+    const long long start = ustime();
+    int result = RAI_ModelRun(mctxs, 1, currentOp->err);
+    const long long end = ustime();
+
+    currentOp->duration_us = end - start;
+    currentOp->result = result;
+    if (result == REDISMODULE_ERR)
+        return;
+    if (rinfo->single_op_dag == 0)
+        Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
+}
+
+/**
+ * Execution of a batched (MODELRUN) DAG step.
+ * If an error occurs, it is recorded in all DagOp structs.
+ *
+ * @param batched_rinfo array of contexts in which RedisAI blocking commands operate.
+ * @param currentOps MODELRUN DagOps to be executed
+ * @return
+ */
+void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
+                                                RAI_DagOp **currentOps) {
+
+    int n_rinfo = array_len(batched_rinfo);
+    RAI_ModelRunCtx *mctxs[n_rinfo];
+
+    for (int i = 0; i < n_rinfo; i++) {
+        RedisAI_RunInfo *rinfo = batched_rinfo[i];
+        RAI_DagOp *currentOp = currentOps[i];
 
         // Get the needed tensors from the DAG local context. If the DAG originated
         // from a model run command, we are ready to execute.
         if (rinfo->single_op_dag == 0)
             Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
+        mctxs[i] = currentOp->mctx;
+    }
 
-        RAI_ModelRunCtx *mctxs[1];
-        mctxs[0] = currentOp->mctx;
-        const long long start = ustime();
-        int result = RAI_ModelRun(mctxs, 1, currentOp->err);
-        const long long end = ustime();
+    RAI_Error err = {0};
+    const long long start = ustime();
+    int result = RAI_ModelRun(mctxs, n_rinfo, &err);
+    const long long end = ustime();
 
-        currentOp->duration_us = end - start;
+    long long duration = end - start;
+
+    for (int i = 0; i < n_rinfo; i++) {
+        RedisAI_RunInfo *rinfo = batched_rinfo[i];
+        RAI_DagOp *currentOp = currentOps[i];
+
+        if (result == REDISMODULE_ERR) {
+            currentOp->result = result;
+            RAI_SetError(currentOp->err, err.code, err.detail);
+            continue;
+        }
+
+        currentOp->duration_us = duration;
         currentOp->result = result;
-        if (result == REDISMODULE_ERR)
-            return;
         if (rinfo->single_op_dag == 0)
             Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
     }
+}
 
-    /**
-     * Execution of a batched (MODELRUN) DAG step.
-     * If an error occurs, it is recorded in all DagOp structs.
-     *
-     * @param batched_rinfo array of contexts in which RedisAI blocking commands operate.
-     * @param currentOps MODELRUN DagOps to be executed
-     * @return
-     */
-    void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo * *batched_rinfo,
-                                                    RAI_DagOp * *currentOps) {
+/**
+ * Execution of a SCRIPTRUN DAG step.
+ * If an error occurs, it is recorded in the DagOp struct.
+ *
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @param currentOp SCRIPTRUN DagOp to be executed
+ * @return
+ */
+void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+    uint n_inkeys = array_len(currentOp->inkeys);
+    uint n_outkeys = array_len(currentOp->outkeys);
 
-        int n_rinfo = array_len(batched_rinfo);
-        RAI_ModelRunCtx *mctxs[n_rinfo];
+    RAI_ContextReadLock(rinfo);
 
-        for (int i = 0; i < n_rinfo; i++) {
-            RedisAI_RunInfo *rinfo = batched_rinfo[i];
-            RAI_DagOp *currentOp = currentOps[i];
-
-            // Get the needed tensors from the DAG local context. If the DAG originated
-            // from a model run command, we are ready to execute.
-            if (rinfo->single_op_dag == 0)
-                Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
-            // Get the needed tensors from the DAG local context. If the DAG originated
-            // from a model run command, we are ready to execute.
-            if (rinfo->single_op_dag == 0)
-                Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
-            mctxs[i] = currentOp->mctx;
+    RAI_Tensor *inputTensors[n_inkeys];
+    for (uint i = 0; i < n_inkeys; i++) {
+        RAI_Tensor *inputTensor;
+        const int get_result = RAI_getTensorFromLocalContext(
+            NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
+            &inputTensor, currentOp->err);
+        if (get_result == REDISMODULE_ERR) {
+            // We check for this outside the function
+            // this check cannot be covered by tests
+            currentOp->result = REDISMODULE_ERR;
+            RAI_ContextUnlock(rinfo);
+            return;
         }
-
-        RAI_Error err = {0};
-        const long long start = ustime();
-        int result = RAI_ModelRun(mctxs, n_rinfo, &err);
-        const long long end = ustime();
-
-        long long duration = end - start;
-
-        for (int i = 0; i < n_rinfo; i++) {
-            RedisAI_RunInfo *rinfo = batched_rinfo[i];
-            RAI_DagOp *currentOp = currentOps[i];
-
-            if (result == REDISMODULE_ERR) {
-                currentOp->result = result;
-                RAI_SetError(currentOp->err, err.code, err.detail);
-                continue;
-            }
-
-            currentOp->duration_us = duration;
-            currentOp->result = result;
-            if (rinfo->single_op_dag == 0)
-                Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
-        }
+        inputTensors[i] = inputTensor;
     }
 
-    /**
-     * Execution of a SCRIPTRUN DAG step.
-     * If an error occurs, it is recorded in the DagOp struct.
-     *
-     * @param rinfo context in which RedisAI blocking commands operate.
-     * @param currentOp SCRIPTRUN DagOp to be executed
-     * @return
-     */
-    void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo * rinfo, RAI_DagOp * currentOp) {
-        uint n_inkeys = array_len(currentOp->inkeys);
-        uint n_outkeys = array_len(currentOp->outkeys);
+    RAI_ContextUnlock(rinfo);
 
-        RAI_ContextReadLock(rinfo);
+    for (uint i = 0; i < n_inkeys; i++) {
+        RAI_ScriptRunCtxAddInput(currentOp->sctx, inputTensors[i], currentOp->err);
+    }
 
-        RAI_Tensor *inputTensors[n_inkeys];
-        for (uint i = 0; i < n_inkeys; i++) {
-            RAI_Tensor *inputTensor;
-            const int get_result = RAI_getTensorFromLocalContext(
-                NULL, rinfo->dagTensorsContext,
-                RedisModule_StringPtrLen(currentOp->inkeys[i], NULL), &inputTensor, currentOp->err);
-            if (get_result == REDISMODULE_ERR) {
-                // We check for this outside the function
-                // this check cannot be covered by tests
-                currentOp->result = REDISMODULE_ERR;
-                RAI_ContextUnlock(rinfo);
-                return;
-            }
-            inputTensors[i] = inputTensor;
-        }
+    for (uint i = 0; i < n_outkeys; i++) {
+        RAI_ScriptRunCtxAddOutput(currentOp->sctx);
+    }
 
-        RAI_ContextUnlock(rinfo);
+    const long long start = ustime();
+    int result = RAI_ScriptRun(currentOp->sctx, currentOp->err);
+    const long long end = ustime();
 
-        for (uint i = 0; i < n_inkeys; i++) {
-            RAI_ScriptRunCtxAddInput(currentOp->sctx, inputTensors[i], currentOp->err);
-        }
+    RAI_ContextWriteLock(rinfo);
 
-        for (uint i = 0; i < n_outkeys; i++) {
-            RAI_ScriptRunCtxAddOutput(currentOp->sctx);
-        }
-
-        const long long start = ustime();
-        int result = RAI_ScriptRun(currentOp->sctx, currentOp->err);
-        const long long end = ustime();
-
-        RAI_ContextWriteLock(rinfo);
-
-        const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
-        for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
-            RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
-            const char *key_string =
-                RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
-            tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
-            AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
-        }
+    const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
+    for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
+        RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
+        const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
+        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
+        AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
+    }
 
         currentOp->result = result;
         currentOp->duration_us = end - start;
@@ -916,37 +907,37 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
         return DAG_InsertDAGToQueue(rinfo);
     }
 
-    RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(
-        RAI_ModelRunCtx * mctx, RAI_Error * error, RedisModuleString * *inkeys,
-        RedisModuleString * *outkeys, RedisModuleString * runkey, long long timeout) {
-        RedisAI_RunInfo *rinfo = NULL;
-        if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-            RAI_SetError(
-                error, RedisAI_ErrorCode_EMODELRUN,
-                "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
-            return NULL;
-        }
-        rinfo->single_device_dag = 1;
-        rinfo->single_op_dag = 1;
-        rinfo->dagOpCount = 1;
-        rinfo->timeout = timeout;
-
-        RAI_DagOp *currentDagOp;
-        if (RAI_InitDagOp(&currentDagOp) == REDISMODULE_ERR) {
-            RAI_SetError(
-                error, RedisAI_ErrorCode_EMODELRUN,
-                "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-            return NULL;
-        };
-        rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
-
-        RAI_DagOp *currentOp = rinfo->dagOps[0];
-        currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-        currentOp->mctx = mctx;
-        currentOp->devicestr = mctx->model->devicestr;
-        currentOp->inkeys = inkeys;
-        currentOp->outkeys = outkeys;
-        currentOp->runkey = runkey;
-
-        return rinfo;
+RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(RAI_ModelRunCtx *mctx, RAI_Error *error,
+                                                RedisModuleString **inkeys,
+                                                RedisModuleString **outkeys,
+                                                RedisModuleString *runkey, long long timeout) {
+    RedisAI_RunInfo *rinfo = NULL;
+    if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
+        RAI_SetError(
+            error, RedisAI_ErrorCode_EMODELRUN,
+            "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
+        return NULL;
     }
+    rinfo->single_device_dag = 1;
+    rinfo->single_op_dag = 1;
+    rinfo->dagOpCount = 1;
+    rinfo->timeout = timeout;
+
+    RAI_DagOp *currentDagOp;
+    if (RAI_InitDagOp(&currentDagOp) == REDISMODULE_ERR) {
+        RAI_SetError(error, RedisAI_ErrorCode_EMODELRUN,
+                     "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
+        return NULL;
+    };
+    rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
+
+    RAI_DagOp *currentOp = rinfo->dagOps[0];
+    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
+    currentOp->mctx = mctx;
+    currentOp->devicestr = mctx->model->devicestr;
+    currentOp->inkeys = inkeys;
+    currentOp->outkeys = outkeys;
+    currentOp->runkey = runkey;
+
+    return rinfo;
+}
