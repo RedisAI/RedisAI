@@ -702,12 +702,10 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             const char *persist_key_str =
                 RedisModule_StringPtrLen(persist_key_name, &persist_key_len);
             RedisModuleString *demangled_key_name =
-                RedisModule_CreateString(ctx, persist_key_str, persist_key_len - 4);
+                RedisModule_CreateString(NULL, persist_key_str, persist_key_len - 4);
             RedisModule_RetainString(NULL, demangled_key_name);
-            RedisModuleString *tensor_keyname = demangled_key_name;
             const int status =
-                RAI_OpenKey_Tensor(ctx, tensor_keyname, &key, REDISMODULE_READ | REDISMODULE_WRITE);
-            RedisModule_FreeString(NULL, demangled_key_name);
+                RAI_OpenKey_Tensor(ctx, demangled_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE);
             if (status == REDISMODULE_ERR) {
                 RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
                 rinfo->dagReplyLength++;
@@ -720,7 +718,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
                 }
             }
             RedisModule_CloseKey(key);
-            RedisAI_ReplicateTensorSet(ctx, tensor_keyname, tensor);
+            RedisAI_ReplicateTensorSet(ctx, demangled_key_name, tensor);
+            RedisModule_FreeString(NULL, demangled_key_name);
         } else {
             RedisModule_ReplyWithError(ctx,
                                        "ERR specified persistent key that was not used in DAG");
@@ -801,8 +800,8 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             RedisModule_CloseKey(key);
             char buf[16];
             sprintf(buf, "%04d", 1);
-            RedisModuleString *dictKey = RedisModule_CreateStringFromString(ctx, argv[argpos]);
-            RedisModule_StringAppendBuffer(ctx, dictKey, buf, strlen(buf));
+            RedisModuleString *dictKey = RedisModule_CreateStringFromString(NULL, argv[argpos]);
+            RedisModule_StringAppendBuffer(NULL, dictKey, buf, strlen(buf));
 
             AI_dictAdd(*localContextDict, (void *)dictKey, (void *)RAI_TensorGetShallowCopy(t));
             AI_dictAdd(*loadedContextDict, (void *)dictKey, (void *)1);
@@ -1085,8 +1084,8 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             RedisModule_CloseKey(key);
             char buf[16];
             sprintf(buf, "%04d", 1);
-            RedisModuleString *dictKey = RedisModule_CreateStringFromString(ctx, inkey);
-            RedisModule_StringAppendBuffer(ctx, dictKey, buf, strlen(buf));
+            RedisModuleString *dictKey = RedisModule_CreateStringFromString(NULL, inkey);
+            RedisModule_StringAppendBuffer(NULL, dictKey, buf, strlen(buf));
             AI_dictAdd(rinfo->dagTensorsContext, (void *)dictKey,
                        (void *)RAI_TensorGetShallowCopy(t));
             AI_dictAdd(rinfo->dagTensorsLoadedContext, (void *)dictKey, (void *)1);
@@ -1121,8 +1120,8 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         while (entry) {
             RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
             size_t key_len;
-            const char *key_str = RedisModule_StringPtrLen(key, &key_len);
-            RedisModuleString *demangled_key = RedisModule_CreateString(ctx, key_str, key_len - 4);
+            const char *key_str = RedisModule_StringPtrLen(NULL, &key_len);
+            RedisModuleString *demangled_key = RedisModule_CreateString(NULL, key_str, key_len - 4);
             int *instance = RedisModule_Alloc(sizeof(int));
             *instance = 1;
             AI_dictAdd(mangled_tensors, (void *)demangled_key, (void *)instance);
@@ -1148,8 +1147,8 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             int *instance = AI_dictGetVal(entry);
             char buf[16];
             sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(ctx, key);
-            RedisModule_StringAppendBuffer(ctx, mangled_key, buf, strlen(buf));
+            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
+            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
 
             mangled_inkeys = array_append(mangled_inkeys, mangled_key);
         }
@@ -1170,8 +1169,8 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             }
             char buf[16];
             sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(ctx, key);
-            RedisModule_StringAppendBuffer(ctx, mangled_key, buf, strlen(buf));
+            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
+            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
             mangled_outkeys = array_append(mangled_outkeys, mangled_key);
         }
 
@@ -1200,8 +1199,8 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             int *instance = AI_dictGetVal(mangled_entry);
             char buf[16];
             sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(ctx, key);
-            RedisModule_StringAppendBuffer(ctx, mangled_key, buf, strlen(buf));
+            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
+            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
 
             AI_dictAdd(mangled_persisted, (void *)mangled_key, (void *)1);
             entry = AI_dictNext(iter);

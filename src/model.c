@@ -326,8 +326,11 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
     if (model) {
         if (tag) {
             RedisModule_RetainString(NULL, tag);
+            model->tag = tag;
         }
-        model->tag = tag;
+        else {
+            model->tag = RedisModule_CreateString(NULL, "", 0);
+        }
     }
 
     return model;
@@ -367,9 +370,7 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
         return;
     }
 
-    if (model->tag) {
-        RedisModule_Free(model->tag);
-    }
+    RedisModule_Free(model->tag);
 
     RAI_RemoveStatsEntry(model->infokey);
 

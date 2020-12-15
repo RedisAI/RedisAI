@@ -121,8 +121,11 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
     if (script) {
         if (tag) {
             RedisModule_RetainString(NULL, tag);
+            script->tag = tag;
         }
-        script->tag = tag;
+        else {
+            script->tag = RedisModule_CreateString(NULL, "", 0);
+        }
     }
 
     return script;
@@ -138,9 +141,7 @@ void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {
         return;
     }
 
-    if (script->tag) {
-        RedisModule_FreeString(NULL, script->tag);
-    }
+    RedisModule_FreeString(NULL, script->tag);
 
     RAI_RemoveStatsEntry(script->infokey);
 
