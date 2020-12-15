@@ -337,7 +337,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  const char *localContextKey, RAI_Tensor **tensor,
+                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
                                   RAI_Error *error);
 
 /**

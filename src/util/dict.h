@@ -192,4 +192,7 @@ AI_dictEntry **AI_dictFindEntryRefByPtrAndHash(AI_dict *d, const void *oldptr, u
 extern AI_dictType AI_dictTypeHeapStrings;
 extern AI_dictType AI_dictTypeHeapStringsVals;
 
+extern AI_dictType AI_dictTypeHeapRStrings;
+extern AI_dictType AI_dictTypeHeapRStringsVals;
+
 #endif /* __DICT_H */

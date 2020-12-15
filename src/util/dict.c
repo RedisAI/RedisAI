@@ -82,6 +82,45 @@ AI_dictType AI_dictTypeHeapStrings = {
     .valDestructor = NULL,
 };
 
+static uint64_t rstringsHashFunction(const void *key) {
+    size_t len;
+    const char* buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
+    return AI_dictGenHashFunction(buffer, len);
+}
+
+static int rstringsKeyCompare(void *privdata, const void *key1, const void *key2) {
+    RedisModuleString *strKey1 = (RedisModuleString *)key1;
+    RedisModuleString *strKey2 = (RedisModuleString *)key2;
+
+    return RedisModule_StringCompare(strKey1, strKey2) == 0;
+}
+
+static void rstringsKeyDestructor(void *privdata, void *key) {
+    RedisModule_FreeString(NULL, (RedisModuleString*) key);
+}
+
+static void *rstringsKeyDup(void *privdata, const void *key) {
+    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *) key);
+}
+
+AI_dictType AI_dictTypeHeapRStringsVals = {
+    .hashFunction = rstringsHashFunction,
+    .keyDup = rstringsKeyDup,
+    .valDup = NULL,
+    .keyCompare = rstringsKeyCompare,
+    .keyDestructor = rstringsKeyDestructor,
+    .valDestructor = rstringsKeyDestructor,
+};
+
+AI_dictType AI_dictTypeHeapRStrings = {
+    .hashFunction = rstringsHashFunction,
+    .keyDup = rstringsKeyDup,
+    .valDup = NULL,
+    .keyCompare = rstringsKeyCompare,
+    .keyDestructor = rstringsKeyDestructor,
+    .valDestructor = NULL,
+};
+
 /* Using dictEnableResize() / dictDisableResize() we make possible to
  * enable/disable resizing of the hash table as needed. This is very important
  * for Redis, as we use copy-on-write and don't want to move too much memory

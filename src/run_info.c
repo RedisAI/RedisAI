@@ -15,25 +15,26 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include <pthread.h>
 
 static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
-    // TODO REDIS_STRING
-    return AI_dictGenHashFunction(key, strlen((char *)key));
+    size_t len;
+    const char* buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
+    return AI_dictGenHashFunction(buffer, len);
 }
 
 static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2) {
-    // TODO REDIS_STRING
-    const char *strKey1 = key1;
-    const char *strKey2 = key2;
-    return strcmp(strKey1, strKey2) == 0;
+    RedisModuleString *strKey1 = (RedisModuleString *)key1;
+    RedisModuleString *strKey2 = (RedisModuleString *)key2;
+    return RedisModule_StringCompare(strKey1, strKey2) == 0;
 }
 
-// TODO REDIS_STRING
-static void RAI_TensorDictKeyFree(void *privdata, void *key) { RedisModule_Free(key); }
+static void RAI_TensorDictKeyFree(void *privdata, void *key) {
+    RedisModule_FreeString(NULL, (RedisModuleString*) key);
+}
 
 static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
-    // TODO REDIS_STRING
-    return RedisModule_Strdup((char *)key);
+    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *) key);
 }
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {
@@ -109,11 +110,11 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     if (!(rinfo->dagTensorsContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsLoadedContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsPersistedContext)) {
         return REDISMODULE_ERR;
     }

@@ -22,7 +22,7 @@ typedef struct RAI_Model {
     void *session;
     RAI_Backend backend;
     char *devicestr;
-    char *tag;
+    RedisModuleString *tag;
     RAI_ModelOpts opts;
     char **inputs;
     size_t ninputs;
