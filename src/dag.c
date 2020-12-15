@@ -1120,7 +1120,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         while (entry) {
             RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
             size_t key_len;
-            const char *key_str = RedisModule_StringPtrLen(NULL, &key_len);
+            const char *key_str = RedisModule_StringPtrLen(key, &key_len);
             RedisModuleString *demangled_key = RedisModule_CreateString(NULL, key_str, key_len - 4);
             int *instance = RedisModule_Alloc(sizeof(int));
             *instance = 1;
