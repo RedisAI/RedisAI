@@ -108,8 +108,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
         const int get_result = RAI_getTensorFromLocalContext(
-            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i],
-            &inputTensor, currentOp->err);
+            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
         if (get_result == REDISMODULE_ERR) {
             // We check for this outside the function
             // this check cannot be covered by tests
@@ -196,8 +195,7 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         for (uint i = 0; i < n_inkeys; i++) {
             RAI_Tensor *inputTensor;
             const int get_result = RAI_getTensorFromLocalContext(
-                NULL, rinfo->dagTensorsContext,
-                currentOp->inkeys[i], &inputTensor, currentOp->err);
+                NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
             if (get_result == REDISMODULE_ERR) {
                 // We check for this outside the function
                 // this check cannot be covered by tests
@@ -288,8 +286,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
         const int get_result = RAI_getTensorFromLocalContext(
-            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i],
-            &inputTensor, currentOp->err);
+            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
         if (get_result == REDISMODULE_ERR) {
             // We check for this outside the function
             // this check cannot be covered by tests
@@ -348,8 +345,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, AI_dict *opTensorsContext) {
 
     for (size_t i = 0; i < ninputs; i++) {
         RAI_Tensor *input;
-        RAI_getTensorFromLocalContext(
-            NULL, opTensorsContext, op->inkeys[i], &input, op->err);
+        RAI_getTensorFromLocalContext(NULL, opTensorsContext, op->inkeys[i], &input, op->err);
         // We are expecting input != NULL, because we only reach this function if all inputs
         // are available in context for the current dagOp. We could be more defensive eventually.
 
@@ -387,14 +383,10 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, AI_dict *op1TensorsContext, RAI_DagOp *op
 
     for (int i = 0; i < ninputs1; i++) {
         RAI_Tensor *input1;
-        RAI_getTensorFromLocalContext(NULL, op1TensorsContext,
-                                      op1->inkeys[i], &input1,
-                                      op1->err);
+        RAI_getTensorFromLocalContext(NULL, op1TensorsContext, op1->inkeys[i], &input1, op1->err);
 
         RAI_Tensor *input2;
-        RAI_getTensorFromLocalContext(NULL, op2TensorsContext,
-                                      op2->inkeys[i], &input2,
-                                      op2->err);
+        RAI_getTensorFromLocalContext(NULL, op2TensorsContext, op2->inkeys[i], &input2, op2->err);
 
         if (input1 == NULL || input2 == NULL) {
             return 0;
@@ -707,8 +699,10 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             }
             RedisModuleKey *key;
             size_t persist_key_len;
-            const char* persist_key_str = RedisModule_StringPtrLen(persist_key_name, &persist_key_len);
-            RedisModuleString *demangled_key_name = RedisModule_CreateString(ctx, persist_key_str, persist_key_len - 4);
+            const char *persist_key_str =
+                RedisModule_StringPtrLen(persist_key_name, &persist_key_len);
+            RedisModuleString *demangled_key_name =
+                RedisModule_CreateString(ctx, persist_key_str, persist_key_len - 4);
             RedisModule_RetainString(NULL, demangled_key_name);
             RedisModuleString *tensor_keyname = demangled_key_name;
             const int status =
@@ -1156,7 +1150,7 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             sprintf(buf, "%04d", *instance);
             RedisModuleString *mangled_key = RedisModule_CreateStringFromString(ctx, key);
             RedisModule_StringAppendBuffer(ctx, mangled_key, buf, strlen(buf));
- 
+
             mangled_inkeys = array_append(mangled_inkeys, mangled_key);
         }
 

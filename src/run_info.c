@@ -19,7 +19,7 @@
 
 static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
     size_t len;
-    const char* buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
+    const char *buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
     return AI_dictGenHashFunction(buffer, len);
 }
 
@@ -30,11 +30,11 @@ static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void 
 }
 
 static void RAI_TensorDictKeyFree(void *privdata, void *key) {
-    RedisModule_FreeString(NULL, (RedisModuleString*) key);
+    RedisModule_FreeString(NULL, (RedisModuleString *)key);
 }
 
 static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
-    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *) key);
+    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
 }
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {

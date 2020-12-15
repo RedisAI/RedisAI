@@ -836,8 +836,7 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     RedisModule_ReplyWithCString(ctx, "tag");
     if (rstats->tag) {
         RedisModule_ReplyWithString(ctx, rstats->tag);
-    }
-    else {
+    } else {
         RedisModule_ReplyWithCString(ctx, "");
     }
     RedisModule_ReplyWithCString(ctx, "duration");

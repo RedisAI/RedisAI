@@ -84,7 +84,7 @@ AI_dictType AI_dictTypeHeapStrings = {
 
 static uint64_t rstringsHashFunction(const void *key) {
     size_t len;
-    const char* buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
+    const char *buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
     return AI_dictGenHashFunction(buffer, len);
 }
 
@@ -96,11 +96,11 @@ static int rstringsKeyCompare(void *privdata, const void *key1, const void *key2
 }
 
 static void rstringsKeyDestructor(void *privdata, void *key) {
-    RedisModule_FreeString(NULL, (RedisModuleString*) key);
+    RedisModule_FreeString(NULL, (RedisModuleString *)key);
 }
 
 static void *rstringsKeyDup(void *privdata, const void *key) {
-    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *) key);
+    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
 }
 
 AI_dictType AI_dictTypeHeapRStringsVals = {
