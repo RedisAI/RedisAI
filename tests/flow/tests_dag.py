@@ -1056,7 +1056,8 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     try:
         ret = con.execute_command(
             'AI.DAGRUN',
-                         'PERSIST', '1', class_key_0, '|>',
+                         'PERSIST', '1', class_key_0,
+                         '|>',
             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
                          '|>',
             'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',

@@ -1149,7 +1149,6 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             sprintf(buf, "%04d", *instance);
             RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
             RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-
             mangled_inkeys = array_append(mangled_inkeys, mangled_key);
         }
 
@@ -1191,7 +1190,6 @@ static int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             if (!mangled_entry) {
                 AI_dictRelease(mangled_tensors);
                 AI_dictRelease(mangled_persisted);
-                RedisModule_ReplyWithError(ctx, "ERR PERSIST key cannot be found in DAG");
                 AI_dictReleaseIterator(iter);
                 RedisModule_ReplyWithError(ctx, "ERR PERSIST key cannot be found in DAG");
                 return REDISMODULE_ERR;
