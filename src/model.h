@@ -145,16 +145,15 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 RedisModuleType *RAI_ModelRedisType(void);
 
 /**
- * @brief  Validates MODELRUN command and write the model obtained from
- * the key space to the model pointer. The keys of the input and output tensord
- * are stored in the inkeys and outkeys arrays, the model key is saved in runkey,
- * and the given timeout is saved as well (if given, otherwise it is zero).
- * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
+ * Insert the ModelRunCtx to the run queues so it will run asynchronously.
+ *
+ * @param mctx ModelRunCtx to execute
+ * @param ModelAsyncFinish A callback that will be called when the execution is finished.
+ * @param private_data This is going to be sent to to the ModelAsyncFinish.
+ * @return REDISMODULE_OK if the mctx was insert to the queues successfully, REDISMODULE_ERR
+ * otherwise.
  */
-int RedisAI_Validate_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                           RAI_Model **model, RAI_Error *error,
-                                           RedisModuleString ***inkeys,
-                                           RedisModuleString ***outkets, RedisModuleString **runkey,
-                                           long long *timeout);
+
+int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data);
 
 #endif /* SRC_MODEL_H_ */

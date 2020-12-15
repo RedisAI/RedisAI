@@ -874,53 +874,21 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
         RedisModule_UnblockClient(rinfo->client, rinfo);
 }
 
-int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                 int dagMode) {
+int Dag_PopulateSingleModelRunOp(RedisAI_RunInfo *rinfo, RAI_ModelRunCtx *mctx,
+                                 RedisModuleString **inkeys, RedisModuleString **outkeys,
+                                 RedisModuleString *runkey, long long timeout) {
 
-    int flags = RedisModule_GetContextFlags(ctx);
-    bool blocking_not_allowed = (flags & (REDISMODULE_CTX_FLAGS_MULTI | REDISMODULE_CTX_FLAGS_LUA));
-    if (blocking_not_allowed)
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Cannot run RedisAI command within a transaction or a LUA script");
-    RedisAI_RunInfo *rinfo = NULL;
-    if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
-        return REDISMODULE_ERR;
-    }
-    // Parse DAG string command and store the data in rinfo obj.
-    int status = DAG_CommandParser(ctx, argv, argc, dagMode, &rinfo);
-    if (status == REDISMODULE_ERR)
-        return REDISMODULE_OK;
-    // Block the client before adding rinfo to the run queues (sync call).
-    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
-    rinfo->OnFinish = DAG_ReplyAndUnblock;
-    return DAG_InsertDAGToQueue(rinfo);
-}
-
-RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(RAI_ModelRunCtx *mctx, RAI_Error *error,
-                                                RedisModuleString **inkeys,
-                                                RedisModuleString **outkeys,
-                                                RedisModuleString *runkey, long long timeout) {
-    RedisAI_RunInfo *rinfo = NULL;
-    if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-        RAI_SetError(
-            error, RedisAI_ErrorCode_EMODELRUN,
-            "ERR Unable to allocate the memory and initialise the RedisAI_RunInfo structure");
-        return NULL;
-    }
+    assert(rinfo->single_op_dag);
     rinfo->single_device_dag = 1;
-    rinfo->single_op_dag = 1;
     rinfo->dagOpCount = 1;
     rinfo->timeout = timeout;
 
     RAI_DagOp *currentDagOp;
     if (RAI_InitDagOp(&currentDagOp) == REDISMODULE_ERR) {
-        RAI_SetError(error, RedisAI_ErrorCode_EMODELRUN,
+        RAI_SetError(rinfo->err, RedisAI_ErrorCode_EMODELRUN,
                      "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-        return NULL;
-    };
+        return REDISMODULE_ERR;
+    }
     rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
 
     RAI_DagOp *currentOp = rinfo->dagOps[0];
@@ -931,5 +899,5 @@ RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(RAI_ModelRunCtx *mctx, RAI_Error
     currentOp->outkeys = outkeys;
     currentOp->runkey = runkey;
 
-    return rinfo;
+    return REDISMODULE_OK;
 }

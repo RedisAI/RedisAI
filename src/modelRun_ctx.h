@@ -100,14 +100,14 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
  * Extract the params for the ModelCtxRun object from AI.MODELRUN arguments.
  *
  * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
+ * @param inkeys Model input tensors keys, as an array of strings
+ * @param outkeys Model output tensors keys, as an array of strings
  * @param mctx Destination Model context to store the parsed data
  * @param timeout Indicates weather a timeout argument was given in the command
  * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
  */
 
-int RedisAI_ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                  RAI_ModelRunCtx *mctx, bool timeout);
+int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                          RedisModuleString **outkeys, RAI_ModelRunCtx *mctx);
 
 #endif // REDISAI_MODELRUN_CTX_H

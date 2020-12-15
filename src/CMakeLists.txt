@@ -6,13 +6,13 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
         redisai.c
+        command_parser.c
         run_info.c
         background_workers.c
         config.c
-        dag.c
-        dag_parser.c
+        DAG/dag.c
+        DAG/dag_parser.c
         modelRun_ctx.c
-        async_llapi.c
         backends.c
         backends/util.c
         model.c

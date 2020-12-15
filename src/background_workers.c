@@ -9,7 +9,7 @@
  */
 
 #include "background_workers.h"
-#include "dag.h"
+#include "DAG/dag.h"
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"

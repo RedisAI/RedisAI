@@ -125,41 +125,30 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
     return argpos;
 }
 
-int RedisAI_ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                  RAI_ModelRunCtx *mctx, bool timeout) {
+int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                          RedisModuleString **outkeys, RAI_ModelRunCtx *mctx) {
 
     RAI_Model *model = mctx->model;
     RAI_Tensor *t;
     RedisModuleKey *key;
-    bool is_input = true;
-    size_t input_pos = 0, output_pos = 0;
-    // If timeout was given (it is non zero) inputs starts from position 5
-    size_t arg_pos = timeout ? 5 : 3;
-    for (; arg_pos < argc; arg_pos++) {
-        RedisModuleString *keyName = argv[arg_pos];
-        const char *arg_string = RedisModule_StringPtrLen(keyName, NULL);
-        if (!strcasecmp(arg_string, "OUTPUTS")) {
-            is_input = false;
-            continue;
+    char *opname = NULL;
+    size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
+    for (size_t i = 0; i < ninputs; i++) {
+        const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ);
+        if (status == REDISMODULE_ERR) {
+            RedisModule_Log(ctx, "warning", "could not load tensor %s from keyspace",
+                            RedisModule_StringPtrLen(inkeys[i], NULL));
+            return REDISMODULE_ERR;
         }
-        const char *opname = NULL;
-        if (is_input) {
-            const int status = RAI_GetTensorFromKeyspace(ctx, keyName, &key, &t, REDISMODULE_READ);
-            if (status == REDISMODULE_ERR) {
-                RedisModule_Log(ctx, "warning", "could not load tensor %s from keyspace",
-                                arg_string);
-                return REDISMODULE_ERR;
-            }
-            RedisModule_CloseKey(key);
-            if (model->inputs)
-                opname = model->inputs[input_pos++];
-            RAI_ModelRunCtxAddInput(mctx, opname, t);
-
-        } else {
-            if (model->outputs)
-                opname = model->outputs[output_pos++];
-            RAI_ModelRunCtxAddOutput(mctx, opname);
-        }
+        RedisModule_CloseKey(key);
+        if (model->inputs)
+            opname = model->inputs[i];
+        RAI_ModelRunCtxAddInput(mctx, opname, t);
+    }
+    for (size_t i = 0; i < noutputs; i++) {
+        if (model->outputs)
+            opname = model->outputs[i];
+        RAI_ModelRunCtxAddOutput(mctx, opname);
     }
     return REDISMODULE_OK;
 }

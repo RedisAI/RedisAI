@@ -6,13 +6,12 @@
 #define REDISMODULE_MAIN
 #include "redismodule.h"
 #include "tensor.h"
-
+#include "command_parser.h"
 #include "backends.h"
 #include "backends/util.h"
 #include "background_workers.h"
-#include "dag.h"
+#include "DAG/dag.h"
 #include "model.h"
-#include "async_llapi.h"
 #include "modelRun_ctx.h"
 #include "script.h"
 #include "stats.h"
@@ -569,38 +568,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    int flags = RedisModule_GetContextFlags(ctx);
-    bool blocking_not_allowed = (flags & (REDISMODULE_CTX_FLAGS_MULTI | REDISMODULE_CTX_FLAGS_LUA));
-    if (blocking_not_allowed)
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Cannot run RedisAI command within a transaction or a LUA script");
-
-    // Build a ModelRunCtx from command.
-    RAI_Error error = {0};
-    RAI_Model *model;
-    RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
-    RedisModuleString **outkys = array_new(RedisModuleString *, 1);
-    RedisModuleString *runkey;
-    long long timeout = 0;
-    if (RedisAI_Validate_ModelRun_RedisCommand(ctx, argv, argc, &model, &error, &inkeys, &outkys,
-                                               &runkey, &timeout) == REDISMODULE_ERR)
-        return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
-    RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
-
-    // Set params in ModelRunCtx, bring inputs from key space.
-    if (RedisAI_ModelRunCtx_SetParams(ctx, argv, argc, mctx, timeout) == REDISMODULE_ERR)
-        return REDISMODULE_OK;
-
-    RedisAI_RunInfo *rinfo =
-        Dag_CreateFromSingleModelRunOp(mctx, &error, inkeys, outkys, runkey, timeout);
-    if (!rinfo) {
-        return RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
-    }
-    // Block the client before adding rinfo to the run queues (sync call).
-    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
-    rinfo->OnFinish = DAG_ReplyAndUnblock;
-    return DAG_InsertDAGToQueue(rinfo);
+    return ProcessRunCommand(ctx, argv, argc, CMD_MODELRUN, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -616,7 +584,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     // Convert The script run command into A DAG command that contains a single op.
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    return ProcessRunCommand(ctx, argv, argc, CMD_SCRIPTRUN, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -923,7 +891,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    return ProcessRunCommand(ctx, argv, argc, CMD_DAGRUN, REDISAI_DAG_WRITE_MODE);
 }
 
 /**
@@ -938,7 +906,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_READONLY_MODE);
+    return ProcessRunCommand(ctx, argv, argc, CMD_DAGRUN, REDISAI_DAG_READONLY_MODE);
 }
 
 #define EXECUTION_PLAN_FREE_MSG 100

@@ -7,10 +7,21 @@
 
 /**
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param loadedContextDict local non-blocking hash table containing key names
+ * loaded from the keyspace tensors
+ * @param localContextDict local non-blocking hash table containing DAG's
+ * tensors
+ * @param chaining_operator operator used to split operations. Any command
+ * argument after the chaining operator is not considered
+ * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                         AI_dict **loadedContextDict, AI_dict **localContextDict,
-                         const char *chaining_operator) {
+static int DAG_ParseLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                             AI_dict **loadedContextDict, AI_dict **localContextDict,
+                             const char *chaining_operator) {
     if (argc < 3) {
         RedisModule_WrongArity(ctx);
         return -1;
@@ -60,9 +71,18 @@ int RAI_parseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
 /**
  * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param localContextDict local non-blocking hash table containing DAG's
+ * keynames marked as persistent
+ * @param chaining_operator operator used to split operations. Any command
+ * argument after the chaining operator is not considered
+ * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RAI_parseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                            AI_dict **persistContextDict, const char *chaining_operator) {
+static int DAG_ParsePersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                AI_dict **persistContextDict, const char *chaining_operator) {
     if (argc < 3) {
         RedisModule_WrongArity(ctx);
         return -1;
@@ -129,9 +149,9 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, i
         if (!strcasecmp(arg_string, "LOAD") && !load_complete) {
             /* Load the required tensors from key space and store them in both
                dagTensorsLoadedContext and dagTensorsContext dicts. */
-            const int parse_result = RAI_parseDAGLoadArgs(ctx, &argv[arg_pos], argc - arg_pos,
-                                                          &(rinfo->dagTensorsLoadedContext),
-                                                          &(rinfo->dagTensorsContext), "|>");
+            const int parse_result = DAG_ParseLoadArgs(ctx, &argv[arg_pos], argc - arg_pos,
+                                                       &(rinfo->dagTensorsLoadedContext),
+                                                       &(rinfo->dagTensorsContext), "|>");
             if (parse_result > 0) {
                 arg_pos += parse_result - 1;
                 load_complete = true;
@@ -148,7 +168,7 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, i
             }
             /* Store the keys to persist in dagTensorsPersistedContext dict.
                These keys will be populated late on with actual tensors. */
-            const int parse_result = RAI_parseDAGPersistArgs(
+            const int parse_result = DAG_ParsePersistArgs(
                 ctx, &argv[arg_pos], argc - arg_pos, &(rinfo->dagTensorsPersistedContext), "|>");
             if (parse_result > 0) {
                 arg_pos += parse_result - 1;

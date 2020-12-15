@@ -162,18 +162,17 @@ void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
 /**
- * @brief Create a DAG with a single operation of MODELRUN.
+ * @brief Populate a DAG with a single operation of MODELRUN.
+ * @param rinfo An existing DAG to populate.
  * @param mctx ModelRunCtx that represents the single MODELRUN op.
- * @param error RAI_Error object to store error if one occurs.
  * @param inkeys The DAG operation inkeys (the input tensors).
  * @param outkeys The DAG operation outkeys (the output tensors).
  * @param runkey The model key.
  * @param timeout The operation timeout (if given, otherwise it is zero).
  */
 
-RedisAI_RunInfo *Dag_CreateFromSingleModelRunOp(RAI_ModelRunCtx *mctx, RAI_Error *error,
-                                                RedisModuleString **inkeys,
-                                                RedisModuleString **outkeys,
-                                                RedisModuleString *runkey, long long timeout);
+int Dag_PopulateSingleModelRunOp(RedisAI_RunInfo *rinfo, RAI_ModelRunCtx *mctx,
+                                 RedisModuleString **inkeys, RedisModuleString **outkeys,
+                                 RedisModuleString *runkey, long long timeout);
 
 #endif /* SRC_DAG_H_ */
