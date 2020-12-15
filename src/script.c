@@ -122,8 +122,7 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
         if (tag) {
             RedisModule_RetainString(NULL, tag);
             script->tag = tag;
-        }
-        else {
+        } else {
             script->tag = RedisModule_CreateString(NULL, "", 0);
         }
     }

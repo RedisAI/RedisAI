@@ -327,8 +327,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
         if (tag) {
             RedisModule_RetainString(NULL, tag);
             model->tag = tag;
-        }
-        else {
+        } else {
             model->tag = RedisModule_CreateString(NULL, "", 0);
         }
     }
