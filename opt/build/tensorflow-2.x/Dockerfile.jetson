@@ -13,6 +13,7 @@ ARG TF_VERSION
 ARG CUDA_VER
 ARG CUDNN_VERSION
 ARG TENSORRT_VERSION
+ARG MACH
 
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y git python3-h5py; fi
 RUN if [ ! -z $(command -v yum) ]; then yum install -y git; fi
@@ -66,17 +67,17 @@ ENV TF_NEED_CUDA=1 \
 
 ENV TF_CUDA_VERSION=${CUDA_VER} \
     TF_CUDNN_VERSION=${CUDNN_VERSION} \
-    TF_CUBLAS_VERSION=${TF_CUDA_VERSION} \
+    TF_CUBLAS_VERSION=${CUDA_VER} \
     TF_TENSORRT_VERSION=${TENSORRT_VERSION} \
     \
-    CUDA_TOOLKIT_PATH="/usr/local/cuda-${TF_CUDA_VERSION}" \
-    TF_CUDA_PATHS="/usr/include,/usr/include/cuda,/opt/cuda/include,/usr/local/cuda-${TF_CUDA_VERSION}/include,/usr/local/cuda-${TF_CUDA_VERSION}/lib64,/usr/local/cuda-${TF_CUDA_VERSION}/targets/${MACH}-linux/,/usr/local/cuda-${TF_CUDA_VERSION}/targets/${MACH}-linux/lib/,/usr/lib/${MACH}-linux-gnu,/usr/local/lib,/usr/local/cuda-${TF_CUDA_VERSION}," \
+    CUDA_TOOLKIT_PATH="/usr/local/cuda-${CUDA_VER}" \
+    TF_CUDA_PATHS="/usr/include,/usr/include/cuda,/opt/cuda/include,/usr/local/cuda-${CUDA_VER}/include,/usr/local/cuda-${CUDA_VER}/lib64,/usr/local/cuda-${CUDA_VER}/targets/${MACH}-linux/,/usr/local/cuda-${CUDA_VER}/targets/${MACH}-linux/lib/,/usr/lib/${MACH}-linux-gnu,/usr/local/lib,/usr/local/cuda-${CUDA_VER}," \
     \
     CUDNN_INSTALL_PATH=/usr/lib/${MACH}-linux-gnu \
     TENSORRT_INSTALL_PATH=/usr/lib/${MACH}-linux-gnu \
     \
-    PATH="/usr/local/cuda-${TF_CUDA_VERSION}/bin:${PATH}" \
-    LD_LIBRARY_PATH="/usr/local/cuda-${TF_CUDA_VERSION}/lib64:/usr/lib/${MACH}-linux-gnu:${LD_LIBRARY_PATH}"
+    PATH="/usr/local/cuda-${CUDA_VER}/bin:${PATH}" \
+    LD_LIBRARY_PATH="/usr/local/cuda-${CUDA_VER}/lib64:/usr/lib/${MACH}-linux-gnu:${LD_LIBRARY_PATH}"
 
 RUN yes "" | ./configure
 RUN set -e ;\
