@@ -8,6 +8,7 @@
  */
 
 #include "stats.h"
+#include "util/string_utils.h"
 
 #include <sys/time.h>
 
@@ -27,15 +28,11 @@ void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType
                         RAI_Backend backend, const char *devicestr, RedisModuleString *tag) {
     struct RedisAI_RunStats *rstats = NULL;
     rstats = RedisModule_Calloc(1, sizeof(struct RedisAI_RunStats));
-    RedisModule_RetainString(ctx, key);
-    rstats->key = key;
+    rstats->key = RAI_HoldString(NULL, key);
     rstats->type = runtype;
     rstats->backend = backend;
     rstats->devicestr = RedisModule_Strdup(devicestr);
-    if (tag) {
-        RedisModule_RetainString(ctx, tag);
-    }
-    rstats->tag = tag;
+    rstats->tag = RAI_HoldString(NULL, tag);
 
     AI_dictAdd(run_stats, (void *)key, (void *)rstats);
 

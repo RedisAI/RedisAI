@@ -13,6 +13,7 @@
 #include "script_struct.h"
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
+#include "util/string_utils.h"
 #include "version.h"
 #include <pthread.h>
 
@@ -59,9 +60,7 @@ static void *RAI_Script_RdbLoad(struct RedisModuleIO *io, int encver) {
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
     const char *stats_devicestr = RedisModule_Strdup(devicestr);
 
-    if (tag) {
-        RedisModule_RetainString(NULL, tag);
-    }
+    tag = RAI_HoldString(NULL, tag);
 
     script->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH,
                                         stats_devicestr, tag);
@@ -120,8 +119,7 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
 
     if (script) {
         if (tag) {
-            RedisModule_RetainString(NULL, tag);
-            script->tag = tag;
+            script->tag = RAI_HoldString(NULL, tag);
         } else {
             script->tag = RedisModule_CreateString(NULL, "", 0);
         }
