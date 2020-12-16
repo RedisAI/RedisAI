@@ -34,7 +34,7 @@ int ParseModelRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
         return REDISMODULE_ERR;
     }
-    RedisModule_RetainString(NULL, argv[argpos]);
+    RedisModule_HoldString(NULL, argv[argpos]);
     *runkey = argv[argpos];
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
