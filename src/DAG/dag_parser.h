@@ -1,5 +1,4 @@
-#ifndef REDISAI_DAG_PARSER_H
-#define REDISAI_DAG_PARSER_H
+#pragma once
 
 #include "run_info.h"
 
