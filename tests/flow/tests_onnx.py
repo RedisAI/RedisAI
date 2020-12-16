@@ -153,6 +153,10 @@ def test_onnx_modelrun_mnist(env):
 
 
 def test_onnx_modelrun_batchdim_mismatch(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
     con = env.getConnection()
 
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')

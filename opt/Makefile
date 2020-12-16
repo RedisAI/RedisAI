@@ -53,6 +53,7 @@ make flow_tests  # run flow test
   COV=1            # perform coverage analysis
   VALGRIND|VGD=1   # test with Valgrind (implies DEBUG=1)
   CALLGRIND|CGD=1  # test with Callgrind (implies DEBUG=1)
+  REDIS=addr       # Address of Redis server for testing
 
 make cov-upload   # upload coverage data to codecov.io (requires CODECOV_TOKEN)
 
@@ -75,6 +76,7 @@ device selection options (fetch, build, and test):
   CPU=1         # build for CPU
   GPU=1         # build for GPU
   CUDA=1        # build for GPU
+  JETSON=1      # build for Nvidia Jetson
 endef
 
 #---------------------------------------------------------------------------------------------- 
@@ -85,10 +87,13 @@ ifeq ($(GPU),1)
 ifeq ($(CPU),1)
 $(error CPU=1 and GPU=1 (or CUDA=1) are conflicting)
 endif
-DEPS_FLAGS=gpu
+DEPS_FLAGS += GPU=1
 DEVICE=gpu
+ifeq ($(JETSON),1)
+DEPS_FLAGS += JETSON=1
+endif
 else
-DEPS_FLAGS=cpu
+DEPS_FLAGS += CPU=1
 DEVICE=cpu
 endif
 
@@ -194,7 +199,7 @@ setup:
 
 fetch deps:
 	@echo Fetching dependencies...
-	$(SHOW)VERBOSE=$(_SHOW) $(ROOT)/get_deps.sh $(DEPS_FLAGS)
+	$(SHOW)VERBOSE=$(_SHOW) $(DEPS_FLAGS) $(ROOT)/get_deps.sh
 
 format:
 	./clang-format-all.sh
@@ -251,13 +256,31 @@ unit_tests: build
 
 flow_tests: build
 	$(COVERAGE_RESET)
-	$(FLOW_TESTS)
+	$(SHOW)\
+		DEVICE=$(DEVICE) \
+		MODULE=$(realpath $(INSTALLED_TARGET)) \
+		CLUSTER=$(CLUSTER) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
+		REDIS=$(REDIS) \
+		$(ROOT)/tests/flow/tests.sh
+
 	$(COVERAGE_COLLECT_REPORT)
 
 test: build
 	$(COVERAGE_RESET)
 	$(UNIT_TESTS)
-	$(FLOW_TESTS)
+	$(SHOW)\
+		BINDIR=$(realpath $(BINDIR)) \
+		$(ROOT)/tests/unit/tests.sh
+	$(SHOW)\
+		DEVICE=$(DEVICE) \
+		MODULE=$(realpath $(INSTALLED_TARGET)) \
+		CLUSTER=$(CLUSTER) \
+		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		VALGRIND=$(VALGRIND) \
+		REDIS=$(REDIS) \
+		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 #----------------------------------------------------------------------------------------------

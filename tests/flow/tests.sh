@@ -137,7 +137,8 @@ cd $ROOT/tests/flow
 install_git_lfs
 check_redis_server
 
-[[ $GEN == 1 ]] && run_tests
+[[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
+[[ $GEN == 1 ]]    && run_tests
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
 [[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]] && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"

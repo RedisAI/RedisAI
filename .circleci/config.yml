@@ -360,7 +360,7 @@ platform-build-defs: &platform-build-defs
 
 after-platform-builds: &after-platform-builds
   requires:
-    - build-centos7
+    # - build-centos7
     - build-bionic
     - build-xenial
 
@@ -387,7 +387,7 @@ workflows:
       - platform-build:
           name: build-xenial
           platform: xenial
-          <<: *on-any-branch
+          <<: *platform-build-defs
       - coverage:
           <<: *on-any-branch
           <<: *after-linter
