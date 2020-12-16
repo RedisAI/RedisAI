@@ -4,7 +4,7 @@ ROOT=../../..
 VERSION ?= 2.3.1
 OSNICK ?= bionic
 
-VARIANT=jetson
+VARIANT=cpu
 
 #----------------------------------------------------------------------------------------------
 
@@ -14,7 +14,7 @@ OSNICK ?= bionic
 ARCH:=$(shell $(ROOT)/opt/readies/bin/platform --arch)
 MACH:=$(shell uname -m)
 
-DEVICE=gpu
+DEVICE=cpu
 
 DOCKER_OS.xenial=ubuntu:xenial
 DOCKER_OS.bionic=ubuntu:bionic
@@ -31,22 +31,6 @@ TAR_ARCH.arm32v7=arm
 #----------------------------------------------------------------------------------------------
 
 TF_VERSION=2.3.1
-CUDA_VERSION=10.2
-CUDNN_VERSION=8
-TENSORRT_VERSION=7.2 
-
-define TF_CUDA_PATHS
-/usr/include
-/usr/include/cuda
-/opt/cuda/include
-/usr/local/cuda-${CUDA_VERSION}/include
-/usr/local/cuda-${CUDA_VERSION}/lib64
-/usr/local/cuda-${CUDA_VERSION}/targets/${MACH}-linux
-/usr/local/cuda-${CUDA_VERSION}/targets/${MACH}-linux/lib
-/usr/lib/${MACH}-linux-gnu
-/usr/local/lib
-/usr/local/cuda-${CUDA_VERSION}
-endef
 
 #----------------------------------------------------------------------------------------------
 

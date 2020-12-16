@@ -226,12 +226,23 @@ endif
 
 #----------------------------------------------------------------------------------------------
 
+ifeq ($(SIMPLE),1)
+export GEN=1
+export SLAVES=0
+export AOF=0
+export CLUSTER=0
+else
 export GEN ?= 1
 export SLAVES ?= 1
 export AOF ?= 1
 export CLUSTER ?= 1
+endif
 
-unit_tests: build
+ifneq ($(BUILD),0)
+BUILD_BEFORE_TEST=build
+endif
+
+unit_tests: $(BUILD_BEFORE_TEST)
 	@echo "$(BINDIR)"
 	$(COVERAGE_RESET)
 	$(SHOW)\
@@ -239,8 +250,7 @@ unit_tests: build
 		$(ROOT)/tests/unit/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
-
-flow_tests: build
+flow_tests: $(BUILD_BEFORE_TEST)
 	$(COVERAGE_RESET)
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
@@ -252,7 +262,7 @@ flow_tests: build
 		$(ROOT)/tests/flow/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
-test: build
+test: $(BUILD_BEFORE_TEST)
 	$(COVERAGE_RESET)
 	$(SHOW)\
 		BINDIR=$(realpath $(BINDIR)) \
