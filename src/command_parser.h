@@ -18,7 +18,7 @@ int ParseModelRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
                          RedisModuleString ***outkets, RedisModuleString **runkey,
                          long long *timeout);
 
-int ProcessRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, int command,
-                      int dagMode);
+int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RunCommand command,
+                      bool ro_dag);
 
 #endif // REDISAI_COMMAND_PARSER_H
