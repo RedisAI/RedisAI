@@ -1,5 +1,4 @@
-#ifndef REDISAI_COMMAND_PARSER_H
-#define REDISAI_COMMAND_PARSER_H
+#pragma once
 
 #include "redismodule.h"
 #include "model.h"
