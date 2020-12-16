@@ -6,7 +6,7 @@
 #include "DAG/dag.h"
 #include "DAG/dag_parser.h"
 
-static int parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *timeout) {
+static int _parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *timeout) {
 
     const int retval = RedisModule_StringToLongLong(timeout_arg, timeout);
     if (retval != REDISMODULE_OK || timeout <= 0) {
