@@ -18,13 +18,13 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 
-enum RedisAI_DAGCommands {
+typedef enum DAGCommand {
     REDISAI_DAG_CMD_NONE = 0,
     REDISAI_DAG_CMD_TENSORSET,
     REDISAI_DAG_CMD_TENSORGET,
     REDISAI_DAG_CMD_MODELRUN,
     REDISAI_DAG_CMD_SCRIPTRUN
-};
+} DAGCommand;
 
 enum RedisAI_DAGMode { REDISAI_DAG_READONLY_MODE = 0, REDISAI_DAG_WRITE_MODE };
 
@@ -186,7 +186,7 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
  * @param DAG runInfo.
  * @return Pointer to the ModelRunCtx in DAG's single op.
  */
-RAI_ModelRunCtx *RAI_GetModelRunCtx(RedisAI_RunInfo *rinfo);
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
 
 #ifdef __cplusplus
 } // extern "C"

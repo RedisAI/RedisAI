@@ -3,7 +3,7 @@
 #include "redismodule.h"
 #include "model.h"
 
-enum RunCommands { CMD_MODELRUN = 0, CMD_SCRIPTRUN, CMD_DAGRUN };
+typedef enum RunCommand { CMD_MODELRUN = 0, CMD_SCRIPTRUN, CMD_DAGRUN } RunCommand;
 
 /**
  * @brief  Validates MODELRUN command and write the model obtained from
@@ -12,12 +12,8 @@ enum RunCommands { CMD_MODELRUN = 0, CMD_SCRIPTRUN, CMD_DAGRUN };
  * and the given timeout is saved as well (if given, otherwise it is zero).
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
-int ParseModelRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Model **model,
-                         RAI_Error *error, RedisModuleString ***inkeys,
-                         RedisModuleString ***outkets, RedisModuleString **runkey,
-                         long long *timeout);
+int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
+                         int argc);
 
-int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RunCommand command,
-                      bool ro_dag);
-
-#endif // REDISAI_COMMAND_PARSER_H
+int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                           RunCommand command, bool ro_dag);

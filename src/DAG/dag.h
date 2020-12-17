@@ -123,20 +123,6 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
                                                     int argc);
 
 /**
- * DAGRUN and DAGRUN_RO parser, which reads the the sequence of
- * arguments and decides whether the sequence conforms to the syntax
- * specified by the DAG grammar.
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @param dagMode access mode, for now REDISAI_DAG_READONLY_MODE or REDISAI_DAG_WRITE_MODE
- * @return
- */
-int RedisAI_ProcessDagRunCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                 int dagMode);
-
-/**
  * @brief This callback is called at the end of a DAG run and performs unblock client and reply.
  * This is the callback of RedisAI AI.MODELRUN, AI.SCRIPTRUN, AI.DAGRUN
  * @param ctx Context object that contains errors and results
@@ -162,17 +148,16 @@ void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
 /**
- * @brief Populate a DAG with a single operation of MODELRUN.
+ * @brief Populate a DAG modelrun/scriptrun op with its params .
  * @param rinfo An existing DAG to populate.
- * @param mctx ModelRunCtx that represents the single MODELRUN op.
+ * @param rctx ModelRunCtx or ScriptRunCtx that represents the single MODELRUN op.
  * @param inkeys The DAG operation inkeys (the input tensors).
  * @param outkeys The DAG operation outkeys (the output tensors).
  * @param runkey The model key.
- * @param timeout The operation timeout (if given, otherwise it is zero).
+ * @param cmd The DAG command (modelrun/scriptrun).
  */
 
-int Dag_PopulateSingleModelRunOp(RedisAI_RunInfo *rinfo, RAI_ModelRunCtx *mctx,
-                                 RedisModuleString **inkeys, RedisModuleString **outkeys,
-                                 RedisModuleString *runkey, long long timeout);
+void Dag_PopulateOp(RAI_DagOp *currentOp, void *rctx, RedisModuleString **inkeys,
+                    RedisModuleString **outkeys, RedisModuleString *runkey);
 
 #endif /* SRC_DAG_H_ */

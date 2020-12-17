@@ -9,18 +9,8 @@
  */
 
 #include "background_workers.h"
-#include "DAG/dag.h"
-#include "model.h"
 #include "redisai.h"
-#include "rmutil/alloc.h"
-#include "rmutil/args.h"
 #include "run_info.h"
-#include "script.h"
-#include "stats.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
-#include "util/dict.h"
-#include "util/queue.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>

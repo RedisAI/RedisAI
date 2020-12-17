@@ -53,7 +53,7 @@ static int DAG_ParseLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
                                 arg_string);
                 return -1;
             }
-            RedisModule_CloseKey(key);
+
             char *dictKey = (char *)RedisModule_Alloc((strlen(arg_string) + 5) * sizeof(char));
             sprintf(dictKey, "%s%04d", arg_string, 1);
             AI_dictAdd(*localContextDict, (void *)dictKey, (void *)RAI_TensorGetShallowCopy(t));
@@ -117,7 +117,7 @@ static int DAG_ParsePersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, i
 }
 
 // Parse the DAG run command and return REDISMODULE_OK only if it is a valid command to execute.
-int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, int dagMode,
+int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, bool dag_ro,
                       RedisAI_RunInfo **rinfo_ptr) {
 
     if (argc < 4) {
@@ -160,7 +160,7 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, i
                 return REDISMODULE_ERR;
             }
         } else if (!strcasecmp(arg_string, "PERSIST") && !persist_complete) {
-            if (dagMode == REDISAI_DAG_READONLY_MODE) {
+            if (dag_ro) {
                 RAI_FreeRunInfo(rinfo);
                 RedisModule_ReplyWithError(ctx,
                                            "ERR PERSIST cannot be specified in a read-only DAG");
@@ -317,7 +317,6 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, i
                                 RedisModule_StringPtrLen(op->inkeys[i], NULL));
                 return REDISMODULE_ERR;
             }
-            RedisModule_CloseKey(key);
             char *dictKey = (char *)RedisModule_Alloc((strlen(inkey) + 5) * sizeof(char));
             sprintf(dictKey, "%s%04d", inkey, 1);
             AI_dictAdd(rinfo->dagTensorsContext, (void *)dictKey,

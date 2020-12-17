@@ -294,14 +294,14 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
     }
 
     size_t ninputs = array_len(op->inkeys);
-    int batchsize = 0;
-    if (ninputs == 0) {
-        return batchsize;
-    }
+    size_t batchsize = 0;
 
+    if (!rinfo->single_op_dag) {
+        RAI_ContextReadLock(rinfo);
+    }
     for (size_t i = 0; i < ninputs; i++) {
         RAI_Tensor *input;
-        if (rinfo->single_op_dag == 1) {
+        if (rinfo->single_op_dag) {
             input = op->mctx->inputs[i].tensor;
         } else {
             RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext,
@@ -321,6 +321,9 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
             batchsize = 0;
             break;
         }
+    }
+    if (!rinfo->single_op_dag) {
+        RAI_ContextUnlock(rinfo);
     }
     return batchsize;
 }
@@ -451,10 +454,7 @@ void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op, size_t *batch
     *batchsize = op->mctx->model->opts.batchsize;
     *minbatchsize = op->mctx->model->opts.minbatchsize;
     *minbatchtimeout = op->mctx->model->opts.minbatchtimeout;
-
-    RAI_ContextReadLock(rinfo);
     *inbatchsize = RAI_DagOpBatchSize(op, rinfo);
-    RAI_ContextUnlock(rinfo);
 }
 
 void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1, RedisAI_RunInfo *rinfo2,
@@ -539,8 +539,8 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
     return;
 }
 
-static int StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
-                                 const char *persist_key_name, bool mangled_name) {
+static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
+                                  const char *persist_key_name, bool mangled_name) {
     int ret = REDISMODULE_ERR;
     RedisModuleKey *key;
     char *demangled_key_name = RedisModule_Strdup(persist_key_name);
@@ -584,7 +584,7 @@ static void PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
                 continue;
             }
             bool mangled = true;
-            if (StoreTensorInKeySpace(ctx, tensor, persist_key_name, mangled) == REDISMODULE_ERR)
+            if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, mangled) == REDISMODULE_ERR)
                 rinfo->dagReplyLength++;
 
         } else {
@@ -624,7 +624,7 @@ static void ModelSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         bool mangled = false;
         if (tensor)
-            StoreTensorInKeySpace(ctx, tensor, key_string, mangled);
+            _StoreTensorInKeySpace(ctx, tensor, key_string, mangled);
     }
 }
 
@@ -812,6 +812,8 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
     }
 
     size_t ndevices = array_len(devices);
+    if (ndevices == 1)
+        rinfo->single_device_dag = 1;
     RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo *, ndevices);
 
     for (long long i = 0; i < ndevices; i++) {
@@ -874,30 +876,19 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
         RedisModule_UnblockClient(rinfo->client, rinfo);
 }
 
-int Dag_PopulateSingleModelRunOp(RedisAI_RunInfo *rinfo, RAI_ModelRunCtx *mctx,
-                                 RedisModuleString **inkeys, RedisModuleString **outkeys,
-                                 RedisModuleString *runkey, long long timeout) {
+void Dag_PopulateOp(RAI_DagOp *currentOp, void *rctx, RedisModuleString **inkeys,
+                    RedisModuleString **outkeys, RedisModuleString *runkey) {
 
-    assert(rinfo->single_op_dag);
-    rinfo->single_device_dag = 1;
-    rinfo->dagOpCount = 1;
-    rinfo->timeout = timeout;
-
-    RAI_DagOp *currentDagOp;
-    if (RAI_InitDagOp(&currentDagOp) == REDISMODULE_ERR) {
-        RAI_SetError(rinfo->err, RedisAI_ErrorCode_EMODELRUN,
-                     "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-        return REDISMODULE_ERR;
+    if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
+        currentOp->mctx = (RAI_ModelRunCtx *)rctx;
+        currentOp->devicestr = currentOp->mctx->model->devicestr;
+    } else {
+        assert(currentOp->commandType == REDISAI_DAG_CMD_SCRIPTRUN);
+        currentOp->sctx = (RAI_ScriptRunCtx *)rctx;
+        currentOp->devicestr = currentOp->sctx->script->devicestr;
     }
-    rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
 
-    RAI_DagOp *currentOp = rinfo->dagOps[0];
-    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
-    currentOp->devicestr = mctx->model->devicestr;
     currentOp->inkeys = inkeys;
     currentOp->outkeys = outkeys;
     currentOp->runkey = runkey;
-
-    return REDISMODULE_OK;
 }

@@ -1,6 +1,17 @@
 
 #include "modelRun_ctx.h"
 
+static int _Model_RunCtxAddParam(RAI_ModelCtxParam **paramArr, const char *name,
+                                 RAI_Tensor *tensor) {
+
+    RAI_ModelCtxParam param = {
+        .name = name,
+        .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
+    };
+    *paramArr = array_append(*paramArr, param);
+    return 1;
+}
+
 RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
@@ -11,23 +22,12 @@ RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
 #undef PARAM_INITIAL_SIZE
 }
 
-static int Model_RunCtxAddParam(RAI_ModelRunCtx *mctx, RAI_ModelCtxParam **paramArr,
-                                const char *name, RAI_Tensor *tensor) {
-
-    RAI_ModelCtxParam param = {
-        .name = name,
-        .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
-    };
-    *paramArr = array_append(*paramArr, param);
-    return 1;
-}
-
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor) {
-    return Model_RunCtxAddParam(mctx, &mctx->inputs, inputName, inputTensor);
+    return _Model_RunCtxAddParam(&mctx->inputs, inputName, inputTensor);
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
-    return Model_RunCtxAddParam(mctx, &mctx->outputs, outputName, NULL);
+    return _Model_RunCtxAddParam(&mctx->outputs, outputName, NULL);
 }
 
 size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) { return array_len(mctx->inputs); }
@@ -67,7 +67,6 @@ void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx, int freeTensors) {
         // TODO: take it to client somehow
         RAI_ClearError(&err);
     }
-
     RedisModule_Free(mctx);
 }
 
@@ -99,7 +98,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
             is_input = 1;
             outputs_flag_count = 1;
         } else {
-            RedisModule_RetainString(ctx, argv[argpos]);
+            RedisModule_HoldString(ctx, argv[argpos]);
             if (is_input == 0) {
                 *inkeys = array_append(*inkeys, argv[argpos]);
                 ninputs++;
@@ -123,32 +122,4 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
         return -1;
     }
     return argpos;
-}
-
-int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                          RedisModuleString **outkeys, RAI_ModelRunCtx *mctx) {
-
-    RAI_Model *model = mctx->model;
-    RAI_Tensor *t;
-    RedisModuleKey *key;
-    char *opname = NULL;
-    size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
-    for (size_t i = 0; i < ninputs; i++) {
-        const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ);
-        if (status == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning", "could not load tensor %s from keyspace",
-                            RedisModule_StringPtrLen(inkeys[i], NULL));
-            return REDISMODULE_ERR;
-        }
-        RedisModule_CloseKey(key);
-        if (model->inputs)
-            opname = model->inputs[i];
-        RAI_ModelRunCtxAddInput(mctx, opname, t);
-    }
-    for (size_t i = 0; i < noutputs; i++) {
-        if (model->outputs)
-            opname = model->outputs[i];
-        RAI_ModelRunCtxAddOutput(mctx, opname);
-    }
-    return REDISMODULE_OK;
 }

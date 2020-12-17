@@ -1,5 +1,4 @@
-#ifndef REDISAI_MODELRUN_CTX_H
-#define REDISAI_MODELRUN_CTX_H
+#pragma once
 
 #include "model.h"
 
@@ -91,23 +90,8 @@ RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index);
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
+// todo: remove this after DAG LLAPI is done.
 int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                         RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
                                         RedisModuleString ***outkeys, RAI_Model **mto,
                                         RAI_Error *error);
-
-/**
- * Extract the params for the ModelCtxRun object from AI.MODELRUN arguments.
- *
- * @param ctx Context in which Redis modules operate
- * @param inkeys Model input tensors keys, as an array of strings
- * @param outkeys Model output tensors keys, as an array of strings
- * @param mctx Destination Model context to store the parsed data
- * @param timeout Indicates weather a timeout argument was given in the command
- * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
- */
-
-int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                          RedisModuleString **outkeys, RAI_ModelRunCtx *mctx);
-
-#endif // REDISAI_MODELRUN_CTX_H

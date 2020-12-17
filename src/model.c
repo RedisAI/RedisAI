@@ -502,9 +502,17 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
         return REDISMODULE_ERR;
     }
     rinfo->single_op_dag = 1;
-    if (Dag_PopulateSingleModelRunOp(rinfo, mctx, NULL, NULL, NULL, 0) == REDISMODULE_ERR)
-        return REDISMODULE_ERR;
     rinfo->OnFinish = (RedisAI_OnFinishCB)ModelAsyncFinish;
     rinfo->private_data = private_data;
+
+    RAI_DagOp *op;
+    if (RAI_InitDagOp(&op) == REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+    op->commandType = REDISAI_DAG_CMD_MODELRUN;
+    Dag_PopulateOp(op, mctx, NULL, NULL, NULL);
+
+    rinfo->dagOps = array_append(rinfo->dagOps, op);
+    rinfo->dagOpCount = 1;
     return DAG_InsertDAGToQueue(rinfo);
 }

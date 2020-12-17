@@ -93,7 +93,7 @@ int MODULE_API_FUNC(RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx *mctx, const ch
 int MODULE_API_FUNC(RedisAI_ModelRunCtxAddOutput)(RAI_ModelRunCtx *mctx, const char *outputName);
 size_t MODULE_API_FUNC(RedisAI_ModelRunCtxNumOutputs)(RAI_ModelRunCtx *mctx);
 RAI_Tensor *MODULE_API_FUNC(RedisAI_ModelRunCtxOutputTensor)(RAI_ModelRunCtx *mctx, size_t index);
-void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx *mctx);
+void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx *mctx, bool freeTensors);
 int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx **mctx, long long n, RAI_Error *err);
 RAI_Model *MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model *model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len,
@@ -101,7 +101,7 @@ int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, siz
 RedisModuleType *MODULE_API_FUNC(RedisAI_ModelRedisType)(void);
 int MODULE_API_FUNC(RedisAI_ModelRunAsync)(RAI_ModelRunCtx *mctxs, RAI_OnFinishCB DAGAsyncFinish,
                                            void *private_data);
-RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_GetModelRunCtx)(RAI_OnFinishCtx *ctx);
+RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_GetAsModelRunCtx)(RAI_OnFinishCtx *ctx, RAI_Error *err);
 
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptCreate)(char *devicestr, char *tag, const char *scriptdef,
                                                   RAI_Error *err);
@@ -189,7 +189,7 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelSerialize);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRedisType);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRunAsync);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, GetModelRunCtx);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, GetAsModelRunCtx);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);

@@ -344,4 +344,12 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
 
     return 1;
 }
-RAI_ModelRunCtx *RAI_GetModelRunCtx(RedisAI_RunInfo *rinfo) { return rinfo->dagOps[0]->mctx; }
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
+
+    RAI_DagOp *op = rinfo->dagOps[0];
+    RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
+    RAI_ModelRunCtx *mctx = op->mctx;
+    rinfo->dagOps[0]->mctx = NULL;
+    RAI_FreeRunInfo(rinfo);
+    return mctx;
+}

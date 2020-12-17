@@ -36,5 +36,5 @@ def test_model_run_async(env):
     env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    ret = con.execute_command("RAI_llapi.modelRunAsync")
+    ret = con.execute_command("RAI_llapi.modelRun")
     env.assertEqual(ret, b'Async run success')
