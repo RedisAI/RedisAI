@@ -34,7 +34,11 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
         RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
         return REDISMODULE_ERR;
     }
-    RedisModule_HoldString(NULL, argv[argpos]);
+    if (RMAPI_FUNC_SUPPORTED(RedisModule_HoldString)) {
+        RedisModule_HoldString(NULL, argv[argpos]);
+    } else {
+        RedisModule_RetainString(NULL, argv[argpos]);
+    }
     *runkey = argv[argpos];
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
@@ -58,7 +62,11 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
             is_input = false;
             is_output = true;
         } else {
-            RedisModule_HoldString(NULL, argv[argpos]);
+            if (RMAPI_FUNC_SUPPORTED(RedisModule_HoldString)) {
+                RedisModule_HoldString(NULL, argv[argpos]);
+            } else {
+                RedisModule_RetainString(NULL, argv[argpos]);
+            }
             if (is_input) {
                 ninputs++;
                 *inkeys = array_append(*inkeys, argv[argpos]);

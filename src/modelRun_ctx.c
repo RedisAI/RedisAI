@@ -98,7 +98,11 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
             is_input = 1;
             outputs_flag_count = 1;
         } else {
-            RedisModule_HoldString(ctx, argv[argpos]);
+            if (RMAPI_FUNC_SUPPORTED(RedisModule_HoldString)) {
+                RedisModule_HoldString(NULL, argv[argpos]);
+            } else {
+                RedisModule_RetainString(NULL, argv[argpos]);
+            }
             if (is_input == 0) {
                 *inkeys = array_append(*inkeys, argv[argpos]);
                 ninputs++;

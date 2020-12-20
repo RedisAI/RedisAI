@@ -294,9 +294,9 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
     }
 
     size_t ninputs = array_len(op->inkeys);
-    size_t batchsize = 0;
+    int batchsize = 0;
 
-    if (!rinfo->single_op_dag) {
+    if (!rinfo->single_device_dag) {
         RAI_ContextReadLock(rinfo);
     }
     for (size_t i = 0; i < ninputs; i++) {
@@ -322,7 +322,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
             break;
         }
     }
-    if (!rinfo->single_op_dag) {
+    if (!rinfo->single_device_dag) {
         RAI_ContextUnlock(rinfo);
     }
     return batchsize;
@@ -334,20 +334,21 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
     if (op1->mctx == NULL || op2->mctx == NULL) {
         return 0;
     }
-
     if (op1->mctx->model != op2->mctx->model) {
         return 0;
     }
-
-    // const int ninputs1 = RAI_ModelRunCtxNumInputs(op1->mctx);
-    // const int ninputs2 = RAI_ModelRunCtxNumInputs(op2->mctx);
     const int ninputs1 = array_len(op1->inkeys);
     const int ninputs2 = array_len(op2->inkeys);
 
     if (ninputs1 != ninputs2) {
         return 0;
     }
-
+    if (!rinfo1->single_device_dag) {
+        RAI_ContextReadLock(rinfo1);
+    }
+    if (!rinfo2->single_device_dag) {
+        RAI_ContextReadLock(rinfo2);
+    }
     for (int i = 0; i < ninputs1; i++) {
         RAI_Tensor *input1;
         if (rinfo1->single_op_dag == 1) {
@@ -387,6 +388,12 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
                 return 0;
             }
         }
+    }
+    if (!rinfo1->single_device_dag) {
+        RAI_ContextUnlock(rinfo1);
+    }
+    if (!rinfo2->single_device_dag) {
+        RAI_ContextUnlock(rinfo2);
     }
     return 1;
 }
@@ -462,8 +469,6 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1, RedisAI
     *batched = 0;
     *inbatchsize = 0;
 
-    RAI_ContextReadLock(rinfo2);
-
     if (op2->mctx) {
         int match = RAI_DagOpBatchable(op1, rinfo1, op2, rinfo2);
 
@@ -472,8 +477,6 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1, RedisAI
             *inbatchsize = RAI_DagOpBatchSize(op2, rinfo2);
         }
     }
-
-    RAI_ContextUnlock(rinfo2);
 }
 
 void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
