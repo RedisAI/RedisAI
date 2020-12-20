@@ -337,12 +337,11 @@ RAI_Tensor *RAI_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, long long
                                                             .strides = strides,
                                                             .byte_offset = 0},
                                     .manager_ctx = rstr,
-                                    .deleter = RAI_RStringDataTensorDeleter };
+                                    .deleter = RAI_RStringDataTensorDeleter};
 
     ret->refCount = 1;
     return ret;
 }
-
 
 RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, int hasdata) {
     DLDataType dtype = RAI_TensorDataTypeFromString(dataType);
@@ -873,8 +872,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RedisModuleString *rstr = argv[argpos];
         RedisModule_RetainString(NULL, rstr);
         *t = RAI_TensorCreateWithDLDataTypeAndRString(datatype, dims, ndims, rstr);
-    }
-    else {
+    } else {
         *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
     }
 
