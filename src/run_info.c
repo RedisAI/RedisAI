@@ -15,38 +15,19 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include <pthread.h>
-
-static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
-    size_t len;
-    const char *buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
-    return AI_dictGenHashFunction(buffer, len);
-}
-
-static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2) {
-    RedisModuleString *strKey1 = (RedisModuleString *)key1;
-    RedisModuleString *strKey2 = (RedisModuleString *)key2;
-    return RedisModule_StringCompare(strKey1, strKey2) == 0;
-}
-
-static void RAI_TensorDictKeyFree(void *privdata, void *key) {
-    RedisModule_FreeString(NULL, (RedisModuleString *)key);
-}
-
-static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
-    return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
-}
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {
     return RAI_TensorFree((RAI_Tensor *)obj);
 }
 
 AI_dictType AI_dictTypeTensorVals = {
-    .hashFunction = RAI_TensorDictKeyHashFunction,
-    .keyDup = RAI_TensorDictKeyDup,
+    .hashFunction = RAI_RStringsHashFunction,
+    .keyDup = RAI_RStringsKeyDup,
     .valDup = NULL,
-    .keyCompare = RAI_TensorDictKeyStrcmp,
-    .keyDestructor = RAI_TensorDictKeyFree,
+    .keyCompare = RAI_RStringsKeyCompare,
+    .keyDestructor = RAI_RStringsKeyDestructor,
     .valDestructor = RAI_TensorDictValFree,
 };
 

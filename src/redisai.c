@@ -26,6 +26,7 @@
 #include "run_info.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include "util/queue.h"
 #include "version.h"
 
@@ -1218,6 +1219,3 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     return REDISMODULE_OK;
 }
-
-extern AI_dictType AI_dictTypeHeapStrings;
-extern AI_dictType AI_dictTypeHeapRStrings;

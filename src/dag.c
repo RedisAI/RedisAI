@@ -704,7 +704,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
                 RedisModule_StringPtrLen(persist_key_name, &persist_key_len);
             RedisModuleString *demangled_key_name =
                 RedisModule_CreateString(NULL, persist_key_str, persist_key_len - 4);
-            demangled_key_name = RAI_HoldString(NULL, demangled_key_name);
             const int status = RAI_OpenKey_Tensor(ctx, demangled_key_name, &key,
                                                   REDISMODULE_READ | REDISMODULE_WRITE);
             if (status == REDISMODULE_ERR) {
