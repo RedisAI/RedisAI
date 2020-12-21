@@ -366,7 +366,7 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
         return;
     }
 
-    RedisModule_Free(model->tag);
+    RedisModule_FreeString(NULL, model->tag);
 
     RAI_RemoveStatsEntry(model->infokey);
 
