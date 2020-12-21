@@ -40,6 +40,9 @@ ADD_LIBRARY(redisai_obj OBJECT
         rmutil/heap.c
         rmutil/priority_queue.c
         rmutil/vector.c run_info.c
+        redis_ai_types/model_type.c
+        redis_ai_types/tensor_type.c
+        redis_ai_types/script_type.c
         ${SERIALIZATION_SRC}
 		${DEBUG_SRC})
 

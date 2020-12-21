@@ -43,7 +43,7 @@ void RAI_RDBSaveModel_v1(RedisModuleIO *io, void *value) {
 
     RedisModule_SaveUnsigned(io, model->backend);
     RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
-    RedisModule_SaveStringBuffer(io, model->tag, strlen(model->tag) + 1);
+    RedisModule_SaveString(io, model->tag);
     RedisModule_SaveUnsigned(io, model->opts.batchsize);
     RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
     RedisModule_SaveUnsigned(io, model->ninputs);
@@ -74,6 +74,6 @@ void RAI_RDBSaveScript_v1(RedisModuleIO *io, void *value) {
     size_t len = strlen(script->scriptdef) + 1;
 
     RedisModule_SaveStringBuffer(io, script->devicestr, strlen(script->devicestr) + 1);
-    RedisModule_SaveStringBuffer(io, script->tag, strlen(script->tag) + 1);
+    RedisModule_SaveString(io, script->tag);
     RedisModule_SaveStringBuffer(io, script->scriptdef, len);
 }

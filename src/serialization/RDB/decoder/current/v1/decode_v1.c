@@ -73,7 +73,7 @@ cleanup:
 void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     char *devicestr = NULL;
-    char *tag = NULL;
+    RedisModuleString *tag = NULL;
     size_t ninputs = 0;
     const char **inputs = NULL;
     size_t noutputs = 0;
@@ -82,7 +82,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     RAI_Backend backend = RedisModule_LoadUnsigned(io);
     devicestr = RedisModule_LoadStringBuffer(io, NULL);
-    tag = RedisModule_LoadStringBuffer(io, NULL);
+    tag = RedisModule_LoadString(io);
 
     const size_t batchsize = RedisModule_LoadUnsigned(io);
     const size_t minbatchsize = RedisModule_LoadUnsigned(io);
@@ -203,13 +203,13 @@ cleanup:
 }
 
 void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
-    char *tag = NULL;
+    RedisModuleString *tag = NULL;
     char *devicestr = NULL;
     char *scriptdef = NULL;
     RAI_Error err = {0};
 
     devicestr = RedisModule_LoadStringBuffer(io, NULL);
-    tag = RedisModule_LoadStringBuffer(io, NULL);
+    tag = RedisModule_LoadString(io);
 
     size_t len;
     scriptdef = RedisModule_LoadStringBuffer(io, &len);

@@ -40,7 +40,7 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, Re
     return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
                            const char **outputs, const char *modeldef, size_t modellen,
                            RAI_Error *err) {
