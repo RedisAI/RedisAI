@@ -886,8 +886,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return -1;
     }
     long i = 0;
-    switch (datafmt) {
-    case REDISAI_DATA_VALUES:
+    if (datafmt == REDISAI_DATA_VALUES) {
         for (; (argpos <= argc - 1) && (i < len); argpos++) {
             if (datatype.code == kDLFloat) {
                 double val;
@@ -944,10 +943,6 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
             }
             i++;
         }
-        break;
-    default:
-        // default does not require tensor data setting since calloc setted it to 0
-        break;
     }
     array_free(dims);
     return argpos;
