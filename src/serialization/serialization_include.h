@@ -7,3 +7,4 @@
 #include "../script.h"
 #include "../backends.h"
 #include "../version.h"
+#include "../util/string_utils.h"

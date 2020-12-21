@@ -138,7 +138,11 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     RedisModuleCtx *stats_ctx = RedisModule_GetContextFromIO(io);
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
-    model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, tag);
+
+    RedisModuleString *stats_tag = RAI_HoldString(NULL, tag);
+
+    model->infokey =
+        RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, stats_tag);
 
     for (size_t i = 0; i < ninputs; i++) {
         RedisModule_Free((void *)inputs[i]);
@@ -150,7 +154,6 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     RedisModule_Free(outputs);
     RedisModule_Free(buffer);
 
-    RedisModule_Free(tag);
     RedisModule_Free(devicestr);
     RedisModule_Free(stats_keystr);
 
@@ -220,18 +223,17 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
 
+    const char *stats_devicestr = RedisModule_Strdup(devicestr);
+
+    tag = RAI_HoldString(NULL, tag);
+
     script->infokey =
         RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 
-    RedisModule_Free(tag);
-    RedisModule_Free(devicestr);
-    RedisModule_Free(scriptdef);
-    RedisModule_Free(stats_keystr);
+    RedisModule_FreeString(NULL, stats_keystr);
 
     return script;
 cleanup:
-    if (tag)
-        RedisModule_Free(tag);
     if (devicestr)
         RedisModule_Free(devicestr);
     if (scriptdef)
