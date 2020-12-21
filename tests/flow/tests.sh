@@ -79,6 +79,7 @@ valgrind_config() {
 #----------------------------------------------------------------------------------------------
 
 run_tests() {
+  make -C ../module
 	local title="$1"
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
 	cd $ROOT/tests/flow
@@ -120,6 +121,7 @@ cd $ROOT/tests/flow
 install_git_lfs
 check_redis_server
 
+[[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
 [[ $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"

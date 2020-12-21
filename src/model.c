@@ -8,6 +8,7 @@
  */
 
 #include "model.h"
+#include "version.h"
 #include "backends.h"
 #include "backends/util.h"
 #include "model_struct.h"
@@ -16,6 +17,7 @@
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include <pthread.h>
 
 /* Return REDISMODULE_ERR if there was an error getting the Model.
@@ -37,6 +39,7 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, Re
     *model = RedisModule_ModuleTypeGetValue(*key);
     return REDISMODULE_OK;
 }
+
 
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
@@ -74,7 +77,11 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const cha
     }
 
     if (model) {
-        model->tag = RedisModule_Strdup(tag);
+        if (tag) {
+            model->tag = RAI_HoldString(NULL, tag);
+        } else {
+            model->tag = RedisModule_CreateString(NULL, "", 0);
+        }
     }
 
     return model;
@@ -114,7 +121,7 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
         return;
     }
 
-    RedisModule_Free(model->tag);
+    RedisModule_FreeString(NULL, model->tag);
 
     RAI_RemoveStatsEntry(model->infokey);
 
@@ -341,12 +348,12 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
             is_input = 1;
             outputs_flag_count = 1;
         } else {
-            RedisModule_RetainString(ctx, argv[argpos]);
+            RedisModuleString *arg = RAI_HoldString(ctx, argv[argpos]);
             if (is_input == 0) {
-                *inkeys = array_append(*inkeys, argv[argpos]);
+                *inkeys = array_append(*inkeys, arg);
                 ninputs++;
             } else {
-                *outkeys = array_append(*outkeys, argv[argpos]);
+                *outkeys = array_append(*outkeys, arg);
                 noutputs++;
             }
         }

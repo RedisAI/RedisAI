@@ -13,8 +13,10 @@
 #include "script_struct.h"
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
+#include "util/string_utils.h"
 #include "version.h"
 #include <pthread.h>
+
 
 RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char *scriptdef,
                              RAI_Error *err) {
@@ -25,7 +27,11 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char 
     RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
 
     if (script) {
-        script->tag = RedisModule_Strdup(tag);
+        if (tag) {
+            script->tag = RAI_HoldString(NULL, tag);
+        } else {
+            script->tag = RedisModule_CreateString(NULL, "", 0);
+        }
     }
 
     return script;
@@ -41,7 +47,7 @@ void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {
         return;
     }
 
-    RedisModule_Free(script->tag);
+    RedisModule_FreeString(NULL, script->tag);
 
     RAI_RemoveStatsEntry(script->infokey);
 

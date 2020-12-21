@@ -178,7 +178,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                         RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
-                            RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                            RedisAI_OnFinishCtx *finish_ctx = orig;
                             orig->OnFinish(finish_ctx, orig->private_data);
                         }
 
@@ -417,7 +417,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                         RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
-                            RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                            RedisAI_OnFinishCtx *finish_ctx = orig;
                             orig->OnFinish(finish_ctx, orig->private_data);
                         }
                     } else {
@@ -449,7 +449,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 // If the reference count for the DAG is zero and the client is still around,
                 // then we actually unblock the client
                 if (dagRefCount == 0) {
-                    RedisAI_OnFinishCtx finish_ctx = (RedisAI_RunInfo *)orig;
+                    RedisAI_OnFinishCtx *finish_ctx = orig;
                     orig->OnFinish(finish_ctx, orig->private_data);
                 }
             }

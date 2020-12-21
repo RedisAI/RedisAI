@@ -9,7 +9,9 @@
 
 #include "tensor.h"
 #include "err.h"
+#include "arr.h"
 #include "redisai.h"
+#include "version.h"
 #include "rmutil/alloc.h"
 #include "tensor_struct.h"
 #include "util/dict.h"
@@ -550,7 +552,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  * Return REDISMODULE_OK if the tensor value is present at the localContextDict.
  */
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  const char *localContextKey, RAI_Tensor **tensor,
+                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
                                   RAI_Error *error) {
     int result = REDISMODULE_ERR;
     AI_dictEntry *tensor_entry = AI_dictFind(localContextDict, localContextKey);

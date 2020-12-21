@@ -49,39 +49,6 @@
 
 #include "siphash.c.inc"
 
-static uint64_t stringsHashFunction(const void *key) {
-    return AI_dictGenHashFunction(key, strlen((char *)key));
-}
-
-static int stringsKeyCompare(void *privdata, const void *key1, const void *key2) {
-    const char *strKey1 = key1;
-    const char *strKey2 = key2;
-
-    return strcmp(strKey1, strKey2) == 0;
-}
-
-static void stringsKeyDestructor(void *privdata, void *key) { RA_FREE(key); }
-
-static void *stringsKeyDup(void *privdata, const void *key) { return RA_STRDUP((char *)key); }
-
-AI_dictType AI_dictTypeHeapStringsVals = {
-    .hashFunction = stringsHashFunction,
-    .keyDup = stringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = stringsKeyCompare,
-    .keyDestructor = stringsKeyDestructor,
-    .valDestructor = stringsKeyDestructor,
-};
-
-AI_dictType AI_dictTypeHeapStrings = {
-    .hashFunction = stringsHashFunction,
-    .keyDup = stringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = stringsKeyCompare,
-    .keyDestructor = stringsKeyDestructor,
-    .valDestructor = NULL,
-};
-
 /* Using dictEnableResize() / dictDisableResize() we make possible to
  * enable/disable resizing of the hash table as needed. This is very important
  * for Redis, as we use copy-on-write and don't want to move too much memory

@@ -21,6 +21,7 @@ file (GLOB BACKEND_COMMON_SRC
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
         util/queue.c
+        util/string_utils.c
         redisai.c
         run_info.c
         background_workers.c
