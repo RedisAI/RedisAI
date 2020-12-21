@@ -55,7 +55,7 @@ void *RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
                                                             .dtype = dtype,
                                                             .shape = shape,
                                                             .strides = strides,
-                                                            .byte_offset = 0},
+                                                            .byte_offset = byte_offset},
                                     .manager_ctx = NULL,
                                     .deleter = NULL};
     ret->refCount = 1;
