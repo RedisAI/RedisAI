@@ -1,5 +1,5 @@
 #pragma once
 
-#include "../serialization_include.h"
+#include "redismodule.h"
 
 int ModelType_Register(RedisModuleCtx *ctx);

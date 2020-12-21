@@ -30,9 +30,9 @@
 #include "util/queue.h"
 #include "version.h"
 
-#include "serialization/redis_ai_types/model_type.h"
-#include "serialization/redis_ai_types/script_type.h"
-#include "serialization/redis_ai_types/tensor_type.h"
+#include "redis_ai_types/model_type.h"
+#include "redis_ai_types/script_type.h"
+#include "redis_ai_types/tensor_type.h"
 
 #define REDISAI_H_INCLUDE
 #include "redisai.h"

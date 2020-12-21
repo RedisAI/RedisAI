@@ -1,8 +1,9 @@
 #include "tensor_type.h"
-#include "../AOF/rai_aof_rewrite.h"
-#include "../RDB/encoder/rai_rdb_encode.h"
-#include "../RDB/decoder/rai_rdb_decoder.h"
-#include "../RDB/decoder/decode_previous.h"
+#include "../tensor.h"
+#include "../serialization/AOF/rai_aof_rewrite.h"
+#include "../serialization/RDB/encoder/rai_rdb_encode.h"
+#include "../serialization/RDB/decoder/rai_rdb_decoder.h"
+#include "../serialization/RDB/decoder/decode_previous.h"
 
 extern RedisModuleType *RedisAI_TensorType;
 

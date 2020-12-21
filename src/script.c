@@ -17,7 +17,6 @@
 #include "version.h"
 #include <pthread.h>
 
-
 RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char *scriptdef,
                              RAI_Error *err) {
     if (!RAI_backends.torch.script_create) {
