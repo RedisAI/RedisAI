@@ -172,9 +172,8 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     }
     RedisModule_Free(outputs);
     RedisModule_Free(buffer);
-
     RedisModule_Free(devicestr);
-    RedisModule_Free(stats_keystr);
+    RedisModule_FreeString(NULL, stats_keystr);
 
     return model;
 
