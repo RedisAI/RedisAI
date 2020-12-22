@@ -8,6 +8,7 @@
  */
 
 #include "stats.h"
+#include "util/string_utils.h"
 
 #include <sys/time.h>
 
@@ -24,31 +25,28 @@ long long ustime(void) {
 mstime_t mstime(void) { return ustime() / 1000; }
 
 void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType runtype,
-                        RAI_Backend backend, const char *devicestr, const char *tag) {
-    const char *infokey = RedisModule_StringPtrLen(key, NULL);
-
+                        RAI_Backend backend, const char *devicestr, RedisModuleString *tag) {
     struct RedisAI_RunStats *rstats = NULL;
     rstats = RedisModule_Calloc(1, sizeof(struct RedisAI_RunStats));
-    RedisModule_RetainString(ctx, key);
-    rstats->key = key;
+    rstats->key = RAI_HoldString(NULL, key);
     rstats->type = runtype;
     rstats->backend = backend;
     rstats->devicestr = RedisModule_Strdup(devicestr);
-    rstats->tag = RedisModule_Strdup(tag);
+    rstats->tag = RAI_HoldString(NULL, tag);
 
-    AI_dictAdd(run_stats, (void *)infokey, (void *)rstats);
+    AI_dictAdd(run_stats, (void *)key, (void *)rstats);
 
-    return (void *)infokey;
+    return (void *)key;
 }
 
 void RAI_ListStatsEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,
-                          const char ***tags) {
+                          RedisModuleString ***tags) {
     AI_dictIterator *stats_iter = AI_dictGetSafeIterator(run_stats);
 
     long long stats_size = AI_dictSize(run_stats);
 
     *keys = RedisModule_Calloc(stats_size, sizeof(RedisModuleString *));
-    *tags = RedisModule_Calloc(stats_size, sizeof(const char *));
+    *tags = RedisModule_Calloc(stats_size, sizeof(RedisModuleString *));
 
     *nkeys = 0;
 
@@ -109,13 +107,13 @@ void RAI_FreeRunStats(struct RedisAI_RunStats *rstats) {
             RedisModule_Free(rstats->devicestr);
         }
         if (rstats->tag) {
-            RedisModule_Free(rstats->tag);
+            RedisModule_FreeString(NULL, rstats->tag);
         }
         RedisModule_Free(rstats);
     }
 }
 
-int RAI_GetRunStats(const char *runkey, struct RedisAI_RunStats **rstats) {
+int RAI_GetRunStats(RedisModuleString *runkey, struct RedisAI_RunStats **rstats) {
     int result = 1;
     if (run_stats == NULL) {
         return result;

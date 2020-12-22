@@ -26,6 +26,7 @@
 #include "run_info.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include "util/queue.h"
 #include "version.h"
 
@@ -184,9 +185,9 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisModule_ReplyWithError(ctx, "ERR Invalid DEVICE");
     }
 
-    const char *tag = "";
+    RedisModuleString *tag = NULL;
     if (AC_AdvanceIfMatch(&ac, "TAG")) {
-        AC_GetString(&ac, &tag, NULL, 0);
+        AC_GetRString(&ac, &tag, 0);
     }
 
     unsigned long long batchsize = 0;
@@ -470,7 +471,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, mto->devicestr);
 
     RedisModule_ReplyWithCString(ctx, "tag");
-    RedisModule_ReplyWithCString(ctx, mto->tag ? mto->tag : "");
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
+    RedisModule_ReplyWithString(ctx, mto->tag ? mto->tag : empty_tag);
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_ReplyWithCString(ctx, "batchsize");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.batchsize);
@@ -539,16 +542,18 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     long long nkeys;
     RedisModuleString **keys;
-    const char **tags;
+    RedisModuleString **tags;
     RAI_ListStatsEntries(RAI_MODEL, &nkeys, &keys, &tags);
 
     RedisModule_ReplyWithArray(ctx, nkeys);
 
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
     for (long long i = 0; i < nkeys; i++) {
         RedisModule_ReplyWithArray(ctx, 2);
         RedisModule_ReplyWithString(ctx, keys[i]);
-        RedisModule_ReplyWithCString(ctx, tags[i]);
+        RedisModule_ReplyWithString(ctx, tags[i] ? tags[i] : empty_tag);
     }
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_Free(keys);
     RedisModule_Free(tags);
@@ -633,7 +638,7 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, sto->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
-    RedisModule_ReplyWithCString(ctx, sto->tag);
+    RedisModule_ReplyWithString(ctx, sto->tag);
     if (source) {
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
@@ -682,9 +687,9 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     const char *devicestr;
     AC_GetString(&ac, &devicestr, NULL, 0);
 
-    const char *tag = "";
+    RedisModuleString *tag = NULL;
     if (AC_AdvanceIfMatch(&ac, "TAG")) {
-        AC_GetString(&ac, &tag, NULL, 0);
+        AC_GetRString(&ac, &tag, 0);
     }
 
     if (AC_IsAtEnd(&ac)) {
@@ -780,16 +785,18 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     long long nkeys;
     RedisModuleString **keys;
-    const char **tags;
+    RedisModuleString **tags;
     RAI_ListStatsEntries(RAI_SCRIPT, &nkeys, &keys, &tags);
 
     RedisModule_ReplyWithArray(ctx, nkeys);
 
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
     for (long long i = 0; i < nkeys; i++) {
         RedisModule_ReplyWithArray(ctx, 2);
         RedisModule_ReplyWithString(ctx, keys[i]);
-        RedisModule_ReplyWithCString(ctx, tags[i]);
+        RedisModule_ReplyWithString(ctx, tags[i] ? tags[i] : empty_tag);
     }
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_Free(keys);
     RedisModule_Free(tags);
@@ -803,7 +810,7 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (argc != 2 && argc != 3)
         return RedisModule_WrongArity(ctx);
-    const char *runkey = RedisModule_StringPtrLen(argv[1], NULL);
+    RedisModuleString *runkey = argv[1];
     struct RedisAI_RunStats *rstats = NULL;
     if (RAI_GetRunStats(runkey, &rstats) == REDISMODULE_ERR) {
         return RedisModule_ReplyWithError(ctx, "ERR cannot find run info for key");
@@ -833,7 +840,11 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, rstats->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
-    RedisModule_ReplyWithCString(ctx, rstats->tag);
+    if (rstats->tag) {
+        RedisModule_ReplyWithString(ctx, rstats->tag);
+    } else {
+        RedisModule_ReplyWithCString(ctx, "");
+    }
     RedisModule_ReplyWithCString(ctx, "duration");
     RedisModule_ReplyWithLongLong(ctx, rstats->duration_us);
     RedisModule_ReplyWithCString(ctx, "samples");
@@ -1209,9 +1220,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
     }
 
-    run_stats = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    run_stats = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
 
     return REDISMODULE_OK;
 }
-
-extern AI_dictType AI_dictTypeHeapStrings;
