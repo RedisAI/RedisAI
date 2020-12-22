@@ -567,8 +567,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    bool ro_dag = false;
-    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELRUN, ro_dag);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELRUN, false);
 }
 
 /**
@@ -584,8 +583,7 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     // Convert The script run command into a DAG command that contains a single op.
-    bool ro_dag = false;
-    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, ro_dag);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }
 
 /**
@@ -892,8 +890,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    bool ro_only = false;
-    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, ro_only);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, false);
 }
 
 /**

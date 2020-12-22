@@ -48,6 +48,7 @@ typedef void (*RAI_OnFinishCB)(RAI_OnFinishCtx *ctx, void *private_data);
 #define RedisAI_ErrorCode_ETENSORSET          14
 #define RedisAI_ErrorCode_ETENSORGET          15
 #define RedisAI_ErrorCode_EDAGRUN             16
+#define RedisAI_ErrorCode_EFINISHCTX          17
 
 enum RedisAI_DataFmt { REDISAI_DATA_BLOB = 0, REDISAI_DATA_VALUES, REDISAI_DATA_NONE };
 
@@ -93,7 +94,7 @@ int MODULE_API_FUNC(RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx *mctx, const ch
 int MODULE_API_FUNC(RedisAI_ModelRunCtxAddOutput)(RAI_ModelRunCtx *mctx, const char *outputName);
 size_t MODULE_API_FUNC(RedisAI_ModelRunCtxNumOutputs)(RAI_ModelRunCtx *mctx);
 RAI_Tensor *MODULE_API_FUNC(RedisAI_ModelRunCtxOutputTensor)(RAI_ModelRunCtx *mctx, size_t index);
-void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx *mctx, bool freeTensors);
+void MODULE_API_FUNC(RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx *mctx);
 int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx **mctx, long long n, RAI_Error *err);
 RAI_Model *MODULE_API_FUNC(RedisAI_ModelGetShallowCopy)(RAI_Model *model);
 int MODULE_API_FUNC(RedisAI_ModelSerialize)(RAI_Model *model, char **buffer, size_t *len,

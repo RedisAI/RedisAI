@@ -102,8 +102,8 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
  * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
  */
 
-static int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                 RedisModuleString **outkeys, RAI_ModelRunCtx *mctx) {
+static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                                  RedisModuleString **outkeys, RAI_ModelRunCtx *mctx) {
 
     RAI_Model *model = mctx->model;
     RAI_Tensor *t;
@@ -152,7 +152,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModul
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
-        if (ModelRunCtx_SetParams(ctx, inkeys, outkeys, mctx) == REDISMODULE_ERR)
+        if (_ModelRunCtx_SetParams(ctx, inkeys, outkeys, mctx) == REDISMODULE_ERR)
             goto cleanup;
     }
     if (RAI_InitDagOp(&currentOp) == REDISMODULE_ERR) {
@@ -177,7 +177,7 @@ cleanup:
     if (runkey)
         RedisModule_FreeString(NULL, runkey);
     if (mctx)
-        RAI_ModelRunCtxFree(mctx, true);
+        RAI_ModelRunCtxFree(mctx);
     RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }

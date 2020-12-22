@@ -18,7 +18,7 @@ RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model);
  * @param mctx
  * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx, int freeTensors);
+void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctxs);
 
 /**
  * Allocates a RAI_ModelCtxParam data structure, and enforces a shallow copy of

@@ -70,7 +70,7 @@ static int _ExecuteModelRunAsync(RedisModuleCtx *ctx, RAI_ModelRunCtx* mctx) {
 	pthread_mutex_lock(&global_lock);
 	if (RedisAI_ModelRunAsync(mctx, ModelFinishFunc, &status) != REDISMODULE_OK) {
 		pthread_mutex_unlock(&global_lock);
-		RedisAI_ModelRunCtxFree(mctx, true);
+		RedisAI_ModelRunCtxFree(mctx);
 		RedisModule_ReplyWithError(ctx, "Async run could not start");
 		return LLAPI_RUN_NONE;
 	}
@@ -78,7 +78,7 @@ static int _ExecuteModelRunAsync(RedisModuleCtx *ctx, RAI_ModelRunCtx* mctx) {
 	// Wait until the onFinish callback returns.
 	pthread_cond_wait(&global_cond, &global_lock);
 	pthread_mutex_unlock(&global_lock);
-	RedisAI_ModelRunCtxFree(mctx, true);
+	RedisAI_ModelRunCtxFree(mctx);
 	return status;
 }
 
