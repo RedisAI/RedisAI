@@ -471,8 +471,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, mto->devicestr);
 
     RedisModule_ReplyWithCString(ctx, "tag");
-    RedisModuleString *empty_tag = RedisModule_CreateString(ctx, "", 0);
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
     RedisModule_ReplyWithString(ctx, mto->tag ? mto->tag : empty_tag);
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_ReplyWithCString(ctx, "batchsize");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.batchsize);
@@ -546,11 +547,13 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RedisModule_ReplyWithArray(ctx, nkeys);
 
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
     for (long long i = 0; i < nkeys; i++) {
         RedisModule_ReplyWithArray(ctx, 2);
         RedisModule_ReplyWithString(ctx, keys[i]);
-        RedisModule_ReplyWithString(ctx, tags[i]);
+        RedisModule_ReplyWithString(ctx, tags[i] ? tags[i] : empty_tag);
     }
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_Free(keys);
     RedisModule_Free(tags);
@@ -787,11 +790,13 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     RedisModule_ReplyWithArray(ctx, nkeys);
 
+    RedisModuleString *empty_tag = RedisModule_CreateString(NULL, "", 0);
     for (long long i = 0; i < nkeys; i++) {
         RedisModule_ReplyWithArray(ctx, 2);
         RedisModule_ReplyWithString(ctx, keys[i]);
-        RedisModule_ReplyWithString(ctx, tags[i]);
+        RedisModule_ReplyWithString(ctx, tags[i] ? tags[i] : empty_tag);
     }
+    RedisModule_FreeString(NULL, empty_tag);
 
     RedisModule_Free(keys);
     RedisModule_Free(tags);
