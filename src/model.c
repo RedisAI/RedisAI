@@ -119,7 +119,7 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     model->infokey =
         RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
 
-    RedisModule_FreeString(stats_keystr);
+    RedisModule_FreeString(NULL, stats_keystr);
 
     return model;
 }
