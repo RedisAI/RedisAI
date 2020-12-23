@@ -6,12 +6,13 @@
 #define REDISMODULE_MAIN
 #include "redismodule.h"
 #include "tensor.h"
-
+#include "command_parser.h"
 #include "backends.h"
 #include "backends/util.h"
 #include "background_workers.h"
-#include "dag.h"
+#include "DAG/dag.h"
 #include "model.h"
+#include "modelRun_ctx.h"
 #include "script.h"
 #include "stats.h"
 #include <pthread.h>
@@ -136,7 +137,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     const int parse_result = RAI_parseTensorGetArgs(ctx, argv, argc, t);
 
-    RedisModule_CloseKey(key);
     // if the number of parsed args is negative something went wrong
     if (parse_result < 0) {
         return REDISMODULE_ERR;
@@ -572,12 +572,7 @@ int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-
-    if (argc < 3)
-        return RedisModule_WrongArity(ctx);
-
-    // Convert The model run command into A DAG command that contains a single op.
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELRUN, false);
 }
 
 /**
@@ -592,8 +587,8 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (argc < 6)
         return RedisModule_WrongArity(ctx);
 
-    // Convert The script run command into A DAG command that contains a single op.
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    // Convert The script run command into a DAG command that contains a single op.
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }
 
 /**
@@ -906,7 +901,7 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_WRITE_MODE);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, false);
 }
 
 /**
@@ -921,7 +916,7 @@ int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
-    return RedisAI_ProcessDagRunCommand(ctx, argv, argc, REDISAI_DAG_READONLY_MODE);
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, true);
 }
 
 #define EXECUTION_PLAN_FREE_MSG 100
@@ -983,6 +978,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelSerialize, ctx);
     REGISTER_API(ModelGetShallowCopy, ctx);
     REGISTER_API(ModelRedisType, ctx);
+    REGISTER_API(ModelRunAsync, ctx);
+    REGISTER_API(GetAsModelRunCtx, ctx)
 
     REGISTER_API(ScriptCreate, ctx);
     REGISTER_API(ScriptFree, ctx);
