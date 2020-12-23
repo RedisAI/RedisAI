@@ -4,8 +4,8 @@ name: Valgrind
 
 # Controls when the action will run. 
 on:
-  pull_request_review_comment:
-    types: [created]
+  pull_request:
+    types: [opened, edited, synchronize]
   issue_comment:
     types: [created]
 
