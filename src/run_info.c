@@ -9,6 +9,7 @@
 
 #include "err.h"
 #include "model.h"
+#include "modelRun_ctx.h"
 #include "model_struct.h"
 #include "redismodule.h"
 #include "script.h"
@@ -163,7 +164,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
         array_free(dagOp->outTensors);
 
         if (dagOp->mctx) {
-            RAI_ModelRunCtxFree(dagOp->mctx, true);
+            RAI_ModelRunCtxFree(dagOp->mctx);
         }
         if (dagOp->sctx) {
             RAI_ScriptRunCtxFree(dagOp->sctx, true);
@@ -327,4 +328,17 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
     }
 
     return 1;
+}
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
+
+    RAI_DagOp *op = rinfo->dagOps[0];
+    if (!rinfo->single_op_dag || !op->mctx) {
+        RAI_SetError(err, RedisAI_ErrorCode_EFINISHCTX, "Finish ctx is not a model run ctx");
+        return NULL;
+    }
+    RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
+    RAI_ModelRunCtx *mctx = op->mctx;
+    rinfo->dagOps[0]->mctx = NULL;
+    RAI_FreeRunInfo(rinfo);
+    return mctx;
 }

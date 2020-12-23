@@ -19,7 +19,7 @@
 #include <pthread.h>
 
 #include "config.h"
-#include "dag.h"
+#include "DAG/dag.h"
 #include "model.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"

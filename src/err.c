@@ -57,13 +57,13 @@ int RAI_InitError(RAI_Error **result) {
     RAI_Error *err;
     err = (RAI_Error *)RedisModule_Calloc(1, sizeof(RAI_Error));
     if (!err) {
-        return 1;
+        return REDISMODULE_ERR;
     }
     err->code = 0;
     err->detail = NULL;
     err->detail_oneline = NULL;
     *result = err;
-    return 0;
+    return REDISMODULE_OK;
 }
 
 void RAI_ClearError(RAI_Error *err) {

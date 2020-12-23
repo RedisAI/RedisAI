@@ -570,12 +570,12 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val) {
             *val = ((double *)data)[i];
             break;
         default:
-            return 0;
+            return 1;
         }
     } else {
-        return 0;
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
@@ -674,6 +674,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
         return REDISMODULE_ERR;
     }
     *tensor = RedisModule_ModuleTypeGetValue(*key);
+    RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
 }
 
@@ -924,7 +925,7 @@ int RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
         double val;
         for (i = 0; i < len; i++) {
             int ret = RAI_TensorGetValueAsDouble(t, i, &val);
-            if (!ret) {
+            if (ret == 1) {
                 RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
                 return -1;
             }
