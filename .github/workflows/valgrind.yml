@@ -19,7 +19,7 @@ jobs:
       - uses: khan/pull-request-comment-trigger@master
         id: check
         with:
-          trigger: '@test-valgrind'
+          trigger: '@valgrind'
           prefix_only: true 
       - uses: actions/checkout@v2
         with:
