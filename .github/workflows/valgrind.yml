@@ -6,6 +6,7 @@ name: Valgrind
 on:
   issue_comment:
     types: [created]
+  pull_request:
 
 jobs:
   valgrind:
