@@ -1,0 +1,34 @@
+# This is a basic workflow to help you get started with Actions
+
+name: Valgrind
+
+# Controls when the action will run. 
+on:
+  pull_request:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  valgrind:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: khan/pull-request-comment-trigger@master
+        id: check
+        with:
+          trigger: '@valgrind'
+        env:
+          GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - run: |
+          cd RedisAI
+          sudo make -C setup
+          bash get_deps.sh
+          make -C opt test VALGRIND=1
+
+        if: steps.check.outputs.triggered == 'true'
