@@ -16,34 +16,19 @@
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include <pthread.h>
-
-static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
-    return AI_dictGenHashFunction(key, strlen((char *)key));
-}
-
-static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2) {
-    const char *strKey1 = key1;
-    const char *strKey2 = key2;
-    return strcmp(strKey1, strKey2) == 0;
-}
-
-static void RAI_TensorDictKeyFree(void *privdata, void *key) { RedisModule_Free(key); }
-
-static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
-    return RedisModule_Strdup((char *)key);
-}
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {
     return RAI_TensorFree((RAI_Tensor *)obj);
 }
 
 AI_dictType AI_dictTypeTensorVals = {
-    .hashFunction = RAI_TensorDictKeyHashFunction,
-    .keyDup = RAI_TensorDictKeyDup,
+    .hashFunction = RAI_RStringsHashFunction,
+    .keyDup = RAI_RStringsKeyDup,
     .valDup = NULL,
-    .keyCompare = RAI_TensorDictKeyStrcmp,
-    .keyDestructor = RAI_TensorDictKeyFree,
+    .keyCompare = RAI_RStringsKeyCompare,
+    .keyDestructor = RAI_RStringsKeyDestructor,
     .valDestructor = RAI_TensorDictValFree,
 };
 
@@ -107,11 +92,11 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     if (!(rinfo->dagTensorsContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsLoadedContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsPersistedContext)) {
         return REDISMODULE_ERR;
     }

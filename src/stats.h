@@ -21,7 +21,7 @@ struct RedisAI_RunStats {
     RAI_RunType type;
     RAI_Backend backend;
     char *devicestr;
-    char *tag;
+    RedisModuleString *tag;
     long long duration_us;
     long long samples;
     long long calls;
@@ -47,7 +47,7 @@ mstime_t mstime(void);
  * @return
  */
 void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType type,
-                        RAI_Backend backend, const char *devicestr, const char *tag);
+                        RAI_Backend backend, const char *devicestr, RedisModuleString *tag);
 
 /**
  * Removes the statistical entry with the provided unique stats identifier
@@ -67,7 +67,7 @@ void RAI_RemoveStatsEntry(void *infokey);
  * @param tags output variable containing the list of returned tags
  */
 void RAI_ListStatsEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,
-                          const char ***tags);
+                          RedisModuleString ***tags);
 
 /**
  *
@@ -97,7 +97,7 @@ void RAI_FreeRunStats(struct RedisAI_RunStats *rstats);
  * @param rstats
  * @return 0 on success, or 1 if the the run stats with runkey does not exist
  */
-int RAI_GetRunStats(const char *runkey, struct RedisAI_RunStats **rstats);
+int RAI_GetRunStats(RedisModuleString *runkey, struct RedisAI_RunStats **rstats);
 
 void RedisAI_FreeRunStats(RedisModuleCtx *ctx, struct RedisAI_RunStats *rstats);
 

@@ -36,7 +36,7 @@ int RAI_ScriptInit(RedisModuleCtx *ctx);
  * failures
  * @return RAI_Script script structure on success, or NULL if failed
  */
-RAI_Script *RAI_ScriptCreate(const char *devicestr, const char *tag, const char *scriptdef,
+RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
                              RAI_Error *err);
 
 /**

@@ -17,6 +17,7 @@
 #include "stats.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include <pthread.h>
 #include "DAG/dag.h"
 
@@ -32,7 +33,7 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     RAI_Backend backend = RedisModule_LoadUnsigned(io);
     const char *devicestr = RedisModule_LoadStringBuffer(io, NULL);
 
-    const char *tag = RedisModule_LoadStringBuffer(io, NULL);
+    RedisModuleString *tag = RedisModule_LoadString(io);
 
     const size_t batchsize = RedisModule_LoadUnsigned(io);
     const size_t minbatchsize = RedisModule_LoadUnsigned(io);
@@ -114,12 +115,12 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
     const char *stats_devicestr = RedisModule_Strdup(devicestr);
-    const char *stats_tag = RedisModule_Strdup(tag);
+    RedisModuleString *stats_tag = RAI_HoldString(NULL, tag);
 
     model->infokey =
         RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
 
-    RedisModule_Free(stats_keystr);
+    RedisModule_FreeString(NULL, stats_keystr);
 
     return model;
 }
@@ -144,7 +145,7 @@ static void RAI_Model_RdbSave(RedisModuleIO *io, void *value) {
 
     RedisModule_SaveUnsigned(io, model->backend);
     RedisModule_SaveStringBuffer(io, model->devicestr, strlen(model->devicestr) + 1);
-    RedisModule_SaveStringBuffer(io, model->tag, strlen(model->tag) + 1);
+    RedisModule_SaveString(io, model->tag);
     RedisModule_SaveUnsigned(io, model->opts.batchsize);
     RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
     RedisModule_SaveUnsigned(io, model->ninputs);
@@ -222,7 +223,7 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
     const char *backendstr = RAI_BackendName(model->backend);
 
-    RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvcv", key, backendstr, model->devicestr,
+    RedisModule_EmitAOF(aof, "AI.MODELSET", "sccsclclcvcvcv", key, backendstr, model->devicestr,
                         model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
                         model->opts.minbatchsize, "INPUTS", inputs_, model->ninputs, "OUTPUTS",
                         outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
@@ -286,7 +287,7 @@ int RAI_ModelInit(RedisModuleCtx *ctx) {
     return RedisAI_ModelType != NULL;
 }
 
-RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const char *tag,
+RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
                            const char **outputs, const char *modeldef, size_t modellen,
                            RAI_Error *err) {
@@ -322,7 +323,11 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, const cha
     }
 
     if (model) {
-        model->tag = RedisModule_Strdup(tag);
+        if (tag) {
+            model->tag = RAI_HoldString(NULL, tag);
+        } else {
+            model->tag = RedisModule_CreateString(NULL, "", 0);
+        }
         model->ninputs = ninputs;
         model->noutputs = noutputs;
     }
@@ -364,7 +369,7 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
         return;
     }
 
-    RedisModule_Free(model->tag);
+    RedisModule_FreeString(NULL, model->tag);
 
     RAI_RemoveStatsEntry(model->infokey);
 

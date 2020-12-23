@@ -45,6 +45,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 #include "dag_parser.h"
+#include "util/string_utils.h"
 
 /**
  * Execution of a TENSORSET DAG step.
@@ -59,7 +60,7 @@ void RedisAI_DagRunSession_TensorSet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     const int parse_result =
         RAI_parseTensorSetArgs(NULL, currentOp->argv, currentOp->argc, &t, 0, currentOp->err);
     if (parse_result > 0) {
-        const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[0], NULL);
+        RedisModuleString *key_string = currentOp->outkeys[0];
         RAI_ContextWriteLock(rinfo);
         AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, t);
         RAI_ContextUnlock(rinfo);
@@ -78,7 +79,7 @@ void RedisAI_DagRunSession_TensorSet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
  * @return
  */
 void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
-    const char *key_string = RedisModule_StringPtrLen(currentOp->inkeys[0], NULL);
+    RedisModuleString *key_string = currentOp->inkeys[0];
     RAI_Tensor *t = NULL;
     RAI_ContextReadLock(rinfo);
     currentOp->result = RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext, key_string,
@@ -102,8 +103,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
         const int get_result = RAI_getTensorFromLocalContext(
-            NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
-            &inputTensor, currentOp->err);
+            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
         if (get_result == REDISMODULE_ERR) {
             // We check for this outside the function
             // this check cannot be covered by tests
@@ -141,9 +141,8 @@ static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *c
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
-        const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
-        AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
+        AI_dictReplace(rinfo->dagTensorsContext, (void *)currentOp->outkeys[outputNumber], tensor);
     }
     RAI_ContextUnlock(rinfo);
 }
@@ -244,8 +243,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
         const int get_result = RAI_getTensorFromLocalContext(
-            NULL, rinfo->dagTensorsContext, RedisModule_StringPtrLen(currentOp->inkeys[i], NULL),
-            &inputTensor, currentOp->err);
+            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
         if (get_result == REDISMODULE_ERR) {
             // We check for this outside the function
             // this check cannot be covered by tests
@@ -275,7 +273,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
-        const char *key_string = RedisModule_StringPtrLen(currentOp->outkeys[outputNumber], NULL);
+        RedisModuleString *key_string = currentOp->outkeys[outputNumber];
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, tensor);
     }
@@ -304,8 +302,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
         if (rinfo->single_op_dag) {
             input = op->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext,
-                                          RedisModule_StringPtrLen(op->inkeys[i], NULL), &input,
+            RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext, op->inkeys[i], &input,
                                           op->err);
         }
         // We are expecting input != NULL, because we only reach this function if all inputs
@@ -354,16 +351,14 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
         if (rinfo1->single_op_dag == 1) {
             input1 = op1->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo1->dagTensorsContext,
-                                          RedisModule_StringPtrLen(op1->inkeys[i], NULL), &input1,
+            RAI_getTensorFromLocalContext(NULL, rinfo1->dagTensorsContext, op1->inkeys[i], &input1,
                                           op1->err);
         }
         RAI_Tensor *input2;
         if (rinfo2->single_op_dag == 1) {
             input2 = op2->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo2->dagTensorsContext,
-                                          RedisModule_StringPtrLen(op2->inkeys[i], NULL), &input2,
+            RAI_getTensorFromLocalContext(NULL, rinfo2->dagTensorsContext, op2->inkeys[i], &input2,
                                           op2->err);
         }
         if (input1 == NULL || input2 == NULL) {
@@ -439,8 +434,7 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, int *currentOpReady,
     RAI_ContextReadLock(rinfo);
 
     for (int i = 0; i < n_inkeys; i++) {
-        if (AI_dictFind(rinfo->dagTensorsContext,
-                        RedisModule_StringPtrLen(currentOp_->inkeys[i], NULL)) == NULL) {
+        if (AI_dictFind(rinfo->dagTensorsContext, currentOp_->inkeys[i]) == NULL) {
             RAI_ContextUnlock(rinfo);
             *currentOpReady = 0;
             return;
@@ -543,17 +537,22 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
 }
 
 static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
-                                  const char *persist_key_name, bool mangled_name) {
+                                  RedisModuleString *persist_key_name, bool mangled_name) {
+
     int ret = REDISMODULE_ERR;
     RedisModuleKey *key;
-    char *demangled_key_name = RedisModule_Strdup(persist_key_name);
-    if (mangled_name)
-        demangled_key_name[strlen(persist_key_name) - 4] = 0;
-    RedisModuleString *tensor_keyname =
-        RedisModule_CreateString(ctx, demangled_key_name, strlen(demangled_key_name));
+    size_t persist_key_len;
+    const char *persist_key_str = RedisModule_StringPtrLen(persist_key_name, &persist_key_len);
+
+    RedisModuleString *demangled_key_name;
+    if (mangled_name) {
+        demangled_key_name = RedisModule_CreateString(NULL, persist_key_str, persist_key_len - 4);
+    } else {
+        demangled_key_name = RedisModule_CreateString(NULL, persist_key_str, persist_key_len);
+    }
+
     const int status =
-        RAI_OpenKey_Tensor(ctx, tensor_keyname, &key, REDISMODULE_READ | REDISMODULE_WRITE);
-    RedisModule_Free(demangled_key_name);
+        RAI_OpenKey_Tensor(ctx, demangled_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE);
     if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         goto clean_up;
@@ -565,9 +564,11 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
         }
     }
     ret = REDISMODULE_OK;
+
 clean_up:
     RedisModule_CloseKey(key);
-    RedisAI_ReplicateTensorSet(ctx, tensor_keyname, tensor);
+    RedisAI_ReplicateTensorSet(ctx, demangled_key_name, tensor);
+    RedisModule_FreeString(NULL, demangled_key_name);
     return ret;
 }
 
@@ -575,7 +576,7 @@ static void PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
     AI_dictIterator *persist_iter = AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
     AI_dictEntry *persist_entry = AI_dictNext(persist_iter);
     while (persist_entry) {
-        const char *persist_key_name = AI_dictGetKey(persist_entry);
+        RedisModuleString *persist_key_name = AI_dictGetKey(persist_entry);
 
         AI_dictEntry *tensor_entry = AI_dictFind(rinfo->dagTensorsContext, persist_key_name);
 
@@ -586,8 +587,7 @@ static void PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
                 persist_entry = AI_dictNext(persist_iter);
                 continue;
             }
-            bool mangled = true;
-            if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, mangled) == REDISMODULE_ERR)
+            if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, true) == REDISMODULE_ERR)
                 rinfo->dagReplyLength++;
 
         } else {
@@ -602,7 +602,7 @@ static void PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             AI_dictIterator *local_iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
             AI_dictEntry *local_entry = AI_dictNext(local_iter);
             while (local_entry) {
-                const char *localcontext_key_name = AI_dictGetKey(local_entry);
+                RedisModuleString *localcontext_key_name = AI_dictGetKey(local_entry);
                 RedisModule_Log(ctx, "warning", "DAG's local context key (%s)",
                                 localcontext_key_name);
                 local_entry = AI_dictNext(local_iter);
@@ -623,11 +623,9 @@ static void ModelSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(op->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(op->mctx, outputNumber);
-        const char *key_string = RedisModule_StringPtrLen(op->outkeys[outputNumber], NULL);
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
-        bool mangled = false;
         if (tensor)
-            _StoreTensorInKeySpace(ctx, tensor, key_string, mangled);
+            _StoreTensorInKeySpace(ctx, tensor, op->outkeys[outputNumber], false);
     }
 }
 
@@ -693,8 +691,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         case REDISAI_DAG_CMD_MODELRUN: {
             rinfo->dagReplyLength++;
             struct RedisAI_RunStats *rstats = NULL;
-            const char *runkey = RedisModule_StringPtrLen(currentOp->runkey, NULL);
-            RAI_GetRunStats(runkey, &rstats);
+            RAI_GetRunStats(currentOp->runkey, &rstats);
             if (currentOp->result == REDISMODULE_ERR) {
                 RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
                 RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
@@ -719,8 +716,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         case REDISAI_DAG_CMD_SCRIPTRUN: {
             rinfo->dagReplyLength++;
             struct RedisAI_RunStats *rstats = NULL;
-            const char *runkey = RedisModule_StringPtrLen(currentOp->runkey, NULL);
-            RAI_GetRunStats(runkey, &rstats);
+            RAI_GetRunStats(currentOp->runkey, &rstats);
             if (currentOp->result == REDISMODULE_ERR) {
                 RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
                 RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);

@@ -859,7 +859,7 @@ def test_pytorch_modelscan_scriptscan(env):
     ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script_filename = os.path.join(test_data_path, 'script.txt')
@@ -870,7 +870,7 @@ def test_pytorch_modelscan_scriptscan(env):
     ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
