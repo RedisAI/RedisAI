@@ -20,15 +20,17 @@ jobs:
         id: check
         with:
           trigger: '@valgrind'
+          reaction: eyes
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
       - uses: actions/checkout@v2
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - run: |
-          cd RedisAI
-          sudo make -C setup
-          bash get_deps.sh
-          make -C opt test VALGRIND=1
-
-        # if: steps.check.outputs.triggered == 'true'
+        if: steps.check.outputs.triggered == 'true'
+      - if: steps.check.outputs.triggered == 'true'
+        run: |
+            cd RedisAI
+            sudo make -C setup
+            bash get_deps.sh
+            make -C opt test VALGRIND=1
+      
