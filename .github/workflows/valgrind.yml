@@ -5,9 +5,9 @@ name: Valgrind
 # Controls when the action will run. 
 on:
   pull_request:
-    types: [opened]
-  issue_comment:
-    types: [created]
+    types: [opened, edited]
+#   issue_comment:
+#     types: [created]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -26,10 +26,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
         if: steps.check.outputs.triggered == 'true'
-#       - if: steps.check.outputs.triggered == 'true'
-#         run: |
-#             cd RedisAI
-#             sudo make -C setup
-#             bash get_deps.sh
-#             make -C opt test VALGRIND=1
+      - if: steps.check.outputs.triggered == 'true'
+        run: |
+            cd RedisAI
+            sudo make -C setup
+            bash get_deps.sh
+            make -C opt test VALGRIND=1
       
