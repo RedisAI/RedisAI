@@ -26,10 +26,10 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
         if: steps.check.outputs.triggered == 'true'
-      - if: steps.check.outputs.triggered == 'true'
-        run: |
-            cd RedisAI
-            sudo make -C setup
-            bash get_deps.sh
-            make -C opt test VALGRIND=1
+#       - if: steps.check.outputs.triggered == 'true'
+#         run: |
+#             cd RedisAI
+#             sudo make -C setup
+#             bash get_deps.sh
+#             make -C opt test VALGRIND=1
       
