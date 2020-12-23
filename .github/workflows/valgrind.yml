@@ -5,7 +5,8 @@ name: Valgrind
 # Controls when the action will run. 
 on:
   issue_comment:
-    types: [created, edited]
+    types: [created]
+  workflow_dispatch:
 
 jobs:
   valgrind:
