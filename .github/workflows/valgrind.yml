@@ -20,7 +20,6 @@ jobs:
         id: check
         with:
           trigger: '@valgrind'
-          reaction: eyes
         env:
           GITHUB_TOKEN: '${{ secrets.GITHUB_TOKEN }}'
       - uses: actions/checkout@v2
