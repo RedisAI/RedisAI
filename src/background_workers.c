@@ -422,6 +422,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // run, all ops for the device or all ops in the dag could be complete. This
             // way we can avoid placing the op back on the queue if there's nothing left
             // to do.
+            assert(run_error == 0);
             int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 

@@ -66,6 +66,9 @@ class RedisAISetup(paella.Setup):
         self.install("clang")
         self.install_git_lfs_on_linux()
 
+    def linux_last(self):
+        self.install("valgrind")
+
     def macos(self):
         self.install_gnu_utils()
         self.install("git-lfs")

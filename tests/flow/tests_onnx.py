@@ -137,6 +137,14 @@ def test_onnx_modelrun_mnist(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("model key is empty", exception.__str__())
 
+    # This error is caught after the model is sent to the backend, not in parsing like before.
+    try:
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'a{1}', 'OUTPUTS', 'b{1}')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual('Expected 1 inputs but got 2', exception.__str__())
+
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
 
     ensureSlaveSynced(con, env)
