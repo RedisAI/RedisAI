@@ -25,8 +25,8 @@ jobs:
         if: steps.check.outputs.triggered == 'true'
       - if: steps.check.outputs.triggered == 'true'
         run: |
-            cd RedisAI
-            sudo make -C setup
-            bash get_deps.sh cpu
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            make -C opt test VALGRIND=1
+          cd RedisAI
+          sudo make -C setup
+          bash get_deps.sh cpu
+          ./opt/readies/bin/getredis -v 6 --valgrind --force
+          make -C opt test VALGRIND=1
