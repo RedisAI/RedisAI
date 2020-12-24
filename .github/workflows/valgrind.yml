@@ -12,7 +12,7 @@ on:
 
 jobs:
   valgrind:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
       - uses: khan/pull-request-comment-trigger@master
         id: check
@@ -27,6 +27,6 @@ jobs:
         run: |
             cd RedisAI
             sudo make -C setup
-            bash get_deps.sh
+            bash get_deps.sh cpu
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
             make -C opt test VALGRIND=1
-      
