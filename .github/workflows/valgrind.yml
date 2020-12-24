@@ -14,19 +14,19 @@ jobs:
   valgrind:
     runs-on: ubuntu-18.04
     steps:
-      - uses: khan/pull-request-comment-trigger@master
-        id: check
-        with:
-          trigger: 'valgrind'
-          prefix_only: true
-      - uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
-        if: steps.check.outputs.triggered == 'true'
-      - if: steps.check.outputs.triggered == 'true'
-        run: |
-          cd RedisAI
-          sudo make -C setup
-          bash get_deps.sh cpu
-          ./opt/readies/bin/getredis -v 6 --valgrind --force
-          make -C opt test VALGRIND=1
+    - uses: khan/pull-request-comment-trigger@master
+      id: check
+      with:
+        trigger: 'valgrind'
+        prefix_only: true
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+      if: steps.check.outputs.triggered == 'true'
+    - if: steps.check.outputs.triggered == 'true'
+      run: |
+        cd RedisAI
+        sudo make -C setup
+        bash get_deps.sh cpu
+        ./opt/readies/bin/getredis -v 6 --valgrind --force
+        make -C opt test VALGRIND=1
