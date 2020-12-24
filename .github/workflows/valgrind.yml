@@ -12,14 +12,16 @@ on:
 
 jobs:
   valgrind:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-18.04
     steps:
     - uses: khan/pull-request-comment-trigger@master
       id: check
       with:
         trigger: 'valgrind'
         prefix_only: true
+        reaction: rocket
     - uses: actions/checkout@v2
+      submodules: 'true'
       with:
         ref: ${{ github.event.pull_request.head.sha }}
       if: steps.check.outputs.triggered == 'true'
