@@ -391,13 +391,14 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
                 // Run is over, now iterate over the run info structs in the batch
                 // and see if any error was generated
-                int first_dag_error = 0;
+                bool first_dag_error = false;
                 for (long long i = 0; i < array_len(batch_rinfo); i++) {
                     RedisAI_RunInfo *rinfo = batch_rinfo[i];
                     // We record that there was an error for later on
                     run_error = __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED);
-                    if (i == 0 && run_error == 1)
-                        first_dag_error = 1;
+                    if (i == 0 && run_error == 1) {
+                        first_dag_error = true;
+                    }
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (run_error) {
@@ -422,7 +423,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // run, all ops for the device or all ops in the dag could be complete. This
             // way we can avoid placing the op back on the queue if there's nothing left
             // to do.
-            assert(run_error == 0);
+            RedisModule_Assert(run_error == 0);
             int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 
