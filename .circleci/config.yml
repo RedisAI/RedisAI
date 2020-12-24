@@ -12,6 +12,14 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
+  setup-automation:
+    steps:
+      - run:
+          name: Setup automation
+          command: |
+            PIP=1 ./opt/readies/bin/getpy3
+            ./opt/system-setup.py
+
   build-steps:
     parameters:
       platform:
@@ -25,11 +33,10 @@ commands:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
+      - setup-automation
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            BREW_NO_UPDATE=1 ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
@@ -39,6 +46,11 @@ commands:
       - run:
           name: Build
           command: make -C opt all SHOW=1
+      - run:
+          name: Unit Tests
+          command: |
+            make -C opt unit_tests SHOW=1
+          no_output_timeout: 5m
       - run:
           name: Test
           command: |
@@ -55,10 +67,8 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
-          path: test/logs
+          path: tests/logs
 
   platform-build-steps:
     parameters:
@@ -93,8 +103,6 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -109,6 +117,19 @@ commands:
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
+  lint:
+    docker:
+      - image: redislabsmodules/llvm-toolset:latest
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - run:
+          name: lint
+          command: |
+            make -C opt lint
+
   build-debian:
     docker:
       - image: redisfab/rmbuilder:6.0.5-x64-buster
@@ -133,16 +154,15 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
+      - setup-automation
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
@@ -154,7 +174,35 @@ jobs:
           command: |
             make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
-          no_output_timeout: 20m
+          no_output_timeout: 30m
+
+  valgrind:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive 
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-automation
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VALGRIND=1
+          no_output_timeout: 120m
 
   build-macos:
     macos:
@@ -175,7 +223,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Checkout LFS
           command: |
@@ -206,7 +254,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Build
           command: |
@@ -215,7 +263,7 @@ jobs:
           name: Test
           command: |
             mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/test/logs -it --rm redisai-gpu:latest-x64-bionic-test
+            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
           path: test/log
@@ -304,7 +352,6 @@ on-master-and-version-tags: &on-master-and-version-tags
     tags:
       only: /^v[0-9].*/
 
-
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
@@ -313,21 +360,26 @@ platform-build-defs: &platform-build-defs
 
 after-platform-builds: &after-platform-builds
   requires:
-    - build-centos7
+    # - build-centos7
     - build-bionic
     - build-xenial
 
+after-linter: &after-linter
+  requires:
+    - lint
 
 workflows:
   version: 2
   build_and_package:
     jobs:
+      - lint
       - build-debian:
           <<: *on-any-branch
+          <<: *after-linter
       - platform-build:
           name: build-centos7
           platform: centos7
-          <<: *platform-build-defs
+          <<: *never # temporarily disabled
       - platform-build:
           name: build-bionic
           platform: bionic
@@ -338,8 +390,13 @@ workflows:
           <<: *platform-build-defs
       - coverage:
           <<: *on-any-branch
+          <<: *after-linter
+      - valgrind:
+          <<: *on-master
+          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
+          <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags

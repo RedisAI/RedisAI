@@ -8,13 +8,9 @@ PriorityQueue *__newPriorityQueueSize(size_t elemSize, size_t cap, int (*cmp)(vo
     return pq;
 }
 
-inline size_t Priority_Queue_Size(PriorityQueue *pq) {
-    return Vector_Size(pq->v);
-}
+inline size_t Priority_Queue_Size(PriorityQueue *pq) { return Vector_Size(pq->v); }
 
-inline int Priority_Queue_Top(PriorityQueue *pq, void *ptr) {
-    return Vector_Get(pq->v, 0, ptr);
-}
+inline int Priority_Queue_Top(PriorityQueue *pq, void *ptr) { return Vector_Get(pq->v, 0, ptr); }
 
 inline size_t __priority_Queue_PushPtr(PriorityQueue *pq, void *elem) {
     size_t top = __vector_PushPtr(pq->v, elem);

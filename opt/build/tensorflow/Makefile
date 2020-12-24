@@ -3,20 +3,31 @@ ROOT=../../..
 
 VERSION ?= 1.15.0
 OSNICK ?= buster
+# CPU=1
+# GPU=1
+#   CUDA=version
+#   CUDNN=version
 
+#----------------------------------------------------------------------------------------------
+
+OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
+ARCH:=$(shell $(ROOT)/opt/readies/bin/platform --arch)
+MACH:=$(shell uname -m)
+
+DOCKER_OS.xenial=ubuntu:xenial
+DOCKER_OS.bionic=ubuntu:bionic
+DOCKER_OS.focal=ubuntu:focal
+DOCKER_OS.stretch=debian:stretch-slim
+DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS.centos7=centos:7.8.2003
+DOCKER_OS=$(DOCKER_OS.$(OSNICK))
+ 
 #----------------------------------------------------------------------------------------------
 
 S3_URL=redismodules/tensorflow
 
-OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
-
 STEM=libtensorflow-cpu-$(OS)
 
-DOCKER_OS.bionic=ubuntu:bionic
-DOCKER_OS.stretch=debian:stretch-slim
-DOCKER_OS.buster=debian:buster-slim
-DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
 #----------------------------------------------------------------------------------------------
 
 define targets # (1=OP, 2=op)
@@ -33,10 +44,21 @@ $(eval $(call targets,PUBLISH,publish))
 
 #----------------------------------------------------------------------------------------------
 
+DOCKER_BUILD_ARGS += \
+	TF_VER=$(VERSION) \
+	OSNICK=$(OSNICK) \
+	OS=$(DOCKER_OS) \
+	ARCH=$(ARCH) \
+	MACH=$(MACH) \
+	REDIS_VER=$(REDIS_VER) \
+	TEST=$(TEST) \
+	PACK=$(PACK)
+
 define build_x64 # (1=arch, 2=tar-arch)
 IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
+$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A))
 build_x64:
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 \
 		--build-arg OS=$(DOCKER_OS) $(ROOT)

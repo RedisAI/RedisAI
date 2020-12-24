@@ -46,7 +46,7 @@ Note that Redis config is located at `/usr/local/etc/redis/redis.conf` which can
 
 On the client, set the model
 ```sh
-redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c BLOB < test/test_data/graph.pb
+redis-cli -x AI.MODELSET foo TF CPU INPUTS a b OUTPUTS c BLOB < tests/test_data/graph.pb
 ```
 
 Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
@@ -138,7 +138,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 | 1.0.0   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 | master  | 1.7.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 
-Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.
+Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/tests/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.
 
 ## Documentation
 

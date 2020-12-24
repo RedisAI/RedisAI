@@ -1,6 +1,7 @@
 import redis
 
 from includes import *
+from RLTest import Env
 
 '''
 python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
@@ -725,7 +726,7 @@ def test_pytorch_scriptinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    # env.debugPrint("skipping this test for now", force=True)
+    # env.debugPrint("skipping this tests for now", force=True)
     # return
 
     con = env.getConnection()
@@ -858,7 +859,7 @@ def test_pytorch_modelscan_scriptscan(env):
     ret = con.execute_command('AI.MODELSET', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm2', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script_filename = os.path.join(test_data_path, 'script.txt')
@@ -869,7 +870,7 @@ def test_pytorch_modelscan_scriptscan(env):
     ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -928,3 +929,36 @@ def test_pytorch_model_rdb_save_load(env):
     env.assertTrue(dtype_memory == dtype_after_rdbload)
     env.assertTrue(shape_memory == shape_after_rdbload)
     env.assertTrue(data_memory == data_after_rdbload)
+
+
+def test_parallelism():
+    env = Env(moduleArgs='INTRA_OP_PARALLELISM 1 INTER_OP_PARALLELISM 1')
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
+    ensureSlaveSynced(con, env)
+    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    ensureSlaveSynced(con, env)
+    values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+    load_time_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    env.assertEqual(load_time_config["ai_inter_op_parallelism"], "1")
+    env.assertEqual(load_time_config["ai_intra_op_parallelism"], "1")
+
+    env = Env(moduleArgs='INTRA_OP_PARALLELISM 2 INTER_OP_PARALLELISM 2')
+    load_time_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
+    env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
