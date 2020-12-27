@@ -638,12 +638,12 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
                             'INPUTS', 'input{1}', 'OUTPUTS', output_name)
 
     # Running thrice since minbatchsize = 2
-    p1 = mp.Process(target=run)
-    p1.start()
-    p2 = mp.Process(target=run)
-    p2.start()
-    p3 = mp.Process(target=run)
-    p3.start()
+    # The third process will hang until termintation or until a new process will execute the model with the same properties.
+    processes = []
+    for i in range(3):
+        p = mp.Process(target=run)
+        p.start()
+        processes.append(p)
 
     time.sleep(3)
 
@@ -655,8 +655,9 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     p1b = mp.Process(target=run, args=(another_model_name, 'final1{1}'))
     p1b.start()
-
     run(another_model_name, 'final2{1}')
+
+    p1b.join()
 
     _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'final1{1}', 'META', 'BLOB')
     dtype_map = {b'FLOAT': np.float32}
@@ -667,7 +668,8 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     env.assertEqual(label, 'giant_panda')
 
-    p3.terminate()
+    for p in processes:
+        p.terminate()
 
 
 @skip_if_no_TF

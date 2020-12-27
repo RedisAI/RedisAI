@@ -289,6 +289,60 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     return ret;
 }
 
+void RAI_RStringDataTensorDeleter(DLManagedTensor *arg) {
+    if (arg->dl_tensor.shape) {
+        RedisModule_Free(arg->dl_tensor.shape);
+    }
+    if (arg->dl_tensor.strides) {
+        RedisModule_Free(arg->dl_tensor.strides);
+    }
+    if (arg->manager_ctx) {
+        RedisModuleString *rstr = (RedisModuleString *)arg->manager_ctx;
+        RedisModule_FreeString(NULL, rstr);
+    }
+
+    RedisModule_Free(arg);
+}
+
+RAI_Tensor *RAI_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, long long *dims, int ndims,
+                                                     RedisModuleString *rstr) {
+    const size_t dtypeSize = Tensor_DataTypeSize(dtype);
+    if (dtypeSize == 0) {
+        return NULL;
+    }
+
+    RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
+    int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
+    int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
+
+    size_t len = 1;
+    for (int64_t i = 0; i < ndims; ++i) {
+        shape[i] = dims[i];
+        strides[i] = 1;
+        len *= dims[i];
+    }
+    for (int64_t i = ndims - 2; i >= 0; --i) {
+        strides[i] *= strides[i + 1] * shape[i + 1];
+    }
+
+    DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+
+    char *data = (char *)RedisModule_StringPtrLen(rstr, NULL);
+
+    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
+                                                            .data = data,
+                                                            .ndim = ndims,
+                                                            .dtype = dtype,
+                                                            .shape = shape,
+                                                            .strides = strides,
+                                                            .byte_offset = 0},
+                                    .manager_ctx = rstr,
+                                    .deleter = RAI_RStringDataTensorDeleter};
+
+    ret->refCount = 1;
+    return ret;
+}
+
 RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, int hasdata) {
     DLDataType dtype = RAI_TensorDataTypeFromString(dataType);
     return RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
@@ -570,12 +624,12 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val) {
             *val = ((double *)data)[i];
             break;
         default:
-            return 0;
+            return 1;
         }
     } else {
-        return 0;
+        return 1;
     }
-    return 1;
+    return 0;
 }
 
 int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
@@ -674,6 +728,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
         return REDISMODULE_ERR;
     }
     *tensor = RedisModule_ModuleTypeGetValue(*key);
+    RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
 }
 
@@ -681,7 +736,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  * Return REDISMODULE_OK if the tensor value is present at the localContextDict.
  */
 int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  const char *localContextKey, RAI_Tensor **tensor,
+                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
                                   RAI_Error *error) {
     int result = REDISMODULE_ERR;
     AI_dictEntry *tensor_entry = AI_dictFind(localContextDict, localContextKey);
@@ -814,7 +869,14 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     size_t datalen;
     const char *data;
     DLDataType datatype = RAI_TensorDataTypeFromString(typestr);
-    *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
+    if (datafmt == REDISAI_DATA_BLOB) {
+        RedisModuleString *rstr = argv[argpos];
+        RedisModule_RetainString(NULL, rstr);
+        *t = RAI_TensorCreateWithDLDataTypeAndRString(datatype, dims, ndims, rstr);
+    } else {
+        *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
+    }
+
     if (!t) {
         array_free(dims);
         if (ctx == NULL) {
@@ -825,24 +887,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return -1;
     }
     long i = 0;
-    switch (datafmt) {
-    case REDISAI_DATA_BLOB: {
-        const char *blob = RedisModule_StringPtrLen(argv[argpos], &datalen);
-        if (datalen != nbytes) {
-            RAI_TensorFree(*t);
-            array_free(dims);
-            if (ctx == NULL) {
-                RAI_SetError(error, RAI_ETENSORSET,
-                             "ERR data length does not match tensor shape and type");
-            } else {
-                RedisModule_ReplyWithError(ctx,
-                                           "ERR data length does not match tensor shape and type");
-            }
-            return -1;
-        }
-        RAI_TensorSetData(*t, blob, datalen);
-    } break;
-    case REDISAI_DATA_VALUES:
+    if (datafmt == REDISAI_DATA_VALUES) {
         for (; (argpos <= argc - 1) && (i < len); argpos++) {
             if (datatype.code == kDLFloat) {
                 double val;
@@ -899,10 +944,6 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
             }
             i++;
         }
-        break;
-    default:
-        // default does not require tensor data setting since calloc setted it to 0
-        break;
     }
     array_free(dims);
     return argpos;
@@ -924,7 +965,7 @@ int RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
         double val;
         for (i = 0; i < len; i++) {
             int ret = RAI_TensorGetValueAsDouble(t, i, &val);
-            if (!ret) {
+            if (ret == 1) {
                 RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
                 return -1;
             }

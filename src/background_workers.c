@@ -9,18 +9,8 @@
  */
 
 #include "background_workers.h"
-#include "dag.h"
-#include "model.h"
 #include "redisai.h"
-#include "rmutil/alloc.h"
-#include "rmutil/args.h"
 #include "run_info.h"
-#include "script.h"
-#include "stats.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
-#include "util/dict.h"
-#include "util/queue.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <string.h>
@@ -401,19 +391,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
                 // Run is over, now iterate over the run info structs in the batch
                 // and see if any error was generated
-                int dagError = 0;
+                bool first_dag_error = false;
                 for (long long i = 0; i < array_len(batch_rinfo); i++) {
                     RedisAI_RunInfo *rinfo = batch_rinfo[i];
-                    // We lock on the DAG because error could be set from
-                    // other threads operating on the same DAG (TODO: use atomic)
-                    dagError = __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED);
-
                     // We record that there was an error for later on
-                    run_error = dagError;
-
+                    run_error = __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED);
+                    if (i == 0 && run_error == 1) {
+                        first_dag_error = true;
+                    }
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
-                    if (dagError) {
+                    if (run_error) {
                         RedisAI_RunInfo *orig = rinfo->orig_copy;
                         long long dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
                         if (dagRefCount == 0) {
@@ -425,12 +413,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                         __atomic_add_fetch(rinfo->dagCompleteOpCount, 1, __ATOMIC_RELAXED);
                     }
                 }
+                if (first_dag_error) {
+                    run_queue_len = queueLength(run_queue_info->run_queue);
+                    continue;
+                }
             }
 
             // We initialize variables where we'll store the fact hat, after the current
             // run, all ops for the device or all ops in the dag could be complete. This
             // way we can avoid placing the op back on the queue if there's nothing left
             // to do.
+            RedisModule_Assert(run_error == 0);
             int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
             int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 

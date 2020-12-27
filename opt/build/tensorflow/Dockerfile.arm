@@ -1,4 +1,4 @@
-# BUILD redisfab/libtensorflow-cpu-$(OSNICK)-${ARCH}:$(TF_VER)
+# BUILD redisfab/libtensorflow:${TF_VER}-cpu-${OSNICK}-${ARCH}
 
 # stretch|bionic|buster
 ARG OSNICK=buster

@@ -18,13 +18,13 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 
-enum RedisAI_DAGCommands {
+typedef enum DAGCommand {
     REDISAI_DAG_CMD_NONE = 0,
     REDISAI_DAG_CMD_TENSORSET,
     REDISAI_DAG_CMD_TENSORGET,
     REDISAI_DAG_CMD_MODELRUN,
     REDISAI_DAG_CMD_SCRIPTRUN
-};
+} DAGCommand;
 
 enum RedisAI_DAGMode { REDISAI_DAG_READONLY_MODE = 0, REDISAI_DAG_WRITE_MODE };
 
@@ -76,7 +76,7 @@ typedef RedisAI_RunInfo RedisAI_OnFinishCtx;
  * @param ctx parameter includes the running results and errors.
  * @param private_data is an optional pointer to the user's private data.
  */
-typedef void (*RAI_OnFinishCB)(RedisAI_OnFinishCtx *ctx, void *private_data);
+typedef void (*RedisAI_OnFinishCB)(RedisAI_OnFinishCtx *ctx, void *private_data);
 
 /**
  * This structure represents the context in which RedisAI blocking commands
@@ -112,7 +112,7 @@ struct RedisAI_RunInfo {
     long long timeout;
     int *timedOut;
     struct timeval queuingTime;
-    RAI_OnFinishCB OnFinish;
+    RedisAI_OnFinishCB OnFinish;
     RedisAI_RunInfo *orig_copy;
     void *private_data; // This is going to be sent to the OnFinish callback.
 };
@@ -179,6 +179,14 @@ size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
  * @return 1 if batchable, 0 otherwise
  */
 int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
+
+/**
+ * Retreive the ModelRunCtx of a DAG runInfo that contains a single op of type
+ * MODELRUN.
+ * @param DAG runInfo.
+ * @return Pointer to the ModelRunCtx in DAG's single op.
+ */
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
 
 #ifdef __cplusplus
 } // extern "C"

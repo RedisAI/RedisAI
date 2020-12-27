@@ -141,6 +141,9 @@ def test_dagro_common_errors(env):
 def test_dagrun_ro_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
+    if(VALGRIND):
+        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
+        env.skip()
     con = env.getConnection()
     model_name = 'imagenet_model{{1}}'
     script_name = 'imagenet_script{{1}}'
@@ -188,6 +191,9 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
 def test_dagrun_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
+    if(VALGRIND):
+        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
+        env.skip()
     con = env.getConnection()
     model_name = 'imagenet_model:{{1}}'
     script_name = 'imagenet_script:{{1}}'
@@ -1056,7 +1062,8 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     try:
         ret = con.execute_command(
             'AI.DAGRUN',
-                         'PERSIST', '1', class_key_0, '|>',
+                         'PERSIST', '1', class_key_0,
+                         '|>',
             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
                          '|>',
             'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
@@ -1117,17 +1124,18 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
 
     ret = con.execute_command(
         'AI.DAGRUN',
-                     'PERSIST', '1', class_key_0, '|>',
+                     'PERSIST', '1', class_key_0,
+                     '|>',
         'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
                      '|>',
         'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
                      'INPUTS', image_key,
                      'OUTPUTS', temp_key1,
-                     '|>',
+                      '|>',
         'AI.MODELRUN', model_name_0,
                      'INPUTS', temp_key1,
                      'OUTPUTS', temp_key2_0,
-                     '|>',
+                      '|>',
         'AI.MODELRUN', model_name_1,
                      'INPUTS', temp_key1,
                      'OUTPUTS', temp_key2_1,
