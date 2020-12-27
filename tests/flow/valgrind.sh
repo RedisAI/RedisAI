@@ -11,9 +11,10 @@ error() {
 # trap error ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../opt/readies/shibumi/functions
+export ROOT=$(cd $HERE/../..; pwd)
+. $ROOT/opt/readies/shibumi/functions
 
-export ROOT=$(realpath $HERE/..)
+cd $HERE
 
 #----------------------------------------------------------------------------------------------
 
@@ -24,10 +25,10 @@ help() {
 		[ARGVARS...] valgrind.sh [--help|help] [<module-so-path>]
 		
 		Argument variables:
-		VERBOSE=1     Print commands
-		IGNERR=1      Do not abort on error
+		VERBOSE=1         Print commands
+		IGNERR=1          Do not abort on error
 		
-		CALLGRIND|CGD=1  Run with Callgrind
+		CALLGRIND|CGD=1   Run with Callgrind
 
 	END
 }
@@ -59,6 +60,7 @@ valgrind_config() {
 	else
 		VALGRIND_OPTIONS+="\
 			-q \
+			--suppressions=$VALGRIND_SUPRESSIONS \
 			--leak-check=full \
 			--show-reachable=no \
 			--show-possibly-lost=no \
@@ -82,8 +84,6 @@ VALGRIND_OPTIONS=""
 valgrind_config
 
 #----------------------------------------------------------------------------------------------
-
-cd $ROOT/test
 
 check_redis_server
 $OP valgrind $(echo "$VALGRIND_OPTIONS") redis-server --protected-mode no --save '' --appendonly no --loadmodule $MODULE

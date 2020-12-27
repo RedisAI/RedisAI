@@ -23,10 +23,13 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/queue.c
         util/string_utils.c
         redisai.c
+        command_parser.c
         run_info.c
         background_workers.c
         config.c
-        dag.c
+        DAG/dag.c
+        DAG/dag_parser.c
+        modelRun_ctx.c
         backends.c
         backends/util.c
         model.c

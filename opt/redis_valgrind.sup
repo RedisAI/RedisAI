@@ -43,3 +43,28 @@
    Memcheck:Value8
    fun:lzf_compress
 }
+
+{
+   <dlopen>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:dlopen@@GLIBC_2.2.5
+   ...
+   fun:RAI_LoadBackend
+}
+
+{
+   <tf-operator new>
+   Memcheck:Leak
+   ...
+   fun:clone
+}
+
+{
+   <malloc>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:clone
+}
