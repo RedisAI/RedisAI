@@ -63,21 +63,21 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("No graph was found in the protobuf.", exception.__str__())
+        env.assertEqual("No graph was found in the protobuf.", str(exception))
 
     try:
         con.execute_command('AI.MODELSET', 'm_1{1}', 'ONNX', 'BLOB', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid DEVICE", exception.__str__())
+        env.assertEqual("Invalid DEVICE", str(exception))
 
     try:
         con.execute_command('AI.MODELSET', 'm_2{1}', model_pb)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.MODELSET' command", exception.__str__())
+        env.assertEqual("wrong number of arguments for 'AI.MODELSET' command", str(exception))
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
@@ -86,56 +86,64 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'a{1}', 'b{1}', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_3{1}', 'a{1}', 'b{1}', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1{1}', 'OUTPUTS', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified", exception.__str__())
+        env.assertEqual("INPUTS not specified", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1{1}', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+        env.assertEqual("model key is empty", str(exception))
+
+    # This error is caught after the model is sent to the backend, not in parsing like before.
+    try:
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'a{1}', 'OUTPUTS', 'b{1}')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual('Expected 1 inputs but got 2', str(exception))
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
 
