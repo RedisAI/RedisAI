@@ -656,6 +656,8 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     p1b = mp.Process(target=run, args=(another_model_name, 'final1{1}'))
     p1b.start()
 
+    p1b.join()
+
     run(another_model_name, 'final2{1}')
 
     _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'final1{1}', 'META', 'BLOB')
