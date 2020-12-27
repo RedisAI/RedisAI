@@ -13,39 +13,39 @@ import paella
 
 #----------------------------------------------------------------------------------------------
 
-PYTORCH_VERSION = '1.7.0'
+TENSORFLOW_VERSION = '2.3.1'
+VARIANT='gpu-jetson'
 
 parser = argparse.ArgumentParser(description='Prepare RedisAI dependant distribution packages.')
-parser.add_argument('--pytorch', default='pytorch', help='root of pytorch repository')
-parser.add_argument('--pytorch-ver', default=PYTORCH_VERSION, help='pytorch version')
+parser.add_argument('--root', default='tensorflow', help='root of tensorflow repository')
+parser.add_argument('--version', default=TENSORFLOW_VERSION, help='tensorflow version')
+parser.add_argument('--variant', default=VARIANT, help='build variant')
 parser.add_argument('--dest', default='dest', help='destination directory')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
 #----------------------------------------------------------------------------------------------
 
-pytorch = Path(args.pytorch).resolve()
+tensorflow = Path(args.root).resolve()
 dest = Path(args.dest).resolve()
 
 #----------------------------------------------------------------------------------------------
 
-pt_build='cpu'
+tf_build=args.variant
 
 platform = paella.Platform()
 
-pt_os = platform.os
-if pt_os == 'macos':
-    pt_os = 'darwin'
+tf_os = platform.os
+if tf_os == 'macos':
+    tf_os = 'darwin'
 
-pt_arch = platform.arch
-if pt_arch == 'x64':
-    pt_arch = 'x86_64'
-elif pt_arch == 'arm64v8':
-    pt_arch = 'arm64'
-elif pt_arch == 'arm32v7':
-    pt_arch = 'arm'
+tf_arch = platform.arch
+if tf_arch == 'x64':
+    tf_arch = 'x86_64'
+elif tf_arch == 'arm64v8':
+    tf_arch = 'arm64'
 
-pt_ver = args.pytorch_ver
+tf_ver = args.version
 
 #----------------------------------------------------------------------------------------------
 
@@ -63,20 +63,18 @@ def create_tar(name, basedir, dir='.'):
         with tarfile.open(name, 'w:gz') as tar:
             tar.add(dir, filter=reset_uid)
 
-def collect_pytorch():
-    d_pytorch = dest/'libtorch'
-    with cwd(pytorch/'torch/include'):
-        for f in Path('.').glob('**/*.h'):
-            copy_p(f, d_pytorch/'include')
-    with cwd(pytorch/'torch/lib'):
-        for f in Path('.').glob('*.a'):
-            copy_p(f, d_pytorch/'lib')
+def collect_tensorflow():
+    d_tensorflow = dest #/'tensorflow'
+    with cwd(tensorflow):
+        for f in Path('tensorflow/c').glob('**/*.h'):
+            copy_p(f, d_tensorflow/'include')
+    with cwd(tensorflow/'bazel-bin'/'tensorflow'):
         for f in Path('.').glob('*.so*'):
-            copy_p(f, d_pytorch/'lib')
-    with cwd(pytorch/'torch'):
-        shutil.copytree('share', d_pytorch/'share', ignore_dangling_symlinks=True)
-    create_tar('libtorch-{}-{}-{}-{}.tar.gz'.format(pt_build, pt_os, pt_arch, pt_ver), dest, 'libtorch')
+            if str(f).endswith(".params"):
+                continue
+            copy_p(f, d_tensorflow/'lib')
+    create_tar(dest/f'libtensorflow-{tf_build}-{tf_os}-{tf_arch}-{tf_ver}.tar.gz', dest)
 
 #----------------------------------------------------------------------------------------------
 
-collect_pytorch()
+collect_tensorflow()

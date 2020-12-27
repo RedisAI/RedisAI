@@ -9,39 +9,26 @@
 
 #include "err.h"
 #include "model.h"
+#include "modelRun_ctx.h"
 #include "model_struct.h"
 #include "redismodule.h"
 #include "script.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
-
-static uint64_t RAI_TensorDictKeyHashFunction(const void *key) {
-    return AI_dictGenHashFunction(key, strlen((char *)key));
-}
-
-static int RAI_TensorDictKeyStrcmp(void *privdata, const void *key1, const void *key2) {
-    const char *strKey1 = key1;
-    const char *strKey2 = key2;
-    return strcmp(strKey1, strKey2) == 0;
-}
-
-static void RAI_TensorDictKeyFree(void *privdata, void *key) { RedisModule_Free(key); }
-
-static void *RAI_TensorDictKeyDup(void *privdata, const void *key) {
-    return RedisModule_Strdup((char *)key);
-}
+#include "util/string_utils.h"
+#include <pthread.h>
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {
     return RAI_TensorFree((RAI_Tensor *)obj);
 }
 
 AI_dictType AI_dictTypeTensorVals = {
-    .hashFunction = RAI_TensorDictKeyHashFunction,
-    .keyDup = RAI_TensorDictKeyDup,
+    .hashFunction = RAI_RStringsHashFunction,
+    .keyDup = RAI_RStringsKeyDup,
     .valDup = NULL,
-    .keyCompare = RAI_TensorDictKeyStrcmp,
-    .keyDestructor = RAI_TensorDictKeyFree,
+    .keyCompare = RAI_RStringsKeyCompare,
+    .keyDestructor = RAI_RStringsKeyDestructor,
     .valDestructor = RAI_TensorDictValFree,
 };
 
@@ -105,11 +92,11 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     if (!(rinfo->dagTensorsContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsLoadedContext)) {
         return REDISMODULE_ERR;
     }
-    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     if (!(rinfo->dagTensorsPersistedContext)) {
         return REDISMODULE_ERR;
     }
@@ -177,7 +164,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
         array_free(dagOp->outTensors);
 
         if (dagOp->mctx) {
-            RAI_ModelRunCtxFree(dagOp->mctx, true);
+            RAI_ModelRunCtxFree(dagOp->mctx);
         }
         if (dagOp->sctx) {
             RAI_ScriptRunCtxFree(dagOp->sctx, true);
@@ -341,4 +328,17 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
     }
 
     return 1;
+}
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
+
+    RAI_DagOp *op = rinfo->dagOps[0];
+    if (!rinfo->single_op_dag || !op->mctx) {
+        RAI_SetError(err, RedisAI_ErrorCode_EFINISHCTX, "Finish ctx is not a model run ctx");
+        return NULL;
+    }
+    RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
+    RAI_ModelRunCtx *mctx = op->mctx;
+    rinfo->dagOps[0]->mctx = NULL;
+    RAI_FreeRunInfo(rinfo);
+    return mctx;
 }

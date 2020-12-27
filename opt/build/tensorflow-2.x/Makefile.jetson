@@ -1,30 +1,38 @@
 
 ROOT=../../..
 
-VERSION ?= 1.7.0
+VERSION ?= 2.3.1
 OSNICK ?= bionic
 
-REDIS_VER=6.0.9
+VARIANT=jetson
 
 #----------------------------------------------------------------------------------------------
 
-S3_URL=redismodules/pytorch
-
 OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
-OSNICK:=$(shell $(ROOT)/opt/readies/bin/platform --osnick)
+# OSNICK:=$(shell $(ROOT)/opt/readies/bin/platform --osnick)
+OSNICK:=bionic
 ARCH:=$(shell $(ROOT)/opt/readies/bin/platform --arch)
-DEVICE ?= cpu
+MACH:=$(shell uname -m)
 
-STEM=libtorch
+DEVICE=gpu
 
+DOCKER_OS.xenial=ubuntu:xenial
 DOCKER_OS.bionic=ubuntu:bionic
+DOCKER_OS.focal=ubuntu:focal
 DOCKER_OS.stretch=debian:stretch-slim
 DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS.centos7=centos:7.8.2003
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
+
 TAR_ARCH.x64=x86_64
 TAR_ARCH.arm64v8=arm64
 TAR_ARCH.arm32v7=arm
+
+#----------------------------------------------------------------------------------------------
+
+S3_URL=redismodules/tensorflow
+
+STEM=libtensorflow
 
 #----------------------------------------------------------------------------------------------
 
@@ -49,20 +57,24 @@ $(eval $(call targets,PUBLISH,publish))
 #----------------------------------------------------------------------------------------------
 
 DOCKER_BUILD_ARGS += \
-	PT_VER=$(VERSION) \
+	TF_VER=$(VERSION) \
 	OSNICK=$(OSNICK) \
 	OS=$(DOCKER_OS) \
-	ARCH=$(ARCH)
+	ARCH=$(ARCH) \
+	MACH=$(MACH) \
+	REDIS_VER=$(REDIS_VER) \
+	TEST=$(TEST) \
+	PACK=$(PACK)
 
 define build_native # (1=arch, 2=tar-arch)
 IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_native:
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(VARIANT)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(OS)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_native
 endef
@@ -74,10 +86,10 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_$(1):
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1)-$(OSNICK) -f Dockerfile.$(VARIANT) \
 		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_$(1)
 endef
@@ -88,7 +100,7 @@ endif # CROSS
 
 define publish_native # (1=arch, 2=tar-arch)
 publish_native:
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_native
 endef
@@ -97,7 +109,7 @@ ifeq ($(CROSS),1)
 
 define publish_arm # (1=arch, 2=tar-arch)
 publish_$(1):
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(DEVICE)-$(VARIANT)-$(OS)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_$(1)
 endef
@@ -124,17 +136,14 @@ endif
 
 publish: $(PUBLISH_TARGETS)
 
-$(eval $(call publish_x64,x64,x86_64))
+$(eval $(call publish_native,$(ARCH),$(TAR_ARCH.$(ARCH))))
 ifeq ($(CROSS),1)
 $(eval $(call publish_arm,arm64v8,arm64))
 $(eval $(call publish_arm,arm32v7,arm))
 endif
 
-repack:
-	@PT_VERSION=$(VERSION) GPU=$(GPU) ./repack.sh
 
 help:
-	@echo "make [build|repack|publish] [X64=1|ARM7=1|ARM8=1] [CROSS=1]"
+	@echo "make [build|publish] [X64=1|ARM7=1|ARM8=1] [CROSS=1]"
 
-.PHONY: all build repack publish help
-
+.PHONY: all build publish help

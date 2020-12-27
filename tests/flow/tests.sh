@@ -12,9 +12,10 @@ error() {
 [[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-. $HERE/../../opt/readies/shibumi/functions
+export ROOT=$(cd $HERE/../..; pwd)
+. $ROOT/opt/readies/shibumi/functions
 
-export ROOT=$(realpath $HERE/../..)
+cd $HERE
 
 #----------------------------------------------------------------------------------------------
 
@@ -34,6 +35,7 @@ help() {
 		SLAVES=0|1      Tests with --test-slaves
 		
 		TEST=test        Run specific test (e.g. test.py:test_name)
+		LOG=0|1          Write to log
 		VALGRIND|VGD=1   Run with Valgrind
 		CALLGRIND|CGD=1  Run with Callgrind
 
@@ -69,11 +71,23 @@ valgrind_config() {
 	VALGRIND_SUPRESSIONS=$ROOT/opt/redis_valgrind.sup
 
 	RLTEST_ARGS+="\
-		--no-output-catch \
 		--use-valgrind \
 		--vg-no-fail-on-errors \
-		--vg-verbose \
 		--vg-suppressions $VALGRIND_SUPRESSIONS"
+}
+
+valgrind_summary() {
+	# Collect name of each flow log that contains leaks
+	FILES_WITH_LEAKS=$(grep -l "definitely lost" logs/*.valgrind.log)
+	if [[ ! -z $FILES_WITH_LEAKS ]]; then
+		echo "Memory leaks introduced in flow tests."
+		echo $FILES_WITH_LEAKS
+		# Print the full Valgrind output for each leaking file
+		echo $FILES_WITH_LEAKS | xargs cat
+		exit 1
+	else
+		echo Valgrind test ok
+	fi
 }
 
 #----------------------------------------------------------------------------------------------
@@ -107,8 +121,11 @@ MODULE=${MODULE:-$1}
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
 if [[ ! -z $TEST ]]; then
-	RLTEST_ARGS+=" --test $TEST -s"
-	export PYDEBUG=${PYDEBUG:-1}
+	RLTEST_ARGS+=" --test $TEST"
+	if [[ $LOG != 1 ]]; then
+		RLTEST_ARGS+=" -s"
+		export PYDEBUG=${PYDEBUG:-1}
+	fi
 fi
 
 [[ $VERBOSE == 1 ]] && RLTEST_ARGS+=" -v"
@@ -121,7 +138,10 @@ cd $ROOT/tests/flow
 install_git_lfs
 check_redis_server
 
+[[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
-[[ $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
-[[ $AOF == 1 ]]    && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
+[[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
+[[ $AOF == 1 ]] && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
+[[ $VALGRIND == 1 ]] && valgrind_summary
+exit 0
