@@ -167,7 +167,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
             RAI_ModelRunCtxFree(dagOp->mctx);
         }
         if (dagOp->sctx) {
-            RAI_ScriptRunCtxFree(dagOp->sctx, true);
+            RAI_ScriptRunCtxFree(dagOp->sctx);
         }
 
         if (dagOp->inkeys) {

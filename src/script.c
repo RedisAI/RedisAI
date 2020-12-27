@@ -156,8 +156,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     return sctx;
 }
 
-static int Script_RunCtxAddParam(RAI_ScriptRunCtx *sctx, RAI_ScriptCtxParam **paramArr,
-                                 RAI_Tensor *tensor) {
+static int _Script_RunCtxAddParam(RAI_ScriptCtxParam **paramArr, RAI_Tensor *tensor) {
     RAI_ScriptCtxParam param = {
         .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
     };
@@ -165,9 +164,9 @@ static int Script_RunCtxAddParam(RAI_ScriptRunCtx *sctx, RAI_ScriptCtxParam **pa
     return 1;
 }
 
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *err) {
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
     // Even if variadic is set, we still allow to add inputs in the LLAPI
-    return Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensor);
+    return _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
 }
 
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors, size_t len,
@@ -182,7 +181,7 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
 
     int res;
     for (size_t i = 0; i < len; i++) {
-        res = Script_RunCtxAddParam(sctx, &sctx->inputs, inputTensors[i]);
+        res = _Script_RunCtxAddParam(&sctx->inputs, inputTensors[i]);
         if (res != 1)
             return res;
     }
@@ -190,7 +189,7 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
 }
 
 int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    return Script_RunCtxAddParam(sctx, &sctx->outputs, NULL);
+    return _Script_RunCtxAddParam(&sctx->outputs, NULL);
 }
 
 size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) { return array_len(sctx->outputs); }
@@ -200,16 +199,15 @@ RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
     return sctx->outputs[index].tensor;
 }
 
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx, int freeTensors) {
-    if (freeTensors) {
-        for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
-            RAI_TensorFree(sctx->inputs[i].tensor);
-        }
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
 
-        for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
-            if (sctx->outputs[i].tensor) {
-                RAI_TensorFree(sctx->outputs[i].tensor);
-            }
+    for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
+        RAI_TensorFree(sctx->inputs[i].tensor);
+    }
+
+    for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
+        if (sctx->outputs[i].tensor) {
+            RAI_TensorFree(sctx->outputs[i].tensor);
         }
     }
 
@@ -261,6 +259,7 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
         return REDISMODULE_ERR;
     }
     *script = RedisModule_ModuleTypeGetValue(*key);
+    RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
 }
 
