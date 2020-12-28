@@ -145,9 +145,6 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
 void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     if (dagOp) {
         RAI_FreeError(dagOp->err);
-        if (dagOp->runkey) {
-            RedisModule_FreeString(NULL, dagOp->runkey);
-        }
         if (dagOp->argv) {
             for (size_t i = 0; i < array_len(dagOp->argv); i++) {
                 RedisModule_FreeString(NULL, dagOp->argv[i]);

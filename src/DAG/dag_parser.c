@@ -223,7 +223,6 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
                 RedisModuleKey *modelKey;
                 const int status = RAI_GetModelFromKeyspace(ctx, argv[arg_pos + 1], &modelKey, &mto,
                                                             REDISMODULE_READ);
-                RedisModule_OpenKey(ctx, argv[arg_pos + 1], REDISMODULE_READ);
                 if (status == REDISMODULE_ERR) {
                     RAI_FreeRunInfo(rinfo);
                     RedisModule_ReplyWithError(ctx, "ERR Model not found");
@@ -244,7 +243,6 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
                 RedisModuleKey *scriptKey;
                 const int status = RAI_GetScriptFromKeyspace(ctx, argv[arg_pos + 1], &scriptKey,
                                                              &sto, REDISMODULE_READ);
-                RedisModule_OpenKey(ctx, argv[arg_pos + 1], REDISMODULE_READ);
                 if (status == REDISMODULE_ERR) {
                     RAI_FreeRunInfo(rinfo);
                     return REDISMODULE_ERR;
