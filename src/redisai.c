@@ -969,7 +969,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelGetShallowCopy, ctx);
     REGISTER_API(ModelRedisType, ctx);
     REGISTER_API(ModelRunAsync, ctx);
-    REGISTER_API(GetAsModelRunCtx, ctx)
+    REGISTER_API(GetAsModelRunCtx, ctx);
 
     REGISTER_API(ScriptCreate, ctx);
     REGISTER_API(ScriptFree, ctx);
@@ -983,6 +983,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRun, ctx);
     REGISTER_API(ScriptGetShallowCopy, ctx);
     REGISTER_API(ScriptRedisType, ctx);
+    REGISTER_API(ScriptRunAsync, ctx);
+    REGISTER_API(GetAsScriptRunCtx, ctx);
 
     return REDISMODULE_OK;
 }

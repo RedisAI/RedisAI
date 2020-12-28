@@ -257,7 +257,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
         RAI_ContextUnlock(rinfo);
 
         for (uint i = 0; i < n_inkeys; i++) {
-            RAI_ScriptRunCtxAddInput(currentOp->sctx, inputTensors[i]);
+            RAI_ScriptRunCtxAddInput(currentOp->sctx, inputTensors[i], currentOp->err);
         }
         for (uint i = 0; i < n_outkeys; i++) {
             RAI_ScriptRunCtxAddOutput(currentOp->sctx);
@@ -593,16 +593,16 @@ static void _PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
                                        "ERR specified persistent key that was not used in DAG");
             rinfo->dagReplyLength++;
             RedisModule_Log(ctx, "warning",
-                            "on DAGRUN's PERSIST pecified persistent key (%s) that "
+                            "on DAGRUN's PERSIST specified persistent key (%s) that "
                             "was not used on DAG. Logging all local context keys",
-                            persist_key_name);
+                            RedisModule_StringPtrLen(persist_key_name, NULL));
             AI_dictIterator *local_iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
             AI_dictEntry *local_entry = AI_dictNext(local_iter);
 
             while (local_entry) {
                 RedisModuleString *localcontext_key_name = AI_dictGetKey(local_entry);
                 RedisModule_Log(ctx, "warning", "DAG's local context key (%s)",
-                                localcontext_key_name);
+                                RedisModule_StringPtrLen(localcontext_key_name, NULL));
                 local_entry = AI_dictNext(local_iter);
             }
             AI_dictReleaseIterator(local_iter);

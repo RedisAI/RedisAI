@@ -263,6 +263,7 @@ static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inke
 
     RAI_Tensor *t;
     RedisModuleKey *key;
+    RAI_Error *err;
     size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
     for (size_t i = 0; i < ninputs; i++) {
         const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ);
@@ -271,7 +272,7 @@ static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inke
                             RedisModule_StringPtrLen(inkeys[i], NULL));
             return REDISMODULE_ERR;
         }
-        RAI_ScriptRunCtxAddInput(sctx, t);
+        RAI_ScriptRunCtxAddInput(sctx, t, err);
     }
     for (size_t i = 0; i < noutputs; i++) {
         RAI_ScriptRunCtxAddOutput(sctx);

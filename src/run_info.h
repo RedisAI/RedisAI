@@ -188,6 +188,14 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
  */
 RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
 
+/**
+ * Retreive the ScriptRunCtx of a DAG runInfo that contains a single op of type
+ * SCRIPTRUN.
+ * @param DAG runInfo.
+ * @return Pointer to the ScriptRunCtx in DAG's single op.
+ */
+RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

@@ -7,7 +7,8 @@
  */
 
 #include "script.h"
-
+#include "run_info.h"
+#include "DAG/dag.h"
 #include "backends.h"
 #include "rmutil/alloc.h"
 #include "script_struct.h"
@@ -164,7 +165,7 @@ static int _Script_RunCtxAddParam(RAI_ScriptCtxParam **paramArr, RAI_Tensor *ten
     return 1;
 }
 
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
     // Even if variadic is set, we still allow to add inputs in the LLAPI
     return _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
 }
@@ -352,3 +353,26 @@ int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString 
 }
 
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
+
+int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
+                       void *private_data) {
+
+    RedisAI_RunInfo *rinfo = NULL;
+    if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+    rinfo->single_op_dag = 1;
+    rinfo->OnFinish = (RedisAI_OnFinishCB)ScriptAsyncFinish;
+    rinfo->private_data = private_data;
+
+    RAI_DagOp *op;
+    if (RAI_InitDagOp(&op) == REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+    op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    Dag_PopulateOp(op, sctx, NULL, NULL, NULL);
+
+    rinfo->dagOps = array_append(rinfo->dagOps, op);
+    rinfo->dagOpCount = 1;
+    return DAG_InsertDAGToQueue(rinfo);
+}

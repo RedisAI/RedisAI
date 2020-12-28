@@ -14,6 +14,7 @@
 #include "redismodule.h"
 #include "script_struct.h"
 #include "tensor.h"
+#include "run_info.h"
 
 extern RedisModuleType *RedisAI_ScriptType;
 
@@ -68,7 +69,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
  * @param inputTensor input tensor structure
  * @return returns 1 on success, 0 in case of error.
  */
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error);
 
 /**
  * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a
@@ -211,5 +212,17 @@ void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCod
  * @return redis module type representing a script.
  */
 RedisModuleType *RAI_ScriptRedisType(void);
+
+/**
+ * Insert the ScriptRunCtx to the run queues so it will run asynchronously.
+ *
+ * @param sctx SodelRunCtx to execute
+ * @param ScriptAsyncFinish A callback that will be called when the execution is finished.
+ * @param private_data This is going to be sent to to the ScriptAsyncFinish.
+ * @return REDISMODULE_OK if the sctx was insert to the queues successfully, REDISMODULE_ERR
+ * otherwise.
+ */
+int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
+                       void *private_data);
 
 #endif /* SRC_SCRIPT_H_ */
