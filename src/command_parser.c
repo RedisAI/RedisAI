@@ -159,6 +159,10 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModul
     return REDISMODULE_OK;
 
 cleanup:
+    if (error.detail) {
+        RedisModule_Free(error.detail);
+        RedisModule_Free(error.detail_oneline);
+    }
     for (size_t i = 0; i < array_len(inkeys); i++) {
         RedisModule_FreeString(NULL, inkeys[i]);
     }
@@ -309,17 +313,18 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModu
         if (_ScriptRunCtx_SetParams(ctx, inkeys, outkeys, sctx) == REDISMODULE_ERR)
             goto cleanup;
     }
-    if (RAI_InitDagOp(&currentOp) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-        goto cleanup;
-    }
+    RAI_InitDagOp(&currentOp);
+
     currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     Dag_PopulateOp(currentOp, sctx, inkeys, outkeys, runkey);
     rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
     return REDISMODULE_OK;
 
 cleanup:
+    if (error.detail) {
+        RedisModule_Free(error.detail);
+        RedisModule_Free(error.detail_oneline);
+    }
     for (size_t i = 0; i < array_len(inkeys); i++) {
         RedisModule_FreeString(NULL, inkeys[i]);
     }

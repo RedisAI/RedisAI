@@ -897,6 +897,10 @@ void Dag_PopulateOp(RAI_DagOp *currentOp, void *rctx, RedisModuleString **inkeys
         currentOp->devicestr = currentOp->sctx->script->devicestr;
     }
 
+    // todo: temporary patch to fix leak, need refactor
+    array_free(currentOp->inkeys);
+    array_free(currentOp->outkeys);
+
     currentOp->inkeys = inkeys;
     currentOp->outkeys = outkeys;
     currentOp->runkey = runkey;

@@ -395,8 +395,8 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
             sprintf(buf, "%04d", *instance);
             RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
             RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-
             AI_dictAdd(mangled_persisted, (void *)mangled_key, (void *)1);
+            RedisModule_FreeString(NULL, mangled_key);
             entry = AI_dictNext(iter);
         }
         AI_dictReleaseIterator(iter);
