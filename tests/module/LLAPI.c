@@ -32,7 +32,40 @@ int RAI_llapi_basic_check(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
 	return RedisModule_ReplyWithError(ctx, "ERROR");
 }
 
-static void ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
+static void _ScriptFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
+
+	RAI_Error *err;
+	if (RedisAI_InitError(&err) != REDISMODULE_OK) goto finish;
+	RAI_ScriptRunCtx* sctx = RedisAI_GetAsScriptRunCtx(onFinishCtx, err);
+	if(RedisAI_GetErrorCode(err) != RedisAI_ErrorCode_OK) {
+		*(int *) private_data = LLAPI_RUN_ERROR;
+		goto finish;
+	}
+	if(RedisAI_ScriptRunCtxNumOutputs(sctx) != 1) {
+		*(int *) private_data = LLAPI_NUM_OUTPUTS_ERROR;
+		goto finish;
+	}
+	RAI_Tensor *tensor = RedisAI_ScriptRunCtxOutputTensor(sctx, 0);
+	double expceted[4] = {4, 6, 4, 6};
+	double val[4];
+
+	// Verify that we received the expected tensor at the end of the run.
+	for (long long i = 0; i < 4; i++) {
+		if(RedisAI_TensorGetValueAsDouble(tensor, i, &val[i]) != 0) {
+			goto finish;
+		}
+		if (expceted[i] != val[i]) {
+			goto finish;
+		}
+	}
+	*(int *)private_data = LLAPI_RUN_SUCCESS;
+
+	finish:
+	RedisAI_FreeError(err);
+	pthread_cond_signal(&global_cond);
+}
+
+static void _ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 
 	RAI_Error *err;
 	if (RedisAI_InitError(&err) != REDISMODULE_OK) goto finish;
@@ -68,7 +101,7 @@ static void ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 static int _ExecuteModelRunAsync(RedisModuleCtx *ctx, RAI_ModelRunCtx* mctx) {
 	LLAPI_status status = LLAPI_RUN_NONE;
 	pthread_mutex_lock(&global_lock);
-	if (RedisAI_ModelRunAsync(mctx, ModelFinishFunc, &status) != REDISMODULE_OK) {
+	if (RedisAI_ModelRunAsync(mctx, _ModelFinishFunc, &status) != REDISMODULE_OK) {
 		pthread_mutex_unlock(&global_lock);
 		RedisAI_ModelRunCtxFree(mctx);
 		RedisModule_ReplyWithError(ctx, "Async run could not start");
@@ -79,6 +112,23 @@ static int _ExecuteModelRunAsync(RedisModuleCtx *ctx, RAI_ModelRunCtx* mctx) {
 	pthread_cond_wait(&global_cond, &global_lock);
 	pthread_mutex_unlock(&global_lock);
 	RedisAI_ModelRunCtxFree(mctx);
+	return status;
+}
+
+static int _ExecuteScriptRunAsync(RedisModuleCtx *ctx, RAI_ScriptRunCtx* sctx) {
+	LLAPI_status status = LLAPI_RUN_NONE;
+	pthread_mutex_lock(&global_lock);
+	if (RedisAI_ScriptRunAsync(sctx, _ScriptFinishFunc, &status) != REDISMODULE_OK) {
+		pthread_mutex_unlock(&global_lock);
+		RedisAI_ScriptRunCtxFree(sctx);
+		RedisModule_ReplyWithError(ctx, "Async run could not start");
+		return LLAPI_RUN_NONE;
+	}
+
+	// Wait until the onFinish callback returns.
+	pthread_cond_wait(&global_cond, &global_lock);
+	pthread_mutex_unlock(&global_lock);
+	RedisAI_ScriptRunCtxFree(sctx);
 	return status;
 }
 
@@ -132,6 +182,57 @@ int RAI_llapi_modelRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 	return RedisModule_ReplyWithSimpleString(ctx, "Async run success");
 }
 
+int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+	REDISMODULE_NOT_USED(argv);
+
+	if (argc>1) {
+		RedisModule_WrongArity(ctx);
+		return REDISMODULE_OK;
+	}
+	// The script 'myscript{1}' should exist in key space.
+	const char *keyNameStr = "myscript{1}";
+	RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
+	RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
+	RAI_Script *script = RedisModule_ModuleTypeGetValue(key);
+	RAI_ScriptRunCtx* sctx = RedisAI_ScriptRunCtxCreate(script, "bad_func");
+	RedisModule_FreeString(ctx, keyRedisStr);
+	RedisModule_CloseKey(key);
+
+	// Test the case of a failure in the script run execution (func name does not exist in script).
+	if(_ExecuteScriptRunAsync(ctx, sctx) != LLAPI_RUN_ERROR) {
+		return RedisModule_ReplyWithSimpleString(ctx, "Async run should end with an error");
+	}
+
+	sctx = RedisAI_ScriptRunCtxCreate(script, "bar");
+	RAI_Error *err;
+	// The tensors a{1} and b{1} should exist in key space.
+	// Load the tensors a{1} and b{1} and add them as inputs for the script.
+	keyNameStr = "a{1}";
+	keyRedisStr = RedisModule_CreateString(ctx, keyNameStr,
+	  strlen(keyNameStr));
+	key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
+	RAI_Tensor *input1 = RedisModule_ModuleTypeGetValue(key);
+	RedisAI_ScriptRunCtxAddInput(sctx, input1, err);
+	RedisModule_FreeString(ctx, keyRedisStr);
+	RedisModule_CloseKey(key);
+
+	keyNameStr = "b{1}";
+	keyRedisStr = RedisModule_CreateString(ctx, keyNameStr,
+	  strlen(keyNameStr));
+	key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
+	RAI_Tensor *input2 = RedisModule_ModuleTypeGetValue(key);
+	RedisAI_ScriptRunCtxAddInput(sctx, input2, err);
+	RedisModule_FreeString(ctx, keyRedisStr);
+	RedisModule_CloseKey(key);
+
+	// Add the expected output tensor.
+	RedisAI_ScriptRunCtxAddOutput(sctx);
+
+	if (_ExecuteScriptRunAsync(ctx, sctx) != LLAPI_RUN_SUCCESS)
+		return RedisModule_ReplyWithSimpleString(ctx, "Async run failed");
+	return RedisModule_ReplyWithSimpleString(ctx, "Async run success");
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 	REDISMODULE_NOT_USED(argv);
 	REDISMODULE_NOT_USED(argc);
@@ -149,6 +250,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 		return REDISMODULE_ERR;
 
 	if(RedisModule_CreateCommand(ctx, "RAI_llapi.modelRun", RAI_llapi_modelRun, "",
+	  0, 0, 0) == REDISMODULE_ERR)
+		return REDISMODULE_ERR;
+
+	if(RedisModule_CreateCommand(ctx, "RAI_llapi.scriptRun", RAI_llapi_scriptRun, "",
 	  0, 0, 0) == REDISMODULE_ERR)
 		return REDISMODULE_ERR;
 	return REDISMODULE_OK;

@@ -1,5 +1,6 @@
 
 #include "modelRun_ctx.h"
+#include "util/string_utils.h"
 
 static int _Model_RunCtxAddParam(RAI_ModelCtxParam **paramArr, const char *name,
                                  RAI_Tensor *tensor) {
@@ -96,11 +97,7 @@ int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString *
             is_input = 1;
             outputs_flag_count = 1;
         } else {
-            if (RMAPI_FUNC_SUPPORTED(RedisModule_HoldString)) {
-                RedisModule_HoldString(NULL, argv[argpos]);
-            } else {
-                RedisModule_RetainString(NULL, argv[argpos]);
-            }
+            RAI_HoldString(NULL, argv[argpos]);
             if (is_input == 0) {
                 *inkeys = array_append(*inkeys, argv[argpos]);
                 ninputs++;
