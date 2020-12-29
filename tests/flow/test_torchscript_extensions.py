@@ -28,11 +28,6 @@ class test_torch_script_extesions:
         self.env.assertEqual(ret, b'OK')
         # self.env.ensureSlaveSynced(self.con, self.env)
 
-    # def test_int_get_set(self):
-    #     self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_int_set_get', 'INPUTS', 'OUTPUTS', 'y')
-    #     y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
-    #     self.env.assertEqual(y, ["dtype", "INT64", "shape", [0, 1], "VALUES", "1"] )
-
     # def test_float_get_set(self):
     #     self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_float_set_get', 'INPUTS', 'OUTPUTS', 'y')
     #     y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
@@ -40,5 +35,10 @@ class test_torch_script_extesions:
 
     def test_simple_test_set(self):
         self.con.execute_command(
-            'AI.SCRIPTRUN', 'redis_scripts', 'test_set_key', 'INPUTS', 'OUTPUTS', 'y')
-        self.env.assertEqual("1", self.con.get("x"))
+            'AI.SCRIPTRUN', 'redis_scripts', 'test_set_key')
+        self.env.assertEqual(b"1", self.con.get("x"))
+
+    # def test_int_get_set(self):
+    #     self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_int_set_get', 'OUTPUTS', 'y')
+    #     y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
+    #     self.env.assertEqual(y, ["dtype", "INT64", "shape", [0, 1], "VALUES", "1"] )
