@@ -136,18 +136,9 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
     int chainingOpCount = 0;
     bool load_complete = false;
     bool persist_complete = false;
-    int arg_pos = 1;
-
-    // If we're parsing a AI.SCRIPTRUN command, we don't expect there to be a chaining |> operator
-    if (!strcasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.SCRIPTRUN")) {
-        arg_pos = 0;
-        chainingOpCount++;
-        rinfo->single_op_dag = 1;
-        rinfo->single_device_dag = 1;
-    }
 
     // The first arg is "AI.DAGRUN", so we go over from the next arg.
-    for (; arg_pos < argc; arg_pos++) {
+    for (int arg_pos = 1; arg_pos < argc; arg_pos++) {
         const char *arg_string = RedisModule_StringPtrLen(argv[arg_pos], NULL);
 
         if (!strcasecmp(arg_string, "LOAD") && !load_complete) {
@@ -300,35 +291,6 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
                 return REDISMODULE_ERR;
             }
             break;
-        }
-    }
-
-    if (rinfo->single_op_dag && rinfo->dagOps[0]->commandType == REDISAI_DAG_CMD_SCRIPTRUN) {
-        RAI_DagOp *op = rinfo->dagOps[0];
-        RAI_Tensor *t;
-        RedisModuleKey *key;
-        for (size_t i = 0; i < array_len(op->inkeys); i++) {
-            RedisModuleString *inkey = op->inkeys[i];
-            const int status = RAI_GetTensorFromKeyspace(ctx, inkey, &key, &t, REDISMODULE_READ);
-            if (status == REDISMODULE_ERR) {
-                RedisModule_Log(ctx, "warning",
-                                "on DAGRUN's LOAD could not load tensor %s from keyspace",
-                                RedisModule_StringPtrLen(inkey, NULL));
-                return REDISMODULE_ERR;
-            }
-            char buf[16];
-            sprintf(buf, "%04d", 1);
-            RedisModuleString *dictKey = RedisModule_CreateStringFromString(NULL, inkey);
-            RedisModule_StringAppendBuffer(NULL, dictKey, buf, strlen(buf));
-            AI_dictAdd(rinfo->dagTensorsContext, (void *)dictKey,
-                       (void *)RAI_TensorGetShallowCopy(t));
-            AI_dictAdd(rinfo->dagTensorsLoadedContext, (void *)dictKey, (void *)1);
-            RedisModule_Free(dictKey);
-        }
-
-        for (size_t i = 0; i < array_len(op->outkeys); i++) {
-            RedisModuleString *outkey = op->outkeys[i];
-            AI_dictAdd(rinfo->dagTensorsPersistedContext, (void *)outkey, (void *)1);
         }
     }
 

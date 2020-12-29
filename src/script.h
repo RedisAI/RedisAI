@@ -14,6 +14,7 @@
 #include "redismodule.h"
 #include "script_struct.h"
 #include "tensor.h"
+#include "run_info.h"
 
 extern RedisModuleType *RedisAI_ScriptType;
 
@@ -66,11 +67,9 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
  *
  * @param sctx input RAI_ScriptRunCtx to add the input tensor
  * @param inputTensor input tensor structure
- * @param err error data structure to store error message in the case of
- * failures
  * @return returns 1 on success, 0 in case of error.
  */
-int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *err);
+int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error);
 
 /**
  * For each Allocates a RAI_ScriptCtxParam data structure, and enforces a
@@ -80,12 +79,10 @@ int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RA
  * @param sctx input RAI_ScriptRunCtx to add the input tensor
  * @param inputTensors input tensors array
  * @param len input tensors array len
- * @param err error data structure to store error message in the case of
- * failures
  * @return returns 1 on success, 0 in case of error.
  */
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors, size_t len,
-                                 RAI_Error *err);
+                                 RAI_Error *error);
 
 /**
  * Allocates a RAI_ScriptCtxParam data structure, and sets the tensor reference
@@ -119,9 +116,8 @@ RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index);
  * work
  *
  * @param sctx
- * @param freeTensors free input and output tensors or leave them allocated
  */
-void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx, int freeTensors);
+void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx);
 
 /**
  * Given the input script context, run associated script
@@ -216,5 +212,17 @@ void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCod
  * @return redis module type representing a script.
  */
 RedisModuleType *RAI_ScriptRedisType(void);
+
+/**
+ * Insert the ScriptRunCtx to the run queues so it will run asynchronously.
+ *
+ * @param sctx SodelRunCtx to execute
+ * @param ScriptAsyncFinish A callback that will be called when the execution is finished.
+ * @param private_data This is going to be sent to to the ScriptAsyncFinish.
+ * @return REDISMODULE_OK if the sctx was insert to the queues successfully, REDISMODULE_ERR
+ * otherwise.
+ */
+int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
+                       void *private_data);
 
 #endif /* SRC_SCRIPT_H_ */
