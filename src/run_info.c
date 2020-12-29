@@ -145,9 +145,6 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
 void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     if (dagOp) {
         RAI_FreeError(dagOp->err);
-        if (dagOp->runkey) {
-            RedisModule_FreeString(NULL, dagOp->runkey);
-        }
         if (dagOp->argv) {
             for (size_t i = 0; i < array_len(dagOp->argv); i++) {
                 RedisModule_FreeString(NULL, dagOp->argv[i]);
@@ -167,7 +164,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
             RAI_ModelRunCtxFree(dagOp->mctx);
         }
         if (dagOp->sctx) {
-            RAI_ScriptRunCtxFree(dagOp->sctx, true);
+            RAI_ScriptRunCtxFree(dagOp->sctx);
         }
 
         if (dagOp->inkeys) {
@@ -329,6 +326,7 @@ int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
 
     return 1;
 }
+
 RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
 
     RAI_DagOp *op = rinfo->dagOps[0];
@@ -341,4 +339,18 @@ RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
     rinfo->dagOps[0]->mctx = NULL;
     RAI_FreeRunInfo(rinfo);
     return mctx;
+}
+
+RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
+
+    RAI_DagOp *op = rinfo->dagOps[0];
+    if (!rinfo->single_op_dag || !op->sctx) {
+        RAI_SetError(err, RedisAI_ErrorCode_EFINISHCTX, "Finish ctx is not a script run ctx");
+        return NULL;
+    }
+    RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
+    RAI_ScriptRunCtx *sctx = op->sctx;
+    rinfo->dagOps[0]->sctx = NULL;
+    RAI_FreeRunInfo(rinfo);
+    return sctx;
 }
