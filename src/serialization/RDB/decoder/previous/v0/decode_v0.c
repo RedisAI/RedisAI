@@ -109,7 +109,7 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
     };
 
-    size_t len;
+    len;
     buffer = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
@@ -142,10 +142,7 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
 
-    RedisModuleString *stats_tag = RAI_HoldString(NULL, tag);
-
-    model->infokey =
-        RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, stats_tag);
+    model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, tag);
 
     for (size_t i = 0; i < ninputs; i++) {
         RedisModule_Free((void *)inputs[i]);
@@ -156,9 +153,9 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     }
     RedisModule_Free(outputs);
     RedisModule_Free(buffer);
-
     RedisModule_Free(devicestr);
     RedisModule_FreeString(NULL, stats_keystr);
+    RedisModule_FreeString(NULL, tag);
 
     return model;
 
@@ -200,7 +197,7 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
     tag = RedisModule_CreateString(NULL, cstr_tag, len);
     RedisModule_Free(cstr_tag);
 
-    size_t len;
+    len;
     scriptdef = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
@@ -229,14 +226,12 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
 
-    const char *stats_devicestr = RedisModule_Strdup(devicestr);
-
-    tag = RAI_HoldString(NULL, tag);
-
     script->infokey =
         RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 
     RedisModule_FreeString(NULL, stats_keystr);
+    RedisModule_FreeString(NULL, tag);
+
 
     return script;
 cleanup:
