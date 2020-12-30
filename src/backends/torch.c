@@ -12,7 +12,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
     get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
     get_api_fn("RedisModule_CreateString", ((void **)&RedisModule_CreateString));
-    get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
+    get_api_fn("RedisModule_FreeString", ((void **)&RedisModule_FreeString));
     get_api_fn("RedisModule_Call", ((void **)&RedisModule_Call));
     get_api_fn("RedisModule_CallReplyType", ((void **)&RedisModule_CallReplyType));
     get_api_fn("RedisModule_CallReplyStringPtr", ((void **)&RedisModule_CallReplyStringPtr));
@@ -20,6 +20,9 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_CallReplyLength", ((void **)&RedisModule_CallReplyLength));
     get_api_fn("RedisModule_CallReplyArrayElement", ((void **)&RedisModule_CallReplyArrayElement));
     get_api_fn("RedisModule_FreeCallReply", ((void **)&RedisModule_FreeCallReply));
+    get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
+    get_api_fn("RedisModule_ThreadSafeContextLock",  ((void **)&RedisModule_ThreadSafeContextLock));
+    get_api_fn("RedisModule_ThreadSafeContextUnlock",  ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
 
     return REDISMODULE_OK;

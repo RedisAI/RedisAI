@@ -26,11 +26,8 @@ inline std::shared_ptr<RedisResolver> redisResolver() { return std::make_shared<
 } // namespace jit
 } // namespace torch
 
-// c10::intrusive_ptr<RedisValue> redisExecute(std::string fn_name, std::vector<std::string> args );
-
 torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args);
 torch::List<torch::IValue> asList(torch::IValue);
 
 static auto registry =
     torch::RegisterOperators("redis::execute", &redisExecute).op("redis::asList", &asList);
-// registry = torch::RegisterOperators("torch::asList", &asList);

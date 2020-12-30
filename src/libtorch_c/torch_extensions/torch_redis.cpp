@@ -42,24 +42,27 @@ torch::IValue IValueFromRedisReply(RedisModuleCallReply *reply){
 }
 
 torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args ) {
-  RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
-  size_t len = args.size();
-  RedisModuleString* arguments[len];
-  len = 0;
-  for (std::vector<std::string>::iterator it = args.begin(); it != args.end(); it++) {
-      const std::string arg = *it;
-      const char* str = arg.c_str();
-      arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
-  }
+    RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModule_ThreadSafeContextLock(ctx);
+    size_t len = args.size();
+    RedisModuleString* arguments[len];
+    len = 0;
+    for (std::vector<std::string>::iterator it = args.begin(); it != args.end(); it++) {
+        const std::string arg = *it;
+        const char* str = arg.c_str();
+        arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
+    }
 
-    RedisModuleCallReply *reply = RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len);
-//   RedisValue value = RedisValue::fromRedisReply(RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len));
-  torch::IValue value = IValueFromRedisReply(reply);
-  RedisModule_FreeThreadSafeContext(ctx);
-  RedisModule_FreeCallReply(reply);
-  return value;
+    RedisModuleCallReply *reply = RedisModule_Call(ctx, fn_name.c_str(), "!v", arguments, len);
+    RedisModule_ThreadSafeContextUnlock(ctx);
+    torch::IValue value = IValueFromRedisReply(reply);
+    RedisModule_FreeThreadSafeContext(ctx);
+    RedisModule_FreeCallReply(reply);
+    for(int i= 0; i < len; i++){
+        RedisModule_FreeString(NULL, arguments[i]);
+    }
+    return value;
 }
-
 
 torch::List<torch::IValue> asList(torch::IValue v) {
     return v.toList();
