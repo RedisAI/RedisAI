@@ -316,11 +316,13 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
         torch::jit::script::redisResolver(),
         nullptr);
     auto aten_device_type = getATenDeviceType(device);
+    
     if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
       throw std::logic_error("GPU requested but Torch couldn't find CUDA");
     }
     ctx->cu = cu;
     ctx->module = nullptr;
+
   }
   catch(std::exception& e) {
     size_t len = strlen(e.what()) +1;

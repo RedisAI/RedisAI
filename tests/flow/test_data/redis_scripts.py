@@ -1,17 +1,10 @@
-# def redis_string_to_int(redis_value: RedisValue):
-#     return int(redis_value.stringValue())
+
+def redis_string_int_to_tensor(redis_value: Any):
+    return torch.tensor(int(str(redis_value)))
 
 
-# def redis_string_to_float(redis_value: RedisValue):
-#     return float(redis_value.stringValue())
-
-
-# def redis_string_int_to_tensor(redis_value: RedisValue):
-#     return tensor(redis_string_to_int(redis_value))
-
-
-# def redis_string_float_to_tensor(redis_value: RedisValue):
-#     return tensor(redis_string_to_float(redis_value))
+def redis_string_float_to_tensor(redis_value: Any):
+    return torch.tensor(float(str((redis_value))))
 
 
 # def redis_int_to_tensor(redis_value: RedisValue):
@@ -45,17 +38,17 @@
 #     res = redis.executeCommand("SET", "x")
 #     return tensor(res.getValueType())
 
-# def test_int_set_get():
-#     redis.executeCommand("SET", "x", "1")
-#     res = redis.executeCommand("GET", "x",)
-#     redis.executeCommand("DEL", "x")
-#     return redis_string_int_to_tensor(res)
+def test_int_set_get():
+    redis.execute("SET", "x", "1")
+    res = redis.execute("GET", "x",)
+    redis.execute("DEL", "x")
+    return redis_string_int_to_tensor(res)
 
-# def test_float_set_get():
-#     redis.executeCommand("SET", "x", "1.1")
-#     res = redis.executeCommand("GET", "x",)
-#     redis.executeCommand("DEL", "x")
-#     return redis_string_int_to_tensor(res)
+def test_float_set_get():
+    redis.execute("SET", "x", "1.1")
+    res = redis.execute("GET", "x",)
+    redis.execute("DEL", "x")
+    return redis_string_float_to_tensor(res)
 
 # def test_int_list():
 #     redis.executeCommand("LPUSH", "x", "1")

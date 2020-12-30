@@ -1,9 +1,8 @@
-#include "../../redismodule.h"
-#include "../../util/arr.h"
-
-#include "torch/csrc/jit/frontend/resolver.h"
-#include "torch/script.h"
 #include "torch/jit.h"
+#include "torch/script.h"
+#include "torch/csrc/jit/frontend/resolver.h"
+
+#include "torch_redis_value.h"
 
 namespace torch {
     namespace jit {
@@ -32,18 +31,11 @@ namespace torch {
     }
 }
 
-void redisExecute(std::string fn_name, std::vector<std::string> args ) {
-  RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
-  size_t len = args.size();
-  RedisModuleString* arguments[len];
-  len = 0;
-  for (std::vector<std::string>::iterator it = args.begin(); it != args.end(); it++) {
-      const std::string arg = *it;
-      const char* str = arg.c_str();
-      arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
-  }
-  RedisModule_Call(ctx, fn_name.c_str(), "v", arguments, len);
-  RedisModule_FreeThreadSafeContext(ctx);
-}
+
+// c10::intrusive_ptr<RedisValue> redisExecute(std::string fn_name, std::vector<std::string> args );
+
+torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args );
+
+
 
 static auto registry = torch::RegisterOperators("redis::execute", &redisExecute);
