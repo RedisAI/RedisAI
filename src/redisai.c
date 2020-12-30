@@ -431,18 +431,15 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     if (!meta && !blob) {
-        RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
     RAI_Error err = {0};
-
     char *buffer = NULL;
     size_t len = 0;
 
     if (blob) {
         RAI_ModelSerialize(mto, &buffer, &len, &err);
-
         if (err.code != RAI_OK) {
 #ifdef RAI_PRINT_BACKEND_ERRORS
             printf("ERR: %s\n", err.detail);
@@ -459,12 +456,10 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (!meta && blob) {
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);
-        RedisModule_CloseKey(key);
         return REDISMODULE_OK;
     }
 
     const int outentries = blob ? 16 : 14;
-
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
@@ -507,8 +502,6 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         RedisModule_Free(buffer);
     }
 
-    RedisModule_CloseKey(key);
-
     return REDISMODULE_OK;
 }
 
@@ -527,6 +520,7 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_ERR;
     }
 
+    key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
     RedisModule_ReplicateVerbatim(ctx);
@@ -621,13 +615,11 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     if (!meta && !source) {
-        RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR no META or SOURCE specified");
     }
 
     if (!meta && source) {
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
-        RedisModule_CloseKey(key);
         return REDISMODULE_OK;
     }
 
@@ -642,7 +634,6 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
     }
-    RedisModule_CloseKey(key);
     return REDISMODULE_OK;
 }
 
@@ -659,12 +650,11 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-
+    key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
 
     RedisModule_ReplicateVerbatim(ctx);
-
     return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
 
@@ -983,7 +973,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelGetShallowCopy, ctx);
     REGISTER_API(ModelRedisType, ctx);
     REGISTER_API(ModelRunAsync, ctx);
-    REGISTER_API(GetAsModelRunCtx, ctx)
+    REGISTER_API(GetAsModelRunCtx, ctx);
 
     REGISTER_API(ScriptCreate, ctx);
     REGISTER_API(ScriptFree, ctx);
@@ -997,6 +987,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRun, ctx);
     REGISTER_API(ScriptGetShallowCopy, ctx);
     REGISTER_API(ScriptRedisType, ctx);
+    REGISTER_API(ScriptRunAsync, ctx);
+    REGISTER_API(GetAsScriptRunCtx, ctx);
 
     return REDISMODULE_OK;
 }

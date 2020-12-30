@@ -38,6 +38,7 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, Re
         return REDISMODULE_ERR;
     }
     *model = RedisModule_ModuleTypeGetValue(*key);
+    RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
 }
 

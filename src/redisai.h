@@ -121,6 +121,9 @@ void MODULE_API_FUNC(RedisAI_ScriptRunCtxFree)(RAI_ScriptRunCtx *sctx);
 int MODULE_API_FUNC(RedisAI_ScriptRun)(RAI_ScriptRunCtx *sctx, RAI_Error *err);
 RAI_Script *MODULE_API_FUNC(RedisAI_ScriptGetShallowCopy)(RAI_Script *script);
 RedisModuleType *MODULE_API_FUNC(RedisAI_ScriptRedisType)(void);
+int MODULE_API_FUNC(RedisAI_ScriptRunAsync)(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB DAGAsyncFinish,
+                                            void *private_data);
+RAI_ScriptRunCtx *MODULE_API_FUNC(RedisAI_GetAsScriptRunCtx)(RAI_OnFinishCtx *ctx, RAI_Error *err);
 
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
@@ -204,6 +207,8 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRun);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptGetShallowCopy);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRedisType);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunAsync);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, GetAsScriptRunCtx);
 
     if (RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION) {
         return REDISMODULE_ERR;
