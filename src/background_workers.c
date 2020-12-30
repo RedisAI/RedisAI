@@ -494,7 +494,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
             // If there's nothing else to do for the DAG in the current worker or if an error
             // occurred in any worker, we just move on
-            if (device_complete == 1 || device_complete_after_run == 1 || do_unblock == 1) {
+            if (device_complete == 1 || device_complete_after_run == 1 || do_unblock == 1 ||
+                run_error == 1) {
                 for (long long i = 0; i < array_len(evicted_items); i++) {
                     RedisModule_Free(evicted_items[i]);
                 }
