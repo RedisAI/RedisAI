@@ -2,8 +2,6 @@
 #include "torch/script.h"
 #include "torch/csrc/jit/frontend/resolver.h"
 
-#include "torch_redis_value.h"
-
 namespace torch {
     namespace jit {
         namespace script {
@@ -35,7 +33,7 @@ namespace torch {
 // c10::intrusive_ptr<RedisValue> redisExecute(std::string fn_name, std::vector<std::string> args );
 
 torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args );
+torch::List<torch::IValue> asList(torch::IValue);
 
-
-
-static auto registry = torch::RegisterOperators("redis::execute", &redisExecute);
+static auto registry = torch::RegisterOperators("redis::execute", &redisExecute).op("redis::asList", &asList);
+// registry = torch::RegisterOperators("torch::asList", &asList);

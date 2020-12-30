@@ -29,15 +29,28 @@ class test_torch_script_extesions:
         self.env.assertEqual(ret, b'OK')
         # self.env.ensureSlaveSynced(self.con, self.env)
 
+    def test_redis_error(self):
+        try:
+            self.con.execute_command(
+            'AI.SCRIPTRUN', 'redis_scripts', 'test_redis_error')
+            self.env.assertTrue(False)
+        except:
+            pass
+        
     def test_simple_test_set(self):
         self.con.execute_command(
             'AI.SCRIPTRUN', 'redis_scripts', 'test_set_key')
         self.env.assertEqual(b"1", self.con.get("x"))
 
-    def test_int_get_set(self):
+    def test_int_set_get(self):
         self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_int_set_get', 'OUTPUTS', 'y')
         y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [], b"values", [1]] )
+
+    def test_int_set_incr(self):
+        self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_int_set_incr', 'OUTPUTS', 'y')
+        y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [], b"values", [2]] )
 
     def test_float_get_set(self):
         self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_float_set_get', 'OUTPUTS', 'y')
@@ -48,3 +61,13 @@ class test_torch_script_extesions:
         self.env.assertEqual(y[3], [])
         self.env.assertEqual(y[4], b"values")
         self.env.assertAlmostEqual(float(y[5][0]), 1.1, 0.1)
+    
+    def test_int_list(self):
+        self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_int_list', 'OUTPUTS', 'y')
+        y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]] )
+
+    def test_hash(self):
+        self.con.execute_command('AI.SCRIPTRUN', 'redis_scripts', 'test_hash', 'OUTPUTS', 'y')
+        y = self.con.execute_command('AI.TENSORGET', 'y', 'meta' ,'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]] )

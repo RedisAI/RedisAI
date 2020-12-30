@@ -59,3 +59,8 @@ torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args ) 
   RedisModule_FreeCallReply(reply);
   return value;
 }
+
+
+torch::List<torch::IValue> asList(torch::IValue v) {
+    return v.toList();
+}

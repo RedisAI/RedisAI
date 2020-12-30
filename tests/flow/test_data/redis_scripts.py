@@ -7,40 +7,33 @@ def redis_string_float_to_tensor(redis_value: Any):
     return torch.tensor(float(str((redis_value))))
 
 
-# def redis_int_to_tensor(redis_value: RedisValue):
-#     return tensor(redis_value.intValue())
+def redis_int_to_tensor(redis_value: int):
+    return torch.tensor(redis_value)
 
 
-# def redis_int_list_to_tensor(redis_value: RedisValue):
-#     len = len(redis_value.getList())
-#     l = []
-#     for v in redis_value.getList():
-#         l.append(redis_string_to_int(v))
-#     return torch.cat(l, dim=0)
+def redis_int_list_to_tensor(redis_value: Any):
+    values = redis.asList(redis_value)
+    l  = [torch.tensor(int(str(v))).reshape(1,1) for v in values]
+    return torch.cat(l, dim=0)
 
 
-# def redis_float_list_to_tensor(redis_value: RedisValue):
-#     len = len(redis_value.getList())
-#     l = []
-#     for v in redis_value.getList():
-#         l.append(redis_string_to_float(v))
-#     return torch.cat(l, dim=0)
+def redis_hash_to_tensor(redis_value: Any):
+    values = redis.asList(redis_value)
+    l  = [torch.tensor(int(str(v))).reshape(1,1) for v in values]
+    return torch.cat(l, dim=0)
 
-
-# def redis_hash_to_tensor(redis_value: RedisValue):
-#     len = len(redis_value.getList())
-#     l = []
-#     for v in redis_value.getList():
-#         l.append(redis_string_to_float(v.getList()[1]))
-#     return torch.cat(l, dim=0)
-
-# def test_redis_error():
-#     res = redis.executeCommand("SET", "x")
-#     return tensor(res.getValueType())
+def test_redis_error():
+    redis.execute("SET", "x")
 
 def test_int_set_get():
     redis.execute("SET", "x", "1")
     res = redis.execute("GET", "x",)
+    redis.execute("DEL", "x")
+    return redis_string_int_to_tensor(res)
+
+def test_int_set_incr():
+    redis.execute("SET", "x", "1")
+    res = redis.execute("INCR", "x")
     redis.execute("DEL", "x")
     return redis_string_int_to_tensor(res)
 
@@ -50,25 +43,19 @@ def test_float_set_get():
     redis.execute("DEL", "x")
     return redis_string_float_to_tensor(res)
 
-# def test_int_list():
-#     redis.executeCommand("LPUSH", "x", "1")
-#     redis.executeCommand("LPUSH", "x", "2")
-#     res = redis.executeCommand("LRANGE", "x")
-#     redis.executeCommand("DEL", "x")
-#     return redis_int_list_to_tensor(res)
+def test_int_list():
+    redis.execute("RPUSH", "x", "1")
+    redis.execute("RPUSH", "x", "2")
+    res = redis.execute("LRANGE", "x", "0", "2")
+    redis.execute("DEL", "x")
+    return redis_int_list_to_tensor(res)
 
-# def test_float_list():
-#     redis.executeCommand("LPUSH", "x", "1.1")
-#     redis.executeCommand("LPUSH", "x", "2.2")
-#     res = redis.executeCommand("LRANGE", "x")
-#     redis.executeCommand("DEL", "x")
-#     return redis_float_list_to_tensor(res)
 
-# def test_hash():
-#     redis.executeCommand("HSET", "x", "1", "2.2)
-#     res = redis.executeCommand("HGETALL", "x")
-#     redis.executeCommand("DEL", "x")
-#     return redis_float_list_to_tensor(res)
+def test_hash():
+    redis.execute("HSET", "x", "field1", "1", "field2", "2")
+    res = redis.execute("HVALS", "x")
+    redis.execute("DEL", "x")
+    return redis_hash_to_tensor(res)
 
 
 def test_set_key():
