@@ -59,7 +59,7 @@ def test_hash():
 
 
 def test_set_key():
-    redis.execute("SET", ["x", "1"])
+    redis.execute("SET", ["x{1}", "1"])
 
 
 def test_del_key():
