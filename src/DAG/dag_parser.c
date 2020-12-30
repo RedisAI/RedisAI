@@ -229,6 +229,7 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
                     return REDISMODULE_ERR;
                 }
                 currentOp->devicestr = mto->devicestr;
+                RAI_HoldString(NULL, argv[arg_pos + 1]);
                 currentOp->runkey = argv[arg_pos + 1];
                 currentOp->mctx = RAI_ModelRunCtxCreate(mto);
             }
@@ -249,6 +250,7 @@ int DAG_CommandParser(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, b
                 }
                 currentOp->devicestr = sto->devicestr;
                 const char *functionName = RedisModule_StringPtrLen(argv[arg_pos + 2], NULL);
+                RAI_HoldString(NULL, argv[arg_pos + 1]);
                 currentOp->runkey = argv[arg_pos + 1];
                 currentOp->sctx = RAI_ScriptRunCtxCreate(sto, functionName);
             }

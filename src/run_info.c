@@ -113,6 +113,8 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
             }
             array_free(dagOp->argv);
         }
+        if (dagOp->runkey)
+            RedisModule_FreeString(NULL, dagOp->runkey);
         // dagOp->inkeys is released on all argv release above
         // dagOp->outkeys is released on all argv release above
         // dagOp->outTensors is released on RunInfo after checking what tensors to

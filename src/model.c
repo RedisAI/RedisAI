@@ -107,6 +107,12 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
         return NULL;
     }
 
+    for (size_t i = 0; i < ninputs; i++) {
+        RedisModule_Free(inputs[i]);
+    }
+    for (size_t i = 0; i < noutputs; i++) {
+        RedisModule_Free(outputs[i]);
+    }
     RedisModule_Free(inputs);
     RedisModule_Free(outputs);
     RedisModule_Free(buffer);
@@ -114,12 +120,11 @@ static void *RAI_Model_RdbLoad(struct RedisModuleIO *io, int encver) {
     RedisModuleCtx *stats_ctx = RedisModule_GetContextFromIO(io);
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
-    const char *stats_devicestr = RedisModule_Strdup(devicestr);
-    RedisModuleString *stats_tag = RAI_HoldString(NULL, tag);
 
-    model->infokey =
-        RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, stats_devicestr, stats_tag);
+    model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, tag);
 
+    RedisModule_FreeString(NULL, tag);
+    RedisModule_Free(devicestr);
     RedisModule_FreeString(NULL, stats_keystr);
 
     return model;
@@ -371,7 +376,6 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
     }
 
     RedisModule_FreeString(NULL, model->tag);
-
     RAI_RemoveStatsEntry(model->infokey);
 
     RedisModule_Free(model);
