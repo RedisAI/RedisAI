@@ -198,7 +198,8 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     *runkey = argv[argpos];
 
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS") || !strcasecmp(arg_string, "OUTPUTS")) {
+    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS") ||
+        !strcasecmp(arg_string, "OUTPUTS")) {
         RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
         return REDISMODULE_ERR;
     }
@@ -213,7 +214,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     while (++argpos < argc) {
         arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
 
-    // Parse timeout arg if given and store it in timeout
+        // Parse timeout arg if given and store it in timeout
         if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_set) {
             if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
                 return REDISMODULE_ERR;
