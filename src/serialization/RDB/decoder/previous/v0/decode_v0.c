@@ -76,7 +76,7 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     devicestr = RedisModule_LoadStringBuffer(io, NULL);
     size_t len;
     char *cstr_tag = RedisModule_LoadStringBuffer(io, &len);
-    tag = RedisModule_CreateString(NULL, cstr_tag, len);
+    tag = RedisModule_CreateString(NULL, cstr_tag, len - 1);
     RedisModule_Free(cstr_tag);
 
     const size_t batchsize = RedisModule_LoadUnsigned(io);
@@ -194,7 +194,7 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
     devicestr = RedisModule_LoadStringBuffer(io, NULL);
     size_t len;
     char *cstr_tag = RedisModule_LoadStringBuffer(io, &len);
-    tag = RedisModule_CreateString(NULL, cstr_tag, len);
+    tag = RedisModule_CreateString(NULL, cstr_tag, len - 1);
     RedisModule_Free(cstr_tag);
 
     len;
@@ -238,5 +238,8 @@ cleanup:
         RedisModule_Free(devicestr);
     if (scriptdef)
         RedisModule_Free(scriptdef);
+    if (tag)
+        RedisModule_FreeString(NULL, tag);
+
     return NULL;
 }
