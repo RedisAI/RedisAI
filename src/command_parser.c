@@ -125,52 +125,41 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
 int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                          int argc) {
 
-    // Build a ModelRunCtx from command.
-    RAI_Error error = {0};
-    RAI_Model *model;
-    RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
-    RedisModuleString **outkeys = array_new(RedisModuleString *, 1);
-    RedisModuleString *runkey = NULL;
-    RAI_ModelRunCtx *mctx = NULL;
     RAI_DagOp *currentOp;
+    RAI_InitDagOp(&currentOp);
+    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+
+    // Build a ModelRunCtx from command.
+    RAI_Model *model;
 
     long long timeout = 0;
-    if (_ModelRunCommand_ParseArgs(ctx, argv, argc, &model, &error, &inkeys, &outkeys, &runkey,
+    if (_ModelRunCommand_ParseArgs(ctx, argv, argc, &model, currentOp->err, &currentOp->inkeys,
+                                   &currentOp->outkeys, &currentOp->runkey,
                                    &timeout) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(currentOp->err));
         goto cleanup;
     }
-    mctx = RAI_ModelRunCtxCreate(model);
 
+    if (timeout > 0 && !rinfo->single_op_dag) {
+        RedisModule_ReplyWithError(ctx, "ERR TIMEOUT not allowed within a DAG command");
+        goto cleanup;
+    }
+
+    RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
-        if (_ModelRunCtx_SetParams(ctx, inkeys, outkeys, mctx) == REDISMODULE_ERR)
+        if (_ModelRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, mctx) ==
+            REDISMODULE_ERR)
             goto cleanup;
     }
-    if (RAI_InitDagOp(&currentOp) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-        goto cleanup;
-    }
+
     currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    Dag_PopulateOp(currentOp, mctx, inkeys, outkeys, runkey);
-    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+    currentOp->mctx = mctx;
+    currentOp->devicestr = mctx->model->devicestr;
     return REDISMODULE_OK;
 
 cleanup:
-    for (size_t i = 0; i < array_len(inkeys); i++) {
-        RedisModule_FreeString(NULL, inkeys[i]);
-    }
-    array_free(inkeys);
-    for (size_t i = 0; i < array_len(outkeys); i++) {
-        RedisModule_FreeString(NULL, outkeys[i]);
-    }
-    array_free(outkeys);
-    if (runkey)
-        RedisModule_FreeString(NULL, runkey);
-    if (mctx)
-        RAI_ModelRunCtxFree(mctx);
     RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }
@@ -293,55 +282,44 @@ static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inke
 int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                           int argc) {
 
-    // Build a ScriptRunCtx from command.
-    RAI_Error error = {0};
-    RAI_Script *script;
-    RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
-    RedisModuleString **outkeys = array_new(RedisModuleString *, 1);
-    RedisModuleString *runkey = NULL;
-    const char *func_name = NULL;
-    RAI_ScriptRunCtx *sctx = NULL;
     RAI_DagOp *currentOp;
+    RAI_InitDagOp(&currentOp);
+    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+
+    // Build a ScriptRunCtx from command.
+    RAI_Script *script;
+    const char *func_name = NULL;
 
     long long timeout = 0;
     int variadic = -1;
-    if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, &script, &error, &inkeys, &outkeys, &runkey,
-                                    &func_name, &timeout, &variadic) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&error));
+    if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, &script, currentOp->err, &currentOp->inkeys,
+                                    &currentOp->outkeys, &currentOp->runkey, &func_name, &timeout,
+                                    &variadic) == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(currentOp->err));
         goto cleanup;
     }
-    sctx = RAI_ScriptRunCtxCreate(script, func_name);
+    if (timeout > 0 && !rinfo->single_op_dag) {
+        RedisModule_ReplyWithError(ctx, "ERR TIMEOUT not allowed within a DAG command");
+        goto cleanup;
+    }
+
+    RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
     sctx->variadic = variadic;
 
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ScriptRunCtx, bring inputs from key space.
-        if (_ScriptRunCtx_SetParams(ctx, inkeys, outkeys, sctx) == REDISMODULE_ERR)
+        if (_ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx) ==
+            REDISMODULE_ERR)
             goto cleanup;
     }
-    if (RAI_InitDagOp(&currentOp) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR Unable to allocate the memory and initialise the RAI_dagOp structure");
-        goto cleanup;
-    }
+    currentOp->sctx = sctx;
     currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    Dag_PopulateOp(currentOp, sctx, inkeys, outkeys, runkey);
-    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+    currentOp->devicestr = sctx->script->devicestr;
+
     return REDISMODULE_OK;
 
 cleanup:
-    for (size_t i = 0; i < array_len(inkeys); i++) {
-        RedisModule_FreeString(NULL, inkeys[i]);
-    }
-    array_free(inkeys);
-    for (size_t i = 0; i < array_len(outkeys); i++) {
-        RedisModule_FreeString(NULL, outkeys[i]);
-    }
-    array_free(outkeys);
-    if (runkey)
-        RedisModule_FreeString(NULL, runkey);
-    if (sctx)
-        RAI_ScriptRunCtxFree(sctx);
     RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }

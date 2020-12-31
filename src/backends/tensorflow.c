@@ -250,6 +250,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
             RAI_SetError(error, RAI_EMODELIMPORT, msg);
+            RedisModule_Free(msg);
             return NULL;
         }
     }

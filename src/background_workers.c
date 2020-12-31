@@ -391,14 +391,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
                 // Run is over, now iterate over the run info structs in the batch
                 // and see if any error was generated
-                bool first_dag_error = false;
                 for (long long i = 0; i < array_len(batch_rinfo); i++) {
                     RedisAI_RunInfo *rinfo = batch_rinfo[i];
                     // We record that there was an error for later on
                     run_error = __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED);
-                    if (i == 0 && run_error == 1) {
-                        first_dag_error = true;
-                    }
+
                     // If there was an error and the reference count for the dag
                     // has gone to zero and the client is still around, we unblock
                     if (run_error) {
@@ -413,37 +410,35 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                         __atomic_add_fetch(rinfo->dagCompleteOpCount, 1, __ATOMIC_RELAXED);
                     }
                 }
-                if (first_dag_error) {
-                    run_queue_len = queueLength(run_queue_info->run_queue);
-                    continue;
-                }
             }
 
             // We initialize variables where we'll store the fact hat, after the current
             // run, all ops for the device or all ops in the dag could be complete. This
             // way we can avoid placing the op back on the queue if there's nothing left
             // to do.
-            RedisModule_Assert(run_error == 0);
-            int device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
-            int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
+            int device_complete_after_run;
+            if (run_error == 0) {
+                device_complete_after_run = RedisAI_DagDeviceComplete(batch_rinfo[0]);
+                int dag_complete_after_run = RedisAI_DagComplete(batch_rinfo[0]);
 
-            long long dagRefCount = -1;
-            RedisAI_RunInfo *orig;
-            if (device_complete == 1 || device_complete_after_run == 1) {
-                RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
-                orig = evicted_rinfo->orig_copy;
-                // We decrease and get the reference count for the DAG.
-                dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
-            }
+                long long dagRefCount = -1;
+                RedisAI_RunInfo *orig;
+                if (device_complete == 1 || device_complete_after_run == 1) {
+                    RedisAI_RunInfo *evicted_rinfo = (RedisAI_RunInfo *)(evicted_items[0]->value);
+                    orig = evicted_rinfo->orig_copy;
+                    // We decrease and get the reference count for the DAG.
+                    dagRefCount = RAI_DagRunInfoFreeShallowCopy(evicted_rinfo);
+                }
 
-            // If the DAG was complete, then it's time to unblock the client
-            if (do_unblock == 1 || dag_complete_after_run == 1) {
+                // If the DAG was complete, then it's time to unblock the client
+                if (do_unblock == 1 || dag_complete_after_run == 1) {
 
-                // If the reference count for the DAG is zero and the client is still around,
-                // then we actually unblock the client
-                if (dagRefCount == 0) {
-                    RedisAI_OnFinishCtx *finish_ctx = orig;
-                    orig->OnFinish(finish_ctx, orig->private_data);
+                    // If the reference count for the DAG is zero and the client is still around,
+                    // then we actually unblock the client
+                    if (dagRefCount == 0) {
+                        RedisAI_OnFinishCtx *finish_ctx = orig;
+                        orig->OnFinish(finish_ctx, orig->private_data);
+                    }
                 }
             }
 
@@ -499,11 +494,8 @@ void *RedisAI_Run_ThreadMain(void *arg) {
 
             // If there's nothing else to do for the DAG in the current worker or if an error
             // occurred in any worker, we just move on
-            if (device_complete == 1 || device_complete_after_run == 1 || do_unblock == 1 ||
-                run_error == 1) {
-                for (long long i = 0; i < array_len(evicted_items); i++) {
-                    RedisModule_Free(evicted_items[i]);
-                }
+            for (long long i = 0; i < array_len(evicted_items); i++) {
+                RedisModule_Free(evicted_items[i]);
             }
             run_queue_len = queueLength(run_queue_info->run_queue);
         }

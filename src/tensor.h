@@ -184,7 +184,7 @@ DLDataType RAI_TensorDataTypeFromString(const char *dataType);
  * DLDataType
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr);
+int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr);
 
 /**
  * Frees the memory of the RAI_Tensor when the tensor reference count reaches 0.
