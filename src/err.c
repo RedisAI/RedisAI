@@ -56,9 +56,6 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
 int RAI_InitError(RAI_Error **result) {
     RAI_Error *err;
     err = (RAI_Error *)RedisModule_Calloc(1, sizeof(RAI_Error));
-    if (!err) {
-        return REDISMODULE_ERR;
-    }
     err->code = 0;
     err->detail = NULL;
     err->detail_oneline = NULL;

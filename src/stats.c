@@ -109,6 +109,9 @@ void RAI_FreeRunStats(struct RedisAI_RunStats *rstats) {
         if (rstats->tag) {
             RedisModule_FreeString(NULL, rstats->tag);
         }
+        if (rstats->key) {
+            RedisModule_FreeString(NULL, rstats->key);
+        }
         RedisModule_Free(rstats);
     }
 }

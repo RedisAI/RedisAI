@@ -147,17 +147,4 @@ void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
  */
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
-/**
- * @brief Populate a DAG modelrun/scriptrun op with its params .
- * @param rinfo An existing DAG to populate.
- * @param rctx ModelRunCtx or ScriptRunCtx that represents the single MODELRUN op.
- * @param inkeys The DAG operation inkeys (the input tensors).
- * @param outkeys The DAG operation outkeys (the output tensors).
- * @param runkey The model key.
- * @param cmd The DAG command (modelrun/scriptrun).
- */
-
-void Dag_PopulateOp(RAI_DagOp *currentOp, void *rctx, RedisModuleString **inkeys,
-                    RedisModuleString **outkeys, RedisModuleString *runkey);
-
 #endif /* SRC_DAG_H_ */

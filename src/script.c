@@ -358,19 +358,18 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
                        void *private_data) {
 
     RedisAI_RunInfo *rinfo = NULL;
-    if (RAI_InitRunInfo(&rinfo) == REDISMODULE_ERR) {
-        return REDISMODULE_ERR;
-    }
+    RAI_InitRunInfo(&rinfo);
+
     rinfo->single_op_dag = 1;
     rinfo->OnFinish = (RedisAI_OnFinishCB)ScriptAsyncFinish;
     rinfo->private_data = private_data;
 
     RAI_DagOp *op;
-    if (RAI_InitDagOp(&op) == REDISMODULE_ERR) {
-        return REDISMODULE_ERR;
-    }
+    RAI_InitDagOp(&op);
+
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    Dag_PopulateOp(op, sctx, NULL, NULL, NULL);
+    op->devicestr = sctx->script->devicestr;
+    op->sctx = sctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
