@@ -38,9 +38,8 @@ def test_onnx_modelrun_mnist(env):
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
     env.assertEqual(len(ret), 14)
     env.assertEqual(ret[5], b'')
-    # assert there are no inputs or outputs
-    env.assertEqual(len(ret[11]), 0)
-    env.assertEqual(len(ret[13]), 0)
+    env.assertEqual(len(ret[11]), 1)
+    env.assertEqual(len(ret[13]), 1)
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'TAG', 'version:2', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -54,9 +53,8 @@ def test_onnx_modelrun_mnist(env):
         env.assertEqual(ret[1], b'ONNX')
         env.assertEqual(ret[3], b'CPU')
     env.assertEqual(ret[5], b'version:2')
-    # assert there are no inputs or outputs
-    env.assertEqual(len(ret[11]), 0)
-    env.assertEqual(len(ret[13]), 0)
+    env.assertEqual(len(ret[11]), 1)
+    env.assertEqual(len(ret[13]), 1)
 
     try:
         con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', wrong_model_pb)
@@ -121,7 +119,7 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", str(exception))
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition", str(exception))
 
     try:
         con.execute_command('AI.MODELRUN', 'm_1{1}', 'INPUTS', 'OUTPUTS')
@@ -143,7 +141,7 @@ def test_onnx_modelrun_mnist(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual('Expected 1 inputs but got 2', str(exception))
+        env.assertEqual('Number of keys given as INPUTS here does not match model definition', str(exception))
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
 
@@ -214,9 +212,8 @@ def test_onnx_modelrun_mnist_autobatch(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 2)
     env.assertEqual(ret[9], 2)
-    # assert there are no inputs or outputs
-    env.assertEqual(len(ret[11]), 0)
-    env.assertEqual(len(ret[13]), 0)
+    env.assertEqual(len(ret[11]), 1)
+    env.assertEqual(len(ret[13]), 1)
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     con.execute_command('AI.TENSORSET', 'c{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)

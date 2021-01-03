@@ -334,8 +334,6 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
         } else {
             model->tag = RedisModule_CreateString(NULL, "", 0);
         }
-        model->ninputs = ninputs;
-        model->noutputs = noutputs;
     }
 
     return model;

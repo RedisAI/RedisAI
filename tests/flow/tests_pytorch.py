@@ -83,8 +83,8 @@ def test_pytorch_modelrun(env):
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
     # assert there are no inputs or outputs
-    env.assertEqual(len(ret[11]), 0)
-    env.assertEqual(len(ret[13]), 0)
+    env.assertEqual(len(ret[11]), 2)
+    env.assertEqual(len(ret[13]), 1)
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'TAG', 'my:tag:v3', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
