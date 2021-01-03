@@ -36,10 +36,9 @@ void torchSetIntraOpThreads(int num_threadsm, char **error, void *(*alloc)(size_
 
 size_t torchModelNumInputs(void *modelCtx, char **error);
 
-const char* torchModelInputNameAtIndex(void* modelCtx, size_t index, char** error);
+const char *torchModelInputNameAtIndex(void *modelCtx, size_t index, char **error);
 
-size_t torchModelNumOutputs(void *modelCtx, char** error);
-
+size_t torchModelNumOutputs(void *modelCtx, char **error);
 
 #ifdef __cplusplus
 }

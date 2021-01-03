@@ -288,8 +288,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     RAI_Device device;
     int64_t deviceid;
-    char** inputs_ = NULL;
-    char** outputs_ = NULL;
+    char **inputs_ = NULL;
+    char **outputs_ = NULL;
 
     if (!parseDeviceStr(devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
@@ -369,9 +369,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     OrtAllocator *allocator;
     status = ort->GetAllocatorWithDefaultOptions(&allocator);
 
-    inputs_ = array_new(char*, n_input_nodes);
+    inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
-        char* input_name;
+        char *input_name;
         status = ort->SessionGetInputName(session, i, allocator, &input_name);
         if (status != NULL) {
             goto error;
@@ -381,7 +381,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     outputs_ = array_new(char *, n_output_nodes);
     for (long long i = 0; i < n_output_nodes; i++) {
-        char* output_name;
+        char *output_name;
         status = ort->SessionGetOutputName(session, i, allocator, &output_name);
         if (status != NULL) {
             goto error;
@@ -413,16 +413,16 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
 error:
     RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
-    if(inputs_) {
+    if (inputs_) {
         n_input_nodes = array_len(inputs_);
-        for(uint32_t i = 0; i <n_input_nodes; i++) {
+        for (uint32_t i = 0; i < n_input_nodes; i++) {
             status = ort->AllocatorFree(allocator, inputs_[i]);
         }
         array_free(inputs_);
     }
-    if(outputs_){
+    if (outputs_) {
         n_output_nodes = array_len(outputs_);
-        for(uint32_t i = 0; i <n_output_nodes; i++) {
+        for (uint32_t i = 0; i < n_output_nodes; i++) {
             status = ort->AllocatorFree(allocator, outputs_[i]);
         }
         array_free(outputs_);
@@ -439,12 +439,12 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     OrtAllocator *allocator;
     OrtStatus *status = NULL;
     status = ort->GetAllocatorWithDefaultOptions(&allocator);
-    for(uint32_t i = 0; i < model->ninputs; i++) {
+    for (uint32_t i = 0; i < model->ninputs; i++) {
         status = ort->AllocatorFree(allocator, model->inputs[i]);
     }
     array_free(model->inputs);
 
-     for(uint32_t i = 0; i < model->noutputs; i++) {
+    for (uint32_t i = 0; i < model->noutputs; i++) {
         status = ort->AllocatorFree(allocator, model->outputs[i]);
     }
     array_free(model->outputs);
