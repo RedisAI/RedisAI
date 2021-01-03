@@ -14,6 +14,7 @@
 #include "dlpack/dlpack.h"
 #include "err.h"
 #include "redismodule.h"
+#include "redisai.h"
 #include "tensor_struct.h"
 #include "util/dict.h"
 
@@ -374,10 +375,22 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param t Destination tensor to store the parsed data
- * @return processed number of arguments on success, or -1 if the parsing failed
+ * @return The format in which tensor is returned.
  */
-int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor *t);
+
+RedisAI_DataFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+/**
+ * Helper method to return a tensor to the client in a response to AI.TENSORGET
+ *
+ * @param ctx Context in which Redis modules operate.
+ * @param fmt The format in which tensor is returned.
+ * @param t The tensor to reply with.
+
+ * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise.
+ */
+
+int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_DataFmt fmt, RAI_Tensor *t);
 
 /**
  * @brief  Returns the redis module type representing a tensor.

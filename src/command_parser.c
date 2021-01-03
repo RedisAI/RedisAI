@@ -22,7 +22,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
                                       RedisModuleString ***inkeys, RedisModuleString ***outkeys,
                                       RedisModuleString **runkey, long long *timeout) {
 
-    if (argc < 4) {
+    if (argc < 6) {
         RAI_SetError(error, RAI_EMODELRUN,
                      "ERR wrong number of arguments for 'AI.MODELRUN' command");
         return REDISMODULE_ERR;
@@ -122,12 +122,8 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
     return REDISMODULE_OK;
 }
 
-int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
-                         int argc) {
-
-    RAI_DagOp *currentOp;
-    RAI_InitDagOp(&currentOp);
-    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
+                         RedisModuleString **argv, int argc) {
 
     // Build a ModelRunCtx from command.
     RAI_Model *model;
@@ -160,7 +156,8 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModul
     return REDISMODULE_OK;
 
 cleanup:
-    RAI_FreeRunInfo(rinfo);
+    if (rinfo->single_op_dag)
+        RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }
 
@@ -269,12 +266,8 @@ static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inke
     return REDISMODULE_OK;
 }
 
-int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
-                          int argc) {
-
-    RAI_DagOp *currentOp;
-    RAI_InitDagOp(&currentOp);
-    rinfo->dagOps = array_append(rinfo->dagOps, currentOp);
+int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
+                          RedisModuleString **argv, int argc) {
 
     // Build a ScriptRunCtx from command.
     RAI_Script *script;
@@ -310,7 +303,8 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModu
     return REDISMODULE_OK;
 
 cleanup:
-    RAI_FreeRunInfo(rinfo);
+    if (rinfo->single_op_dag)
+        RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }
 
@@ -323,33 +317,34 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return RedisModule_ReplyWithError(
             ctx, "ERR Cannot run RedisAI command within a transaction or a LUA script");
 
-    RedisAI_RunInfo *rinfo = NULL;
-    if (RAI_InitRunInfo(&rinfo) != REDISMODULE_OK) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR Unable to allocate the memory and initialize the RedisAI_RunInfo structure");
-        return REDISMODULE_ERR;
-    }
-
+    RedisAI_RunInfo *rinfo;
+    RAI_InitRunInfo(&rinfo);
     int status = REDISMODULE_ERR;
+
     switch (command) {
     case CMD_MODELRUN:
         rinfo->single_op_dag = 1;
-        status = ParseModelRunCommand(rinfo, ctx, argv, argc);
+        RAI_DagOp *modelRunOp;
+        RAI_InitDagOp(&modelRunOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, modelRunOp);
+        status = ParseModelRunCommand(rinfo, modelRunOp, ctx, argv, argc);
         break;
     case CMD_SCRIPTRUN:
         rinfo->single_op_dag = 1;
-        status = ParseScriptRunCommand(rinfo, ctx, argv, argc);
+        RAI_DagOp *scriptRunOp;
+        RAI_InitDagOp(&scriptRunOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, scriptRunOp);
+        status = ParseScriptRunCommand(rinfo, scriptRunOp, ctx, argv, argc);
         break;
     case CMD_DAGRUN:
-        status = DAG_CommandParser(ctx, argv, argc, ro_dag, &rinfo);
+        status = ParseDAGRunCommand(rinfo, ctx, argv, argc, ro_dag);
         break;
     default:
-        status = REDISMODULE_ERR;
+        break;
     }
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_OK;
     }
-
     rinfo->dagOpCount = array_len(rinfo->dagOps);
 
     // Block the client before adding rinfo to the run queues (sync call).

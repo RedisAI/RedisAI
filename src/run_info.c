@@ -46,14 +46,14 @@ int RAI_InitDagOp(RAI_DagOp **result) {
     dagOp->runkey = NULL;
     dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
     dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    dagOp->outTensors = (RAI_Tensor **)array_new(RAI_Tensor *, 1);
+    dagOp->outTensor = NULL;
     dagOp->mctx = NULL;
     dagOp->sctx = NULL;
     dagOp->devicestr = NULL;
     dagOp->duration_us = 0;
     dagOp->result = -1;
     RAI_InitError(&dagOp->err);
-    dagOp->argv = (RedisModuleString **)array_new(RedisModuleString *, 1);
+    dagOp->argv = NULL;
     dagOp->argc = 0;
 
     *result = dagOp;
@@ -71,7 +71,6 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     rinfo = (RedisAI_RunInfo *)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
 
     rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeTensorVals, NULL);
-    rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
 
     rinfo->dagOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
@@ -105,47 +104,42 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
 }
 
 void RAI_FreeDagOp(RAI_DagOp *dagOp) {
-    if (dagOp) {
-        RAI_FreeError(dagOp->err);
-        if (dagOp->argv) {
-            for (size_t i = 0; i < array_len(dagOp->argv); i++) {
-                RedisModule_FreeString(NULL, dagOp->argv[i]);
-            }
-            array_free(dagOp->argv);
-        }
-        if (dagOp->runkey)
-            RedisModule_FreeString(NULL, dagOp->runkey);
-        // dagOp->inkeys is released on all argv release above
-        // dagOp->outkeys is released on all argv release above
-        // dagOp->outTensors is released on RunInfo after checking what tensors to
-        // persist
-        for (size_t i = 0; i < array_len(dagOp->outTensors); i++) {
-            RAI_TensorFree(dagOp->outTensors[i]);
-        }
-        array_free(dagOp->outTensors);
 
-        if (dagOp->mctx) {
-            RAI_ModelRunCtxFree(dagOp->mctx);
-        }
-        if (dagOp->sctx) {
-            RAI_ScriptRunCtxFree(dagOp->sctx);
-        }
+    RAI_FreeError(dagOp->err);
+    // argv items where not hold.
+    if (dagOp->argv)
+        array_free(dagOp->argv);
+    if (dagOp->runkey)
+        RedisModule_FreeString(NULL, dagOp->runkey);
+    // dagOp->inkeys is released on all argv release above
+    // dagOp->outkeys is released on all argv release above
+    // dagOp->outTensors is released on RunInfo after checking what tensors to
+    // persist
 
-        if (dagOp->inkeys) {
-            for (size_t i = 0; i < array_len(dagOp->inkeys); i++) {
-                RedisModule_FreeString(NULL, dagOp->inkeys[i]);
-            }
-            array_free(dagOp->inkeys);
-        }
+    if (dagOp->outTensor)
+        RAI_TensorFree(dagOp->outTensor);
 
-        if (dagOp->outkeys) {
-            for (size_t i = 0; i < array_len(dagOp->outkeys); i++) {
-                RedisModule_FreeString(NULL, dagOp->outkeys[i]);
-            }
-            array_free(dagOp->outkeys);
-        }
-        RedisModule_Free(dagOp);
+    if (dagOp->mctx) {
+        RAI_ModelRunCtxFree(dagOp->mctx);
     }
+    if (dagOp->sctx) {
+        RAI_ScriptRunCtxFree(dagOp->sctx);
+    }
+
+    if (dagOp->inkeys) {
+        for (size_t i = 0; i < array_len(dagOp->inkeys); i++) {
+            RedisModule_FreeString(NULL, dagOp->inkeys[i]);
+        }
+        array_free(dagOp->inkeys);
+    }
+
+    if (dagOp->outkeys) {
+        for (size_t i = 0; i < array_len(dagOp->outkeys); i++) {
+            RedisModule_FreeString(NULL, dagOp->outkeys[i]);
+        }
+        array_free(dagOp->outkeys);
+    }
+    RedisModule_Free(dagOp);
 }
 
 long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
@@ -169,7 +163,6 @@ void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
 
     if (rinfo->dagTensorsContext) {
         AI_dictRelease(rinfo->dagTensorsContext);
-        AI_dictRelease(rinfo->dagTensorsLoadedContext);
         AI_dictRelease(rinfo->dagTensorsPersistedContext);
     }
 

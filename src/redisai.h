@@ -50,7 +50,14 @@ typedef void (*RAI_OnFinishCB)(RAI_OnFinishCtx *ctx, void *private_data);
 #define RedisAI_ErrorCode_EDAGRUN             16
 #define RedisAI_ErrorCode_EFINISHCTX          17
 
-enum RedisAI_DataFmt { REDISAI_DATA_BLOB = 0, REDISAI_DATA_VALUES, REDISAI_DATA_NONE };
+typedef enum RedisAI_DataFmt {
+    REDISAI_DATA_NONE = 0,
+    REDISAI_DATA_VALUES,
+    REDISAI_DATA_META,
+    REDISAI_DATA_BLOB_WITH_META,
+    REDISAI_DATA_VALUES_WITH_META,
+    REDISAI_DATA_BLOB
+} RedisAI_DataFmt;
 
 int MODULE_API_FUNC(RedisAI_InitError)(RAI_Error **err);
 void MODULE_API_FUNC(RedisAI_ClearError)(RAI_Error *err);
