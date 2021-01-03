@@ -41,37 +41,21 @@ AI_dictType AI_dictTypeTensorVals = {
 int RAI_InitDagOp(RAI_DagOp **result) {
     RAI_DagOp *dagOp;
     dagOp = (RAI_DagOp *)RedisModule_Calloc(1, sizeof(RAI_DagOp));
-    if (!dagOp) {
-        return REDISMODULE_ERR;
-    }
+
     dagOp->commandType = REDISAI_DAG_CMD_NONE;
     dagOp->runkey = NULL;
     dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    if (!(dagOp->inkeys)) {
-        return REDISMODULE_ERR;
-    }
     dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    if (!(dagOp->outkeys)) {
-        return REDISMODULE_ERR;
-    }
     dagOp->outTensors = (RAI_Tensor **)array_new(RAI_Tensor *, 1);
-    if (!(dagOp->outTensors)) {
-        return REDISMODULE_ERR;
-    }
     dagOp->mctx = NULL;
     dagOp->sctx = NULL;
     dagOp->devicestr = NULL;
     dagOp->duration_us = 0;
     dagOp->result = -1;
     RAI_InitError(&dagOp->err);
-    if (!(dagOp->err)) {
-        return REDISMODULE_ERR;
-    }
     dagOp->argv = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    if (!(dagOp->argv)) {
-        return REDISMODULE_ERR;
-    }
     dagOp->argc = 0;
+
     *result = dagOp;
     return REDISMODULE_OK;
 }
@@ -85,34 +69,16 @@ int RAI_InitDagOp(RAI_DagOp **result) {
 int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     RedisAI_RunInfo *rinfo;
     rinfo = (RedisAI_RunInfo *)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
-    if (!rinfo) {
-        return REDISMODULE_ERR;
-    }
+
     rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeTensorVals, NULL);
-    if (!(rinfo->dagTensorsContext)) {
-        return REDISMODULE_ERR;
-    }
     rinfo->dagTensorsLoadedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-    if (!(rinfo->dagTensorsLoadedContext)) {
-        return REDISMODULE_ERR;
-    }
     rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-    if (!(rinfo->dagTensorsPersistedContext)) {
-        return REDISMODULE_ERR;
-    }
+
     rinfo->dagOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
-    if (!(rinfo->dagOps)) {
-        return REDISMODULE_ERR;
-    }
-    rinfo->dagDeviceOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
-    if (!(rinfo->dagDeviceOps)) {
-        return REDISMODULE_ERR;
-    }
     rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
     RAI_InitError(&rinfo->err);
     rinfo->dagLock = RedisModule_Alloc(sizeof(pthread_rwlock_t));
-    rinfo->dagRefCount = RedisModule_Alloc(sizeof(long long));
-    *(rinfo->dagRefCount) = 0;
+    rinfo->dagRefCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagOpCount = 0;
     rinfo->dagCompleteOpCount = RedisModule_Calloc(1, sizeof(long long));
     rinfo->dagDeviceOpCount = 0;
@@ -120,21 +86,17 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     rinfo->orig_copy = rinfo;
     pthread_rwlock_init(rinfo->dagLock, NULL);
     rinfo->timedOut = RedisModule_Calloc(1, sizeof(int));
+
     *result = rinfo;
     return REDISMODULE_OK;
 }
 
 int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     RedisAI_RunInfo *rinfo;
-    rinfo = (RedisAI_RunInfo *)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
-    if (!rinfo) {
-        return REDISMODULE_ERR;
-    }
+    rinfo = (RedisAI_RunInfo *)RedisModule_Alloc(sizeof(RedisAI_RunInfo));
     memcpy(rinfo, src, sizeof(RedisAI_RunInfo));
+
     rinfo->dagDeviceOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
-    if (!(rinfo->dagDeviceOps)) {
-        return REDISMODULE_ERR;
-    }
     (*rinfo->dagRefCount)++;
     rinfo->dagDeviceOpCount = 0;
     rinfo->dagDeviceCompleteOpCount = 0;
@@ -151,6 +113,8 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
             }
             array_free(dagOp->argv);
         }
+        if (dagOp->runkey)
+            RedisModule_FreeString(NULL, dagOp->runkey);
         // dagOp->inkeys is released on all argv release above
         // dagOp->outkeys is released on all argv release above
         // dagOp->outTensors is released on RunInfo after checking what tensors to
@@ -180,7 +144,6 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
             }
             array_free(dagOp->outkeys);
         }
-
         RedisModule_Free(dagOp);
     }
 }

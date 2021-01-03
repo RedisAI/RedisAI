@@ -57,47 +57,38 @@ DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
 
 static size_t Tensor_DataTypeSize(DLDataType dtype) { return dtype.bits / 8; }
 
-int Tensor_DataTypeStr(DLDataType dtype, char **dtypestr) {
+int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
     int result = REDISMODULE_ERR;
-    *dtypestr = RedisModule_Calloc(8, sizeof(char));
+
     if (dtype.code == kDLFloat) {
         if (dtype.bits == 32) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_FLOAT);
+            strcpy(dtypestr, RAI_DATATYPE_STR_FLOAT);
             result = REDISMODULE_OK;
         } else if (dtype.bits == 64) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_DOUBLE);
+            strcpy(dtypestr, RAI_DATATYPE_STR_DOUBLE);
             result = REDISMODULE_OK;
-        } else {
-            RedisModule_Free(*dtypestr);
-            *dtypestr = NULL;
         }
     } else if (dtype.code == kDLInt) {
         if (dtype.bits == 8) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_INT8);
+            strcpy(dtypestr, RAI_DATATYPE_STR_INT8);
             result = REDISMODULE_OK;
         } else if (dtype.bits == 16) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_INT16);
+            strcpy(dtypestr, RAI_DATATYPE_STR_INT16);
             result = REDISMODULE_OK;
         } else if (dtype.bits == 32) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_INT32);
+            strcpy(dtypestr, RAI_DATATYPE_STR_INT32);
             result = REDISMODULE_OK;
         } else if (dtype.bits == 64) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_INT64);
+            strcpy(dtypestr, RAI_DATATYPE_STR_INT64);
             result = REDISMODULE_OK;
-        } else {
-            RedisModule_Free(*dtypestr);
-            *dtypestr = NULL;
         }
     } else if (dtype.code == kDLUInt) {
         if (dtype.bits == 8) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_UINT8);
+            strcpy(dtypestr, RAI_DATATYPE_STR_UINT8);
             result = REDISMODULE_OK;
         } else if (dtype.bits == 16) {
-            strcpy(*dtypestr, RAI_DATATYPE_STR_UINT16);
+            strcpy(dtypestr, RAI_DATATYPE_STR_UINT16);
             result = REDISMODULE_OK;
-        } else {
-            RedisModule_Free(*dtypestr);
-            *dtypestr = NULL;
         }
     }
     return result;
@@ -627,10 +618,9 @@ int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict
 void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t) {
     long long ndims = RAI_TensorNumDims(t);
 
-    char *dtypestr = NULL;
-    Tensor_DataTypeStr(RAI_TensorDataType(t), &dtypestr);
-
-    assert(dtypestr);
+    char dtypestr[8];
+    const int status = Tensor_DataTypeStr(RAI_TensorDataType(t), dtypestr);
+    RedisModule_Assert(status == REDISMODULE_OK);
 
     char *data = RAI_TensorData(t);
     long long size = RAI_TensorByteSize(t);
@@ -647,8 +637,6 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
     for (long long i = 0; i < ndims; i++) {
         RedisModule_FreeString(ctx, dims[i]);
     }
-
-    RedisModule_Free(dtypestr);
 }
 
 int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t,
@@ -925,19 +913,18 @@ int RAI_parseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
     const long long ndims = RAI_TensorNumDims(t);
 
-    char *dtypestr = NULL;
-    const int dtypestr_result = Tensor_DataTypeStr(RAI_TensorDataType(t), &dtypestr);
+    char dtypestr[8];
+    const int dtypestr_result = Tensor_DataTypeStr(RAI_TensorDataType(t), dtypestr);
     if (dtypestr_result == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, "ERR unsupported dtype");
         return -1;
     }
 
     RedisModule_ReplyWithArray(ctx, resplen);
-
     RedisModule_ReplyWithCString(ctx, "dtype");
     RedisModule_ReplyWithCString(ctx, dtypestr);
-
     RedisModule_ReplyWithCString(ctx, "shape");
+
     RedisModule_ReplyWithArray(ctx, ndims);
     for (long long i = 0; i < ndims; i++) {
         const long long dim = RAI_TensorDim(t, i);

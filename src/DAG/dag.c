@@ -884,20 +884,3 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
     if (rinfo->client)
         RedisModule_UnblockClient(rinfo->client, rinfo);
 }
-
-void Dag_PopulateOp(RAI_DagOp *currentOp, void *rctx, RedisModuleString **inkeys,
-                    RedisModuleString **outkeys, RedisModuleString *runkey) {
-
-    if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
-        currentOp->mctx = (RAI_ModelRunCtx *)rctx;
-        currentOp->devicestr = currentOp->mctx->model->devicestr;
-    } else {
-        assert(currentOp->commandType == REDISAI_DAG_CMD_SCRIPTRUN);
-        currentOp->sctx = (RAI_ScriptRunCtx *)rctx;
-        currentOp->devicestr = currentOp->sctx->script->devicestr;
-    }
-
-    currentOp->inkeys = inkeys;
-    currentOp->outkeys = outkeys;
-    currentOp->runkey = runkey;
-}

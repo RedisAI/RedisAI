@@ -7,10 +7,8 @@
 #include "redismodule.h"
 
 queue *queueCreate(void) {
-    struct queue *queue;
 
-    if ((queue = RedisModule_Calloc(1, sizeof(*queue))) == NULL)
-        return NULL;
+    queue *queue = RedisModule_Calloc(1, sizeof(*queue));
 
     queue->front = queue->back = NULL;
     queue->len = 0;
@@ -19,10 +17,8 @@ queue *queueCreate(void) {
 }
 
 void queuePush(queue *queue, void *value) {
-    queueItem *item;
 
-    if ((item = RedisModule_Calloc(1, sizeof(*item))) == NULL)
-        return;
+    queueItem *item = RedisModule_Calloc(1, sizeof(*item));
     item->value = value;
     item->next = NULL;
     item->prev = NULL;
@@ -38,10 +34,9 @@ void queuePush(queue *queue, void *value) {
 }
 
 void queuePushFront(queue *queue, void *value) {
-    queueItem *item;
 
-    if ((item = RedisModule_Calloc(1, sizeof(*item))) == NULL)
-        return;
+    queueItem *item = RedisModule_Calloc(1, sizeof(*item));
+
     item->value = value;
     item->next = NULL;
     item->prev = NULL;
