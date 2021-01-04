@@ -40,7 +40,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
 
     char *error_descr = NULL;
     void *model =
-        tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+        tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (model == NULL) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
@@ -128,8 +128,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
-                   RedisModule_Alloc);
+    tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
     if (error_descr != NULL) {
         RAI_SetError(error, RAI_EMODELRUN, error_descr);
