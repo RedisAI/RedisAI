@@ -130,6 +130,11 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     char *error_descr = NULL;
     tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
+    // Always free input tensors after run.
+    for (size_t i = 0; i < ninputs; ++i) {
+        RAI_TensorFree(inputs[i]);
+    }
+
     if (error_descr != NULL) {
         RAI_SetError(error, RAI_EMODELRUN, error_descr);
         RedisModule_Free(error_descr);
@@ -159,10 +164,6 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
         RAI_TensorFree(output_tensor);
         RedisModule_Free(outputs_dl[i]);
-    }
-
-    for (size_t i = 0; i < ninputs; ++i) {
-        RAI_TensorFree(inputs[i]);
     }
 
     return 0;
