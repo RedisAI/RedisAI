@@ -146,6 +146,10 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModul
     }
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
+    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
+    currentOp->mctx = mctx;
+    currentOp->devicestr = mctx->model->devicestr;
+
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
@@ -153,10 +157,6 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModul
             REDISMODULE_ERR)
             goto cleanup;
     }
-
-    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
-    currentOp->devicestr = mctx->model->devicestr;
     return REDISMODULE_OK;
 
 cleanup:
