@@ -101,6 +101,18 @@ def test_dag_common_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
 
+    # ERR DAG with no ops
+    command = "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10"
+    ret = con.execute_command(command)
+    env.assertEqual(ret, b'OK')
+    try:
+        command = "AI.DAGRUN LOAD 1 volatile_tensor1"
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("DAG is empty",exception.__str__())
+
 
 def test_dagro_common_errors(env):
     con = env.getConnection()

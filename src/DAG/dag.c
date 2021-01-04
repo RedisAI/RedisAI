@@ -752,87 +752,20 @@ void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
     RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void *)bc);
 }
 
-// Add Shallow copies of the DAG run info to the devices' queues.
-// Return REDISMODULE_OK in case of success, REDISMODULE_ERR if (at least) one insert op had
-// failed.
-int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
-    const char **devices = array_new(const char *, 10);
-
-    for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
-        const char *devicestr = rinfo->dagOps[i]->devicestr;
-        bool found = false;
-        for (long long j = 0; j < array_len(devices); j++) {
-            if (strcasecmp(devicestr, devices[j]) == 0) {
-                found = true;
-                break;
-            }
-        }
-        if (!found) {
-            devices = array_append(devices, devicestr);
-        }
-    }
-
-    size_t ndevices = array_len(devices);
-    if (ndevices == 1)
-        rinfo->single_device_dag = 1;
-    RedisAI_RunInfo **rinfo_copies = array_new(RedisAI_RunInfo *, ndevices);
-
-    for (long long i = 0; i < ndevices; i++) {
-        RedisAI_RunInfo *rinfo_copy;
-        RAI_ShallowCopyDagRunInfo(&rinfo_copy, rinfo);
-        rinfo_copies = array_append(rinfo_copies, rinfo_copy);
-    }
-
-    for (long long i = 0; i < ndevices; i++) {
-        RedisAI_RunInfo *rinfo_copy = rinfo_copies[i];
-        for (long long j = 0; j < rinfo_copy->dagOpCount; j++) {
-            if (strcasecmp(rinfo_copy->dagOps[j]->devicestr, devices[i]) == 0) {
-                rinfo_copy->dagDeviceOps =
-                    array_append(rinfo_copy->dagDeviceOps, rinfo_copy->dagOps[j]);
-            }
-        }
-        rinfo_copy->dagDeviceOpCount = array_len(rinfo_copy->dagDeviceOps);
-    }
-
-    RunQueueInfo **run_queues_info = array_new(RunQueueInfo *, ndevices);
-    for (long long i = 0; i < ndevices; i++) {
-        const char *devicestr = devices[i];
-        RunQueueInfo *run_queue_info = NULL;
-        if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
-            // A device run queue was not created properly, so we free everything,
-            // set an error and finish.
-            array_free(devices);
-            for (int j = 0; j < ndevices; j++) {
-                RAI_DagRunInfoFreeShallowCopy(rinfo_copies[j]);
-            }
-            array_free(rinfo_copies);
-            array_free(run_queues_info);
-            RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR Queue not initialized for device");
-            rinfo->OnFinish((RedisAI_OnFinishCtx *)rinfo, rinfo->private_data);
-            return REDISMODULE_ERR;
-        }
-        run_queues_info = array_append(run_queues_info, run_queue_info);
-    }
-    for (long long i = 0; i < ndevices; i++) {
-        RedisAI_RunInfo *rinfo_copy = rinfo_copies[i];
-        RunQueueInfo *run_queue_info = run_queues_info[i];
-        gettimeofday(&rinfo_copy->queuingTime, NULL);
-
-        pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-        queuePush(run_queue_info->run_queue, rinfo_copy);
-        pthread_cond_signal(&run_queue_info->queue_condition_var);
-        pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-    }
-
-    array_free(devices);
-    array_free(rinfo_copies);
-    array_free(run_queues_info);
-    return REDISMODULE_OK;
-}
-
 void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client)
         RedisModule_UnblockClient(rinfo->client, rinfo);
+}
+
+void DAG_SetTensorsInLocalContext(RedisAI_RunInfo *rinfo) {
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        RAI_DagOp *op = rinfo->dagOps[i];
+        if (op->commandType == REDISAI_DAG_CMD_TENSORSET) {
+            // Insert the tensor with its mangled (unique) name.
+            void *t = (void *)RAI_TensorGetShallowCopy(op->outTensor);
+            AI_dictReplace(rinfo->dagTensorsContext, (void *)op->outkeys[0], t);
+        }
+    }
 }

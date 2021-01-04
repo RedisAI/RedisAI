@@ -4,160 +4,10 @@
 #include "dag_parser.h"
 #include "command_parser.h"
 #include "modelRun_ctx.h"
+#include "dag_execute.h"
 #include <string.h>
-#include "util/string_utils.h"
-
-void _SetTensorsInDagLocalContext(RedisAI_RunInfo *rinfo) {
-    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
-        RAI_DagOp *op = rinfo->dagOps[i];
-        if (op->commandType == REDISAI_DAG_CMD_TENSORSET) {
-            // Insert the tensor with its mangled (unique) name.
-            void *t = (void *)RAI_TensorGetShallowCopy(op->outTensor);
-            AI_dictReplace(rinfo->dagTensorsContext, (void *)op->outkeys[0], t);
-        }
-    }
-}
-
-/* At this point, we have built a sequence of DAG operations, each with its own
- input and output keys. The names of the keys will be used to look whether the
- inputs to a DAG operation have all been realized by previous operations (or if
- they are available as part of LOADed keys from keyspace).
- This strategy is fine if keys are not aliased, that is, if a command's output
- overwrites the key of a previous command. This would trick DAG operations into
- thinking that their input is ready when it's not.
- To overcome this, we make key names unique, so that names are not aliased. We
- mangle the names by appending a numerical suffix ":0001". After computing, we
- demangle the keys in order to persist them.*/
-int _MangleTensorsNames(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
-
-    int res = REDISMODULE_ERR;
-    AI_dict *mangled_tensors = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-
-    {
-        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
-        AI_dictEntry *entry = AI_dictNext(iter);
-        while (entry) {
-            RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
-            size_t key_len;
-            const char *key_str = RedisModule_StringPtrLen(key, &key_len);
-            RedisModuleString *demangled_key = RedisModule_CreateString(NULL, key_str, key_len - 4);
-            int *instance = RedisModule_Alloc(sizeof(int));
-            *instance = 1;
-            AI_dictAdd(mangled_tensors, (void *)demangled_key, (void *)instance);
-            RedisModule_FreeString(NULL, demangled_key);
-            entry = AI_dictNext(iter);
-        }
-        AI_dictReleaseIterator(iter);
-    }
-
-    for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
-        RAI_DagOp *currentOp = rinfo->dagOps[i];
-
-        RedisModuleString **mangled_inkeys =
-            array_new(RedisModuleString *, array_len(currentOp->inkeys));
-        for (long long j = 0; j < array_len(currentOp->inkeys); j++) {
-            RedisModuleString *key = currentOp->inkeys[j];
-            AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
-            if (!entry) {
-                array_free(mangled_inkeys);
-                RedisModule_ReplyWithError(ctx, "ERR INPUT key cannot be found in DAG");
-                goto cleanup;
-            }
-            int *instance = AI_dictGetVal(entry);
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            mangled_inkeys = array_append(mangled_inkeys, mangled_key);
-        }
-
-        RedisModuleString **mangled_outkeys =
-            array_new(RedisModuleString *, array_len(currentOp->outkeys));
-        for (long long j = 0; j < array_len(currentOp->outkeys); j++) {
-            RedisModuleString *key = currentOp->outkeys[j];
-            AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
-            int *instance = NULL;
-            if (entry) {
-                instance = AI_dictGetVal(entry);
-                *instance += 1;
-            } else {
-                instance = RedisModule_Alloc(sizeof(int));
-                *instance = 1;
-                AI_dictAdd(mangled_tensors, (void *)key, (void *)instance);
-            }
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            mangled_outkeys = array_append(mangled_outkeys, mangled_key);
-        }
-
-        if (currentOp->inkeys) {
-            for (size_t j = 0; j < array_len(currentOp->inkeys); j++) {
-                RedisModule_FreeString(NULL, currentOp->inkeys[j]);
-            }
-            array_free(currentOp->inkeys);
-        }
-
-        if (currentOp->outkeys) {
-            for (size_t j = 0; j < array_len(currentOp->outkeys); j++) {
-                RedisModule_FreeString(NULL, currentOp->outkeys[j]);
-            }
-            array_free(currentOp->outkeys);
-        }
-
-        currentOp->inkeys = mangled_inkeys;
-        currentOp->outkeys = mangled_outkeys;
-    }
-
-    AI_dict *mangled_persisted = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-    {
-        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
-        AI_dictEntry *entry = AI_dictNext(iter);
-        while (entry) {
-            RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
-            AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
-            if (!mangled_entry) {
-                AI_dictRelease(mangled_persisted);
-                AI_dictReleaseIterator(iter);
-                RedisModule_ReplyWithError(ctx, "ERR PERSIST key cannot be found in DAG");
-                goto cleanup;
-            }
-            int *instance = AI_dictGetVal(mangled_entry);
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            AI_dictAdd(mangled_persisted, (void *)mangled_key, (void *)1);
-            RedisModule_FreeString(NULL, mangled_key);
-            entry = AI_dictNext(iter);
-        }
-        AI_dictReleaseIterator(iter);
-    }
-
-    AI_dictRelease(rinfo->dagTensorsPersistedContext);
-    rinfo->dagTensorsPersistedContext = mangled_persisted;
-
-    for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
-        if (rinfo->dagOps[i]->devicestr == NULL) {
-            rinfo->dagOps[i]->devicestr = "CPU";
-        }
-    }
-    res = REDISMODULE_OK;
-
-cleanup : {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(mangled_tensors);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-        int *val = (int *)AI_dictGetVal(entry);
-        RedisModule_Free(val);
-        entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-}
-    AI_dictRelease(mangled_tensors);
-    return res;
-}
+#include "dag.h"
+#include "string_utils.h"
 
 /**
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
@@ -355,6 +205,7 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                        int argc, bool dag_ro) {
 
+    RAI_Error err = {0};
     if (argc < 4) {
         RedisModule_WrongArity(ctx);
         goto cleanup;
@@ -420,16 +271,22 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         goto cleanup;
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
-    if (rinfo->dagOpCount < 1)
+    if (rinfo->dagOpCount < 1) {
+        RedisModule_ReplyWithError(ctx, "ERR DAG is empty");
         goto cleanup;
+    }
     if (_ParseDAGOps(ctx, rinfo) != REDISMODULE_OK)
         goto cleanup;
-    if (_MangleTensorsNames(ctx, rinfo) != REDISMODULE_OK)
+    if (MangleTensorsNames(rinfo, &err) != REDISMODULE_OK) {
+        RedisModule_ReplyWithError(ctx, err.detail_oneline);
         goto cleanup;
-    _SetTensorsInDagLocalContext(rinfo);
+    }
+    DAG_SetTensorsInLocalContext(rinfo);
+
     return REDISMODULE_OK;
 
 cleanup:
+    RAI_ClearError(&err);
     RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }

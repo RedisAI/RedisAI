@@ -147,4 +147,6 @@ void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
  */
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
+void DAG_SetTensorsInLocalContext(RedisAI_RunInfo *rinfo);
+
 #endif /* SRC_DAG_H_ */

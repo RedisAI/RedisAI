@@ -281,5 +281,9 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RAI_FreeRunInfo(rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }

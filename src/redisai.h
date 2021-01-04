@@ -30,25 +30,27 @@ typedef void (*RAI_OnFinishCB)(RAI_OnFinishCtx *ctx, void *private_data);
 #define REDISAI_DEVICE_CPU 0
 #define REDISAI_DEVICE_GPU 1
 
-#define RedisAI_ErrorCode                     int
-#define RedisAI_ErrorCode_OK                  0
-#define RedisAI_ErrorCode_EMODELIMPORT        1
-#define RedisAI_ErrorCode_EMODELCONFIGURE     2
-#define RedisAI_ErrorCode_EMODELCREATE        3
-#define RedisAI_ErrorCode_EMODELRUN           4
-#define RedisAI_ErrorCode_EMODELSERIALIZE     5
-#define RedisAI_ErrorCode_EMODELFREE          6
-#define RedisAI_ErrorCode_ESCRIPTIMPORT       7
-#define RedisAI_ErrorCode_ESCRIPTCONFIGURE    8
-#define RedisAI_ErrorCode_ESCRIPTCREATE       9
-#define RedisAI_ErrorCode_ESCRIPTRUN          10
-#define RedisAI_ErrorCode_EUNSUPPORTEDBACKEND 11
-#define RedisAI_ErrorCode_EBACKENDNOTLOADED   12
-#define RedisAI_ErrorCode_ESCRIPTFREE         13
-#define RedisAI_ErrorCode_ETENSORSET          14
-#define RedisAI_ErrorCode_ETENSORGET          15
-#define RedisAI_ErrorCode_EDAGRUN             16
-#define RedisAI_ErrorCode_EFINISHCTX          17
+typedef enum RedisAI_ErrorCode {
+    RedisAI_ErrorCode_OK = 0,
+    RedisAI_ErrorCode_EMODELIMPORT,
+    RedisAI_ErrorCode_EMODELCONFIGURE,
+    RedisAI_ErrorCode_EMODELCREATE,
+    RedisAI_ErrorCode_EMODELRUN,
+    RedisAI_ErrorCode_EMODELSERIALIZE,
+    RedisAI_ErrorCode_EMODELFREE,
+    RedisAI_ErrorCode_ESCRIPTIMPORT,
+    RedisAI_ErrorCode_ESCRIPTCONFIGURE,
+    RedisAI_ErrorCode_ESCRIPTCREATE,
+    RedisAI_ErrorCode_ESCRIPTRUN,
+    RedisAI_ErrorCode_EUNSUPPORTEDBACKEND,
+    RedisAI_ErrorCode_EBACKENDNOTLOADED,
+    RedisAI_ErrorCode_ESCRIPTFREE,
+    RedisAI_ErrorCode_ETENSORSET,
+    RedisAI_ErrorCode_ETENSORGET,
+    RedisAI_ErrorCode_EDAGBUILDER,
+    RedisAI_ErrorCode_EDAGRUN,
+    RedisAI_ErrorCode_EFINISHCTX
+} RedisAI_ErrorCode;
 
 int MODULE_API_FUNC(RedisAI_InitError)(RAI_Error **err);
 void MODULE_API_FUNC(RedisAI_ClearError)(RAI_Error *err);

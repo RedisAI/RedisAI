@@ -156,8 +156,9 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     return REDISMODULE_OK;
 
 cleanup:
-    if (rinfo->single_op_dag)
+    if (rinfo->single_op_dag) {
         RAI_FreeRunInfo(rinfo);
+    }
     return REDISMODULE_ERR;
 }
 
@@ -303,8 +304,9 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     return REDISMODULE_OK;
 
 cleanup:
-    if (rinfo->single_op_dag)
+    if (rinfo->single_op_dag) {
         RAI_FreeRunInfo(rinfo);
+    }
     return REDISMODULE_ERR;
 }
 
@@ -351,5 +353,10 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
     RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
     rinfo->OnFinish = DAG_ReplyAndUnblock;
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
+        RAI_FreeRunInfo(rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }

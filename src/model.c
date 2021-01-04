@@ -271,5 +271,9 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RAI_FreeRunInfo(rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }
