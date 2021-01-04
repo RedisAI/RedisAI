@@ -139,8 +139,8 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    RedisAI_DataFmt fmt = ParseTensorGetArgs(ctx, argv, argc);
-    if (fmt == REDISAI_DATA_NONE) {
+    RedisAI_TensorFmt fmt = ParseTensorGetArgs(ctx, argv, argc);
+    if (fmt == REDISAI_TENSOR_NONE) {
         // This means that args are invalid.
         return REDISMODULE_ERR;
     }

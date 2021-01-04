@@ -657,7 +657,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return -1;
     }
     const char *fmtstr;
-    int datafmt = REDISAI_DATA_NONE;
+    int datafmt = REDISAI_TENSOR_NONE;
     int tensorAllocMode = TENSORALLOC_CALLOC;
     size_t ndims = 0;
     long long len = 1;
@@ -671,7 +671,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         const char *opt = RedisModule_StringPtrLen(argv[argpos], NULL);
         remaining_args = argc - 1 - argpos;
         if (!strcasecmp(opt, "BLOB")) {
-            datafmt = REDISAI_DATA_BLOB;
+            datafmt = REDISAI_TENSOR_BLOB;
             tensorAllocMode = TENSORALLOC_CALLOC;
             // if we've found the dataformat there are no more dimensions
             // check right away if the arity is correct
@@ -688,7 +688,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
             argpos++;
             break;
         } else if (!strcasecmp(opt, "VALUES")) {
-            datafmt = REDISAI_DATA_VALUES;
+            datafmt = REDISAI_TENSOR_VALUES;
             tensorAllocMode = TENSORALLOC_CALLOC;
             // if we've found the dataformat there are no more dimensions
             // check right away if the arity is correct
@@ -728,7 +728,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     size_t datalen;
     const char *data;
     DLDataType datatype = RAI_TensorDataTypeFromString(typestr);
-    if (datafmt == REDISAI_DATA_BLOB) {
+    if (datafmt == REDISAI_TENSOR_BLOB) {
         RedisModuleString *rstr = argv[argpos];
         RedisModule_RetainString(NULL, rstr);
         *t = RAI_TensorCreateWithDLDataTypeAndRString(datatype, dims, ndims, rstr);
@@ -746,7 +746,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         return -1;
     }
     long i = 0;
-    if (datafmt == REDISAI_DATA_VALUES) {
+    if (datafmt == REDISAI_TENSOR_VALUES) {
         for (; (argpos <= argc - 1) && (i < len); argpos++) {
             if (datatype.code == kDLFloat) {
                 double val;
@@ -845,8 +845,8 @@ int RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
     return 0;
 }
 
-RedisAI_DataFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisAI_DataFmt fmt = REDISAI_DATA_NONE;
+RedisAI_TensorFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    RedisAI_TensorFmt fmt = REDISAI_TENSOR_NONE;
     if (argc < 2 || argc > 4) {
         RedisModule_WrongArity(ctx);
         return fmt;
@@ -877,27 +877,27 @@ RedisAI_DataFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv
         return fmt;
     }
     if (blob_arg && !meta_arg)
-        return REDISAI_DATA_BLOB;
+        return REDISAI_TENSOR_BLOB;
     if (values_arg && !meta_arg)
-        return REDISAI_DATA_VALUES;
+        return REDISAI_TENSOR_VALUES;
     if (blob_arg && meta_arg)
-        return REDISAI_DATA_BLOB_WITH_META;
+        return REDISAI_TENSOR_BLOB_WITH_META;
     if (values_arg && meta_arg)
-        return REDISAI_DATA_VALUES_WITH_META;
+        return REDISAI_TENSOR_VALUES_WITH_META;
     if (!blob_arg && !values_arg && meta_arg)
-        return REDISAI_DATA_META;
+        return REDISAI_TENSOR_META;
     return fmt;
 }
 
-int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_DataFmt fmt, RAI_Tensor *t) {
+int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_TensorFmt fmt, RAI_Tensor *t) {
 
-    if (fmt == REDISAI_DATA_BLOB) {
+    if (fmt == REDISAI_TENSOR_BLOB) {
         long long size = RAI_TensorByteSize(t);
         char *data = RAI_TensorData(t);
         RedisModule_ReplyWithStringBuffer(ctx, data, size);
         return REDISMODULE_OK;
     }
-    if (fmt == REDISAI_DATA_VALUES) {
+    if (fmt == REDISAI_TENSOR_VALUES) {
         int ret = RAI_TensorReplyWithValues(ctx, t);
         if (ret == -1) {
             return REDISMODULE_ERR;
@@ -906,7 +906,7 @@ int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_DataFmt fmt, RAI_Tensor *t) {
     }
 
     long long resplen = 4;
-    if (fmt == REDISAI_DATA_BLOB_WITH_META || fmt == REDISAI_DATA_VALUES_WITH_META)
+    if (fmt == REDISAI_TENSOR_BLOB_WITH_META || fmt == REDISAI_TENSOR_VALUES_WITH_META)
         resplen += 2;
 
     const long long ndims = RAI_TensorNumDims(t);
@@ -929,13 +929,13 @@ int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_DataFmt fmt, RAI_Tensor *t) {
         RedisModule_ReplyWithLongLong(ctx, dim);
     }
 
-    if (fmt == REDISAI_DATA_BLOB_WITH_META) {
+    if (fmt == REDISAI_TENSOR_BLOB_WITH_META) {
         long long size = RAI_TensorByteSize(t);
         char *data = RAI_TensorData(t);
         RedisModule_ReplyWithCString(ctx, "blob");
         RedisModule_ReplyWithStringBuffer(ctx, data, size);
 
-    } else if (fmt == REDISAI_DATA_VALUES_WITH_META) {
+    } else if (fmt == REDISAI_TENSOR_VALUES_WITH_META) {
         RedisModule_ReplyWithCString(ctx, "values");
         int ret = RAI_TensorReplyWithValues(ctx, t);
         if (ret != REDISMODULE_OK) {

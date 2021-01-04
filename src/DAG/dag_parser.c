@@ -316,7 +316,7 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             RAI_HoldString(NULL, currentOp->argv[1]);
             currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             currentOp->fmt = ParseTensorGetArgs(ctx, currentOp->argv, currentOp->argc);
-            if (currentOp->fmt == REDISAI_DATA_NONE)
+            if (currentOp->fmt == REDISAI_TENSOR_NONE)
                 return REDISMODULE_ERR;
             continue;
         }
