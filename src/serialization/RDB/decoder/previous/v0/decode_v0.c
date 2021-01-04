@@ -109,7 +109,6 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
     };
 
-    len;
     buffer = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
@@ -197,7 +196,6 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
     tag = RedisModule_CreateString(NULL, cstr_tag, len - 1);
     RedisModule_Free(cstr_tag);
 
-    len;
     scriptdef = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
