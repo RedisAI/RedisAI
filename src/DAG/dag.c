@@ -223,6 +223,8 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         if (rinfo->single_op_dag == 0)
             Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
     }
+    // Clear the result in case of an error.
+    if(result == REDISMODULE_ERR) RAI_ClearError(&err);
 }
 
 /**
@@ -798,6 +800,9 @@ void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) {}
 
 void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
     RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void *)bc);
+    // Free the original copy of the run info, so the runqueue will 
+    RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
+    RAI_FreeRunInfo(rinfo);
 }
 
 // Add Shallow copies of the DAG run info to the devices' queues.
