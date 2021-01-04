@@ -33,14 +33,11 @@ static const char *RAI_DATATYPE_STR_INT64 = "INT64";
 static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
 static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
 
-typedef enum RedisAI_TensorFmt {
-    REDISAI_TENSOR_NONE = 0,
-    REDISAI_TENSOR_VALUES,
-    REDISAI_TENSOR_META,
-    REDISAI_TENSOR_BLOB_WITH_META,
-    REDISAI_TENSOR_VALUES_WITH_META,
-    REDISAI_TENSOR_BLOB
-} RedisAI_TensorFmt;
+#define TENSOR_NONE                0
+#define TENSOR_VALUES              (1 << 0)
+#define TENSOR_META                (1 << 1)
+#define TENSOR_BLOB                (1 << 2)
+#define TENSOR_ILLEGAL_VALUES_BLOB (TENSOR_VALUES | TENSOR_BLOB)
 
 extern RedisModuleType *RedisAI_TensorType;
 
@@ -387,7 +384,7 @@ int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
  * @return The format in which tensor is returned.
  */
 
-RedisAI_TensorFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+uint ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
  * Helper method to return a tensor to the client in a response to AI.TENSORGET
@@ -399,7 +396,7 @@ RedisAI_TensorFmt ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **ar
  * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise.
  */
 
-int ReplyWithTensor(RedisModuleCtx *ctx, RedisAI_TensorFmt fmt, RAI_Tensor *t);
+int ReplyWithTensor(RedisModuleCtx *ctx, uint fmt, RAI_Tensor *t);
 
 /**
  * @brief  Returns the redis module type representing a tensor.

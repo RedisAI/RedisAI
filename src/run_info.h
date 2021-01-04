@@ -36,7 +36,7 @@ typedef struct RAI_DagOp {
     RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
     RAI_ModelRunCtx *mctx;
     RAI_ScriptRunCtx *sctx;
-    RedisAI_TensorFmt fmt; // This is relevant for TENSORGET op.
+    uint fmt; // This is relevant for TENSORGET op.
     char *devicestr;
     int result; // REDISMODULE_OK or REDISMODULE_ERR
     long long duration_us;
