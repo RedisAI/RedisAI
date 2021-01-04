@@ -31,6 +31,10 @@
 #include "util/queue.h"
 #include "version.h"
 
+#include "redis_ai_types/model_type.h"
+#include "redis_ai_types/script_type.h"
+#include "redis_ai_types/tensor_type.h"
+
 #define REDISAI_H_INCLUDE
 #include "redisai.h"
 #undef REDISAI_H_INCLUDE
@@ -1081,7 +1085,8 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    if (RedisModule_Init(ctx, "ai", RAI_ENC_VER, REDISMODULE_APIVER_1) == REDISMODULE_ERR)
+    if (RedisModule_Init(ctx, "ai", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
+        REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     getRedisVersion();
@@ -1105,7 +1110,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
             return REDISMODULE_ERR;
     }
 
-    RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s", RAI_ENC_VER, REDISAI_GIT_SHA);
+    RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s", REDISAI_MODULE_VERSION,
+                    REDISAI_GIT_SHA);
 
     int flags = RedisModule_GetContextFlags(ctx);
 
@@ -1114,17 +1120,17 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
     }
 
-    if (!RAI_TensorInit(ctx)) {
+    if (!TensorType_Register(ctx)) {
         RedisModule_Log(ctx, "warning", "can not initialize tensor dt\r\n");
         return REDISMODULE_ERR;
     }
 
-    if (!RAI_ModelInit(ctx)) {
+    if (!ModelType_Register(ctx)) {
         RedisModule_Log(ctx, "warning", "can not initialize model dt\r\n");
         return REDISMODULE_ERR;
     }
 
-    if (!RAI_ScriptInit(ctx)) {
+    if (!ScriptType_Register(ctx)) {
         RedisModule_Log(ctx, "warning", "can not initialize script dt\r\n");
         return REDISMODULE_ERR;
     }
@@ -1192,6 +1198,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand,
                                   "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
+
+    RedisModule_SetModuleOptions(ctx, REDISMODULE_OPTIONS_HANDLE_IO_ERRORS);
 
     // Default configs
     RAI_BackendsPath = NULL;
