@@ -27,9 +27,12 @@ int RAI_llapi_basic_check(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
 
 	RAI_Error *err;
 	RedisAI_InitError(&err);
-	if(RedisAI_GetErrorCode(err) == RedisAI_ErrorCode_OK)
-		return RedisModule_ReplyWithSimpleString(ctx, "OK");
-	return RedisModule_ReplyWithError(ctx, "ERROR");
+	if(RedisAI_GetErrorCode(err) == RedisAI_ErrorCode_OK) {
+        RedisModule_ReplyWithSimpleString(ctx, "OK");
+    }
+	RedisModule_ReplyWithError(ctx, "ERROR");
+	RedisAI_FreeError(err);
+	return REDISMODULE_OK;
 }
 
 static void _ScriptFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {

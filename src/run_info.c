@@ -106,15 +106,8 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
 void RAI_FreeDagOp(RAI_DagOp *dagOp) {
 
     RAI_FreeError(dagOp->err);
-    // argv items where not hold.
-    if (dagOp->argv)
-        array_free(dagOp->argv);
     if (dagOp->runkey)
         RedisModule_FreeString(NULL, dagOp->runkey);
-    // dagOp->inkeys is released on all argv release above
-    // dagOp->outkeys is released on all argv release above
-    // dagOp->outTensors is released on RunInfo after checking what tensors to
-    // persist
 
     if (dagOp->outTensor)
         RAI_TensorFree(dagOp->outTensor);

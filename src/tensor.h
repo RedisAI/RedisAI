@@ -33,6 +33,15 @@ static const char *RAI_DATATYPE_STR_INT64 = "INT64";
 static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
 static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
 
+typedef enum RedisAI_DataFmt {
+    REDISAI_DATA_NONE = 0,
+    REDISAI_DATA_VALUES,
+    REDISAI_DATA_META,
+    REDISAI_DATA_BLOB_WITH_META,
+    REDISAI_DATA_VALUES_WITH_META,
+    REDISAI_DATA_BLOB
+} RedisAI_DataFmt;
+
 extern RedisModuleType *RedisAI_TensorType;
 
 /**
