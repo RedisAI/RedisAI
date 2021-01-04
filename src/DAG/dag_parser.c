@@ -413,6 +413,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         goto cleanup;
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
+    if(rinfo->dagOpCount < 1) goto cleanup;
     if (_ParseDAGOps(ctx, rinfo) != REDISMODULE_OK)
         goto cleanup;
     if (_MangleTensorsNames(ctx, rinfo) != REDISMODULE_OK)
