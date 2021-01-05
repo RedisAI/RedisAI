@@ -1040,6 +1040,13 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_user", children_used_cpu_user);
     RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_sys", main_thread_used_cpu_sys);
     RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_user", main_thread_used_cpu_user);
+    
+    sds_free(self_used_cpu_sys);
+    sds_free(self_used_cpu_user);
+    sds_free(children_used_cpu_sys);
+    sds_free(children_used_cpu_user);
+    sds_free(main_thread_used_cpu_sys);
+    sds_free(main_thread_used_cpu_user);
 
     AI_dictIterator *iter = AI_dictGetSafeIterator(run_queues);
     AI_dictEntry *entry = AI_dictNext(iter);
@@ -1073,6 +1080,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                 }
                 RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);
                 sds_free(queue_used_cpu_total);
+                sds_free(bthread_used_cpu_total);
                 
             }
         }
