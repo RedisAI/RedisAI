@@ -874,22 +874,24 @@ uint ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 
 int ReplyWithTensor(RedisModuleCtx *ctx, uint fmt, RAI_Tensor *t) {
 
-    if ((fmt & TENSOR_BLOB) && !(fmt & TENSOR_META)) {
-        long long size = RAI_TensorByteSize(t);
-        char *data = RAI_TensorData(t);
-        RedisModule_ReplyWithStringBuffer(ctx, data, size);
-        return REDISMODULE_OK;
-    }
-    if ((fmt & TENSOR_VALUES) && !(fmt & TENSOR_META)) {
-        int ret = RAI_TensorReplyWithValues(ctx, t);
-        if (ret == -1) {
-            return REDISMODULE_ERR;
+    if (!(fmt & TENSOR_META)) {
+        if (fmt & TENSOR_BLOB) {
+            long long size = RAI_TensorByteSize(t);
+            char *data = RAI_TensorData(t);
+            RedisModule_ReplyWithStringBuffer(ctx, data, size);
+            return REDISMODULE_OK;
         }
-        return REDISMODULE_OK;
+        if (fmt & TENSOR_VALUES) {
+            int ret = RAI_TensorReplyWithValues(ctx, t);
+            if (ret == -1) {
+                return REDISMODULE_ERR;
+            }
+            return REDISMODULE_OK;
+        }
     }
 
     long long resplen = 4;
-    if ((fmt & TENSOR_BLOB) || (fmt & TENSOR_VALUES))
+    if (fmt & (TENSOR_BLOB | TENSOR_VALUES))
         resplen += 2;
 
     const long long ndims = RAI_TensorNumDims(t);
