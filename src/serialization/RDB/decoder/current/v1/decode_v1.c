@@ -245,7 +245,8 @@ void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
 
     RedisModule_FreeString(NULL, stats_keystr);
     RedisModule_FreeString(NULL, tag);
-
+    RedisModule_Free(devicestr);
+    RedisModule_Free(scriptdef);
     return script;
 cleanup:
     if (devicestr)
