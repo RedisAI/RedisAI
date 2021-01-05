@@ -153,8 +153,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_AutoMemory(ctx);
-
     if (argc < 4)
         return RedisModule_WrongArity(ctx);
 
@@ -662,8 +660,6 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_AutoMemory(ctx);
-
     if (argc != 5 && argc != 7)
         return RedisModule_WrongArity(ctx);
 
