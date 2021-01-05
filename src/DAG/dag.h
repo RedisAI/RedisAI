@@ -142,9 +142,5 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo);
  */
 void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
 
-/**
- * @brief A callback to send to BlockClient.
- */
-void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
 #endif /* SRC_DAG_H_ */

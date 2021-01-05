@@ -352,9 +352,7 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
     rinfo->dagOpCount = array_len(rinfo->dagOps);
 
-    // Block the client before adding rinfo to the run queues (sync call).
     rinfo->OnFinish = DAG_ReplyAndUnblock;
     rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
     return DAG_InsertDAGToQueue(rinfo);
 }

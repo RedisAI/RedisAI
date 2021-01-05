@@ -163,9 +163,6 @@ void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
         return;
     }
     long long ref_count = *rinfo->dagRefCount;
-    /* In case of client disconnect, this function will be called for cleanup.
-     * It needs to validate the execution has finished. */
-    while(ref_count > 0) {}
     RedisModule_Assert(ref_count == 0);
     pthread_rwlock_destroy(rinfo->dagLock);
     RedisModule_Free(rinfo->dagLock);

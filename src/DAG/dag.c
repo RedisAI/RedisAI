@@ -646,7 +646,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
     if (RAI_GetErrorCode(rinfo->err) == RAI_EDAGRUN) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(rinfo->err));
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_ERR;
     }
     int dag_error = 0;
@@ -656,7 +655,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
     if (*rinfo->timedOut) {
         RedisModule_ReplyWithSimpleString(ctx, "TIMEDOUT");
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_OK;
     }
 
@@ -751,7 +749,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         if (rinfo->single_op_dag == 0) {
             RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
         }
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_ERR;
     }
 
@@ -768,7 +765,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         }
     }
 
-    RAI_FreeRunInfo(rinfo);
+    // RAI_FreeRunInfo(rinfo);
     return REDISMODULE_OK;
 }
 
@@ -796,13 +793,8 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
     return REDISMODULE_OK;
 }
 
-void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) {}
-
-void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
-    RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void *)bc);
-    // Free the original copy of the run info, so the runqueue will 
-    RedisAI_RunInfo *rinfo = RedisModule_GetBlockedClientPrivateData(ctx);
-    RAI_FreeRunInfo(rinfo);
+void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) {
+     RAI_FreeRunInfo(rinfo);
 }
 
 // Add Shallow copies of the DAG run info to the devices' queues.
