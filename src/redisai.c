@@ -1072,6 +1072,8 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                     }
                 }
                 RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);
+                sds_free(queue_used_cpu_total);
+                
             }
         }
         entry = AI_dictNext(iter);
