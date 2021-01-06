@@ -33,9 +33,10 @@ typedef struct RAI_DagOp {
     RedisModuleString *runkey;
     RedisModuleString **inkeys;
     RedisModuleString **outkeys;
-    RAI_Tensor **outTensors;
+    RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
     RAI_ModelRunCtx *mctx;
     RAI_ScriptRunCtx *sctx;
+    uint fmt; // This is relevant for TENSORGET op.
     char *devicestr;
     int result; // REDISMODULE_OK or REDISMODULE_ERR
     long long duration_us;
@@ -92,7 +93,6 @@ struct RedisAI_RunInfo {
     int single_device_dag;
     AI_dict *dagTensorsContext;
     AI_dict *dagTensorsPersistedContext; // dict to flag tensors to persist
-    AI_dict *dagTensorsLoadedContext;    // dict to flag tensors loaded from the keyspace
     RAI_DagOp **dagOps;                  // all ops in DAG
     RAI_DagOp **dagDeviceOps;            // all ops in DAG for device
     int dagReplyLength;

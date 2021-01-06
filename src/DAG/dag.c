@@ -47,52 +47,6 @@
 #include "dag_parser.h"
 #include "util/string_utils.h"
 
-/**
- * Execution of a TENSORSET DAG step.
- * If an error occurs, it is recorded in the DagOp struct.
- *
- * @param rinfo context in which RedisAI blocking commands operate.
- * @param currentOp TENSORSET DagOp to be executed
- * @return
- */
-void RedisAI_DagRunSession_TensorSet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
-    RAI_Tensor *t = NULL;
-    const int parse_result =
-        RAI_parseTensorSetArgs(NULL, currentOp->argv, currentOp->argc, &t, 0, currentOp->err);
-    if (parse_result > 0) {
-        RedisModuleString *key_string = currentOp->outkeys[0];
-        RAI_ContextWriteLock(rinfo);
-        AI_dictReplace(rinfo->dagTensorsContext, (void *)key_string, t);
-        RAI_ContextUnlock(rinfo);
-        currentOp->result = REDISMODULE_OK;
-    } else {
-        currentOp->result = REDISMODULE_ERR;
-    }
-}
-
-/**
- * Execution of a TENSORGET DAG step.
- * If an error occurs, it is recorded in the DagOp struct.
- *
- * @param rinfo context in which RedisAI blocking commands operate.
- * @param currentOp TENSORGET DagOp to be executed
- * @return
- */
-void RedisAI_DagRunSession_TensorGet_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
-    RedisModuleString *key_string = currentOp->inkeys[0];
-    RAI_Tensor *t = NULL;
-    RAI_ContextReadLock(rinfo);
-    currentOp->result = RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext, key_string,
-                                                      &t, currentOp->err);
-    RAI_ContextUnlock(rinfo);
-    if (currentOp->result == REDISMODULE_OK) {
-        RAI_Tensor *outTensor = NULL;
-        // TODO: check tensor copy return value
-        RAI_TensorDeepCopy(t, &outTensor);
-        currentOp->outTensors = array_append(currentOp->outTensors, outTensor);
-    }
-}
-
 static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
     uint n_inkeys = array_len(currentOp->inkeys);
     uint n_outkeys = array_len(currentOp->outkeys);
@@ -477,11 +431,13 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
 
     switch (currentOp->commandType) {
     case REDISAI_DAG_CMD_TENSORSET: {
-        RedisAI_DagRunSession_TensorSet_Step(rinfo, currentOp);
+        // TENSORSET op is done in parsing stage (consider removing it from dag ops).
+        currentOp->result = REDISMODULE_OK;
         break;
     }
     case REDISAI_DAG_CMD_TENSORGET: {
-        RedisAI_DagRunSession_TensorGet_Step(rinfo, currentOp);
+        // TENSORSET op is done when we finish (consider removing it from dag ops).
+        currentOp->result = REDISMODULE_OK;
         break;
     }
     case REDISAI_DAG_CMD_MODELRUN: {
@@ -680,18 +636,14 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
-            if (currentOp->result == REDISMODULE_ERR) {
+            RAI_Tensor *t;
+            int res = RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext,
+                                                    currentOp->inkeys[0], &t, currentOp->err);
+            if (res != REDISMODULE_OK) {
                 RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
                 dag_error = 1;
             } else {
-                if (array_len(currentOp->outTensors) > 0) {
-                    RAI_Tensor *tensor = currentOp->outTensors[0];
-                    RAI_parseTensorGetArgs(ctx, currentOp->argv, currentOp->argc, tensor);
-                } else if (currentOp->result == -1) {
-                    RedisModule_ReplyWithSimpleString(ctx, "NA");
-                } else {
-                    RedisModule_ReplyWithError(ctx, "ERR error getting tensor from local context");
-                }
+                ReplyWithTensor(ctx, currentOp->fmt, t);
             }
             break;
         }

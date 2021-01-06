@@ -304,7 +304,7 @@ The RedisAI Script data structure is managed via a set of dedicated commands, si
 
 * Created with the [`AI.SCRIPTSET` command](commands.md#aiscriptset)
 * Run with the [`AI.SCRIPTRUN` command](commands.md#aiscriptrun)
-* Deleted with the [`AI.SCRIPTSEL` command](commands.md#aiscriptdel)
+* Deleted with the [`AI.SCRIPTDEL` command](commands.md#aiscriptdel)
 
 We can create a RedisAI Script that performs the same computation as the 'graph.pb' model. The script can look like this:
 
