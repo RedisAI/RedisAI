@@ -43,12 +43,13 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
     // Go over the given args and load the tensors from keyspace.
     for (size_t argpos = 2; argpos < argc && number_loaded_keys < n_keys; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], &arg_len);
+        RedisModuleString *key_name = argv[argpos];
+        const char *arg_string = RedisModule_StringPtrLen(key_name, &arg_len);
         if (!strcasecmp(arg_string, chaining_operator))
             break;
         RAI_Tensor *t;
         RedisModuleKey *key;
-        const int status = RAI_GetTensorFromKeyspace(ctx, argv[argpos], &key, &t, REDISMODULE_READ);
+        const int status = RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ);
         if (status == REDISMODULE_ERR) {
             RedisModule_Log(ctx, "warning",
                             "on DAGRUN's LOAD could not load tensor %s from keyspace", arg_string);
@@ -58,10 +59,8 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         // Add the tensor under its "mangled" key name to the DAG local context dict.
         char buf[16];
         sprintf(buf, "%04d", 1);
-        RedisModuleString *dictKey = RedisModule_CreateStringFromString(NULL, argv[argpos]);
-        RedisModule_StringAppendBuffer(NULL, dictKey, buf, strlen(buf));
-        AI_dictAdd(*localContextDict, (void *)dictKey, (void *)RAI_TensorGetShallowCopy(t));
-        RedisModule_FreeString(NULL, dictKey);
+        RedisModule_StringAppendBuffer(NULL, key_name, buf, strlen(buf));
+        AI_dictAdd(*localContextDict, (void *)key_name, (void *)RAI_TensorGetShallowCopy(t));
         number_loaded_keys++;
     }
 
@@ -166,7 +165,7 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             RAI_HoldString(NULL, currentOp->argv[1]);
             currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             currentOp->fmt = ParseTensorGetArgs(ctx, currentOp->argv, currentOp->argc);
-            if (currentOp->fmt == REDISAI_TENSOR_NONE)
+            if (currentOp->fmt == TENSOR_NONE)
                 return REDISMODULE_ERR;
             continue;
         }
