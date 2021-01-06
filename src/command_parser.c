@@ -288,6 +288,9 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
     RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
     sctx->variadic = variadic;
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
 
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
@@ -296,10 +299,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
-    currentOp->sctx = sctx;
-    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    currentOp->devicestr = sctx->script->devicestr;
-
     return REDISMODULE_OK;
 
 cleanup:
