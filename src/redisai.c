@@ -139,12 +139,12 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    const int parse_result = RAI_parseTensorGetArgs(ctx, argv, argc, t);
-
-    // if the number of parsed args is negative something went wrong
-    if (parse_result < 0) {
+    uint fmt = ParseTensorGetArgs(ctx, argv, argc);
+    if (fmt == TENSOR_NONE) {
+        // This means that args are invalid.
         return REDISMODULE_ERR;
     }
+    ReplyWithTensor(ctx, fmt, t);
     return REDISMODULE_OK;
 }
 
