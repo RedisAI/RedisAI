@@ -492,7 +492,8 @@ def test_dag_keyspace_tensorget(env):
         "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGRUN LOAD 1 persisted_tensor |> "\
+    command = "AI.DAGRUN LOAD 1 persisted_tensor " \
+              "|> "\
         "AI.TENSORGET persisted_tensor VALUES"
 
     ret = con.execute_command(command)
