@@ -57,7 +57,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
     for (uint i = 0; i < n_inkeys; i++) {
         RAI_Tensor *inputTensor;
         const int get_result = RAI_getTensorFromLocalContext(
-            NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
+            rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
         if (get_result == REDISMODULE_ERR) {
             // We check for this outside the function
             // this check cannot be covered by tests
@@ -198,7 +198,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
         for (uint i = 0; i < n_inkeys; i++) {
             RAI_Tensor *inputTensor;
             const int get_result = RAI_getTensorFromLocalContext(
-                NULL, rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
+                rinfo->dagTensorsContext, currentOp->inkeys[i], &inputTensor, currentOp->err);
             if (get_result == REDISMODULE_ERR) {
                 // We check for this outside the function
                 // this check cannot be covered by tests
@@ -255,8 +255,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
         if (rinfo->single_op_dag) {
             input = op->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext, op->inkeys[i], &input,
-                                          op->err);
+            RAI_getTensorFromLocalContext(rinfo->dagTensorsContext, op->inkeys[i], &input, op->err);
         }
         // We are expecting input != NULL, because we only reach this function if all inputs
         // are available in context for the current dagOp. We could be more defensive
@@ -304,14 +303,14 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
         if (rinfo1->single_op_dag == 1) {
             input1 = op1->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo1->dagTensorsContext, op1->inkeys[i], &input1,
+            RAI_getTensorFromLocalContext(rinfo1->dagTensorsContext, op1->inkeys[i], &input1,
                                           op1->err);
         }
         RAI_Tensor *input2;
         if (rinfo2->single_op_dag == 1) {
             input2 = op2->mctx->inputs[i].tensor;
         } else {
-            RAI_getTensorFromLocalContext(NULL, rinfo2->dagTensorsContext, op2->inkeys[i], &input2,
+            RAI_getTensorFromLocalContext(rinfo2->dagTensorsContext, op2->inkeys[i], &input2,
                                           op2->err);
         }
         if (input1 == NULL || input2 == NULL) {
@@ -637,8 +636,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
             RAI_Tensor *t;
-            int res = RAI_getTensorFromLocalContext(NULL, rinfo->dagTensorsContext,
-                                                    currentOp->inkeys[0], &t, currentOp->err);
+            int res = RAI_getTensorFromLocalContext(rinfo->dagTensorsContext, currentOp->inkeys[0],
+                                                    &t, currentOp->err);
             if (res != REDISMODULE_OK) {
                 RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
                 dag_error = 1;

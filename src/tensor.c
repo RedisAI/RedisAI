@@ -597,20 +597,15 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
 /* Return REDISMODULE_ERR if there was an error getting the Tensor.
  * Return REDISMODULE_OK if the tensor value is present at the localContextDict.
  */
-int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
-                                  RAI_Error *error) {
+int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
+                                  RAI_Tensor **tensor, RAI_Error *error) {
     int result = REDISMODULE_ERR;
     AI_dictEntry *tensor_entry = AI_dictFind(localContextDict, localContextKey);
     if (tensor_entry) {
         *tensor = AI_dictGetVal(tensor_entry);
         result = REDISMODULE_OK;
     } else {
-        if (ctx == NULL) {
-            RAI_SetError(error, RAI_ETENSORGET, "ERR tensor key is empty");
-        } else {
-            RedisModule_ReplyWithError(ctx, "ERR tensor key is empty");
-        }
+        RAI_SetError(error, RAI_ETENSORGET, "ERR tensor key is empty");
     }
     return result;
 }

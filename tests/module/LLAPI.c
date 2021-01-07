@@ -6,9 +6,7 @@
 #include <string.h>
 #include <stdbool.h>
 #include <pthread.h>
-
-pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
-pthread_cond_t global_cond = PTHREAD_COND_INITIALIZER;
+#include "LLAPI_DAG.c"
 
 typedef enum LLAPI_status {LLAPI_RUN_NONE = 0,
 						   LLAPI_RUN_SUCCESS,
@@ -259,5 +257,12 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 	if(RedisModule_CreateCommand(ctx, "RAI_llapi.scriptRun", RAI_llapi_scriptRun, "",
 	  0, 0, 0) == REDISMODULE_ERR)
 		return REDISMODULE_ERR;
+
+
+    if(RedisModule_CreateCommand(ctx, "RAI_llapi.DAGRun", RAI_llapi_DAGRun, "",
+      0, 0, 0) == REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+
 	return REDISMODULE_OK;
 }

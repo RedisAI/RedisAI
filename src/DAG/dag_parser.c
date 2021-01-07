@@ -204,7 +204,6 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                        int argc, bool dag_ro) {
 
-    RAI_Error err = {0};
     if (argc < 4) {
         RedisModule_WrongArity(ctx);
         goto cleanup;
@@ -276,8 +275,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
     }
     if (_ParseDAGOps(ctx, rinfo) != REDISMODULE_OK)
         goto cleanup;
-    if (MangleTensorsNames(rinfo, &err) != REDISMODULE_OK) {
-        RedisModule_ReplyWithError(ctx, err.detail_oneline);
+    if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
+        RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
         goto cleanup;
     }
     DAG_SetTensorsInLocalContext(rinfo);
@@ -285,7 +284,6 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
     return REDISMODULE_OK;
 
 cleanup:
-    RAI_ClearError(&err);
     RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }

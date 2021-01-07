@@ -1,129 +1,121 @@
 #include "dag_builder.h"
 #include "run_info.h"
 #include "string_utils.h"
+#include "modelRun_ctx.h"
 
-int _LoadTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                            RAI_Tensor **tensor, RAI_Error *err) {
+static int _LoadTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                                   RedisModuleKey **key, RAI_Tensor **tensor, RAI_Error *err) {
 
+    int res = REDISMODULE_ERR;
+    // RedisModule_ThreadSafeContextLock(ctx);
     *key = RedisModule_OpenKey(ctx, keyName, REDISMODULE_READ);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(*key);
         RAI_SetError(err, RAI_EDAGBUILDER, "ERR tensor key is empty");
-        return REDISMODULE_ERR;
+        goto end;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
-        RedisModule_CloseKey(*key);
         RAI_SetError(err, RAI_EDAGBUILDER, REDISMODULE_ERRORMSG_WRONGTYPE);
-        return REDISMODULE_ERR;
+        goto end;
     }
     *tensor = RedisModule_ModuleTypeGetValue(*key);
+    res = REDISMODULE_OK;
+
+end:
     RedisModule_CloseKey(*key);
+    // RedisModule_ThreadSafeContextUnlock(ctx);
+    return res;
+}
+
+static int _RAI_DagLoadTensor(RAI_DAGRunCtx *run_info, RedisModuleString *key_name,
+                              RAI_Error *err) {
+
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RAI_Tensor *t;
+    RedisModuleKey *key;
+    if (_LoadTensorFromKeyspace(ctx, key_name, &key, &t, err) == REDISMODULE_ERR) {
+        RedisModule_FreeString(NULL, key_name);
+        RedisModule_FreeThreadSafeContext(ctx);
+        return REDISMODULE_ERR;
+    }
+    // Add the tensor under its "mangled" key name to the DAG local context dict.
+    char buf[16];
+    sprintf(buf, "%04d", 1);
+    RedisModule_StringAppendBuffer(NULL, key_name, buf, strlen(buf));
+    AI_dictAdd(rinfo->dagTensorsContext, (void *)key_name, (void *)RAI_TensorGetShallowCopy(t));
+    RedisModule_FreeString(NULL, key_name);
+    RedisModule_FreeThreadSafeContext(ctx);
     return REDISMODULE_OK;
 }
 
-RAI_DAGRunCtx *RAI_DagRunCtxCreate(void) {
+RAI_DAGRunCtx *RAI_DAGRunCtxCreate(void) {
     RedisAI_RunInfo *rinfo;
     RAI_InitRunInfo(&rinfo);
     return (RAI_DAGRunCtx *)rinfo;
 }
 
-int RAI_DagAddModelRun_(RAI_DAGRunCtx *run_info, RAI_ModelRunCtx *mctx, RedisModuleString **inputs,
-                        RedisModuleString **outputs, RAI_Error *err) {
-    if (array_len(mctx->inputs) != 0 || array_len(mctx->outputs) != 0) {
-        RAI_SetError(
-            err, RAI_EDAGBUILDER,
-            "Model run context cannot contain inputs or outputs when it is a part of a DAG");
-        return REDISMODULE_ERR;
-    }
-    RAI_Model *model = mctx->model;
-    if (model->ninputs != array_len(inputs)) {
-        RAI_SetError(err, RAI_EDAGBUILDER,
-                     "Number of keys given as INPUTS does not match model definition");
-        return REDISMODULE_ERR;
-    }
-    if (model->noutputs != array_len(outputs)) {
-        RAI_SetError(err, RAI_EDAGBUILDER,
-                     "Number of keys given as OUTPUTS does not match model definition");
-        return REDISMODULE_ERR;
-    }
-
+RAI_DAGRunOp *RAI_DAGCreateModelRunOp(RAI_DAGRunCtx *run_info, RAI_Model *model) {
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
     RAI_DagOp *op;
     RAI_InitDagOp(&op);
-    rinfo->dagOps = array_append(rinfo->dagOps, op);
 
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
     op->mctx = mctx;
     op->devicestr = model->devicestr;
-    op->inkeys = inputs;
-    op->outkeys = outputs;
     op->runkey = RAI_HoldString(NULL, (RedisModuleString *)model->infokey);
+    return (RAI_DAGRunOp *)op;
+}
+
+int RAI_DAGRunOpAddInput(RAI_DAGRunOp *DAGOp, const char *input) {
+    RAI_DagOp *op = (RAI_DagOp *)DAGOp;
+    RedisModuleString *inkey = RedisModule_CreateString(NULL, input, strlen(input));
+    op->inkeys = array_append(op->inkeys, inkey);
     return REDISMODULE_OK;
 }
 
-int RAI_DagAddModelRun(RAI_DAGRunCtx *run_info, RAI_ModelRunCtx *mctx, const char **inputs,
-                       size_t ninputs, const char **outputs, size_t noutputs, RAI_Error *err) {
-
-    RedisModuleString **inkeys = array_new(RedisModuleString *, 1);
-    for (size_t i = 0; i < ninputs; i++) {
-        RedisModuleString *inkey = RedisModule_CreateString(NULL, inputs[i], strlen(inputs[i]));
-        inkeys = array_append(inkeys, inkey);
-    }
-    RedisModuleString **outkeys = array_new(RedisModuleString *, 1);
-    for (size_t i = 0; i < noutputs; i++) {
-        RedisModuleString *outkey = RedisModule_CreateString(NULL, outputs[i], strlen(outputs[i]));
-        outkeys = array_append(outkeys, outkey);
-    }
-    return RAI_DagAddModelRun_(run_info, mctx, inkeys, outkeys, err);
+int RAI_DAGRunOpAddOutput(RAI_DAGRunOp *DAGOp, const char *output) {
+    RAI_DagOp *op = (RAI_DagOp *)DAGOp;
+    RedisModuleString *outkey = RedisModule_CreateString(NULL, output, strlen(output));
+    op->outkeys = array_append(op->outkeys, outkey);
+    return REDISMODULE_OK;
 }
 
-int RedisAI_DagAddLoadPhase_(RAI_DAGRunCtx *run_info, RedisModuleString **keys_to_load,
-                             RAI_Error *err) {
+int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err) {
 
-    int status = REDISMODULE_ERR;
+    RAI_DagOp *op = (RAI_DagOp *)DAGop;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisModule_ThreadSafeContextLock(ctx);
-    size_t n_keys = array_len(keys_to_load);
-
-    for (size_t i = 0; i < n_keys; i++) {
-        RAI_Tensor *t;
-        RedisModuleKey *key;
-        if (_LoadTensorFromKeyspace(ctx, keys_to_load[i], &key, &t, err) == REDISMODULE_ERR) {
-            goto cleanup;
+    if (op->mctx) {
+        RAI_Model *model = op->mctx->model;
+        if (model->ninputs != array_len(op->inkeys)) {
+            RAI_SetError(err, RAI_EDAGBUILDER,
+                         "Number of keys given as INPUTS does not match model definition");
+            return REDISMODULE_ERR;
         }
-        // Add the tensor under its "mangled" key name to the DAG local context dict.
-        char buf[16];
-        sprintf(buf, "%04d", 1);
-        RedisModule_StringAppendBuffer(NULL, keys_to_load[i], buf, strlen(buf));
-        AI_dictAdd(rinfo->dagTensorsContext, (void *)keys_to_load[i],
-                   (void *)RAI_TensorGetShallowCopy(t));
+        if (model->noutputs != array_len(op->outkeys)) {
+            RAI_SetError(err, RAI_EDAGBUILDER,
+                         "Number of keys given as OUTPUTS does not match model definition");
+            return REDISMODULE_ERR;
+        }
     }
-    status = REDISMODULE_OK;
+    rinfo->dagOps = array_append(rinfo->dagOps, op);
 
-cleanup:
-    RedisModule_ThreadSafeContextUnlock(ctx);
-    for (size_t i = 0; i < n_keys; i++) {
-        RedisModule_FreeString(NULL, keys_to_load[i]);
-    }
-    array_free(keys_to_load);
-    return status;
+    return REDISMODULE_OK;
 }
 
-int RedisAI_DagAddLoadPhase(RAI_DAGRunCtx *run_info, const char **t_names, uint n, RAI_Error *err) {
-    if (n == 0) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "Number of keys to LOAD must be positive");
-        return REDISMODULE_ERR;
-    }
-    RedisModuleString **keys_to_load = array_new(RedisModuleString *, 1);
-    for (size_t i = 0; i < n; i++) {
-        RedisModuleString *key = RedisModule_CreateString(NULL, t_names[i], strlen(t_names[i]));
-        keys_to_load = array_append(keys_to_load, key);
-    }
-    return RedisAI_DagAddLoadPhase_(run_info, keys_to_load, err);
+int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
+
+    RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
+    return _RAI_DagLoadTensor(run_info, key_name, err);
 }
 
-int RAI_DagAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
+int RAI_DAGLoadTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err) {
+
+    RedisModuleString *key_name = RedisModule_CreateStringFromString(NULL, t_name);
+    return _RAI_DagLoadTensor(run_info, key_name, err);
+}
+
+int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
     RAI_DagOp *op;
@@ -134,4 +126,14 @@ int RAI_DagAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *
     RedisModuleString *name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
     op->inkeys = array_append(op->inkeys, name);
     return REDISMODULE_OK;
+}
+
+void RAI_DAGRunOpFree(RAI_DAGRunOp *dagOp) {
+    RAI_DagOp *op = (RAI_DagOp *)dagOp;
+    RAI_FreeDagOp(op);
+}
+
+void RAI_DAGFree(RAI_DAGRunCtx *run_info) {
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    RAI_FreeRunInfo(rinfo);
 }

@@ -11,6 +11,8 @@
 #include "backends/util.h"
 #include "background_workers.h"
 #include "DAG/dag.h"
+#include "DAG/dag_builder.h"
+#include "DAG/dag_execute.h"
 #include "model.h"
 #include "modelRun_ctx.h"
 #include "script.h"
@@ -989,6 +991,20 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRedisType, ctx);
     REGISTER_API(ScriptRunAsync, ctx);
     REGISTER_API(GetAsScriptRunCtx, ctx);
+
+    REGISTER_API(DAGRunCtxCreate, ctx);
+    REGISTER_API(DAGCreateModelRunOp, ctx);
+    REGISTER_API(DAGRunOpAddInput, ctx);
+    REGISTER_API(DAGRunOpAddOutput, ctx);
+    REGISTER_API(DAGAddRunOp, ctx);
+    REGISTER_API(DAGLoadTensor, ctx);
+    REGISTER_API(DAGLoadTensorRS, ctx);
+    REGISTER_API(DAGAddTensorGet, ctx);
+    REGISTER_API(DAGRun, ctx);
+    REGISTER_API(DAGNumOutputs, ctx);
+    REGISTER_API(DAGOutputTensor, ctx);
+    REGISTER_API(DAGRunOpFree, ctx);
+    REGISTER_API(DAGFree, ctx);
 
     return REDISMODULE_OK;
 }

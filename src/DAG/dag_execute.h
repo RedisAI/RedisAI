@@ -14,7 +14,11 @@
  To overcome this, we make key names unique, so that names are not aliased. We
  mangle the names by appending a numerical suffix ":0001". After computing, we
  demangle the keys in order to persist them.*/
-int RAI_DagRunAsync(RAI_DAGRunCtx *run_info, RAI_OnFinishCB ModelAsyncFinish, void *private_data,
-                    RAI_Error *err);
+int MangleTensorsNames(RedisAI_RunInfo *rinfo);
 
-int MangleTensorsNames(RedisAI_RunInfo *rinfo, RAI_Error *err);
+int RAI_DAGRun(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void *private_data,
+               RAI_Error *err);
+
+size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx);
+
+RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index);

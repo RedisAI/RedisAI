@@ -15,6 +15,7 @@ typedef struct RAI_Script RAI_Script;
 typedef struct RAI_ModelRunCtx RAI_ModelRunCtx;
 typedef struct RAI_ScriptRunCtx RAI_ScriptRunCtx;
 typedef struct RAI_DAGRunCtx RAI_DAGRunCtx;
+typedef struct RAI_DAGRunOp RAI_DAGRunOp;
 typedef struct RAI_Error RAI_Error;
 typedef struct RAI_ModelOpts RAI_ModelOpts;
 typedef struct RAI_OnFinishCtx RAI_OnFinishCtx;
@@ -125,6 +126,26 @@ int MODULE_API_FUNC(RedisAI_ScriptRunAsync)(RAI_ScriptRunCtx *sctx, RAI_OnFinish
                                             void *private_data);
 RAI_ScriptRunCtx *MODULE_API_FUNC(RedisAI_GetAsScriptRunCtx)(RAI_OnFinishCtx *ctx, RAI_Error *err);
 
+RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DAGRunCtxCreate)(void);
+RAI_DAGRunOp *MODULE_API_FUNC(RedisAI_DAGCreateModelRunOp)(RAI_DAGRunCtx *run_info,
+                                                           RAI_Model *model);
+int MODULE_API_FUNC(RedisAI_DAGRunOpAddInput)(RAI_DAGRunOp *DAGOp, const char *input);
+int MODULE_API_FUNC(RedisAI_DAGRunOpAddOutput)(RAI_DAGRunOp *DAGOp, const char *output);
+int MODULE_API_FUNC(RedisAI_DAGAddRunOp)(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop,
+                                         RAI_Error *err);
+int MODULE_API_FUNC(RedisAI_DAGLoadTensor)(RAI_DAGRunCtx *run_info, const char *t_name,
+                                           RAI_Error *err);
+int MODULE_API_FUNC(RedisAI_DAGLoadTensorRS)(RAI_DAGRunCtx *run_info, RedisModuleString *t_name,
+                                             RAI_Error *err);
+int MODULE_API_FUNC(RedisAI_DAGAddTensorGet)(RAI_DAGRunCtx *run_info, const char *t_name,
+                                             RAI_Error *err);
+int MODULE_API_FUNC(RedisAI_DAGRun)(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish,
+                                    void *private_data, RAI_Error *err);
+size_t MODULE_API_FUNC(RedisAI_DAGNumOutputs)(RAI_OnFinishCtx *finish_ctx);
+RAI_Tensor *MODULE_API_FUNC(RedisAI_DAGOutputTensor)(RAI_OnFinishCtx *finish_ctx, size_t index);
+void MODULE_API_FUNC(RedisAI_DAGRunOpFree)(RAI_DAGRunOp *dagOp);
+void MODULE_API_FUNC(RedisAI_DAGFree)(RAI_DAGRunCtx *run_info);
+
 int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
 #ifndef __cplusplus
@@ -209,6 +230,20 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRedisType);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunAsync);
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetAsScriptRunCtx);
+
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunCtxCreate);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGCreateModelRunOp);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunOpAddInput);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunOpAddOutput);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddRunOp);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGLoadTensor);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGLoadTensorRS);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddTensorGet);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRun);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGNumOutputs);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGOutputTensor);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunOpFree);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGFree);
 
     if (RedisAI_GetLLAPIVersion() < REDISAI_LLAPI_VERSION) {
         return REDISMODULE_ERR;

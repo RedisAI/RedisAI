@@ -334,7 +334,6 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
 /**
  * Helper method to get Tensor from local context ( no keyspace access )
  *
- * @param ctx Context in which Redis modules operate
  * @param localContextDict local non-blocking hash table containing DAG's
  * tensors
  * @param localContextKey key name
@@ -343,9 +342,8 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  * failure
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
-                                  RAI_Error *error);
+int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
+                                  RAI_Tensor **tensor, RAI_Error *error);
 
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the

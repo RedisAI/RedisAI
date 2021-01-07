@@ -76,3 +76,24 @@ def test_script_run_async(env):
 
     ret = con.execute_command("RAI_llapi.scriptRun")
     env.assertEqual(ret, b'Async run success')
+
+
+@ensure_test_module_loaded
+def test_dag_build_and_run(env):
+    con = env.getConnection()
+
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command("RAI_llapi.DAGrun")
+    env.assertEqual(ret, b'DAG run success')

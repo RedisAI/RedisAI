@@ -3,7 +3,7 @@
 #include "background_workers.h"
 #include "util/string_utils.h"
 
-int MangleTensorsNames(RedisAI_RunInfo *rinfo, RAI_Error *err) {
+int MangleTensorsNames(RedisAI_RunInfo *rinfo) {
 
     int res = REDISMODULE_ERR;
     AI_dict *mangled_tensors = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
@@ -35,7 +35,7 @@ int MangleTensorsNames(RedisAI_RunInfo *rinfo, RAI_Error *err) {
             AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
             if (!entry) {
                 array_free(mangled_inkeys);
-                RAI_SetError(err, RAI_EDAGRUN, "ERR INPUT key cannot be found in DAG");
+                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR INPUT key cannot be found in DAG");
                 goto cleanup;
             }
             int *instance = AI_dictGetVal(entry);
@@ -95,7 +95,7 @@ int MangleTensorsNames(RedisAI_RunInfo *rinfo, RAI_Error *err) {
             if (!mangled_entry) {
                 AI_dictRelease(mangled_persisted);
                 AI_dictReleaseIterator(iter);
-                RAI_SetError(err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
+                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
                 goto cleanup;
             }
             int *instance = AI_dictGetVal(mangled_entry);
@@ -211,8 +211,8 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
     return REDISMODULE_OK;
 }
 
-int RAI_DagRunAsync(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void *private_data,
-                    RAI_Error *err) {
+int RAI_DAGRun(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void *private_data,
+               RAI_Error *err) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
     rinfo->dagOpCount = array_len(rinfo->dagOps);
@@ -222,15 +222,45 @@ int RAI_DagRunAsync(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void
     }
     // Make the inkeys and outkeys of the DAG ops unique, to ensure that the operations
     // will be execute in the right order.
-    if (MangleTensorsNames(rinfo, err) != REDISMODULE_OK) {
+    if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
+        RAI_SetError(err, rinfo->err->code, rinfo->err->detail);
         return REDISMODULE_ERR;
     }
     rinfo->OnFinish = (RedisAI_OnFinishCB)DAGAsyncFinish;
     rinfo->private_data = private_data;
     if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
         RAI_SetError(err, rinfo->err->code, rinfo->err->detail);
-        RAI_ClearError(rinfo->err);
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
+}
+
+size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx) {
+    size_t n_outputs = 0;
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        if (rinfo->dagOps[i]->commandType == REDISAI_DAG_CMD_TENSORGET) {
+            n_outputs++;
+        }
+    }
+    return n_outputs;
+}
+
+RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
+    size_t tensor_get_op_ind = -1;
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        RAI_DagOp *op = rinfo->dagOps[i];
+        if (op->commandType == REDISAI_DAG_CMD_TENSORGET) {
+            tensor_get_op_ind++;
+            if (tensor_get_op_ind == index) {
+                RAI_Tensor *t;
+                int res = RAI_getTensorFromLocalContext(rinfo->dagTensorsContext, op->inkeys[0], &t,
+                                                        op->err);
+                RedisModule_Assert(res == REDISMODULE_OK);
+                return t;
+            }
+        }
+    }
+    return NULL;
 }
