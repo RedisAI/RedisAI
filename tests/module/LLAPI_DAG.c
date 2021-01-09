@@ -11,14 +11,13 @@
 pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t global_cond = PTHREAD_COND_INITIALIZER;
 
-static RAI_Model *_getModelFromKeySpace(RedisModuleCtx *ctx, const char *keyNameStr) {
+static void *_getFromKeySpace(RedisModuleCtx *ctx, const char *keyNameStr) {
 
     RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
-    RAI_Model *model = RedisModule_ModuleTypeGetValue(key);
     RedisModule_FreeString(ctx, keyRedisStr);
     RedisModule_CloseKey(key);
-    return model;
+    return RedisModule_ModuleTypeGetValue(key);
 }
 
 static void _DAGFinishFuncError(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
@@ -58,13 +57,29 @@ static int _testLoadError(RAI_DAGRunCtx *run_info) {
     return LLAPIMODULE_ERR;
 }
 
+static int _testPersistError(RAI_DAGRunCtx *run_info) {
+
+    RAI_Error *err;
+    RedisAI_InitError(&err);
+    int status = RedisAI_DAGAddPersistTensor(run_info, "t1", err);
+    RedisModule_Assert(status == REDISMODULE_OK);
+    status = RedisAI_DAGAddPersistTensor(run_info, "t1", err);
+    if (strcmp(RedisAI_GetError(err), "Tensor key to persist has already given") == 0) {
+        RedisModule_Assert(status == REDISMODULE_ERR);
+        RedisAI_FreeError(err);
+        return LLAPIMODULE_OK;
+    }
+    RedisAI_FreeError(err);
+    return LLAPIMODULE_ERR;
+}
+
 static int _testModelRunOpError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
 
     RAI_Error *err;
     RedisAI_InitError(&err);
     // The model m{1} should exist in key space.
-    RAI_Model *model = _getModelFromKeySpace(ctx, "m{1}");
-    RAI_DAGRunOp *op = RedisAI_DAGCreateModelRunOp(run_info, model);
+    RAI_Model *model = _getFromKeySpace(ctx, "m{1}");
+    RAI_DAGRunOp *op = RedisAI_DAGCreateModelRunOp(model);
     RedisAI_DAGRunOpAddInput(op, "first_input");
 
     // This model expect for 2 inputs not 1.
@@ -157,8 +172,8 @@ static int _testSimpleDAGRun(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     }
 
     // The model m{1} should exist in key space.
-    RAI_Model *model = _getModelFromKeySpace(ctx, "m{1}");
-    RAI_DAGRunOp *op = RedisAI_DAGCreateModelRunOp(run_info, model);
+    RAI_Model *model = _getFromKeySpace(ctx, "m{1}");
+    RAI_DAGRunOp *op = RedisAI_DAGCreateModelRunOp(model);
     RedisAI_DAGRunOpAddInput(op, "a{1}");
     RedisAI_DAGRunOpAddInput(op, "b{1}");
     RedisAI_DAGRunOpAddOutput(op, "output");
@@ -175,11 +190,68 @@ static int _testSimpleDAGRun(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     }
     // Wait until the onFinish callback returns.
     pthread_cond_wait(&global_cond, &global_lock);
+    pthread_mutex_unlock(&global_lock);
 
     // Verify that we received the expected tensor at the end of the run.
     RedisModule_Assert(array_len(outputs) == 1);
     RAI_Tensor *out_tensor = outputs[0];
     double expceted[4] = {4, 9, 4, 9};
+    double val[4];
+    for (long long i = 0; i < 4; i++) {
+        if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val[i]) != 0) {
+            goto cleanup;
+        }
+        if (expceted[i] != val[i]) {
+            goto cleanup;
+        }
+    }
+    RedisAI_TensorFree(out_tensor);
+    res = LLAPIMODULE_OK;
+
+    cleanup:
+    RedisAI_FreeError(err);
+    array_free(outputs);
+    RedisAI_DAGFree(run_info);
+    return res;
+}
+
+static int _testSimpleDAGRun2(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+
+    RAI_Error *err;
+    RedisAI_InitError(&err);
+    RAI_Tensor **outputs = array_new(RAI_Tensor *, 1);
+    int res = LLAPIMODULE_ERR;
+
+    RAI_Tensor *tensor = _getFromKeySpace(ctx, "a{1}");
+    RedisAI_DAGAddTensorSet(run_info, "input1", tensor);
+    tensor = _getFromKeySpace(ctx, "b{1}");
+    RedisAI_DAGAddTensorSet(run_info, "input2", tensor);
+
+    // The script myscript{1} should exist in key space.
+    RAI_Script *script = _getFromKeySpace(ctx, "myscript{1}");
+    RAI_DAGRunOp *op = RedisAI_DAGCreateScriptRunOp(script, "bar");
+    RedisAI_DAGRunOpAddInput(op, "input1");
+    RedisAI_DAGRunOpAddInput(op, "input2");
+    RedisAI_DAGRunOpAddOutput(op, "output");
+    int status = RedisAI_DAGAddRunOp(run_info, op, err);
+    if (status != REDISMODULE_OK) {
+        goto cleanup;
+    }
+
+    RedisAI_DAGAddTensorGet(run_info, "output", err);
+    pthread_mutex_lock(&global_lock);
+    if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &outputs, err) != REDISMODULE_OK) {
+        pthread_mutex_unlock(&global_lock);
+        goto cleanup;
+    }
+    // Wait until the onFinish callback returns.
+    pthread_cond_wait(&global_cond, &global_lock);
+    pthread_mutex_unlock(&global_lock);
+
+    // Verify that we received the expected tensor at the end of the run.
+    RedisModule_Assert(array_len(outputs) == 1);
+    RAI_Tensor *out_tensor = outputs[0];
+    double expceted[4] = {4, 6, 4, 6};
     double val[4];
     for (long long i = 0; i < 4; i++) {
         if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val[i]) != 0) {
@@ -213,6 +285,11 @@ int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         RedisAI_DAGFree(run_info);
         return RedisModule_ReplyWithSimpleString(ctx, "LOAD error test failed");
     }
+    // Test the case of a failure due to persist two tensors with the same name.
+    if(_testPersistError(run_info) != LLAPIMODULE_OK) {
+        RedisAI_DAGFree(run_info);
+        return RedisModule_ReplyWithSimpleString(ctx, "PERSIST error test failed");
+    }
     // Test the case of a failure due to addition of a non compatible MODELRUN op.
     if(_testModelRunOpError(ctx, run_info) != LLAPIMODULE_OK) {
         RedisAI_DAGFree(run_info);
@@ -233,6 +310,11 @@ int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     // Test the case of building and running a DAG with LOAD, TENSORGET and MODELRUN ops.
     if(_testSimpleDAGRun(ctx, run_info) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of building and running a DAG with TENSORSET, SCRIPTRUN and PERSIST ops.
+    if(_testSimpleDAGRun2(ctx, run_info) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 test failed");
     }
     return RedisModule_ReplyWithSimpleString(ctx, "DAG run success");
 }

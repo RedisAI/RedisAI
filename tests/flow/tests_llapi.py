@@ -91,9 +91,15 @@ def test_dag_build_and_run(env):
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
-
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
+
+    script_filename = os.path.join(test_data_path, 'script.txt')
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
     ret = con.execute_command("RAI_llapi.DAGrun")
     env.assertEqual(ret, b'DAG run success')

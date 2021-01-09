@@ -994,11 +994,15 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
 
     REGISTER_API(DAGRunCtxCreate, ctx);
     REGISTER_API(DAGCreateModelRunOp, ctx);
+    REGISTER_API(DAGCreateScriptRunOp, ctx);
     REGISTER_API(DAGRunOpAddInput, ctx);
     REGISTER_API(DAGRunOpAddOutput, ctx);
     REGISTER_API(DAGAddRunOp, ctx);
     REGISTER_API(DAGLoadTensor, ctx);
     REGISTER_API(DAGLoadTensorRS, ctx);
+    REGISTER_API(DAGAddPersistTensor, ctx);
+    REGISTER_API(DAGAddPersistTensorRS, ctx);
+    REGISTER_API(DAGAddTensorSet, ctx);
     REGISTER_API(DAGAddTensorGet, ctx);
     REGISTER_API(DAGRun, ctx);
     REGISTER_API(DAGNumOutputs, ctx);

@@ -279,8 +279,6 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
         goto cleanup;
     }
-    DAG_SetTensorsInLocalContext(rinfo);
-
     return REDISMODULE_OK;
 
 cleanup:

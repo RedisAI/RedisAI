@@ -757,14 +757,3 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
     if (rinfo->client)
         RedisModule_UnblockClient(rinfo->client, rinfo);
 }
-
-void DAG_SetTensorsInLocalContext(RedisAI_RunInfo *rinfo) {
-    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
-        RAI_DagOp *op = rinfo->dagOps[i];
-        if (op->commandType == REDISAI_DAG_CMD_TENSORSET) {
-            // Insert the tensor with its mangled (unique) name.
-            void *t = (void *)RAI_TensorGetShallowCopy(op->outTensor);
-            AI_dictReplace(rinfo->dagTensorsContext, (void *)op->outkeys[0], t);
-        }
-    }
-}

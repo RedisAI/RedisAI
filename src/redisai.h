@@ -127,8 +127,9 @@ int MODULE_API_FUNC(RedisAI_ScriptRunAsync)(RAI_ScriptRunCtx *sctx, RAI_OnFinish
 RAI_ScriptRunCtx *MODULE_API_FUNC(RedisAI_GetAsScriptRunCtx)(RAI_OnFinishCtx *ctx, RAI_Error *err);
 
 RAI_DAGRunCtx *MODULE_API_FUNC(RedisAI_DAGRunCtxCreate)(void);
-RAI_DAGRunOp *MODULE_API_FUNC(RedisAI_DAGCreateModelRunOp)(RAI_DAGRunCtx *run_info,
-                                                           RAI_Model *model);
+RAI_DAGRunOp *MODULE_API_FUNC(RedisAI_DAGCreateModelRunOp)(RAI_Model *model);
+RAI_DAGRunOp *MODULE_API_FUNC(RedisAI_DAGCreateScriptRunOp)(RAI_Script *script,
+                                                            const char *func_name);
 int MODULE_API_FUNC(RedisAI_DAGRunOpAddInput)(RAI_DAGRunOp *DAGOp, const char *input);
 int MODULE_API_FUNC(RedisAI_DAGRunOpAddOutput)(RAI_DAGRunOp *DAGOp, const char *output);
 int MODULE_API_FUNC(RedisAI_DAGAddRunOp)(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop,
@@ -137,6 +138,14 @@ int MODULE_API_FUNC(RedisAI_DAGLoadTensor)(RAI_DAGRunCtx *run_info, const char *
                                            RAI_Error *err);
 int MODULE_API_FUNC(RedisAI_DAGLoadTensorRS)(RAI_DAGRunCtx *run_info, RedisModuleString *t_name,
                                              RAI_Error *err);
+int MODULE_API_FUNC(RedisAI_DAGAddPersistTensor)(RAI_DAGRunCtx *run_info, const char *t_name,
+                                                 RAI_Error *err);
+
+int MODULE_API_FUNC(RedisAI_DAGAddPersistTensorRS)(RAI_DAGRunCtx *run_info,
+                                                   RedisModuleString *t_name, RAI_Error *err);
+
+int MODULE_API_FUNC(RedisAI_DAGAddTensorSet)(RAI_DAGRunCtx *run_info, const char *t_name,
+                                             RAI_Tensor *tensor);
 int MODULE_API_FUNC(RedisAI_DAGAddTensorGet)(RAI_DAGRunCtx *run_info, const char *t_name,
                                              RAI_Error *err);
 int MODULE_API_FUNC(RedisAI_DAGRun)(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish,
@@ -233,11 +242,15 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunCtxCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGCreateModelRunOp);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGCreateScriptRunOp);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunOpAddInput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRunOpAddOutput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddRunOp);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGLoadTensor);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGLoadTensorRS);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddPersistTensorRS);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddPersistTensor);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddTensorSet);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGAddTensorGet);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGRun);
     REDISAI_MODULE_INIT_FUNCTION(ctx, DAGNumOutputs);

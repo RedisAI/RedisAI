@@ -3,6 +3,17 @@
 #include "background_workers.h"
 #include "util/string_utils.h"
 
+void _DAG_SetTensorsInLocalContext(RedisAI_RunInfo *rinfo) {
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        RAI_DagOp *op = rinfo->dagOps[i];
+        if (op->commandType == REDISAI_DAG_CMD_TENSORSET) {
+            // Insert the tensor with its mangled (unique) name.
+            void *t = (void *)RAI_TensorGetShallowCopy(op->outTensor);
+            AI_dictReplace(rinfo->dagTensorsContext, (void *)op->outkeys[0], t);
+        }
+    }
+}
+
 int MangleTensorsNames(RedisAI_RunInfo *rinfo) {
 
     int res = REDISMODULE_ERR;
@@ -118,6 +129,9 @@ int MangleTensorsNames(RedisAI_RunInfo *rinfo) {
             rinfo->dagOps[i]->devicestr = "CPU";
         }
     }
+    // Tensors from TENSORSET ops are ready to be put in DAG local context under their mangled
+    // names.
+    _DAG_SetTensorsInLocalContext(rinfo);
     res = REDISMODULE_OK;
 
 cleanup : {
