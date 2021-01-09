@@ -348,7 +348,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                     }
                 }
 
-                item = item->next;
+                item = queueNext(item);
             }
 
             // If there was nothing on the queue, free up the arrays and unlock
