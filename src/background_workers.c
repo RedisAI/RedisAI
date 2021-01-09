@@ -173,9 +173,9 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                         }
 
                         queueItem *evicted_item = item;
-                        item = item->next;
                         RedisModule_Free(evicted_item);
                         // Continue with the next item in queue (if exists)
+                        item = queueFront(run_queue_info->run_queue);
                         continue;
                     }
                 }
@@ -276,7 +276,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 }
 
                 // Get the next item in the queue
-                queueItem *next_item = item->next;
+                queueItem *next_item = queueNext(item);
 
                 // While we don't reach the end of the queue
                 while (next_item != NULL) {
