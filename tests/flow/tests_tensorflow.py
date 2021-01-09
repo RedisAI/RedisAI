@@ -454,14 +454,14 @@ def test_run_tf_model_errors(env):
         env.assertEqual("Insufficient arguments, missing model BLOB",exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}', 'd{1}', 'e{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)

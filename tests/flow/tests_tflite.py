@@ -116,7 +116,7 @@ def test_run_tflite_model_errors(env):
         env.assertEqual("unsupported backend", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'EMPTY_TENSOR{1}', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'INPUTS', 'EMPTY_INPUT{1}', 'OUTPUTS', 'EMPTY_OUTPUT{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -144,42 +144,35 @@ def test_run_tflite_model_errors(env):
         env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2{1}', 'a{1}', 'b{1}', 'c{1}')
+        con.execute_command('AI.MODELRUN', 'm_2{1}', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm_2{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}', 'd{1}', 'e{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("INPUTS not specified", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'OUTPUTS', 'c{1}', 'd{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS')
+        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'c{1}', 'd{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
