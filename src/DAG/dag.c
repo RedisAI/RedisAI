@@ -579,7 +579,6 @@ static void _ModelSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(op->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(op->mctx, outputNumber);
-        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         if (tensor)
             _StoreTensorInKeySpace(ctx, tensor, op->outkeys[outputNumber], false);
     }
