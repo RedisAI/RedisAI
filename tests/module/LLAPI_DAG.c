@@ -286,10 +286,9 @@ static int _testSimpleDAGRun2Error(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info)
     int res = LLAPIMODULE_ERR;
 
     RedisModuleKey *key;
-    RAI_Tensor *tensor = _getFromKeySpace(ctx, "a{1}", &key);
+    RAI_Tensor *tensor = (RAI_Tensor*) _getFromKeySpace(ctx, "a{1}", &key);
     RedisModule_CloseKey(key);
     RedisAI_DAGAddTensorSet(run_info, "input1", tensor);
-    //RedisAI_DAGLoadTensor(run_info, "a{1}", err);
 
     // The script myscript{1} should exist in key space.
     RAI_Script *script = (RAI_Script*)_getFromKeySpace(ctx, "myscript{1}", &key);
@@ -382,4 +381,87 @@ int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 error test failed");
     }
     return RedisModule_ReplyWithSimpleString(ctx, "DAG run success");
+}
+
+int RAI_llapi_DAG_resnet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    REDISMODULE_NOT_USED(argv);
+
+    if(argc > 1) {
+        RedisModule_WrongArity(ctx);
+        return REDISMODULE_OK;
+    }
+    RAI_Error* err;
+    RedisAI_InitError(&err);
+    RAI_Tensor** outputs = array_new(RAI_Tensor *, 1);
+    RAI_Error** opsStatus = array_new(RAI_Error *, 1);
+    DAGRunResults results = {.outputs = outputs, .opsStatus = opsStatus};
+    const char *test_res = "DAG resnet failed";
+
+    // Build the DAG with LOAD->SCRIPTRUN->MODELRUN->MODELRUN-SCRIPTRUN->SCRIPTRUN->TENSORGET
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
+    int status = RedisAI_DAGLoadTensor(run_info, "image:{{1}}", err);
+    if (status != REDISMODULE_OK) goto cleanup;
+
+    RedisModuleKey *key;
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx,  "imagenet_script1:{{1}}", &key);
+    RedisModule_CloseKey(key);
+    RAI_DAGRunOp *script_op = RedisAI_DAGCreateScriptRunOp(script, "pre_process_3ch");
+    RedisAI_DAGRunOpAddInput(script_op, "image:{{1}}");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{{1}}");
+    RedisAI_DAGAddRunOp(run_info, script_op, err);
+
+    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx,  "imagenet_model1:{{1}}", &key);
+    RedisModule_CloseKey(key);
+    RAI_DAGRunOp *model_op = RedisAI_DAGCreateModelRunOp(model);
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_0");
+    status = RedisAI_DAGAddRunOp(run_info, model_op, err);
+    if (status != REDISMODULE_OK) goto cleanup;
+
+    model = (RAI_Model *)_getFromKeySpace(ctx,  "imagenet_model2:{{1}}", &key);
+    RedisModule_CloseKey(key);
+    model_op = RedisAI_DAGCreateModelRunOp(model);
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_1");
+    status = RedisAI_DAGAddRunOp(run_info, model_op, err);
+    if (status != REDISMODULE_OK) goto cleanup;
+
+    script_op = RedisAI_DAGCreateScriptRunOp(script, "ensemble");
+    RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_0");
+    RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_1");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key_1:{{1}}");
+    RedisAI_DAGAddRunOp(run_info, script_op, err);
+
+    script_op = RedisAI_DAGCreateScriptRunOp(script, "post_process");
+    RedisAI_DAGRunOpAddInput(script_op, "tmp_key_1:{{1}}");
+    RedisAI_DAGRunOpAddOutput(script_op, "output:{{1}}");
+    RedisAI_DAGAddRunOp(run_info, script_op, err);
+
+    RedisAI_DAGAddTensorGet(run_info, "output:{{1}}", err);
+
+    pthread_mutex_lock(&global_lock);
+    if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &results, err) != REDISMODULE_OK) {
+        pthread_mutex_unlock(&global_lock);
+        goto cleanup;
+    }
+    // Wait until the onFinish callback returns.
+    pthread_cond_wait(&global_cond, &global_lock);
+    pthread_mutex_unlock(&global_lock);
+
+    // Verify that we received the expected output.
+    RedisModule_Assert(array_len(results.outputs) == 1);
+    RAI_Tensor *out_tensor = outputs[0];
+    long long val;
+    if(RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val) != 0) goto cleanup;
+    RedisAI_TensorFree(out_tensor);
+    if (0<= val && val <= 1000) {
+        test_res = "DAG resnet success";
+    }
+
+    cleanup:
+    RedisAI_FreeError(err);
+    array_free(results.outputs);
+    array_free(results.opsStatus);
+    RedisAI_DAGFree(run_info);
+    return RedisModule_ReplyWithSimpleString(ctx, test_res);
 }

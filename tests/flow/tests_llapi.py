@@ -103,3 +103,47 @@ def test_dag_build_and_run(env):
 
     ret = con.execute_command("RAI_llapi.DAGrun")
     env.assertEqual(ret, b'DAG run success')
+
+
+@ensure_test_module_loaded
+def test_llapi_dagrun_multidevice_resnet(env):
+    con = env.getConnection()
+
+    model_name_0 = 'imagenet_model1:{{1}}'
+    model_name_1 = 'imagenet_model2:{{1}}'
+    script_name_0 = 'imagenet_script1:{{1}}'
+    script_name_1 = 'imagenet_script2:{{1}}'
+    inputvar = 'images'
+    outputvar = 'output'
+    image_key = 'image:{{1}}'
+    temp_key1 = 'temp_key1:{{1}}'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0:{{1}}'
+    class_key_1 = 'output1:{{1}}'
+
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    device_0 = 'CPU:1'
+    device_1 = DEVICE
+
+    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command("RAI_llapi.DAG_resnet")
+    env.assertEqual(ret, b'DAG resnet success')
