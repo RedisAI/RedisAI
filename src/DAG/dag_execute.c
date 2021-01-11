@@ -109,6 +109,12 @@ int MangleTensorsNames(RedisAI_RunInfo *rinfo) {
                 RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
                 goto cleanup;
             }
+            if (AI_dictFind(mangled_persisted, key) != NULL) {
+                AI_dictRelease(mangled_persisted);
+                AI_dictReleaseIterator(iter);
+                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST keys must be unique");
+                goto cleanup;
+            }
             int *instance = AI_dictGetVal(mangled_entry);
             char buf[16];
             sprintf(buf, "%04d", *instance);
@@ -277,4 +283,18 @@ RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
         }
     }
     return NULL;
+}
+
+int RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx) {
+    return *((RedisAI_RunInfo *)finish_ctx)->dagError;
+}
+
+RAI_Error *RAI_DAGCopyOpStatus(RAI_OnFinishCtx *finish_ctx, size_t index) {
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
+    RedisModule_Assert(index < rinfo->dagOpCount);
+    RAI_Error *err;
+    RAI_InitError(&err);
+    RAI_SetError(err, RAI_GetErrorCode(rinfo->dagOps[index]->err),
+                 RAI_GetError(rinfo->dagOps[index]->err));
+    return err;
 }

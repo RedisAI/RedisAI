@@ -18,13 +18,11 @@ int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *er
 
 int RAI_DAGLoadTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err);
 
-int RAI_DAGAddPersistTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err);
-
-int RAI_DAGAddPersistTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err);
-
 int RAI_DAGAddTensorSet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *tensor);
 
 int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err);
+
+size_t RAI_DAGNumOps(RAI_DAGRunCtx *run_info);
 
 void RAI_DAGFree(RAI_DAGRunCtx *run_info);
 

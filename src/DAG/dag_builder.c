@@ -7,7 +7,6 @@ static int _LoadTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyNa
                                    RedisModuleKey **key, RAI_Tensor **tensor, RAI_Error *err) {
 
     int res = REDISMODULE_ERR;
-    // RedisModule_ThreadSafeContextLock(ctx);
     *key = RedisModule_OpenKey(ctx, keyName, REDISMODULE_READ);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RAI_SetError(err, RAI_EDAGBUILDER, "ERR tensor key is empty");
@@ -22,7 +21,6 @@ static int _LoadTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyNa
 
 end:
     RedisModule_CloseKey(*key);
-    // RedisModule_ThreadSafeContextUnlock(ctx);
     return res;
 }
 
@@ -126,30 +124,6 @@ int RAI_DAGLoadTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_
     return _RAI_DagLoadTensor(run_info, key_name, err);
 }
 
-// todo: Persist tensors should not be part of dag reply, but before...
-int RAI_DAGAddPersistTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err) {
-
-    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    if (AI_dictAdd(rinfo->dagTensorsPersistedContext, (void *)t_name, (void *)1) != DICT_OK) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "Tensor key to persist has already given");
-        return REDISMODULE_ERR;
-    }
-    return REDISMODULE_OK;
-}
-
-int RAI_DAGAddPersistTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
-
-    RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
-    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    if (AI_dictAdd(rinfo->dagTensorsPersistedContext, (void *)key_name, (void *)1) != DICT_OK) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "Tensor key to persist has already given");
-        RedisModule_FreeString(NULL, key_name);
-        return REDISMODULE_ERR;
-    }
-    RedisModule_FreeString(NULL, key_name);
-    return REDISMODULE_OK;
-}
-
 int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
@@ -175,6 +149,11 @@ int RAI_DAGAddTensorSet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor 
     op->outkeys = array_append(op->outkeys, name);
     op->outTensor = RAI_TensorGetShallowCopy(tensor);
     return REDISMODULE_OK;
+}
+
+size_t RAI_DAGNumOps(RAI_DAGRunCtx *run_info) {
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    return array_len(rinfo->dagOps);
 }
 
 void RAI_DAGRunOpFree(RAI_DAGRunOp *dagOp) {

@@ -1000,13 +1000,14 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(DAGAddRunOp, ctx);
     REGISTER_API(DAGLoadTensor, ctx);
     REGISTER_API(DAGLoadTensorRS, ctx);
-    REGISTER_API(DAGAddPersistTensor, ctx);
-    REGISTER_API(DAGAddPersistTensorRS, ctx);
     REGISTER_API(DAGAddTensorSet, ctx);
     REGISTER_API(DAGAddTensorGet, ctx);
+    REGISTER_API(DAGNumOps, ctx);
     REGISTER_API(DAGRun, ctx);
     REGISTER_API(DAGNumOutputs, ctx);
     REGISTER_API(DAGOutputTensor, ctx);
+    REGISTER_API(DAGRunError, ctx);
+    REGISTER_API(DAGCopyOpStatus, ctx);
     REGISTER_API(DAGRunOpFree, ctx);
     REGISTER_API(DAGFree, ctx);
 

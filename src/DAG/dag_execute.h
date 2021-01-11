@@ -22,3 +22,7 @@ int RAI_DAGRun(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void *pri
 size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx);
 
 RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index);
+
+int RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx);
+
+RAI_Error *RAI_DAGCopyOpStatus(RAI_OnFinishCtx *finish_ctx, size_t index);
