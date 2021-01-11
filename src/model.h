@@ -145,6 +145,15 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 RedisModuleType *RAI_ModelRedisType(void);
 
 /**
+ * @brief  Returns the number of inputs in the model definition.
+ */
+size_t ModelGetNumInputs(RAI_Model *model);
+
+/**
+ * @brief  Returns the number of outputs in the model definition.
+ */
+size_t ModelGetNumOutputs(RAI_Model *model);
+/**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.
  *
  * @param mctx ModelRunCtx to execute

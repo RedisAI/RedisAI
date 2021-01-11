@@ -254,6 +254,10 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 
 RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
 
+size_t ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
+
+size_t ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+
 int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data) {
 
     RedisAI_RunInfo *rinfo = NULL;
