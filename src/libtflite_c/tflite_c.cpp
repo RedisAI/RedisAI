@@ -127,8 +127,7 @@ void deleter(DLManagedTensor *arg) {
     delete[](uint8_t *) arg->dl_tensor.data;
     delete[] arg->dl_tensor.shape;
     delete[] arg->dl_tensor.strides;
-    // FIXME
-    // delete arg;
+    RedisModule_Free(arg);
 }
 
 DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interpreter,
