@@ -173,6 +173,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             if (outputs_dl[i]->dl_tensor.shape[0] != total_batch_size) {
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
+                RAI_TensorFree(output_tensor);
                 return 1;
             }
             for (size_t b = 0; b < nbatches; b++) {
