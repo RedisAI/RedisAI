@@ -30,9 +30,8 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
     size_t argpos = 1;
     RedisModuleKey *modelKey;
     const int status =
-        RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey, model, REDISMODULE_READ);
+        RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey, model, REDISMODULE_READ, error);
     if (status == REDISMODULE_ERR) {
-        RAI_SetError(error, RAI_EMODELRUN, "ERR Model not found");
         return REDISMODULE_ERR;
     }
     RAI_HoldString(NULL, argv[argpos]);
