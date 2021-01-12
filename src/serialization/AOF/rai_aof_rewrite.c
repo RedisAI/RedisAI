@@ -20,7 +20,6 @@ void RAI_AOFRewriteTensor(RedisModuleIO *aof, RedisModuleString *key, void *valu
 
     RedisModule_EmitAOF(aof, "AI.TENSORSET", "scvcb", key, dtypestr, dims, ndims, "BLOB", data,
                         size);
-
 }
 
 void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value) {

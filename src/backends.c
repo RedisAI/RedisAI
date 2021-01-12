@@ -429,16 +429,16 @@ int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path) {
     int ret;
     switch (backend) {
     case RAI_BACKEND_TENSORFLOW:
-        ret =  RAI_LoadBackend_TensorFlow(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_TensorFlow(ctx, RedisModule_StringPtrLen(fullpath, NULL));
         break;
     case RAI_BACKEND_TFLITE:
-        ret =  RAI_LoadBackend_TFLite(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_TFLite(ctx, RedisModule_StringPtrLen(fullpath, NULL));
         break;
     case RAI_BACKEND_TORCH:
-        ret =  RAI_LoadBackend_Torch(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_Torch(ctx, RedisModule_StringPtrLen(fullpath, NULL));
         break;
     case RAI_BACKEND_ONNXRUNTIME:
-        ret =  RAI_LoadBackend_ONNXRuntime(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_ONNXRuntime(ctx, RedisModule_StringPtrLen(fullpath, NULL));
         break;
     }
     RedisModule_FreeString(ctx, fullpath);

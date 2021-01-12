@@ -105,10 +105,9 @@ static void _BGThread_Wait(RunQueueInfo *run_queue_info) {
     absTimeout.tv_sec = now.tv_sec;
     absTimeout.tv_nsec = (now.tv_usec + 1000) * 1000; // 1 millisecond
 
-    pthread_cond_timedwait(&run_queue_info->queue_condition_var,
-                                    &run_queue_info->run_queue_mutex, &absTimeout);
+    pthread_cond_timedwait(&run_queue_info->queue_condition_var, &run_queue_info->run_queue_mutex,
+                           &absTimeout);
 }
-
 
 static void _BGThread_RinfoFinish(RedisAI_RunInfo *rinfo) {
     RedisAI_RunInfo *orig = rinfo->orig_copy;
@@ -144,10 +143,9 @@ static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunI
         RedisAI_RunInfo *rinfo = batch_rinfo[i];
         rinfo->dagDeviceCompleteOpCount += 1;
         __atomic_add_fetch(rinfo->dagCompleteOpCount, 1, __ATOMIC_RELAXED);
-        if(RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo) ){
-             _BGThread_RinfoFinish(rinfo);
-        }
-        else {
+        if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo)) {
+            _BGThread_RinfoFinish(rinfo);
+        } else {
             queuePushFront(run_queue_info->run_queue, rinfo);
         }
     }
@@ -155,7 +153,7 @@ static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunI
 
 static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo) {
     uint n_rinfo = array_len(batch_rinfo);
-    if(n_rinfo != 0) {
+    if (n_rinfo != 0) {
         bool batched_run = n_rinfo > 1;
         // For simplicity, we call into different functions whether the run
         // is batched or not
@@ -167,7 +165,9 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
     }
 }
 
-static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info, RedisAI_RunInfo *rinfo,RedisAI_RunInfo **batch_rinfo) {
+static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
+                                                   RedisAI_RunInfo *rinfo,
+                                                   RedisAI_RunInfo **batch_rinfo) {
     // Since the current op can be batched, then we collect info on batching, namely
     // - batchsize
     // - minbatchsize
@@ -175,7 +175,8 @@ static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info,
     // - actual size of the input along the batch (0-th) dimension
     RAI_DagOp *currentOp = RedisAI_DagCurrentOp(rinfo);
     size_t batchsize, minbatchsize, minbatchtimeout, inbatchsize;
-    RedisAI_DagOpBatchInfo(rinfo, currentOp, &batchsize, &minbatchsize, &minbatchtimeout, &inbatchsize);
+    RedisAI_DagOpBatchInfo(rinfo, currentOp, &batchsize, &minbatchsize, &minbatchtimeout,
+                           &inbatchsize);
 
     // Get the size of the batch so far, that is, the size of the first input
     // tensor in the 0-th dimension
@@ -211,8 +212,7 @@ static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info,
 
         int batched = 0;
         size_t next_batchsize = 0;
-        RedisAI_DagOpBatchingMatch(rinfo, currentOp, next_rinfo, nextOp, &batched,
-                                    &next_batchsize);
+        RedisAI_DagOpBatchingMatch(rinfo, currentOp, next_rinfo, nextOp, &batched, &next_batchsize);
 
         if (batched == 0) {
             next_item = queueNext(next_item);
@@ -228,7 +228,7 @@ static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info,
 
         // If all previous checks pass, then keep track of the item
         // in the list of evicted items
-        queueItem* evicted = queueEvict(run_queue_info->run_queue, next_item);  
+        queueItem *evicted = queueEvict(run_queue_info->run_queue, next_item);
         RedisModule_Free(evicted);
         batch_rinfo = array_append(batch_rinfo, next_rinfo);
 
@@ -263,7 +263,6 @@ static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info,
     return batch_rinfo;
 }
 
-
 void *RedisAI_Run_ThreadMain(void *arg) {
     RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
     RAI_PTHREAD_SETNAME("redisai_bthread");
@@ -283,12 +282,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
             RedisModule_Free(item);
             // In case of timeout.
-            if(_BGThread_IsRInfoTimedOut(rinfo)) {
+            if (_BGThread_IsRInfoTimedOut(rinfo)) {
                 _BGThread_RinfoFinish(rinfo);
                 continue;
             }
 
-            if(RedisAI_DagError(rinfo)) {
+            if (RedisAI_DagError(rinfo)) {
                 _BGThread_RinfoFinish(rinfo);
                 continue;
             }
@@ -296,20 +295,19 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // Get if the operation is ready and bacthable
             bool currentOpReady, currentOpBatchable;
             RedisAI_DagCurrentOpInfo(rinfo, &currentOpReady, &currentOpBatchable);
-            if(currentOpReady){
+            if (currentOpReady) {
                 batch_rinfo = array_append(batch_rinfo, rinfo);
-            }
-            else {
+            } else {
                 // Op is not ready - push back to queue and continue the loop.
                 queuePush(run_queue_info->run_queue, rinfo);
                 continue;
             }
 
-            if(currentOpBatchable) {
+            if (currentOpBatchable) {
                 batch_rinfo = _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo);
             }
             // Run the computation step (batched or not)
-             // We're done with the queue here, items have been evicted so we can
+            // We're done with the queue here, items have been evicted so we can
             // safely unlock the queue mutex, to allow other threads to operate
             // on the same queue. The evicted items at this point are only visible
             // to this worker.
@@ -318,7 +316,6 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // Lock the queue again: we're done operating on evicted items only.
             pthread_mutex_lock(&run_queue_info->run_queue_mutex);
             _BGThread_ExecutionFinish(run_queue_info, batch_rinfo);
-           
         }
     }
     array_free(batch_rinfo);

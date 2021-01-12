@@ -178,7 +178,8 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
             Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
     }
     // Clear the result in case of an error.
-    if(result == REDISMODULE_ERR) RAI_ClearError(&err);
+    if (result == REDISMODULE_ERR)
+        RAI_ClearError(&err);
 }
 
 /**
@@ -748,9 +749,7 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
     return REDISMODULE_OK;
 }
 
-void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) {
-     RAI_FreeRunInfo(rinfo);
-}
+void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) { RAI_FreeRunInfo(rinfo); }
 
 // Add Shallow copies of the DAG run info to the devices' queues.
 // Return REDISMODULE_OK in case of success, REDISMODULE_ERR if (at least) one insert op had

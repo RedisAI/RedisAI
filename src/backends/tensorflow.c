@@ -224,8 +224,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
         RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
     }
 
-
-    TF_Graph *model =TF_NewGraph();
+    TF_Graph *model = TF_NewGraph();
     TF_Status *status = TF_NewStatus();
     TF_Buffer *tfbuffer = TF_NewBuffer();
     TF_ImportGraphDefOptions *options = TF_NewImportGraphDefOptions();
@@ -336,7 +335,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     if (TF_GetCode(optionsStatus) != TF_OK) {
         RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
-       goto cleanup;
+        goto cleanup;
     }
     TF_DeleteStatus(optionsStatus);
     optionsStatus = NULL;
@@ -402,11 +401,16 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
 cleanup:
     TF_DeleteGraph(model);
-    if(options) TF_DeleteImportGraphDefOptions(options);
-    if(tfbuffer) TF_DeleteBuffer(tfbuffer);
-    if(status) TF_DeleteStatus(status);
-    if(sessionOptions) TF_DeleteSessionOptions(sessionOptions);
-    if(sessionStatus) TF_DeleteStatus(sessionStatus);
+    if (options)
+        TF_DeleteImportGraphDefOptions(options);
+    if (tfbuffer)
+        TF_DeleteBuffer(tfbuffer);
+    if (status)
+        TF_DeleteStatus(status);
+    if (sessionOptions)
+        TF_DeleteSessionOptions(sessionOptions);
+    if (sessionStatus)
+        TF_DeleteStatus(sessionStatus);
     return NULL;
 }
 

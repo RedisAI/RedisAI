@@ -33,9 +33,9 @@ bool RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
 
 /**
  * @brief Get an indication if an error happend during the dag run.
- * 
+ *
  * @param rinfo context in which RedisAI blocking commands operate.
- * @return true if there was an error 
+ * @return true if there was an error
  */
 bool RedisAI_DagError(RedisAI_RunInfo *rinfo);
 
@@ -58,7 +58,8 @@ RAI_DagOp *RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo);
  *            a MODELRUN and is BATCHSIZE greater than zero
  * @return
  */
-void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady, bool *currentOpBatchable);
+void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
+                              bool *currentOpBatchable);
 
 /**
  * Get batching information about a DAG op.
@@ -149,6 +150,5 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo);
  * don't use it for freeing the runInfo object, we use RAI_FreeRunInfo)
  */
 void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
-
 
 #endif /* SRC_DAG_H_ */

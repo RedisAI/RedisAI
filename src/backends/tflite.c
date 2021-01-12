@@ -39,8 +39,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
     }
 
     char *error_descr = NULL;
-    void *model =
-        tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
+    void *model = tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (model == NULL) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
