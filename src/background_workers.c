@@ -154,7 +154,6 @@ static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunI
 }
 
 static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo) {
-    pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
     uint n_rinfo = array_len(batch_rinfo);
     if(n_rinfo != 0) {
         bool batched_run = n_rinfo > 1;
@@ -166,9 +165,6 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
             RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr);
         }
     }
-     // Lock the queue again: we're done operating on evicted items only.
-    pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-    _BGThread_ExecutionFinish(run_queue_info, batch_rinfo);
 }
 
 static RedisAI_RunInfo** _BGThread_BatchOperations(RunQueueInfo *run_queue_info, RedisAI_RunInfo *rinfo,RedisAI_RunInfo **batch_rinfo) {
@@ -317,8 +313,11 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // safely unlock the queue mutex, to allow other threads to operate
             // on the same queue. The evicted items at this point are only visible
             // to this worker.
-           
+            pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
             _BGThread_Execute(run_queue_info, batch_rinfo);
+            // Lock the queue again: we're done operating on evicted items only.
+            pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+            _BGThread_ExecutionFinish(run_queue_info, batch_rinfo);
            
         }
     }
