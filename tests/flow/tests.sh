@@ -140,9 +140,7 @@ check_redis_server
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
-[[ $VALGRIND == 1 ]] && valgrind_summary
 [[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
-[[ $VALGRIND == 1 ]] && valgrind_summary
 [[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 [[ $AOF == 1 ]] && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
 [[ $VALGRIND == 1 ]] && valgrind_summary
