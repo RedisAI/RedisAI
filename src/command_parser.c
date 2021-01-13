@@ -226,7 +226,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
         if (!strcasecmp(arg_string, "OUTPUTS")) {
             if (is_output) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                             "ERR Already encountered an OUTPUTS keyword in SCRIPTRUN");
                 return REDISMODULE_ERR;
             }
             is_input = false;
