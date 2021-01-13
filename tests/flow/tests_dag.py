@@ -315,7 +315,7 @@ def test_dag_modelrun_financialNet_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match",exception.__str__())
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition",exception.__str__())
 
 
 def test_dag_local_tensorset(env):
@@ -941,7 +941,7 @@ def test_dagrun_modelrun_multidevice_resnet(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Number of names given as INPUTS during MODELSET and keys given as INPUTS here do not match", exception.__str__())
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     ret = con.execute_command(
         'AI.DAGRUN',
