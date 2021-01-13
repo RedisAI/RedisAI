@@ -68,13 +68,13 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
             }
         }
     }
-    if ((*model)->inputs && (*model)->ninputs != ninputs) {
+    if ((*model)->ninputs != ninputs) {
         RAI_SetError(error, RAI_EMODELRUN,
                      "Number of keys given as INPUTS here does not match model definition");
         return REDISMODULE_ERR;
     }
 
-    if ((*model)->outputs && (*model)->noutputs != noutputs) {
+    if ((*model)->noutputs != noutputs) {
         RAI_SetError(error, RAI_EMODELRUN,
                      "Number of keys given as OUTPUTS here does not match model definition");
         return REDISMODULE_ERR;
