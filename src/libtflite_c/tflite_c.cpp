@@ -263,7 +263,7 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     return ctx;
 }
 
-extern "C" size_t tfliteModelNumInputs(void* ctx, char** error, void *(*alloc)(size_t)) {
+extern "C" size_t tfliteModelNumInputs(void* ctx, char** error) {
     ModelContext *ctx_ = (ModelContext*) ctx;
     size_t ret = 0;
     try {
@@ -271,24 +271,24 @@ extern "C" size_t tfliteModelNumInputs(void* ctx, char** error, void *(*alloc)(s
         ret =  interpreter->inputs().size();
     }
     catch(std::exception ex) {
-        setError(ex.what(), error, alloc);
+        _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" const char* tfliteModelInputNameAtIndex(void* modelCtx, size_t index, char** error, void *(*alloc)(size_t)) {
+extern "C" const char* tfliteModelInputNameAtIndex(void* modelCtx, size_t index, char** error) {
     ModelContext *ctx_ = (ModelContext*) modelCtx;
     const char* ret = NULL;
     try {
         ret = ctx_->interpreter->GetInputName(index);
     }
     catch(std::exception ex) {
-        setError(ex.what(), error, alloc);
+        _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" size_t tfliteModelNumOutputs(void* ctx, char** error, void *(*alloc)(size_t)) {
+extern "C" size_t tfliteModelNumOutputs(void* ctx, char** error) {
     ModelContext *ctx_ = (ModelContext*) ctx;
     size_t ret = 0;
     try {
@@ -296,19 +296,19 @@ extern "C" size_t tfliteModelNumOutputs(void* ctx, char** error, void *(*alloc)(
         ret =  interpreter->outputs().size();
     }
     catch(std::exception ex) {
-        setError(ex.what(), error, alloc);
+        _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" const char* tfliteModelOutputNameAtIndex(void* modelCtx, size_t index, char** error, void *(*alloc)(size_t)) {
+extern "C" const char* tfliteModelOutputNameAtIndex(void* modelCtx, size_t index, char** error) {
     ModelContext *ctx_ = (ModelContext*) modelCtx;
     const char* ret = NULL;
     try {
         ret = ctx_->interpreter->GetOutputName(index);
     }
     catch(std::exception ex) {
-        setError(ex.what(), error, alloc);
+        _setError(ex.what(), error);
     }
     return ret;
 }

@@ -48,12 +48,12 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
         return NULL;
     }
 
-    size_t ninputs = tfliteModelNumInputs(model, &error_descr, RedisModule_Alloc);
+    size_t ninputs = tfliteModelNumInputs(model, &error_descr);
     if (error_descr) {
         goto cleanup;
     }
 
-    size_t noutputs = tfliteModelNumOutputs(model, &error_descr, RedisModule_Alloc);
+    size_t noutputs = tfliteModelNumOutputs(model, &error_descr);
     if (error_descr) {
         goto cleanup;
     }
@@ -62,7 +62,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
     outputs_ = array_new(char *, noutputs);
 
     for (size_t i = 0; i < ninputs; i++) {
-        const char *input = tfliteModelInputNameAtIndex(model, i, &error_descr, RedisModule_Alloc);
+        const char *input = tfliteModelInputNameAtIndex(model, i, &error_descr);
         if (error_descr) {
             goto cleanup;
         }
@@ -70,8 +70,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
     }
 
     for (size_t i = 0; i < noutputs; i++) {
-        const char *output =
-            tfliteModelOutputNameAtIndex(model, i, &error_descr, RedisModule_Alloc);
+        const char *output = tfliteModelOutputNameAtIndex(model, i, &error_descr);
         ;
         if (error_descr) {
             goto cleanup;
