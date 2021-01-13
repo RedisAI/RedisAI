@@ -3,6 +3,7 @@
 #include "torch/csrc/jit/serialization/import.h"
 #include "torch/csrc/jit/api/compilation_unit.h"
 #include "ATen/Functions.h"
+#include "../redismodule.h"
 
 #include <iostream>
 #include <sstream>
@@ -159,7 +160,10 @@ struct ATenDLMTensor {
     DLManagedTensor tensor;
 };
 
-void deleter(DLManagedTensor *arg) { delete static_cast<ATenDLMTensor *>(arg->manager_ctx); }
+void deleter(DLManagedTensor *arg) {
+    delete static_cast<ATenDLMTensor *>(arg->manager_ctx);
+    RedisModule_Free(arg); 
+}
 
 DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     ATenDLMTensor *atDLMTensor(new ATenDLMTensor);

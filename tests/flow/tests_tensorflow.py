@@ -508,6 +508,7 @@ def test_run_tf_model_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    t.join()
 
     ensureSlaveSynced(con, env)
 
@@ -640,6 +641,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
         con = env.getConnection()
         con.execute_command('AI.MODELRUN', name,
                             'INPUTS', 'input{1}', 'OUTPUTS', output_name)
+    
 
     # Running thrice since minbatchsize = 2
     # The third process will hang until termintation or until a new process will execute the model with the same properties.
@@ -676,31 +678,29 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
         p.terminate()
 
 
-@skip_if_no_TF
-def test_tensorflow_modelrun_with_timeout(env):
-    con = env.getConnection()
-    batch_size = 2
-    minbatch_size = 2
-    timeout = 1000
-    model_name = 'model{1}'
-    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+# @skip_if_no_TF
+# def test_tensorflow_modelrun_with_timeout(env):
+#     con = env.getConnection()
+#     batch_size = 2
+#     minbatch_size = 2
+#     timeout = 1
+#     model_name = 'model{1}'
+#     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
-    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', input_var,
-                        'OUTPUTS', output_var,
-                        'BLOB', model_pb)
-    con.execute_command('AI.TENSORSET', 'input{1}',
-                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
-                        'BLOB', img.tobytes())
+#     con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+#                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+#                         'INPUTS', input_var,
+#                         'OUTPUTS', output_var,
+#                         'BLOB', model_pb)
+#     con.execute_command('AI.TENSORSET', 'input{1}',
+#                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+#                         'BLOB', img.tobytes())
 
-    t = time.time()
-    con.execute_command('AI.MODELRUN', model_name,
-                        'TIMEOUT', timeout,
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
-    elapsed_time = time.time() - t
+#     res = con.execute_command('AI.MODELRUN', model_name,
+#                         'TIMEOUT', timeout,
+#                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
 
-    env.assertTrue(1000 * elapsed_time >= timeout)
+#     env.assertEqual(b'TIMEDOUT', res)
 
 
 @skip_if_no_TF

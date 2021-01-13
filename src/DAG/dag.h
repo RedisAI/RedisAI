@@ -19,17 +19,25 @@
  * successfully. Since rinfo carries information on what queue
  * it has been placed in, there's no need to pass the device identifier.
  * @param rinfo context in which RedisAI blocking commands operate.
- * @return nonzero if all ops are complete for device, 0 otherwise
+ * @return true if all ops are complete for device, 0 otherwise
  */
-int RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo);
+bool RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo);
 
 /**
  * Get whether all DAG ops have been executed successfully irrespective
  * of the device, i.e. if the DAG has been completely executed.
  * @param rinfo context in which RedisAI blocking commands operate.
- * @return nonzero of all ops in DAG are complete, 0 otherwise
+ * @return true of all ops in DAG are complete, 0 otherwise
  */
-int RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
+bool RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
+
+/**
+ * @brief Get an indication if an error happend during the dag run.
+ *
+ * @param rinfo context in which RedisAI blocking commands operate.
+ * @return true if there was an error
+ */
+bool RedisAI_DagError(RedisAI_RunInfo *rinfo);
 
 /**
  * Get current DAG op for the given device. An op is current if it's
@@ -50,7 +58,8 @@ RAI_DagOp *RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo);
  *            a MODELRUN and is BATCHSIZE greater than zero
  * @return
  */
-void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, int *currentOpReady, int *currentOpBatchable);
+void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
+                              bool *currentOpBatchable);
 
 /**
  * Get batching information about a DAG op.
@@ -141,10 +150,5 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo);
  * don't use it for freeing the runInfo object, we use RAI_FreeRunInfo)
  */
 void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo);
-
-/**
- * @brief A callback to send to BlockClient.
- */
-void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc);
 
 #endif /* SRC_DAG_H_ */
