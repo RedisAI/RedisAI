@@ -19,6 +19,14 @@ void tfliteSerializeModel(void *ctx, char **buffer, size_t *len, char **error);
 
 void tfliteDeallocContext(void *ctx);
 
+size_t tfliteModelNumInputs(void *ctx, char **error);
+
+const char *tfliteModelInputNameAtIndex(void *modelCtx, size_t index, char **error);
+
+size_t tfliteModelNumOutputs(void *ctx, char **error);
+
+const char *tfliteModelOutputNameAtIndex(void *modelCtx, size_t index, char **error);
+
 #ifdef __cplusplus
 }
 #endif
