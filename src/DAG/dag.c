@@ -593,7 +593,6 @@ static void _ScriptSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
     const size_t noutputs = RAI_ScriptRunCtxNumOutputs(op->sctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(op->sctx, outputNumber);
-        // tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         if (tensor)
             _StoreTensorInKeySpace(ctx, tensor, op->outkeys[outputNumber], false);
     }
@@ -721,7 +720,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         }
     }
 
-    // RAI_FreeRunInfo(rinfo);
     return REDISMODULE_OK;
 }
 
