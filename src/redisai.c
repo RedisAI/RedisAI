@@ -153,8 +153,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_AutoMemory(ctx);
-
     if (argc < 4)
         return RedisModule_WrongArity(ctx);
 
@@ -667,8 +665,6 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_AutoMemory(ctx);
-
     if (argc != 5 && argc != 7)
         return RedisModule_WrongArity(ctx);
 
@@ -1015,40 +1011,45 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     // Return resource usage statistics for the calling thread
     // which in this case is Redis/RedisAI main thread
     // RUSAGE_THREAD is Linux-specific.
-    sds main_thread_used_cpu_sys = sdsempty();
-    sds main_thread_used_cpu_user = sdsempty();
+    RedisModuleString *main_thread_used_cpu_sys = NULL;
+    RedisModuleString *main_thread_used_cpu_user = NULL;
 #if (defined(__linux__) && defined(RUSAGE_THREAD))
     struct rusage main_thread_ru;
     getrusage(RUSAGE_THREAD, &main_thread_ru);
-    main_thread_used_cpu_sys =
-        sdscatprintf(main_thread_used_cpu_sys, "%ld.%06ld", (long)main_thread_ru.ru_stime.tv_sec,
-                     (long)self_ru.ru_stime.tv_usec);
-    main_thread_used_cpu_user =
-        sdscatprintf(main_thread_used_cpu_user, "%ld.%06ld", (long)main_thread_ru.ru_utime.tv_sec,
-                     (long)self_ru.ru_utime.tv_usec);
+    main_thread_used_cpu_sys = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)main_thread_ru.ru_stime.tv_sec, (long)self_ru.ru_stime.tv_usec);
+    main_thread_used_cpu_user = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)main_thread_ru.ru_utime.tv_sec, (long)self_ru.ru_utime.tv_usec);
 #else
-    sdscatprintf(main_thread_used_cpu_sys, "N/A");
-    sdscatprintf(main_thread_used_cpu_user, "N/A");
+    main_thread_used_cpu_sys = RedisModule_CreateStringPrintf(NULL, "N/A");
+    main_thread_used_cpu_user = RedisModule_CreateStringPrintf(NULL, "N/A");
 #endif
 
     // Return resource usage statistics for all of its
     // terminated child processes
     getrusage(RUSAGE_CHILDREN, &c_ru);
-    sds self_used_cpu_sys = sdscatprintf(sdsempty(), "%ld.%06ld", (long)self_ru.ru_stime.tv_sec,
-                                         (long)self_ru.ru_stime.tv_usec);
-    sds self_used_cpu_user = sdscatprintf(sdsempty(), "%ld.%06ld", (long)self_ru.ru_utime.tv_sec,
-                                          (long)self_ru.ru_utime.tv_usec);
-    sds children_used_cpu_sys = sdscatprintf(sdsempty(), "%ld.%06ld", (long)c_ru.ru_stime.tv_sec,
-                                             (long)c_ru.ru_stime.tv_usec);
-    sds children_used_cpu_user = sdscatprintf(sdsempty(), "%ld.%06ld", (long)c_ru.ru_utime.tv_sec,
-                                              (long)c_ru.ru_utime.tv_usec);
+    RedisModuleString *self_used_cpu_sys = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)self_ru.ru_stime.tv_sec, (long)self_ru.ru_stime.tv_usec);
+    RedisModuleString *self_used_cpu_user = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)self_ru.ru_utime.tv_sec, (long)self_ru.ru_utime.tv_usec);
+    RedisModuleString *children_used_cpu_sys = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)c_ru.ru_stime.tv_sec, (long)c_ru.ru_stime.tv_usec);
+    RedisModuleString *children_used_cpu_user = RedisModule_CreateStringPrintf(
+        NULL, "%ld.%06ld", (long)c_ru.ru_utime.tv_sec, (long)c_ru.ru_utime.tv_usec);
     RedisModule_InfoAddSection(ctx, "cpu");
-    RedisModule_InfoAddFieldCString(ctx, "self_used_cpu_sys", self_used_cpu_sys);
-    RedisModule_InfoAddFieldCString(ctx, "self_used_cpu_user", self_used_cpu_user);
-    RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_sys", children_used_cpu_sys);
-    RedisModule_InfoAddFieldCString(ctx, "children_used_cpu_user", children_used_cpu_user);
-    RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_sys", main_thread_used_cpu_sys);
-    RedisModule_InfoAddFieldCString(ctx, "main_thread_used_cpu_user", main_thread_used_cpu_user);
+    RedisModule_InfoAddFieldString(ctx, "self_used_cpu_sys", self_used_cpu_sys);
+    RedisModule_InfoAddFieldString(ctx, "self_used_cpu_user", self_used_cpu_user);
+    RedisModule_InfoAddFieldString(ctx, "children_used_cpu_sys", children_used_cpu_sys);
+    RedisModule_InfoAddFieldString(ctx, "children_used_cpu_user", children_used_cpu_user);
+    RedisModule_InfoAddFieldString(ctx, "main_thread_used_cpu_sys", main_thread_used_cpu_sys);
+    RedisModule_InfoAddFieldString(ctx, "main_thread_used_cpu_user", main_thread_used_cpu_user);
+
+    RedisModule_FreeString(NULL, self_used_cpu_sys);
+    RedisModule_FreeString(NULL, self_used_cpu_user);
+    RedisModule_FreeString(NULL, children_used_cpu_sys);
+    RedisModule_FreeString(NULL, children_used_cpu_user);
+    RedisModule_FreeString(NULL, main_thread_used_cpu_sys);
+    RedisModule_FreeString(NULL, main_thread_used_cpu_user);
 
     AI_dictIterator *iter = AI_dictGetSafeIterator(run_queues);
     AI_dictEntry *entry = AI_dictNext(iter);
@@ -1060,9 +1061,9 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                 pthread_t current_bg_threads = run_queue_info->threads[i];
                 struct timespec ts;
                 clockid_t cid;
-                sds queue_used_cpu_total = sdscatprintf(
-                    sdsempty(), "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
-                sds bthread_used_cpu_total = sdsempty();
+                RedisModuleString *queue_used_cpu_total = RedisModule_CreateStringPrintf(
+                    NULL, "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
+                RedisModuleString *bthread_used_cpu_total = NULL;
 #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) ||         \
     defined(__cplusplus)
                 const int status = -1;
@@ -1070,17 +1071,20 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                 const int status = pthread_getcpuclockid(current_bg_threads, &cid);
 #endif
                 if (status != 0) {
-                    bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total, "N/A");
+                    bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
                 } else {
                     if (clock_gettime(cid, &ts) == -1) {
-                        bthread_used_cpu_total = sdscatprintf(bthread_used_cpu_total, "N/A");
+                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
                     } else {
-                        bthread_used_cpu_total =
-                            sdscatprintf(bthread_used_cpu_total, "%ld.%06ld", (long)ts.tv_sec,
-                                         (long)(ts.tv_nsec / 1000));
+                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(
+                            NULL, "%ld.%06ld", (long)ts.tv_sec, (long)(ts.tv_nsec / 1000));
                     }
                 }
-                RedisModule_InfoAddFieldCString(ctx, queue_used_cpu_total, bthread_used_cpu_total);
+                RedisModule_InfoAddFieldString(
+                    ctx, (char *)RedisModule_StringPtrLen(queue_used_cpu_total, NULL),
+                    bthread_used_cpu_total);
+                RedisModule_FreeString(NULL, queue_used_cpu_total);
+                RedisModule_FreeString(NULL, bthread_used_cpu_total);
             }
         }
         entry = AI_dictNext(iter);

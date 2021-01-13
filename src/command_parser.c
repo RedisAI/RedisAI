@@ -139,6 +139,10 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     }
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
+    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
+    currentOp->mctx = mctx;
+    currentOp->devicestr = mctx->model->devicestr;
+
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
@@ -146,10 +150,6 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
             REDISMODULE_ERR)
             goto cleanup;
     }
-
-    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
-    currentOp->devicestr = mctx->model->devicestr;
     return REDISMODULE_OK;
 
 cleanup:
@@ -285,6 +285,9 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
     RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
     sctx->variadic = variadic;
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
 
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
@@ -293,10 +296,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
-    currentOp->sctx = sctx;
-    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    currentOp->devicestr = sctx->script->devicestr;
-
     return REDISMODULE_OK;
 
 cleanup:
@@ -344,9 +343,7 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
 
-    // Block the client before adding rinfo to the run queues (sync call).
-    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
     rinfo->OnFinish = DAG_ReplyAndUnblock;
+    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
     return DAG_InsertDAGToQueue(rinfo);
 }

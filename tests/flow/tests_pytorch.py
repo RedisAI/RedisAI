@@ -231,6 +231,7 @@ def test_pytorch_modelrun_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    t.join()
 
     ensureSlaveSynced(con, env)
 

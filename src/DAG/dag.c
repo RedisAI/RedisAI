@@ -91,7 +91,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
 
 static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
 
-    RAI_ContextReadLock(rinfo);
+    RAI_ContextWriteLock(rinfo);
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
@@ -177,6 +177,9 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         if (rinfo->single_op_dag == 0)
             Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
     }
+    // Clear the result in case of an error.
+    if (result == REDISMODULE_ERR)
+        RAI_ClearError(&err);
 }
 
 /**
@@ -346,14 +349,18 @@ int RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
     return 1;
 }
 
-int RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo) {
+bool RedisAI_DagDeviceComplete(RedisAI_RunInfo *rinfo) {
     return rinfo->dagDeviceCompleteOpCount == rinfo->dagDeviceOpCount;
 }
 
-int RedisAI_DagComplete(RedisAI_RunInfo *rinfo) {
+bool RedisAI_DagComplete(RedisAI_RunInfo *rinfo) {
     int completeOpCount = __atomic_load_n(rinfo->dagCompleteOpCount, __ATOMIC_RELAXED);
 
     return completeOpCount == rinfo->dagOpCount;
+}
+
+bool RedisAI_DagError(RedisAI_RunInfo *rinfo) {
+    return __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED) != 0;
 }
 
 RAI_DagOp *RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo) {
@@ -364,21 +371,21 @@ RAI_DagOp *RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo) {
     return rinfo->dagDeviceOps[rinfo->dagDeviceCompleteOpCount];
 }
 
-void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, int *currentOpReady,
-                              int *currentOpBatchable) {
+void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
+                              bool *currentOpBatchable) {
     RAI_DagOp *currentOp_ = RedisAI_DagCurrentOp(rinfo);
 
-    *currentOpReady = 0;
-    *currentOpBatchable = 0;
+    *currentOpReady = false;
+    *currentOpBatchable = false;
 
     if (currentOp_ == NULL) {
         return;
     }
 
     if (currentOp_->mctx && currentOp_->mctx->model->opts.batchsize > 0) {
-        *currentOpBatchable = 1;
+        *currentOpBatchable = true;
     }
-    *currentOpReady = 1;
+    *currentOpReady = true;
     // If this is a single op dag, the op is definitely ready.
     if (rinfo->single_op_dag == 1)
         return;
@@ -389,7 +396,7 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, int *currentOpReady,
     for (int i = 0; i < n_inkeys; i++) {
         if (AI_dictFind(rinfo->dagTensorsContext, currentOp_->inkeys[i]) == NULL) {
             RAI_ContextUnlock(rinfo);
-            *currentOpReady = 0;
+            *currentOpReady = false;
             return;
         }
     }
@@ -577,7 +584,6 @@ static void _ModelSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(op->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(op->mctx, outputNumber);
-        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         if (tensor)
             _StoreTensorInKeySpace(ctx, tensor, op->outkeys[outputNumber], false);
     }
@@ -587,7 +593,6 @@ static void _ScriptSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op) {
     const size_t noutputs = RAI_ScriptRunCtxNumOutputs(op->sctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(op->sctx, outputNumber);
-        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         if (tensor)
             _StoreTensorInKeySpace(ctx, tensor, op->outkeys[outputNumber], false);
     }
@@ -600,7 +605,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
     if (RAI_GetErrorCode(rinfo->err) == RAI_EDAGRUN) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(rinfo->err));
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_ERR;
     }
     int dag_error = 0;
@@ -610,7 +614,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
     if (*rinfo->timedOut) {
         RedisModule_ReplyWithSimpleString(ctx, "TIMEDOUT");
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_OK;
     }
 
@@ -701,7 +704,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         if (rinfo->single_op_dag == 0) {
             RedisModule_ReplySetArrayLength(ctx, rinfo->dagReplyLength);
         }
-        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_ERR;
     }
 
@@ -718,7 +720,6 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         }
     }
 
-    RAI_FreeRunInfo(rinfo);
     return REDISMODULE_OK;
 }
 
@@ -746,11 +747,7 @@ int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisMo
     return REDISMODULE_OK;
 }
 
-void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) {}
-
-void RedisAI_Disconnected(RedisModuleCtx *ctx, RedisModuleBlockedClient *bc) {
-    RedisModule_Log(ctx, "warning", "Blocked client %p disconnected!", (void *)bc);
-}
+void RunInfo_FreeData(RedisModuleCtx *ctx, void *rinfo) { RAI_FreeRunInfo(rinfo); }
 
 // Add Shallow copies of the DAG run info to the devices' queues.
 // Return REDISMODULE_OK in case of success, REDISMODULE_ERR if (at least) one insert op had

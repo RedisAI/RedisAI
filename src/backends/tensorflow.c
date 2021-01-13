@@ -217,8 +217,6 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
                              size_t ninputs, const char **inputs, size_t noutputs,
                              const char **outputs, const char *modeldef, size_t modellen,
                              RAI_Error *error) {
-    TF_Graph *model = TF_NewGraph();
-
     RAI_Device device;
     int64_t deviceid;
 
@@ -226,13 +224,17 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
         RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
     }
 
-    TF_ImportGraphDefOptions *options = TF_NewImportGraphDefOptions();
-
+    TF_Graph *model = TF_NewGraph();
+    TF_Status *status = TF_NewStatus();
     TF_Buffer *tfbuffer = TF_NewBuffer();
+    TF_ImportGraphDefOptions *options = TF_NewImportGraphDefOptions();
+    TF_Status *optionsStatus = NULL;
+    TF_SessionOptions *sessionOptions = NULL;
+    TF_Status *sessionStatus = NULL;
+    TF_Session *session = NULL;
+
     tfbuffer->length = modellen;
     tfbuffer->data = modeldef;
-
-    TF_Status *status = TF_NewStatus();
 
     TF_GraphImportGraphDef(model, tfbuffer, options, status);
 
@@ -251,7 +253,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
             RAI_SetError(error, RAI_EMODELIMPORT, msg);
             RedisModule_Free(msg);
-            return NULL;
+            goto cleanup;
         }
     }
 
@@ -262,17 +264,20 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Output node named \"%s\" not found in TF graph", outputs[i]);
             RAI_SetError(error, RAI_EMODELIMPORT, msg);
-            return NULL;
+            RedisModule_Free(msg);
+            goto cleanup;
         }
     }
 
     TF_DeleteImportGraphDefOptions(options);
+    options = NULL;
     TF_DeleteBuffer(tfbuffer);
+    tfbuffer = NULL;
     TF_DeleteStatus(status);
+    status = NULL;
 
-    TF_Status *optionsStatus = TF_NewStatus();
-
-    TF_SessionOptions *sessionOptions = TF_NewSessionOptions();
+    optionsStatus = TF_NewStatus();
+    sessionOptions = TF_NewSessionOptions();
 
     // For setting config options in session from the C API see:
     // https://github.com/tensorflow/tensorflow/issues/13853
@@ -290,8 +295,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
         if (TF_GetCode(optionsStatus) != TF_OK) {
             RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
-            // TODO: free memory
-            return NULL;
+            goto cleanup;
         }
 
         if (opts.backends_intra_op_parallelism > 0) {
@@ -300,8 +304,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             if (TF_GetCode(optionsStatus) != TF_OK) {
                 RAI_SetError(error, RAI_EMODELCONFIGURE,
                              RedisModule_Strdup(TF_Message(optionsStatus)));
-                // TODO: free memory
-                return NULL;
+                goto cleanup;
             }
         }
 
@@ -311,8 +314,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             if (TF_GetCode(optionsStatus) != TF_OK) {
                 RAI_SetError(error, RAI_EMODELCONFIGURE,
                              RedisModule_Strdup(TF_Message(optionsStatus)));
-                // TODO: free memory
-                return NULL;
+                goto cleanup;
             }
         }
     } else if (device == RAI_DEVICE_GPU) {
@@ -333,13 +335,13 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     if (TF_GetCode(optionsStatus) != TF_OK) {
         RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
-        // TODO: free memory
-        return NULL;
+        goto cleanup;
     }
     TF_DeleteStatus(optionsStatus);
+    optionsStatus = NULL;
 
-    TF_Status *sessionStatus = TF_NewStatus();
-    TF_Session *session = TF_NewSession(model, sessionOptions, sessionStatus);
+    sessionStatus = TF_NewStatus();
+    session = TF_NewSession(model, sessionOptions, sessionStatus);
 
     TF_Status *deviceListStatus = TF_NewStatus();
     TF_DeviceList *deviceList = TF_SessionListDevices(session, deviceListStatus);
@@ -357,16 +359,14 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
         RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but TF couldn't find CUDA");
         TF_DeleteDeviceList(deviceList);
         TF_DeleteStatus(deviceListStatus);
-        // TODO: free other memory allocations
-        return NULL;
+        goto cleanup;
     }
     TF_DeleteDeviceList(deviceList);
     TF_DeleteStatus(deviceListStatus);
 
     if (TF_GetCode(sessionStatus) != TF_OK) {
         RAI_SetError(error, RAI_EMODELCREATE, RedisModule_Strdup(TF_Message(status)));
-        // TODO: free memory
-        return NULL;
+        goto cleanup;
     }
 
     TF_DeleteSessionOptions(sessionOptions);
@@ -400,6 +400,20 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     ret->datalen = modellen;
 
     return ret;
+
+cleanup:
+    TF_DeleteGraph(model);
+    if (options)
+        TF_DeleteImportGraphDefOptions(options);
+    if (tfbuffer)
+        TF_DeleteBuffer(tfbuffer);
+    if (status)
+        TF_DeleteStatus(status);
+    if (sessionOptions)
+        TF_DeleteSessionOptions(sessionOptions);
+    if (sessionStatus)
+        TF_DeleteStatus(sessionStatus);
+    return NULL;
 }
 
 void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error) {

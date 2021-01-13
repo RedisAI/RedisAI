@@ -5,6 +5,7 @@
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
+#include "../redismodule.h"
 
 namespace {
 
@@ -126,12 +127,11 @@ void deleter(DLManagedTensor *arg) {
     delete[](uint8_t *) arg->dl_tensor.data;
     delete[] arg->dl_tensor.shape;
     delete[] arg->dl_tensor.strides;
-    // FIXME
-    // delete arg;
+    RedisModule_Free(arg);
 }
 
 DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interpreter,
-                                 int tflite_output, void *(*alloc)(size_t)) {
+                                 int tflite_output) {
     TfLiteTensor *tensor = interpreter->tensor(tflite_output);
 
     TfLiteIntArray *output_dims = tensor->dims;
@@ -187,7 +187,7 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     }
 
     // We use alloc here to allow deallocation from the module
-    DLManagedTensor *output = (DLManagedTensor *)alloc(sizeof(DLManagedTensor));
+    DLManagedTensor *output = (DLManagedTensor *)RedisModule_Alloc(sizeof(DLManagedTensor));
     output->dl_tensor = dl_tensor;
     output->manager_ctx = NULL;
     output->deleter = deleter;
@@ -195,10 +195,12 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     return output;
 }
 
-void setError(const char *what, char **error, void *(*alloc)(size_t)) {
-    size_t len = strlen(what);
-    *error = (char *)alloc(len * sizeof(char));
-    strcpy(*error, what);
+static inline void _setError(const char *what, char **error) {
+    // size_t len = strlen(what);
+    // *error = (char *)alloc(len * sizeof(char)+1);
+    // strcpy(*error, what);
+    // (*error)[len]='\0';
+    *error = RedisModule_Strdup(what);
 }
 
 struct ModelContext {
@@ -214,14 +216,14 @@ struct ModelContext {
 extern "C" void tfliteBasicTest() {}
 
 extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
-                                 int64_t device_id, char **error, void *(*alloc)(size_t)) {
+                                 int64_t device_id, char **error) {
     std::string graphstr(graph, graphlen);
 
     std::shared_ptr<tflite::FlatBufferModel> model;
     std::unique_ptr<tflite::Interpreter> interpreter_;
     model = tflite::FlatBufferModel::BuildFromBuffer(graphstr.c_str(), graphlen);
     if (!model) {
-        setError("Failed to load model from buffer", error, alloc);
+        _setError("Failed to load model from buffer", error);
         return NULL;
     }
 
@@ -229,7 +231,7 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
 
     tflite::InterpreterBuilder(*model, resolver)(&interpreter_);
     if (!interpreter_) {
-        setError("Failed to construct interpreter", error, alloc);
+        _setError("Failed to construct interpreter", error);
         return NULL;
     }
 
@@ -238,14 +240,14 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
         tflite::Interpreter::TfLiteDelegatePtr delegate =
             tflite::evaluation::CreateGPUDelegate(model.get());
         if (interpreter_->ModifyGraphWithDelegate(std::move(delegate)) != kTfLiteOk) {
-            setError("Failed to set GPU delegate", error, alloc);
+            _setError("Failed to set GPU delegate", error);
             return NULL;
         }
     }
 #endif
 
     if (interpreter_->AllocateTensors() != kTfLiteOk) {
-        setError("Failed to allocate tensors", error, alloc);
+        _setError("Failed to allocate tensors", error);
         return NULL;
     }
 
@@ -312,7 +314,7 @@ extern "C" const char* tfliteModelOutputNameAtIndex(void* modelCtx, size_t index
 }
 
 extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **inputs, long n_outputs,
-                               DLManagedTensor **outputs, char **error, void *(*alloc)(size_t)) {
+                               DLManagedTensor **outputs, char **error) {
     ModelContext *ctx_ = (ModelContext *)ctx;
 
     auto interpreter = ctx_->interpreter;
@@ -322,12 +324,12 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
     const std::vector<int> tflite_outputs = interpreter->outputs();
 
     if (n_inputs != tflite_inputs.size()) {
-        setError("Inconsistent number of inputs", error, alloc);
+        _setError("Inconsistent number of inputs", error);
         return;
     }
 
     if (n_outputs != tflite_outputs.size()) {
-        setError("Inconsistent number of outputs", error, alloc);
+        _setError("Inconsistent number of outputs", error);
         return;
     }
 
@@ -336,27 +338,26 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
             copyToTfLiteTensor(interpreter, tflite_inputs[i], inputs[i]);
         }
     } catch (std::exception &e) {
-        setError(e.what(), error, alloc);
+        _setError(e.what(), error);
         return;
     }
 
     if (interpreter->Invoke() != kTfLiteOk) {
-        setError("Failed to invoke TfLite", error, alloc);
+        _setError("Failed to invoke TfLite", error);
         return;
     }
 
     try {
         for (size_t i = 0; i < tflite_outputs.size(); i++) {
-            outputs[i] = toManagedDLPack(interpreter, tflite_outputs[i], alloc);
+            outputs[i] = toManagedDLPack(interpreter, tflite_outputs[i]);
         }
     } catch (std::exception &e) {
-        setError(e.what(), error, alloc);
+        _setError(e.what(), error);
         return;
     }
 }
 
-extern "C" void tfliteSerializeModel(void *ctx, char **buffer, size_t *len, char **error,
-                                     void *(*alloc)(size_t)) {
+extern "C" void tfliteSerializeModel(void *ctx, char **buffer, size_t *len, char **error) {
     // NO OP
 }
 
