@@ -152,6 +152,10 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
                   RedisModule_Alloc);
 
+    for (size_t i = 0; i < ninputs; ++i) {
+        RAI_TensorFree(inputs[i]);
+    }
+
     if (error_descr != NULL) {
         RAI_SetError(error, RAI_EMODELRUN, error_descr);
         RedisModule_Free(error_descr);
@@ -169,6 +173,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             if (outputs_dl[i]->dl_tensor.shape[0] != total_batch_size) {
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
+                RAI_TensorFree(output_tensor);
                 return 1;
             }
             for (size_t b = 0; b < nbatches; b++) {
@@ -179,10 +184,6 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
         }
         RAI_TensorFree(output_tensor);
-    }
-
-    for (size_t i = 0; i < ninputs; ++i) {
-        RAI_TensorFree(inputs[i]);
     }
 
     return 0;

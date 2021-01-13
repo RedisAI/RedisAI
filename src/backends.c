@@ -39,6 +39,7 @@ RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
         RedisModuleString *module_path = RAI_GetModulePath(ctx);
         backends_path = RedisModule_CreateStringPrintf(ctx, "%s/backends",
                                                        RedisModule_StringPtrLen(module_path, NULL));
+        RedisModule_FreeString(ctx, module_path);
     }
 
     return backends_path;
@@ -422,21 +423,26 @@ int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path) {
         RedisModuleString *backends_path = RAI_GetBackendsPath(ctx);
         fullpath = RedisModule_CreateStringPrintf(
             ctx, "%s/%s", RedisModule_StringPtrLen(backends_path, NULL), path);
+        RedisModule_FreeString(ctx, backends_path);
     }
 
     int ret;
     switch (backend) {
     case RAI_BACKEND_TENSORFLOW:
-        return RAI_LoadBackend_TensorFlow(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_TensorFlow(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        break;
     case RAI_BACKEND_TFLITE:
-        return RAI_LoadBackend_TFLite(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_TFLite(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        break;
     case RAI_BACKEND_TORCH:
-        return RAI_LoadBackend_Torch(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_Torch(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        break;
     case RAI_BACKEND_ONNXRUNTIME:
-        return RAI_LoadBackend_ONNXRuntime(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        ret = RAI_LoadBackend_ONNXRuntime(ctx, RedisModule_StringPtrLen(fullpath, NULL));
+        break;
     }
-
-    return REDISMODULE_ERR;
+    RedisModule_FreeString(ctx, fullpath);
+    return ret;
 }
 
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend) {
