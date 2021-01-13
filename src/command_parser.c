@@ -193,6 +193,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     bool is_input = false;
     bool is_output = false;
     bool timeout_set = false;
+    bool inputs_done = false;
     size_t ninputs = 0, noutputs = 0;
     int varidic_start_pos = -1;
 
@@ -207,17 +208,39 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             continue;
         }
 
-        if (!strcasecmp(arg_string, "INPUTS") && !is_input) {
+        if (!strcasecmp(arg_string, "INPUTS")) {
+            if (inputs_done) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS section in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            if (is_input) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
             is_input = true;
             is_output = false;
             continue;
         }
-        if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
+        if (!strcasecmp(arg_string, "OUTPUTS")) {
+            if (is_output) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
             is_input = false;
             is_output = true;
+            inputs_done = true;
             continue;
         }
         if (!strcasecmp(arg_string, "$")) {
+            if (!is_input) {
+                RAI_SetError(
+                    error, RAI_ESCRIPTRUN,
+                    "ERR Encountered a variable size list of tensors outside of input section");
+                return REDISMODULE_ERR;
+            }
             if (varidic_start_pos > -1) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already encountered a variable size list of tensors");
@@ -227,15 +250,16 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             continue;
         }
         // Parse argument name
-        {
-            RAI_HoldString(NULL, argv[argpos]);
-            if (is_input) {
-                ninputs++;
-                *inkeys = array_append(*inkeys, argv[argpos]);
-            } else {
-                noutputs++;
-                *outkeys = array_append(*outkeys, argv[argpos]);
-            }
+        RAI_HoldString(NULL, argv[argpos]);
+        if (is_input) {
+            ninputs++;
+            *inkeys = array_append(*inkeys, argv[argpos]);
+        } else if (is_output) {
+            noutputs++;
+            *outkeys = array_append(*outkeys, argv[argpos]);
+        } else {
+            RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to SCRIPTRUN");
+            return REDISMODULE_ERR;
         }
     }
     *variadic = varidic_start_pos;
