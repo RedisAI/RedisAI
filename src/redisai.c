@@ -414,8 +414,11 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
     RAI_Model *mto;
     RedisModuleKey *key;
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ);
+    RAI_Error err = {0};
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, err.detail);
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -434,7 +437,6 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
-    RAI_Error err = {0};
     char *buffer = NULL;
     size_t len = 0;
 
@@ -512,11 +514,14 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (argc != 2)
         return RedisModule_WrongArity(ctx);
 
+    RAI_Error err = {0};
     RAI_Model *mto;
     RedisModuleKey *key;
-    const int status =
-        RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto,
+                                                REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, err.detail);
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
