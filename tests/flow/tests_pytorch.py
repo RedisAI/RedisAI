@@ -83,8 +83,8 @@ def test_pytorch_modelrun(env):
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
     # assert there are no inputs or outputs
-    env.assertEqual(len(ret[11]), 0)
-    env.assertEqual(len(ret[13]), 0)
+    env.assertEqual(len(ret[11]), 2)
+    env.assertEqual(len(ret[13]), 1)
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'TAG', 'my:tag:v3', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -963,3 +963,24 @@ def test_parallelism():
                         for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
     env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
+
+def test_modelget_for_tuple_output(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+    con = env.getConnection()
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
+    ensureSlaveSynced(con, env)
+    env.assertEqual(b'OK', ret)
+    ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
+    env.assertEqual(ret[1], b'TORCH')
+    env.assertEqual(ret[5], b'')
+    env.assertEqual(ret[7], 0)
+    env.assertEqual(ret[9], 0)
+    env.assertEqual(len(ret[11]), 2)
+    env.assertEqual(len(ret[13]), 2)

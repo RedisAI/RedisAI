@@ -441,3 +441,69 @@ extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*al
         }
     }
 }
+
+extern "C" size_t torchModelNumInputs(void *modelCtx, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    size_t ninputs = 0;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        // First argument is `self`
+        ninputs =  schema.arguments().size() - 1;
+    }
+    catch(std::exception ex) {
+        int printed = asprintf(error, "Erorr while trying to retrive model inputs number: %s", ex.what());
+    }
+    return ninputs;
+}
+
+static int getArgumentTensorCount(const c10::Argument& arg){
+    switch (arg.type()->kind())
+    {
+    case c10::TypeKind::TensorType:
+        return 1;
+        break;
+    case c10::TypeKind::TupleType: {
+        int count = 0;
+        for(auto const& obj: arg.type()->containedTypes()) {
+            if(obj->kind() == c10::TypeKind::TensorType) {
+                count++;
+            }
+        }
+        return count;
+    }
+    case c10::TypeKind::ListType: {
+        return arg.N().value();
+    }
+    
+    default:
+        return 0;
+    }
+}
+
+extern "C" size_t torchModelNumOutputs(void *modelCtx, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    size_t noutputs = 0;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        for (auto const& arg :schema.returns()){
+           noutputs += getArgumentTensorCount(arg);
+        }
+    }
+    catch(std::exception ex) {
+       int printed = asprintf(error, "Erorr while trying to retrive model outputs number: %s", ex.what());
+    }
+    return noutputs;
+}
+
+extern "C" const char* torchModelInputNameAtIndex(void* modelCtx, size_t index, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    const char* ret = NULL;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        ret =  schema.arguments()[index + 1].name().c_str();
+    }
+    catch(std::exception ex) {
+       int printed = asprintf(error, "Erorr while trying to retrive model intput at index %ld: %s", index, ex.what());
+    }
+    return ret;
+}

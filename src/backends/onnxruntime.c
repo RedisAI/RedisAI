@@ -288,6 +288,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     RAI_Device device;
     int64_t deviceid;
+    char **inputs_ = NULL;
+    char **outputs_ = NULL;
 
     if (!parseDeviceStr(devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
@@ -352,6 +354,41 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         goto error;
     }
 
+    size_t n_input_nodes;
+    status = ort->SessionGetInputCount(session, &n_input_nodes);
+    if (status != NULL) {
+        goto error;
+    }
+
+    size_t n_output_nodes;
+    status = ort->SessionGetOutputCount(session, &n_output_nodes);
+    if (status != NULL) {
+        goto error;
+    }
+
+    OrtAllocator *allocator;
+    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+
+    inputs_ = array_new(char *, n_input_nodes);
+    for (long long i = 0; i < n_input_nodes; i++) {
+        char *input_name;
+        status = ort->SessionGetInputName(session, i, allocator, &input_name);
+        if (status != NULL) {
+            goto error;
+        }
+        inputs_ = array_append(inputs_, input_name);
+    }
+
+    outputs_ = array_new(char *, n_output_nodes);
+    for (long long i = 0; i < n_output_nodes; i++) {
+        char *output_name;
+        status = ort->SessionGetOutputName(session, i, allocator, &output_name);
+        if (status != NULL) {
+            goto error;
+        }
+        outputs_ = array_append(outputs_, output_name);
+    }
+
     // Since ONNXRuntime doesn't have a re-serialization function,
     // we cache the blob in order to re-serialize it.
     // Not optimal for storage purposes, but again, it may be temporary
@@ -367,11 +404,29 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     ret->opts = opts;
     ret->data = buffer;
     ret->datalen = modellen;
+    ret->ninputs = n_input_nodes;
+    ret->noutputs = n_output_nodes;
+    ret->inputs = inputs_;
+    ret->outputs = outputs_;
 
     return ret;
 
 error:
     RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+    if (inputs_) {
+        n_input_nodes = array_len(inputs_);
+        for (uint32_t i = 0; i < n_input_nodes; i++) {
+            status = ort->AllocatorFree(allocator, inputs_[i]);
+        }
+        array_free(inputs_);
+    }
+    if (outputs_) {
+        n_output_nodes = array_len(outputs_);
+        for (uint32_t i = 0; i < n_output_nodes; i++) {
+            status = ort->AllocatorFree(allocator, outputs_[i]);
+        }
+        array_free(outputs_);
+    }
     ort->ReleaseStatus(status);
     return NULL;
 }
@@ -381,6 +436,19 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
 
     RedisModule_Free(model->data);
     RedisModule_Free(model->devicestr);
+    OrtAllocator *allocator;
+    OrtStatus *status = NULL;
+    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    for (uint32_t i = 0; i < model->ninputs; i++) {
+        status = ort->AllocatorFree(allocator, model->inputs[i]);
+    }
+    array_free(model->inputs);
+
+    for (uint32_t i = 0; i < model->noutputs; i++) {
+        status = ort->AllocatorFree(allocator, model->outputs[i]);
+    }
+    array_free(model->outputs);
+
     ort->ReleaseSession(model->session);
 
     model->model = NULL;

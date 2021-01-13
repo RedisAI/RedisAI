@@ -458,7 +458,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Number of names given as OUTPUTS during MODELSET and keys given as OUTPUTS here do not match", exception.__str__())
+        env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}', 'd{1}', 'e{1}')

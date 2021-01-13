@@ -263,6 +263,56 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     return ctx;
 }
 
+extern "C" size_t tfliteModelNumInputs(void* ctx, char** error) {
+    ModelContext *ctx_ = (ModelContext*) ctx;
+    size_t ret = 0;
+    try {
+        auto interpreter = ctx_->interpreter;
+        ret =  interpreter->inputs().size();
+    }
+    catch(std::exception ex) {
+        _setError(ex.what(), error);
+    }
+    return ret;
+}
+
+extern "C" const char* tfliteModelInputNameAtIndex(void* modelCtx, size_t index, char** error) {
+    ModelContext *ctx_ = (ModelContext*) modelCtx;
+    const char* ret = NULL;
+    try {
+        ret = ctx_->interpreter->GetInputName(index);
+    }
+    catch(std::exception ex) {
+        _setError(ex.what(), error);
+    }
+    return ret;
+}
+
+extern "C" size_t tfliteModelNumOutputs(void* ctx, char** error) {
+    ModelContext *ctx_ = (ModelContext*) ctx;
+    size_t ret = 0;
+    try {
+        auto interpreter = ctx_->interpreter;
+        ret =  interpreter->outputs().size();
+    }
+    catch(std::exception ex) {
+        _setError(ex.what(), error);
+    }
+    return ret;
+}
+
+extern "C" const char* tfliteModelOutputNameAtIndex(void* modelCtx, size_t index, char** error) {
+    ModelContext *ctx_ = (ModelContext*) modelCtx;
+    const char* ret = NULL;
+    try {
+        ret = ctx_->interpreter->GetOutputName(index);
+    }
+    catch(std::exception ex) {
+        _setError(ex.what(), error);
+    }
+    return ret;
+}
+
 extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **inputs, long n_outputs,
                                DLManagedTensor **outputs, char **error) {
     ModelContext *ctx_ = (ModelContext *)ctx;
