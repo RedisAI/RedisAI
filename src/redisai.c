@@ -585,9 +585,6 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
 
-    if (argc < 6)
-        return RedisModule_WrongArity(ctx);
-
     // Convert The script run command into a DAG command that contains a single op.
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }

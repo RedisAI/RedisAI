@@ -164,7 +164,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
                                        RedisModuleString **runkey, char const **func_name,
                                        long long *timeout, int *variadic) {
 
-    if (argc < 5) {
+    if (argc < 3) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
                      "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
         return REDISMODULE_ERR;
@@ -181,49 +181,83 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     *runkey = argv[argpos];
 
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS")) {
+    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS") ||
+        !strcasecmp(arg_string, "OUTPUTS")) {
         RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
         return REDISMODULE_ERR;
     }
     *func_name = arg_string;
-    arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
-    // Parse timeout arg if given and store it in timeout
-    if (!strcasecmp(arg_string, "TIMEOUT")) {
-        if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-        arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    }
-    if (strcasecmp(arg_string, "INPUTS") != 0) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR INPUTS not specified");
-        return REDISMODULE_ERR;
-    }
-
-    bool is_input = true, is_output = false;
+    bool is_input = false;
+    bool is_output = false;
+    bool timeout_set = false;
+    bool inputs_done = false;
     size_t ninputs = 0, noutputs = 0;
     int varidic_start_pos = -1;
 
     while (++argpos < argc) {
         arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
+
+        // Parse timeout arg if given and store it in timeout
+        if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_set) {
+            if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+                return REDISMODULE_ERR;
+            timeout_set = true;
+            continue;
+        }
+
+        if (!strcasecmp(arg_string, "INPUTS")) {
+            if (inputs_done) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS section in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            if (is_input) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            is_input = true;
+            is_output = false;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "OUTPUTS")) {
+            if (is_output) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an OUTPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
             is_input = false;
             is_output = true;
-        } else if (!strcasecmp(arg_string, "$")) {
+            inputs_done = true;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "$")) {
+            if (!is_input) {
+                RAI_SetError(
+                    error, RAI_ESCRIPTRUN,
+                    "ERR Encountered a variable size list of tensors outside of input section");
+                return REDISMODULE_ERR;
+            }
             if (varidic_start_pos > -1) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already encountered a variable size list of tensors");
                 return REDISMODULE_ERR;
             }
             varidic_start_pos = ninputs;
+            continue;
+        }
+        // Parse argument name
+        RAI_HoldString(NULL, argv[argpos]);
+        if (is_input) {
+            ninputs++;
+            *inkeys = array_append(*inkeys, argv[argpos]);
+        } else if (is_output) {
+            noutputs++;
+            *outkeys = array_append(*outkeys, argv[argpos]);
         } else {
-            RAI_HoldString(NULL, argv[argpos]);
-            if (is_input) {
-                ninputs++;
-                *inkeys = array_append(*inkeys, argv[argpos]);
-            } else {
-                noutputs++;
-                *outkeys = array_append(*outkeys, argv[argpos]);
-            }
+            RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to SCRIPTRUN");
+            return REDISMODULE_ERR;
         }
     }
     *variadic = varidic_start_pos;

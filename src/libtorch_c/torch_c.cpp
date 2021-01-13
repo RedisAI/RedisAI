@@ -8,6 +8,7 @@
 #include <iostream>
 #include <sstream>
 
+#include "torch_extensions/torch_redis.h"
 namespace {
 
 static DLDataType getDLDataType(const at::Tensor &t) {
@@ -246,6 +247,7 @@ void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long n
     torch::DeviceType output_device_type = torch::kCPU;
     torch::Device output_device(output_device_type, -1);
 
+    if(nOutputs == 0) return;
     int count = 0;
     for (size_t i = 0; i < stack.size(); i++) {
         if (count > nOutputs - 1) {
@@ -304,28 +306,37 @@ extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t
     return dl_tensor;
 }
 
-extern "C" void *torchCompileScript(const char *script, DLDeviceType device, int64_t device_id,
-                                    char **error, void *(*alloc)(size_t)) {
-    ModuleContext *ctx = new ModuleContext();
-    ctx->device = device;
-    ctx->device_id = device_id;
-    try {
-        auto cu = torch::jit::compile(script);
-        auto aten_device_type = getATenDeviceType(device);
-        if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
-            throw std::logic_error("GPU requested but Torch couldn't find CUDA");
-        }
-        ctx->cu = cu;
-        ctx->module = nullptr;
-    } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
-        delete ctx;
-        return NULL;
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
+                                    char **error, void* (*alloc)(size_t))
+{
+  ModuleContext* ctx = new ModuleContext();
+  ctx->device = device;
+  ctx->device_id = device_id;
+  try {
+    auto cu = std::make_shared<torch::jit::script::CompilationUnit>();
+    cu->define(
+        c10::nullopt,
+        script,
+        torch::jit::script::redisResolver(),
+        nullptr);
+    auto aten_device_type = getATenDeviceType(device);
+    
+    if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+      throw std::logic_error("GPU requested but Torch couldn't find CUDA");
     }
-    return ctx;
+    ctx->cu = cu;
+    ctx->module = nullptr;
+
+  }
+  catch(std::exception& e) {
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
+    delete ctx;
+    return NULL;
+  }
+  return ctx;
 }
 
 extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
