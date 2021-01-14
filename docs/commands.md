@@ -79,7 +79,7 @@ Depending on the specified reply format:
     1. The tensor's shape as an Array consisting of an item per dimension
  * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
  * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
-
+* Default: **META** and **BLOB** are returned by default, in case that non of the arguments above is specified. 
 
 
 **Examples**
