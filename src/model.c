@@ -20,6 +20,7 @@
 #include "util/string_utils.h"
 #include <pthread.h>
 #include "DAG/dag.h"
+#include "err.h"
 
 /* Return REDISMODULE_ERR if there was an error getting the Model.
  * Return REDISMODULE_OK if the model value stored at key was correctly
@@ -83,8 +84,6 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
         } else {
             model->tag = RedisModule_CreateString(NULL, "", 0);
         }
-        model->ninputs = ninputs;
-        model->noutputs = noutputs;
     }
 
     return model;

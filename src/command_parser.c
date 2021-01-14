@@ -68,17 +68,15 @@ static int _ModelRunCommand_ParseArgs(RedisModuleString **argv, int argc, RedisM
             }
         }
     }
-    if ((*model)->inputs && (*model)->ninputs != ninputs) {
+    if ((*model)->ninputs != ninputs) {
         RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of names given as INPUTS during MODELSET and keys given as "
-                     "INPUTS here do not match");
+                     "Number of keys given as INPUTS here does not match model definition");
         return REDISMODULE_ERR;
     }
 
-    if ((*model)->outputs && (*model)->noutputs != noutputs) {
+    if ((*model)->noutputs != noutputs) {
         RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of names given as OUTPUTS during MODELSET and keys given as "
-                     "OUTPUTS here do not match");
+                     "Number of keys given as OUTPUTS here does not match model definition");
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
@@ -145,6 +143,10 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     }
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
+    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
+    currentOp->mctx = mctx;
+    currentOp->devicestr = mctx->model->devicestr;
+
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
@@ -152,10 +154,6 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
             REDISMODULE_ERR)
             goto cleanup;
     }
-
-    currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
-    currentOp->devicestr = mctx->model->devicestr;
     res = REDISMODULE_OK;
 
 cleanup:
@@ -172,7 +170,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
                                        RedisModuleString **runkey, char const **func_name,
                                        long long *timeout, int *variadic) {
 
-    if (argc < 5) {
+    if (argc < 3) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
                      "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
         return REDISMODULE_ERR;
@@ -188,49 +186,83 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     *runkey = argv[argpos];
 
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS")) {
+    if (!strcasecmp(arg_string, "TIMEOUT") || !strcasecmp(arg_string, "INPUTS") ||
+        !strcasecmp(arg_string, "OUTPUTS")) {
         RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
         return REDISMODULE_ERR;
     }
     *func_name = arg_string;
-    arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
-    // Parse timeout arg if given and store it in timeout
-    if (!strcasecmp(arg_string, "TIMEOUT")) {
-        if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-        arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    }
-    if (strcasecmp(arg_string, "INPUTS") != 0) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR INPUTS not specified");
-        return REDISMODULE_ERR;
-    }
-
-    bool is_input = true, is_output = false;
+    bool is_input = false;
+    bool is_output = false;
+    bool timeout_set = false;
+    bool inputs_done = false;
     size_t ninputs = 0, noutputs = 0;
     int varidic_start_pos = -1;
 
     while (++argpos < argc) {
         arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
+
+        // Parse timeout arg if given and store it in timeout
+        if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_set) {
+            if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+                return REDISMODULE_ERR;
+            timeout_set = true;
+            continue;
+        }
+
+        if (!strcasecmp(arg_string, "INPUTS")) {
+            if (inputs_done) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS section in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            if (is_input) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            is_input = true;
+            is_output = false;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "OUTPUTS")) {
+            if (is_output) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an OUTPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
             is_input = false;
             is_output = true;
-        } else if (!strcasecmp(arg_string, "$")) {
+            inputs_done = true;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "$")) {
+            if (!is_input) {
+                RAI_SetError(
+                    error, RAI_ESCRIPTRUN,
+                    "ERR Encountered a variable size list of tensors outside of input section");
+                return REDISMODULE_ERR;
+            }
             if (varidic_start_pos > -1) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already encountered a variable size list of tensors");
                 return REDISMODULE_ERR;
             }
             varidic_start_pos = ninputs;
+            continue;
+        }
+        // Parse argument name
+        RAI_HoldString(NULL, argv[argpos]);
+        if (is_input) {
+            ninputs++;
+            *inkeys = array_append(*inkeys, argv[argpos]);
+        } else if (is_output) {
+            noutputs++;
+            *outkeys = array_append(*outkeys, argv[argpos]);
         } else {
-            RAI_HoldString(NULL, argv[argpos]);
-            if (is_input) {
-                ninputs++;
-                *inkeys = array_append(*inkeys, argv[argpos]);
-            } else {
-                noutputs++;
-                *outkeys = array_append(*outkeys, argv[argpos]);
-            }
+            RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to SCRIPTRUN");
+            return REDISMODULE_ERR;
         }
     }
     *variadic = varidic_start_pos;
@@ -295,6 +327,9 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
     RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
     sctx->variadic = variadic;
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
 
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
@@ -303,10 +338,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
-
-    currentOp->sctx = sctx;
-    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    currentOp->devicestr = sctx->script->devicestr;
     res = REDISMODULE_OK;
 
 cleanup:
@@ -358,10 +389,8 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
 
-    // Block the client before adding rinfo to the run queues (sync call).
-    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    RedisModule_SetDisconnectCallback(rinfo->client, RedisAI_Disconnected);
     rinfo->OnFinish = DAG_ReplyAndUnblock;
+    rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
     if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
         RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
         RAI_FreeRunInfo(rinfo);

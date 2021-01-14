@@ -120,7 +120,7 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2{1}')
@@ -141,7 +141,7 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm_2{1}', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
@@ -162,28 +162,28 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'OUTPUTS', 'c{1}', 'd{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Inconsistent number of inputs", exception.__str__())
+        env.assertEqual("Number of keys given as INPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'c{1}', 'd{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Inconsistent number of outputs", exception.__str__())
+        env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Inconsistent number of outputs", exception.__str__())
+        env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
 
 
 # TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch

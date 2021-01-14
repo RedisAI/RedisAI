@@ -116,6 +116,7 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
  * a Redis key with the requested access mode
  * @param model destination model structure
  * @param mode key access mode
+ * @param error contains the error in case of problem with retrival
  * @return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable, or REDISMODULE_ERR if there was
  * an error getting the Model

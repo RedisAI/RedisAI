@@ -18,9 +18,10 @@ int RAI_InitBackendTFLite(int (*get_api_fn)(const char *, void *)) {
 RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
                                  const char *modeldef, size_t modellen, RAI_Error *error) {
     DLDeviceType dl_device;
-
     RAI_Device device;
     int64_t deviceid;
+    char **inputs_ = NULL;
+    char **outputs_ = NULL;
     if (!parseDeviceStr(devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Unsupported device");
         return NULL;
@@ -39,13 +40,42 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
     }
 
     char *error_descr = NULL;
-    void *model =
-        tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+    void *model = tfliteLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (model == NULL) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
         RedisModule_Free(error_descr);
         return NULL;
+    }
+
+    size_t ninputs = tfliteModelNumInputs(model, &error_descr);
+    if (error_descr) {
+        goto cleanup;
+    }
+
+    size_t noutputs = tfliteModelNumOutputs(model, &error_descr);
+    if (error_descr) {
+        goto cleanup;
+    }
+
+    inputs_ = array_new(char *, ninputs);
+    outputs_ = array_new(char *, noutputs);
+
+    for (size_t i = 0; i < ninputs; i++) {
+        const char *input = tfliteModelInputNameAtIndex(model, i, &error_descr);
+        if (error_descr) {
+            goto cleanup;
+        }
+        inputs_ = array_append(inputs_, RedisModule_Strdup(input));
+    }
+
+    for (size_t i = 0; i < noutputs; i++) {
+        const char *output = tfliteModelOutputNameAtIndex(model, i, &error_descr);
+        ;
+        if (error_descr) {
+            goto cleanup;
+        }
+        outputs_ = array_append(outputs_, RedisModule_Strdup(output));
     }
 
     char *buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
@@ -56,20 +86,51 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
     ret->session = NULL;
     ret->backend = backend;
     ret->devicestr = RedisModule_Strdup(devicestr);
-    ret->inputs = NULL;
-    ret->outputs = NULL;
+    ret->ninputs = ninputs;
+    ret->inputs = inputs_;
+    ret->noutputs = noutputs;
+    ret->outputs = outputs_;
     ret->refCount = 1;
     ret->opts = opts;
     ret->data = buffer;
     ret->datalen = modellen;
-
     return ret;
+
+cleanup:
+    RAI_SetError(error, RAI_EMODELCREATE, error_descr);
+    RedisModule_Free(error_descr);
+    if (inputs_) {
+        ninputs = array_len(inputs_);
+        for (size_t i = 0; i < ninputs; i++) {
+            RedisModule_Free(inputs_[i]);
+        }
+        array_free(inputs_);
+    }
+    if (outputs_) {
+        noutputs = array_len(outputs_);
+        for (size_t i = 0; i < noutputs; i++) {
+            RedisModule_Free(outputs_[i]);
+        }
+        array_free(outputs_);
+    }
+    return NULL;
 }
 
 void RAI_ModelFreeTFLite(RAI_Model *model, RAI_Error *error) {
     RedisModule_Free(model->data);
     RedisModule_Free(model->devicestr);
     tfliteDeallocContext(model->model);
+    size_t ninputs = model->ninputs;
+    for (size_t i = 0; i < ninputs; i++) {
+        RedisModule_Free(model->inputs[i]);
+    }
+    array_free(model->inputs);
+
+    size_t noutputs = model->noutputs;
+    for (size_t i = 0; i < noutputs; i++) {
+        RedisModule_Free(model->outputs[i]);
+    }
+    array_free(model->outputs);
 
     model->model = NULL;
 }
@@ -128,8 +189,12 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
-                   RedisModule_Alloc);
+    tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
+
+    // Always free input tensors after run.
+    for (size_t i = 0; i < ninputs; ++i) {
+        RAI_TensorFree(inputs[i]);
+    }
 
     if (error_descr != NULL) {
         RAI_SetError(error, RAI_EMODELRUN, error_descr);
@@ -160,10 +225,6 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
         RAI_TensorFree(output_tensor);
         RedisModule_Free(outputs_dl[i]);
-    }
-
-    for (size_t i = 0; i < ninputs; ++i) {
-        RAI_TensorFree(inputs[i]);
     }
 
     return 0;

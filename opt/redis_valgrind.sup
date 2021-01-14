@@ -9,6 +9,13 @@
    ignore_unversioned_libs
    Memcheck:Leak
    ...
+   obj:*/libtensorflow_framework.so.*
+}
+
+{
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
    obj:*/libonnxruntime.so.*
 }
 
@@ -54,17 +61,3 @@
    fun:RAI_LoadBackend
 }
 
-{
-   <tf-operator new>
-   Memcheck:Leak
-   ...
-   fun:clone
-}
-
-{
-   <malloc>
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:clone
-}

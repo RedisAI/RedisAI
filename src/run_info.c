@@ -146,9 +146,7 @@ long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
 }
 
 void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
-    if (!rinfo) {
-        return;
-    }
+    RedisModule_Assert(rinfo);
     long long ref_count = *rinfo->dagRefCount;
     RedisModule_Assert(ref_count == 0);
     pthread_rwlock_destroy(rinfo->dagLock);

@@ -3,10 +3,12 @@
 #include "torch/csrc/jit/serialization/import.h"
 #include "torch/csrc/jit/api/compilation_unit.h"
 #include "ATen/Functions.h"
+#include "../redismodule.h"
 
 #include <iostream>
 #include <sstream>
 
+#include "torch_extensions/torch_redis.h"
 namespace {
 
 static DLDataType getDLDataType(const at::Tensor &t) {
@@ -158,7 +160,10 @@ struct ATenDLMTensor {
     DLManagedTensor tensor;
 };
 
-void deleter(DLManagedTensor *arg) { delete static_cast<ATenDLMTensor *>(arg->manager_ctx); }
+void deleter(DLManagedTensor *arg) {
+    delete static_cast<ATenDLMTensor *>(arg->manager_ctx);
+    RedisModule_Free(arg); 
+}
 
 DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     ATenDLMTensor *atDLMTensor(new ATenDLMTensor);
@@ -242,6 +247,7 @@ void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long n
     torch::DeviceType output_device_type = torch::kCPU;
     torch::Device output_device(output_device_type, -1);
 
+    if(nOutputs == 0) return;
     int count = 0;
     for (size_t i = 0; i < stack.size(); i++) {
         if (count > nOutputs - 1) {
@@ -300,28 +306,37 @@ extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t
     return dl_tensor;
 }
 
-extern "C" void *torchCompileScript(const char *script, DLDeviceType device, int64_t device_id,
-                                    char **error, void *(*alloc)(size_t)) {
-    ModuleContext *ctx = new ModuleContext();
-    ctx->device = device;
-    ctx->device_id = device_id;
-    try {
-        auto cu = torch::jit::compile(script);
-        auto aten_device_type = getATenDeviceType(device);
-        if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
-            throw std::logic_error("GPU requested but Torch couldn't find CUDA");
-        }
-        ctx->cu = cu;
-        ctx->module = nullptr;
-    } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
-        delete ctx;
-        return NULL;
+extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
+                                    char **error, void* (*alloc)(size_t))
+{
+  ModuleContext* ctx = new ModuleContext();
+  ctx->device = device;
+  ctx->device_id = device_id;
+  try {
+    auto cu = std::make_shared<torch::jit::script::CompilationUnit>();
+    cu->define(
+        c10::nullopt,
+        script,
+        torch::jit::script::redisResolver(),
+        nullptr);
+    auto aten_device_type = getATenDeviceType(device);
+    
+    if (aten_device_type == at::DeviceType::CUDA && !torch::cuda::is_available()) {
+      throw std::logic_error("GPU requested but Torch couldn't find CUDA");
     }
-    return ctx;
+    ctx->cu = cu;
+    ctx->module = nullptr;
+
+  }
+  catch(std::exception& e) {
+    size_t len = strlen(e.what()) +1;
+    *error = (char*)alloc(len * sizeof(char));
+    strcpy(*error, e.what());
+    (*error)[len-1] = '\0';
+    delete ctx;
+    return NULL;
+  }
+  return ctx;
 }
 
 extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
@@ -436,4 +451,70 @@ extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*al
             (*error)[len - 1] = '\0';
         }
     }
+}
+
+extern "C" size_t torchModelNumInputs(void *modelCtx, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    size_t ninputs = 0;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        // First argument is `self`
+        ninputs =  schema.arguments().size() - 1;
+    }
+    catch(std::exception ex) {
+        int printed = asprintf(error, "Erorr while trying to retrive model inputs number: %s", ex.what());
+    }
+    return ninputs;
+}
+
+static int getArgumentTensorCount(const c10::Argument& arg){
+    switch (arg.type()->kind())
+    {
+    case c10::TypeKind::TensorType:
+        return 1;
+        break;
+    case c10::TypeKind::TupleType: {
+        int count = 0;
+        for(auto const& obj: arg.type()->containedTypes()) {
+            if(obj->kind() == c10::TypeKind::TensorType) {
+                count++;
+            }
+        }
+        return count;
+    }
+    case c10::TypeKind::ListType: {
+        return arg.N().value();
+    }
+    
+    default:
+        return 0;
+    }
+}
+
+extern "C" size_t torchModelNumOutputs(void *modelCtx, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    size_t noutputs = 0;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        for (auto const& arg :schema.returns()){
+           noutputs += getArgumentTensorCount(arg);
+        }
+    }
+    catch(std::exception ex) {
+       int printed = asprintf(error, "Erorr while trying to retrive model outputs number: %s", ex.what());
+    }
+    return noutputs;
+}
+
+extern "C" const char* torchModelInputNameAtIndex(void* modelCtx, size_t index, char** error) {
+    ModuleContext *ctx = (ModuleContext *)modelCtx;
+    const char* ret = NULL;
+    try {
+        const c10::FunctionSchema& schema =  ctx->module->get_method("forward").function().getSchema();
+        ret =  schema.arguments()[index + 1].name().c_str();
+    }
+    catch(std::exception ex) {
+       int printed = asprintf(error, "Erorr while trying to retrive model intput at index %ld: %s", index, ex.what());
+    }
+    return ret;
 }

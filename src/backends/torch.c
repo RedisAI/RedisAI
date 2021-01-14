@@ -11,6 +11,20 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
     get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
     get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
+    get_api_fn("RedisModule_CreateString", ((void **)&RedisModule_CreateString));
+    get_api_fn("RedisModule_FreeString", ((void **)&RedisModule_FreeString));
+    get_api_fn("RedisModule_Call", ((void **)&RedisModule_Call));
+    get_api_fn("RedisModule_CallReplyType", ((void **)&RedisModule_CallReplyType));
+    get_api_fn("RedisModule_CallReplyStringPtr", ((void **)&RedisModule_CallReplyStringPtr));
+    get_api_fn("RedisModule_CallReplyInteger", ((void **)&RedisModule_CallReplyInteger));
+    get_api_fn("RedisModule_CallReplyLength", ((void **)&RedisModule_CallReplyLength));
+    get_api_fn("RedisModule_CallReplyArrayElement", ((void **)&RedisModule_CallReplyArrayElement));
+    get_api_fn("RedisModule_FreeCallReply", ((void **)&RedisModule_FreeCallReply));
+    get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
+    get_api_fn("RedisModule_ThreadSafeContextLock", ((void **)&RedisModule_ThreadSafeContextLock));
+    get_api_fn("RedisModule_ThreadSafeContextUnlock",
+               ((void **)&RedisModule_ThreadSafeContextUnlock));
+    get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
 
     return REDISMODULE_OK;
 }
@@ -21,6 +35,9 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
 
     RAI_Device device = RAI_DEVICE_CPU;
     int64_t deviceid = 0;
+
+    char **inputs_ = NULL;
+    char **outputs_ = NULL;
 
     if (!parseDeviceStr(devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR unsupported device");
@@ -53,7 +70,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     if (opts.backends_intra_op_parallelism > 0) {
         torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr, RedisModule_Alloc);
     }
-    if (error_descr != NULL) {
+    if (error_descr) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
         RedisModule_Free(error_descr);
         return NULL;
@@ -62,10 +79,37 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     void *model =
         torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
 
-    if (model == NULL) {
-        RAI_SetError(error, RAI_EMODELCREATE, error_descr);
-        RedisModule_Free(error_descr);
-        return NULL;
+    if (error_descr) {
+        goto cleanup;
+    }
+
+    size_t ninputs = torchModelNumInputs(model, &error_descr);
+    if (error_descr) {
+        goto cleanup;
+    }
+
+    size_t noutputs = torchModelNumOutputs(model, &error_descr);
+    if (error_descr) {
+        goto cleanup;
+    }
+
+    inputs_ = array_new(char *, ninputs);
+    outputs_ = array_new(char *, noutputs);
+
+    for (size_t i = 0; i < ninputs; i++) {
+        const char *input = torchModelInputNameAtIndex(model, i, &error_descr);
+        if (error_descr) {
+            goto cleanup;
+        }
+        inputs_ = array_append(inputs_, RedisModule_Strdup(input));
+    }
+
+    for (size_t i = 0; i < noutputs; i++) {
+        const char *output = "";
+        if (error_descr) {
+            goto cleanup;
+        }
+        outputs_ = array_append(outputs_, RedisModule_Strdup(output));
     }
 
     char *buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
@@ -76,14 +120,34 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     ret->session = NULL;
     ret->backend = backend;
     ret->devicestr = RedisModule_Strdup(devicestr);
-    ret->inputs = NULL;
-    ret->outputs = NULL;
+    ret->ninputs = ninputs;
+    ret->inputs = inputs_;
+    ret->noutputs = noutputs;
+    ret->outputs = outputs_;
     ret->opts = opts;
     ret->refCount = 1;
     ret->data = buffer;
     ret->datalen = modellen;
-
     return ret;
+
+cleanup:
+    RAI_SetError(error, RAI_EMODELCREATE, error_descr);
+    RedisModule_Free(error_descr);
+    if (inputs_) {
+        ninputs = array_len(inputs_);
+        for (size_t i = 0; i < ninputs; i++) {
+            RedisModule_Free(inputs_[i]);
+        }
+        array_free(inputs_);
+    }
+    if (outputs_) {
+        noutputs = array_len(outputs_);
+        for (size_t i = 0; i < noutputs; i++) {
+            RedisModule_Free(outputs_[i]);
+        }
+        array_free(outputs_);
+    }
+    return NULL;
 }
 
 void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error) {
@@ -93,6 +157,18 @@ void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error) {
     if (model->data) {
         RedisModule_Free(model->data);
     }
+    size_t ninputs = model->ninputs;
+    for (size_t i = 0; i < ninputs; i++) {
+        RedisModule_Free(model->inputs[i]);
+    }
+    array_free(model->inputs);
+
+    size_t noutputs = model->noutputs;
+    for (size_t i = 0; i < noutputs; i++) {
+        RedisModule_Free(model->outputs[i]);
+    }
+    array_free(model->outputs);
+
     torchDeallocContext(model->model);
 }
 
@@ -152,6 +228,10 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
                   RedisModule_Alloc);
 
+    for (size_t i = 0; i < ninputs; ++i) {
+        RAI_TensorFree(inputs[i]);
+    }
+
     if (error_descr != NULL) {
         RAI_SetError(error, RAI_EMODELRUN, error_descr);
         RedisModule_Free(error_descr);
@@ -169,6 +249,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             if (outputs_dl[i]->dl_tensor.shape[0] != total_batch_size) {
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
+                RAI_TensorFree(output_tensor);
                 return 1;
             }
             for (size_t b = 0; b < nbatches; b++) {
@@ -179,10 +260,6 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
         }
         RAI_TensorFree(output_tensor);
-    }
-
-    for (size_t i = 0; i < ninputs; ++i) {
-        RAI_TensorFree(inputs[i]);
     }
 
     return 0;
