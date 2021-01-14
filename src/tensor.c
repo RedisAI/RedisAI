@@ -794,6 +794,9 @@ uint ParseTensorGetArgs(RAI_Error *err, RedisModuleString **argv, int argc) {
         RAI_SetError(err, RAI_EDAGBUILDER, "wrong number of arguments for 'AI.TENSORGET' command");
         return fmt;
     }
+    if (argc == 2) {
+        return TENSOR_BLOB | TENSOR_META;
+    }
     for (int i = 2; i < argc; i++) {
         const char *fmtstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(fmtstr, "BLOB")) {

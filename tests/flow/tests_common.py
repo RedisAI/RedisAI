@@ -213,6 +213,16 @@ def test_common_tensorget(env):
         env.assertEqual(datatype.encode('utf-8'), tensor_dtype)
         env.assertEqual([2], tensor_dim)
 
+    # Confirm that default reply format is META BLOB
+    for datatype in tested_datatypes:
+        _, tensor_dtype, _, tensor_dim, _, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+                                                                             'META', 'BLOB')
+        _, tensor_dtype_default, _, tensor_dim_default, _, tensor_blob_default = con.execute_command('AI.TENSORGET',
+                                                                                                     'tensor_{0}'.format(datatype))
+        env.assertEqual(tensor_dtype, tensor_dtype_default)
+        env.assertEqual(tensor_dim, tensor_dim_default)
+        env.assertEqual(tensor_blob, tensor_blob_default)
+
 
 def test_common_tensorget_error_replies(env):
     con = env.getConnection()
