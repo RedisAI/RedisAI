@@ -851,8 +851,9 @@ uint ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
         RedisModule_WrongArity(ctx);
         return fmt;
     }
-    if (argc == 2)
-        fmt = TENSOR_BLOB | TENSOR_META;
+    if (argc == 2) {
+        return TENSOR_BLOB | TENSOR_META;
+    }
     for (int i = 2; i < argc; i++) {
         const char *fmtstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(fmtstr, "BLOB")) {
