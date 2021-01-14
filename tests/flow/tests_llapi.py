@@ -21,11 +21,11 @@ def ensure_test_module_loaded(f):
         try:
             ret = con.execute_command('MODULE', 'LOAD', TEST_MODULE_PATH)
             env.assertEqual(ret, b'OK')
-            return f(env, *args, **kwargs)
         except Exception as e:
             env.assertFalse(True)
             env.debugPrint(str(e), force=True)
             return
+        return f(env, *args, **kwargs)
     return wrapper
 
 
@@ -106,7 +106,7 @@ def test_dag_build_and_run(env):
 
 
 @ensure_test_module_loaded
-def test_llapi_dagrun_multidevice_resnet(env):
+def test_dagrun_multidevice_resnet(env):
     con = env.getConnection()
 
     model_name_0 = 'imagenet_model1:{{1}}'
