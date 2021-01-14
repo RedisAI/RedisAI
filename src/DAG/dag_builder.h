@@ -45,20 +45,12 @@ int RAI_DAGRunOpAddOutput(RAI_DAGRunOp *DAGOp, const char *output);
 int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err);
 
 /**
- * @brief Load a tensor from keyspace to the DAG local context.
+ * @brief Load a given tensor to the DAG local context.
  * @param runInfo The DAG to load the tensor into.
  * @param tname The tensor key.
- * @param err Error is returned in case that the key does not exist, or not holding a tensor type.
+ * @param tensor The tensor to load to the DAG (we load a shallow copy).
  */
-int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err);
-
-/**
- * @brief Load a tensor from keyspace to the DAG local context.
- * @param runInfo The DAG to load the tensor into.
- * @param tname The tensor key (can hold any binary string).
- * @param err Error is returned in case that the key does not exist, or not holding a tensor type.
- */
-int RAI_DAGLoadTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err);
+int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *tensor);
 
 /**
  * @brief Append a TENSORSET op to a DAG (can use to load an intermediate tensors)
@@ -73,6 +65,16 @@ int RAI_DAGAddTensorSet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor 
  * @param tensor The tensor to set.
  */
 int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err);
+
+/**
+ * @brief Add ops to a DAG from string (according to the command syntax). In case of a valid
+ * string, the ops are added to the DAG run info, and otherwise all the ops are discarded.
+ * @param runInfo The DAG to insert the ops into.
+ * @param dag The string representing the DAG ops to add.
+ * @param err Error is returned in case of a MODELRUN op if the number of inputs and outputs
+ * given to the op does not match to the number of inputs and outputs in the model definition.
+ */
+int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error *err);
 
 /**
  * @brief Returns the number of ops in a DAG.

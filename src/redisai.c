@@ -107,12 +107,14 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     RAI_Tensor *t = NULL;
-    RAI_Error err;
-    const int parse_result = RAI_parseTensorSetArgs(ctx, argv, argc, &t, 1, &err);
+    RAI_Error err = {0};
+    const int parse_result = RAI_parseTensorSetArgs(argv, argc, &t, 1, &err);
 
     // if the number of parsed args is negative something went wrong
     if (parse_result < 0) {
         RedisModule_CloseKey(key);
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -136,13 +138,17 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RAI_Tensor *t;
     RedisModuleKey *key;
-    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ);
+    RAI_Error err = {0};
+    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-
-    uint fmt = ParseTensorGetArgs(ctx, argv, argc);
+    uint fmt = ParseTensorGetArgs(&err, argv, argc);
     if (fmt == TENSOR_NONE) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         // This means that args are invalid.
         return REDISMODULE_ERR;
     }
@@ -414,10 +420,13 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (argc < 2 || argc > 4)
         return RedisModule_WrongArity(ctx);
 
+    RAI_Error err = {0};
     RAI_Model *mto;
     RedisModuleKey *key;
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ);
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -436,7 +445,6 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
-    RAI_Error err = {0};
     char *buffer = NULL;
     size_t len = 0;
 
@@ -516,9 +524,12 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
     RAI_Model *mto;
     RedisModuleKey *key;
-    const int status =
-        RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ | REDISMODULE_WRITE);
+    RAI_Error err = {0};
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto,
+                                                REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -600,8 +611,11 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RAI_Script *sto;
     RedisModuleKey *key;
-    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+    RAI_Error err = {0};
+    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -648,8 +662,11 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RAI_Script *sto;
     RedisModuleKey *key;
-    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_WRITE);
+    RAI_Error err = {0};
+    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
     key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
@@ -999,9 +1016,9 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(DAGRunOpAddOutput, ctx);
     REGISTER_API(DAGAddRunOp, ctx);
     REGISTER_API(DAGLoadTensor, ctx);
-    REGISTER_API(DAGLoadTensorRS, ctx);
     REGISTER_API(DAGAddTensorSet, ctx);
     REGISTER_API(DAGAddTensorGet, ctx);
+    REGISTER_API(DAGAddOpsFromString, ctx);
     REGISTER_API(DAGNumOps, ctx);
     REGISTER_API(DAGRun, ctx);
     REGISTER_API(DAGNumOutputs, ctx);

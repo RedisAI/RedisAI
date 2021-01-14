@@ -25,16 +25,16 @@
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
 int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                             RAI_Model **model, int mode) {
+                             RAI_Model **model, int mode, RAI_Error *err) {
     *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
-        RedisModule_ReplyWithError(ctx, "ERR model key is empty");
+        RAI_SetError(err, RAI_EMODELRUN, "ERR model key is empty");
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ModelType) {
         RedisModule_CloseKey(*key);
-        RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+        RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
     *model = RedisModule_ModuleTypeGetValue(*key);

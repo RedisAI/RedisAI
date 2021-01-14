@@ -130,6 +130,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
     }
     // Only if we got until here, tensor is saved in keyspace.
     RedisAI_ReplicateTensorSet(ctx, demangled_key_name, tensor);
+    RedisModule_CloseKey(key);
     ret = REDISMODULE_OK;
 
 clean_up:

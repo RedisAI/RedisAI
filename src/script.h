@@ -162,7 +162,7 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script);
  * an error getting the Script
  */
 int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Script **script, int mode);
+                              RAI_Script **script, int mode, RAI_Error *err);
 
 /**
  * When a module command is called in order to obtain the position of

@@ -1,48 +1,21 @@
 #include "dag_builder.h"
 #include "run_info.h"
+#include "dag_parser.h"
 #include "string_utils.h"
 #include "modelRun_ctx.h"
 
-static int _LoadTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName,
-                                   RedisModuleKey **key, RAI_Tensor **tensor, RAI_Error *err) {
-
-    int res = REDISMODULE_ERR;
-    *key = RedisModule_OpenKey(ctx, keyName, REDISMODULE_READ);
-    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "ERR tensor key is empty");
-        goto end;
-    }
-    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
-        RAI_SetError(err, RAI_EDAGBUILDER, REDISMODULE_ERRORMSG_WRONGTYPE);
-        goto end;
-    }
-    *tensor = RedisModule_ModuleTypeGetValue(*key);
-    res = REDISMODULE_OK;
-
-end:
-    RedisModule_CloseKey(*key);
-    return res;
-}
-
-static int _RAI_DagLoadTensor(RAI_DAGRunCtx *run_info, RedisModuleString *key_name,
-                              RAI_Error *err) {
+int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *tensor) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RAI_Tensor *t;
-    RedisModuleKey *key;
-    if (_LoadTensorFromKeyspace(ctx, key_name, &key, &t, err) == REDISMODULE_ERR) {
-        RedisModule_FreeString(NULL, key_name);
-        RedisModule_FreeThreadSafeContext(ctx);
-        return REDISMODULE_ERR;
-    }
+    RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
     // Add the tensor under its "mangled" key name to the DAG local context dict.
     char buf[16];
     sprintf(buf, "%04d", 1);
     RedisModule_StringAppendBuffer(NULL, key_name, buf, strlen(buf));
-    AI_dictAdd(rinfo->dagTensorsContext, (void *)key_name, (void *)RAI_TensorGetShallowCopy(t));
+    AI_dictAdd(rinfo->dagTensorsContext, (void *)key_name,
+               (void *)RAI_TensorGetShallowCopy(tensor));
     RedisModule_FreeString(NULL, key_name);
-    RedisModule_FreeThreadSafeContext(ctx);
+
     return REDISMODULE_OK;
 }
 
@@ -112,18 +85,6 @@ int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err
     return REDISMODULE_OK;
 }
 
-int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
-
-    RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
-    return _RAI_DagLoadTensor(run_info, key_name, err);
-}
-
-int RAI_DAGLoadTensorRS(RAI_DAGRunCtx *run_info, RedisModuleString *t_name, RAI_Error *err) {
-
-    RedisModuleString *key_name = RedisModule_CreateStringFromString(NULL, t_name);
-    return _RAI_DagLoadTensor(run_info, key_name, err);
-}
-
 int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
@@ -149,6 +110,62 @@ int RAI_DAGAddTensorSet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor 
     op->outkeys = array_append(op->outkeys, name);
     op->outTensor = RAI_TensorGetShallowCopy(tensor);
     return REDISMODULE_OK;
+}
+
+int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error *err) {
+
+    int res = REDISMODULE_ERR;
+    RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    int argc = 0;
+    char dag_string[strlen(dag) + 1];
+    strcpy(dag_string, dag);
+
+    char *token = strtok(dag_string, " ");
+    if (strcmp(token, "|>") != 0) {
+        RAI_SetError(err, RAI_EDAGBUILDER, "DAG op should start with: '|>' ");
+        return res;
+    }
+    RedisModuleString **argv = array_new(RedisModuleString *, 2);
+    while (token != NULL) {
+        RedisModuleString *RS_token = RedisModule_CreateString(NULL, token, strlen(token));
+        argv = array_append(argv, RS_token);
+        argc++;
+        token = strtok(NULL, " ");
+    }
+
+    size_t num_ops_before = array_len(rinfo->dagOps);
+    size_t new_ops = 0;
+    RAI_DagOp *op;
+    for (size_t i = 0; i < argc; i++) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[i], NULL);
+        if (strcmp(arg_string, "|>") == 0 && i < argc - 1) {
+            RAI_InitDagOp(&op);
+            rinfo->dagOps = array_append(rinfo->dagOps, op);
+            new_ops++;
+            op->argv = &argv[i + 1];
+        } else {
+            op->argc++;
+        }
+    }
+
+    if (ParseDAGOps(rinfo, num_ops_before, new_ops) != REDISMODULE_OK) {
+        // Remove all ops that where added before the error and go back to the initial state.
+        RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
+        for (size_t i = num_ops_before; i < array_len(rinfo->dagOps); i++) {
+            RAI_FreeDagOp(rinfo->dagOps[i]);
+        }
+        rinfo->dagOps = array_trimm_len(rinfo->dagOps, num_ops_before);
+        goto cleanup;
+    }
+    rinfo->dagOpCount = array_len(rinfo->dagOps);
+    res = REDISMODULE_OK;
+
+cleanup:
+    for (size_t i = 0; i < argc; i++) {
+        RedisModule_FreeString(NULL, argv[i]);
+    }
+    array_free(argv);
+    return res;
 }
 
 size_t RAI_DAGNumOps(RAI_DAGRunCtx *run_info) {

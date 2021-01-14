@@ -24,17 +24,19 @@
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                             AI_dict **localContextDict, const char *chaining_operator) {
+                             AI_dict **localContextDict, const char *chaining_operator,
+                             RAI_Error *err) {
     if (argc < 3) {
-        RedisModule_WrongArity(ctx);
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR wrong number of arguments for LOAD in 'AI.DAGRUN' command");
         return -1;
     }
 
     long long n_keys;
     const int retval = RedisModule_StringToLongLong(argv[1], &n_keys);
     if (retval != REDISMODULE_OK || n_keys <= 0) {
-        RedisModule_ReplyWithError(ctx,
-                                   "ERR invalid or negative value found in number of keys to LOAD");
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR invalid or negative value found in number of keys to LOAD");
         return -1;
     }
 
@@ -49,7 +51,8 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             break;
         RAI_Tensor *t;
         RedisModuleKey *key;
-        const int status = RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ);
+        const int status =
+            RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
             RedisModule_Log(ctx, "warning",
                             "on DAGRUN's LOAD could not load tensor %s from keyspace", arg_string);
@@ -65,7 +68,9 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
     }
 
     if (number_loaded_keys != n_keys) {
-        RedisModule_WrongArity(ctx);
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR number of keys to LOAD in AI.DAGRUN command does not match the number of "
+                     "given arguments");
         return -1;
     }
     return number_loaded_keys + 2;
@@ -84,17 +89,19 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                AI_dict **persistContextDict, const char *chaining_operator) {
+                                AI_dict **persistContextDict, const char *chaining_operator,
+                                RAI_Error *err) {
     if (argc < 3) {
-        RedisModule_WrongArity(ctx);
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR wrong number of arguments for PERSIST in 'AI.DAGRUN' command");
         return -1;
     }
 
     long long n_keys;
     const int retval = RedisModule_StringToLongLong(argv[1], &n_keys);
     if (retval != REDISMODULE_OK || n_keys <= 0) {
-        RedisModule_ReplyWithError(
-            ctx, "ERR invalid or negative value found in number of keys to PERSIST");
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR invalid or negative value found in number of keys to PERSIST");
         return -1;
     }
 
@@ -110,22 +117,23 @@ static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, i
         }
     }
     if (number_keys_to_persist != n_keys) {
-        RedisModule_WrongArity(ctx);
+        RAI_SetError(err, RAI_EDAGBUILDER,
+                     "ERR number of keys to PERSIST in AI.DAGRUN command does not match the number "
+                     "of given arguments");
         return -1;
     }
     return number_keys_to_persist + 2;
 }
 
-static int _parseTimeout(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                         long long *timeout) {
+static int _parseTimeout(RedisModuleString **argv, int argc, long long *timeout, RAI_Error *err) {
 
     if (argc == 0) {
-        RedisModule_ReplyWithError(ctx, "ERR No value provided for TIMEOUT");
+        RAI_SetError(err, RAI_EDAGBUILDER, "ERR No value provided for TIMEOUT");
         return REDISMODULE_ERR;
     }
     const int retval = RedisModule_StringToLongLong(argv[1], timeout);
     if (retval != REDISMODULE_OK || timeout <= 0) {
-        RedisModule_ReplyWithError(ctx, "ERR Invalid value for TIMEOUT");
+        RAI_SetError(err, RAI_EDAGBUILDER, "ERR Invalid value for TIMEOUT");
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
@@ -152,10 +160,10 @@ int _CollectOpArgs(RedisModuleString **argv, int argc, int arg_pos, RAI_DagOp *o
     return op->argc;
 }
 
-int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
+int ParseDAGOps(RedisAI_RunInfo *rinfo, size_t first_op_ind, size_t num_ops) {
 
-    for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
-        RAI_DagOp *currentOp = rinfo->dagOps[i];
+    for (long long i = 0; i < num_ops; i++) {
+        RAI_DagOp *currentOp = rinfo->dagOps[i + first_op_ind];
         // The first op arg is the command name.
         const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
 
@@ -164,7 +172,7 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             currentOp->devicestr = "CPU";
             RAI_HoldString(NULL, currentOp->argv[1]);
             currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
-            currentOp->fmt = ParseTensorGetArgs(ctx, currentOp->argv, currentOp->argc);
+            currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
             if (currentOp->fmt == TENSOR_NONE)
                 return REDISMODULE_ERR;
             continue;
@@ -174,38 +182,43 @@ int _ParseDAGOps(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             currentOp->devicestr = "CPU";
             RAI_HoldString(NULL, currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_parseTensorSetArgs(ctx, currentOp->argv, currentOp->argc, &currentOp->outTensor,
-                                       0, currentOp->err) == -1)
+            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
+                                       rinfo->err) == -1)
                 return REDISMODULE_ERR;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-            if (ParseModelRunCommand(rinfo, currentOp, ctx, currentOp->argv, currentOp->argc) !=
+            if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
             continue;
         }
         if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
-            if (ParseScriptRunCommand(rinfo, currentOp, ctx, currentOp->argv, currentOp->argc) !=
+            if (ParseScriptRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
             continue;
         }
         // If none of the cases match, we have an invalid op.
-        RedisModule_ReplyWithError(ctx, "unsupported command within DAG");
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "unsupported command within DAG");
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
 }
 
-// Parse the DAG run command and return REDISMODULE_OK only if it is a valid command to execute.
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                        int argc, bool dag_ro) {
 
     if (argc < 4) {
-        RedisModule_WrongArity(ctx);
+        if (dag_ro) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN_RO' command");
+        } else {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN' command");
+        }
         goto cleanup;
     }
 
@@ -222,8 +235,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         if (!strcasecmp(arg_string, "LOAD") && !load_complete && chainingOpCount == 0) {
             /* Load the required tensors from key space and store them in both
                dagTensorsLoadedContext and dagTensorsContext dicts. */
-            const int parse_result = _ParseDAGLoadArgs(ctx, &argv[arg_pos], argc - arg_pos,
-                                                       &(rinfo->dagTensorsContext), "|>");
+            const int parse_result = _ParseDAGLoadArgs(
+                ctx, &argv[arg_pos], argc - arg_pos, &(rinfo->dagTensorsContext), "|>", rinfo->err);
             if (parse_result <= 0)
                 goto cleanup;
             arg_pos += parse_result;
@@ -232,14 +245,15 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         }
         if (!strcasecmp(arg_string, "PERSIST") && !persist_complete && chainingOpCount == 0) {
             if (dag_ro) {
-                RedisModule_ReplyWithError(ctx,
-                                           "ERR PERSIST cannot be specified in a read-only DAG");
+                RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                             "ERR PERSIST cannot be specified in a read-only DAG");
                 goto cleanup;
             }
             /* Store the keys to persist in dagTensorsPersistedContext dict.
                These keys will be populated later on with actual tensors. */
-            const int parse_result = _ParseDAGPersistArgs(
-                ctx, &argv[arg_pos], argc - arg_pos, &(rinfo->dagTensorsPersistedContext), "|>");
+            const int parse_result =
+                _ParseDAGPersistArgs(ctx, &argv[arg_pos], argc - arg_pos,
+                                     &(rinfo->dagTensorsPersistedContext), "|>", rinfo->err);
 
             if (parse_result <= 0)
                 goto cleanup;
@@ -249,7 +263,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         }
         if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_complete && chainingOpCount == 0) {
             long long timeout;
-            if (_parseTimeout(ctx, &argv[arg_pos], argc - arg_pos, &timeout) == REDISMODULE_ERR)
+            if (_parseTimeout(&argv[arg_pos], argc - arg_pos, &timeout, rinfo->err) ==
+                REDISMODULE_ERR)
                 goto cleanup;
             rinfo->timeout = timeout;
             arg_pos += 2;
@@ -265,23 +280,22 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
             continue;
         }
         // If none of the cases match, we have an invalid op.
-        RedisModule_ReplyWithError(ctx, "ERR Invalid DAGRUN command");
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Invalid DAGRUN command");
         goto cleanup;
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
     if (rinfo->dagOpCount < 1) {
-        RedisModule_ReplyWithError(ctx, "ERR DAG is empty");
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR DAG is empty");
         goto cleanup;
     }
-    if (_ParseDAGOps(ctx, rinfo) != REDISMODULE_OK)
+    if (ParseDAGOps(rinfo, 0, rinfo->dagOpCount) != REDISMODULE_OK) {
         goto cleanup;
+    }
     if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
-        RedisModule_ReplyWithError(ctx, rinfo->err->detail_oneline);
         goto cleanup;
     }
     return REDISMODULE_OK;
 
 cleanup:
-    RAI_FreeRunInfo(rinfo);
     return REDISMODULE_ERR;
 }
