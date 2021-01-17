@@ -128,7 +128,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     int res = REDISMODULE_ERR;
     // Build a ModelRunCtx from command.
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
+    // int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
     RAI_Model *model;
     long long timeout = 0;
     if (_ModelRunCommand_ParseArgs(argv, argc, ctx, &model, rinfo->err, &currentOp->inkeys,
@@ -157,9 +157,9 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     res = REDISMODULE_OK;
 
 cleanup:
-    if (lock_status == REDISMODULE_OK) {
-        RedisModule_ThreadSafeContextUnlock(ctx);
-    }
+    // if (lock_status == REDISMODULE_OK) {
+    // RedisModule_ThreadSafeContextUnlock(ctx);
+    //}
     RedisModule_FreeThreadSafeContext(ctx);
     return res;
 }
@@ -309,7 +309,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     int res = REDISMODULE_ERR;
     // Build a ScriptRunCtx from command.
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
+    // int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
     RAI_Script *script;
     const char *func_name = NULL;
 
@@ -341,9 +341,9 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     res = REDISMODULE_OK;
 
 cleanup:
-    if (lock_status == REDISMODULE_OK) {
-        RedisModule_ThreadSafeContextUnlock(ctx);
-    }
+    // if (lock_status == REDISMODULE_OK) {
+    // RedisModule_ThreadSafeContextUnlock(ctx);
+    //}
     RedisModule_FreeThreadSafeContext(ctx);
     return res;
 }
