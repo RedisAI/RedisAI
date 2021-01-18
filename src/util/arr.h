@@ -38,6 +38,7 @@
 #endif
 
 typedef struct {
+    bool on_stack;
     uint32_t len;
     // TODO: optimize memory by making cap a 16-bit delta from len, and elem_sz 16 bit as well. This
     // makes the whole header fit in 64 bit
@@ -57,7 +58,8 @@ typedef void *array_t;
 /* Initialize a new array with a given element size and capacity. Should not be used directly - use
  * array_new instead */
 static array_t array_new_sz(uint32_t elem_sz, uint32_t cap, uint32_t len) {
-    array_hdr_t *hdr = (array_hdr_t *)array_alloc_fn(sizeof(array_hdr_t) + cap * elem_sz);
+    array_hdr_t *hdr = array_alloc_fn(sizeof(array_hdr_t) + cap * elem_sz);
+    hdr->on_stack = false;
     hdr->cap = cap;
     hdr->elem_sz = elem_sz;
     hdr->len = len;
@@ -73,16 +75,48 @@ static array_t array_new_sz(uint32_t elem_sz, uint32_t cap, uint32_t len) {
  *  */
 #define array_new(T, cap) (array_new_sz(sizeof(T), cap, 0))
 
+#define array_new_on_stack(T, capacity, varName)                                                   \
+    struct {                                                                                       \
+        bool on_stack;                                                                             \
+        uint32_t len;                                                                              \
+        uint32_t cap;                                                                              \
+        uint32_t elem_sz;                                                                          \
+        char buf[(capacity) * sizeof(T)];                                                          \
+    } varName##_struct;                                                                            \
+    varName##_struct.on_stack = true;                                                              \
+    varName##_struct.len = 0;                                                                      \
+    varName##_struct.cap = (capacity);                                                             \
+    varName##_struct.elem_sz = sizeof(T);                                                          \
+    T *varName = (T *)varName##_struct.buf;
+
 /* Initialize an array for a given type T with a given length. The capacity allocated is identical
  * to the length
  *  */
 #define array_newlen(T, len) (array_new_sz(sizeof(T), len, len))
 
+static inline array_t array_persist(array_t arr) {
+    array_hdr_t *hdr = array_hdr(arr);
+    if (!hdr->on_stack)
+        return arr;
+    array_t tmp = array_new_sz(hdr->elem_sz, hdr->len, hdr->len);
+    memcpy(tmp, arr, hdr->elem_sz * hdr->len);
+    return tmp;
+}
+
 static inline array_t array_ensure_cap(array_t arr, uint32_t cap) {
     array_hdr_t *hdr = array_hdr(arr);
+    if (hdr->on_stack) {
+        // On stack and still place, return the array.
+        if (cap <= hdr->cap)
+            return (array_t)hdr->buf;
+        // Move to heap.
+        array_t tmp = array_new_sz(hdr->elem_sz, MAX(hdr->cap * 2, cap), hdr->len);
+        memcpy(tmp, arr, hdr->elem_sz * hdr->len);
+        return tmp;
+    }
     if (cap > hdr->cap) {
         hdr->cap = MAX(hdr->cap * 2, cap);
-        hdr = (array_hdr_t *)array_realloc_fn(hdr, array_sizeof(hdr));
+        hdr = array_realloc_fn(hdr, array_sizeof(hdr));
     }
     return (array_t)hdr->buf;
 }
@@ -108,14 +142,15 @@ static inline uint32_t array_len(array_t arr) { return arr ? array_hdr(arr)->len
 
 static inline void *array_trimm(array_t arr, uint32_t len, uint32_t cap) {
     array_hdr_t *arr_hdr = array_hdr(arr);
-    assert(len >= 0 && "trimming len is negative");
-    assert((cap == -1 || cap > 0 || len == cap) && "trimming capacity is illegal");
-    assert((cap == -1 || cap >= len) && "trimming len is greater then capacity");
-    assert((len <= arr_hdr->len) && "trimming len is greater then current len");
+    RedisModule_Assert(len >= 0 && "trimming len is negative");
+    RedisModule_Assert((cap == -1 || cap > 0 || len == cap) && "trimming capacity is illegal");
+    RedisModule_Assert((cap == -1 || cap >= len) && "trimming len is greater then capacity");
+    RedisModule_Assert((len <= arr_hdr->len) && "trimming len is greater then current len");
     arr_hdr->len = len;
     if (cap != -1) {
         arr_hdr->cap = cap;
-        arr_hdr = (array_hdr_t *)array_realloc_fn(arr_hdr, array_sizeof(arr_hdr));
+        if (!arr_hdr->on_stack)
+            arr_hdr = array_realloc_fn(arr_hdr, array_sizeof(arr_hdr));
     }
     return arr_hdr->buf;
 }
@@ -126,7 +161,11 @@ static inline void *array_trimm(array_t arr, uint32_t len, uint32_t cap) {
 #define array_clear(arr) array_hdr(arr)->len = 0
 
 /* Free the array, without dealing with individual elements */
-static void array_free(array_t arr) { array_free_fn(array_hdr(arr)); }
+static void array_free(array_t arr) {
+    array_hdr_t *arr_hdr = array_hdr(arr);
+    if (!arr_hdr->on_stack)
+        array_free_fn(array_hdr(arr));
+}
 
 /* Repeate the code in "blk" for each element in the array, and give it the name of "as".
  * e.g:
@@ -157,7 +196,7 @@ static void array_free(array_t arr) { array_free_fn(array_hdr(arr)); }
 /* Pop the top element from the array, reduce the size and return it */
 #define array_pop(arr)                                                                             \
     ({                                                                                             \
-        assert(array_hdr(arr)->len > 0);                                                           \
+        RedisModule_Assert(array_hdr(arr)->len > 0);                                               \
         arr[--(array_hdr(arr)->len)];                                                              \
     })
 

@@ -285,16 +285,11 @@ RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
     return NULL;
 }
 
-int RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx) {
+bool RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx) {
     return *((RedisAI_RunInfo *)finish_ctx)->dagError;
 }
 
-RAI_Error *RAI_DAGCopyOpStatus(RAI_OnFinishCtx *finish_ctx, size_t index) {
+RAI_Error *RAI_DAGGetError(RAI_OnFinishCtx *finish_ctx) {
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
-    RedisModule_Assert(index < rinfo->dagOpCount);
-    RAI_Error *err;
-    RAI_InitError(&err);
-    RAI_SetError(err, RAI_GetErrorCode(rinfo->dagOps[index]->err),
-                 RAI_GetError(rinfo->dagOps[index]->err));
-    return err;
+    return rinfo->err;
 }

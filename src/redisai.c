@@ -953,6 +953,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(GetError, ctx);
     REGISTER_API(GetErrorOneLine, ctx);
     REGISTER_API(GetErrorCode, ctx);
+    REGISTER_API(SetError, ctx);
 
     REGISTER_API(TensorCreate, ctx);
     REGISTER_API(TensorCreateByConcatenatingTensors, ctx);
@@ -975,6 +976,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelCreate, ctx);
     REGISTER_API(ModelFree, ctx);
     REGISTER_API(ModelRunCtxCreate, ctx);
+    REGISTER_API(GetModelFromKeyspace, ctx);
     REGISTER_API(ModelRunCtxAddInput, ctx);
     REGISTER_API(ModelRunCtxAddOutput, ctx);
     REGISTER_API(ModelRunCtxNumOutputs, ctx);
@@ -1017,7 +1019,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(DAGNumOutputs, ctx);
     REGISTER_API(DAGOutputTensor, ctx);
     REGISTER_API(DAGRunError, ctx);
-    REGISTER_API(DAGCopyOpStatus, ctx);
+    REGISTER_API(DAGGetError, ctx);
     REGISTER_API(DAGRunOpFree, ctx);
     REGISTER_API(DAGFree, ctx);
 

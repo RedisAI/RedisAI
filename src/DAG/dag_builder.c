@@ -4,6 +4,27 @@
 #include "string_utils.h"
 #include "modelRun_ctx.h"
 
+// Store the given arguments from the string in argv array and their amount in argc.
+int _StringToRMArray(const char *dag, RedisModuleString ***argv, int *argc, RAI_Error *err) {
+
+    char dag_string[strlen(dag) + 1];
+    strcpy(dag_string, dag);
+
+    char *token = strtok(dag_string, " ");
+    if (strcmp(token, "|>") != 0) {
+        RAI_SetError(err, RAI_EDAGBUILDER, "DAG op should start with: '|>' ");
+        return REDISMODULE_ERR;
+    }
+
+    while (token != NULL) {
+        RedisModuleString *RS_token = RedisModule_CreateString(NULL, token, strlen(token));
+        *argv = array_append(*argv, RS_token);
+        (*argc)++;
+        token = strtok(NULL, " ");
+    }
+    return REDISMODULE_OK;
+}
+
 int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *tensor) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
@@ -116,51 +137,43 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
 
     int res = REDISMODULE_ERR;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
+    array_new_on_stack(RAI_DagOp *, 10, new_ops);
+    array_new_on_stack(RedisModuleString *, 100, argv);
     int argc = 0;
-    char dag_string[strlen(dag) + 1];
-    strcpy(dag_string, dag);
-
-    char *token = strtok(dag_string, " ");
-    if (strcmp(token, "|>") != 0) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "DAG op should start with: '|>' ");
-        return res;
-    }
-    RedisModuleString **argv = array_new(RedisModuleString *, 2);
-    while (token != NULL) {
-        RedisModuleString *RS_token = RedisModule_CreateString(NULL, token, strlen(token));
-        argv = array_append(argv, RS_token);
-        argc++;
-        token = strtok(NULL, " ");
+    if (_StringToRMArray(dag, &argv, &argc, err) != REDISMODULE_OK) {
+        goto cleanup;
     }
 
-    size_t num_ops_before = array_len(rinfo->dagOps);
-    size_t new_ops = 0;
     RAI_DagOp *op;
     for (size_t i = 0; i < argc; i++) {
         const char *arg_string = RedisModule_StringPtrLen(argv[i], NULL);
         if (strcmp(arg_string, "|>") == 0 && i < argc - 1) {
             RAI_InitDagOp(&op);
-            rinfo->dagOps = array_append(rinfo->dagOps, op);
-            new_ops++;
+            new_ops = array_append(new_ops, op);
             op->argv = &argv[i + 1];
         } else {
             op->argc++;
         }
     }
 
-    if (ParseDAGOps(rinfo, num_ops_before, new_ops) != REDISMODULE_OK) {
-        // Remove all ops that where added before the error and go back to the initial state.
+    if (ParseDAGOps(rinfo, new_ops) != REDISMODULE_OK) {
+        // Remove all ops that where created.
         RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
-        for (size_t i = num_ops_before; i < array_len(rinfo->dagOps); i++) {
-            RAI_FreeDagOp(rinfo->dagOps[i]);
+        for (size_t i = 0; i < array_len(new_ops); i++) {
+            RAI_FreeDagOp(new_ops[i]);
         }
-        rinfo->dagOps = array_trimm_len(rinfo->dagOps, num_ops_before);
         goto cleanup;
+    }
+
+    // Copy the new op pointers to the DAG run info.
+    for (size_t i = 0; i < array_len(new_ops); i++) {
+        rinfo->dagOps = array_append(rinfo->dagOps, new_ops[i]);
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
     res = REDISMODULE_OK;
 
 cleanup:
+    array_free(new_ops);
     for (size_t i = 0; i < argc; i++) {
         RedisModule_FreeString(NULL, argv[i]);
     }

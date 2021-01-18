@@ -139,10 +139,10 @@ static int _parseTimeout(RedisModuleString **argv, int argc, long long *timeout,
     return REDISMODULE_OK;
 }
 
-static RAI_DagOp *_AddEmptyOp(RedisAI_RunInfo *rinfo) {
+static RAI_DagOp *_AddEmptyOp(RAI_DagOp ***ops) {
     RAI_DagOp *currentDagOp;
     RAI_InitDagOp(&currentDagOp);
-    rinfo->dagOps = array_append(rinfo->dagOps, currentDagOp);
+    *ops = array_append(*ops, currentDagOp);
     return currentDagOp;
 }
 
@@ -160,10 +160,10 @@ int _CollectOpArgs(RedisModuleString **argv, int argc, int arg_pos, RAI_DagOp *o
     return op->argc;
 }
 
-int ParseDAGOps(RedisAI_RunInfo *rinfo, size_t first_op_ind, size_t num_ops) {
+int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
 
-    for (long long i = 0; i < num_ops; i++) {
-        RAI_DagOp *currentOp = rinfo->dagOps[i + first_op_ind];
+    for (long long i = 0; i < array_len(ops); i++) {
+        RAI_DagOp *currentOp = ops[i];
         // The first op arg is the command name.
         const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
 
@@ -211,6 +211,7 @@ int ParseDAGOps(RedisAI_RunInfo *rinfo, size_t first_op_ind, size_t num_ops) {
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                        int argc, bool dag_ro) {
 
+    int res = REDISMODULE_ERR;
     if (argc < 4) {
         if (dag_ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
@@ -219,7 +220,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR wrong number of arguments for 'AI.DAGRUN' command");
         }
-        goto cleanup;
+        return res;
     }
 
     int chainingOpCount = 0;
@@ -227,6 +228,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
     bool load_complete = false;
     bool persist_complete = false;
     bool timeout_complete = false;
+    array_new_on_stack(RAI_DagOp *, 10, dag_ops);
 
     // The first arg is "AI.DAGRUN", so we go over from the next arg.
     while (arg_pos < argc) {
@@ -273,7 +275,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         }
 
         if (!strcasecmp(arg_string, "|>") && arg_pos < argc - 1) {
-            RAI_DagOp *currentOp = _AddEmptyOp(rinfo);
+            RAI_DagOp *currentOp = _AddEmptyOp(&dag_ops);
             chainingOpCount++;
             int args_num = _CollectOpArgs(argv, argc, ++arg_pos, currentOp);
             arg_pos += args_num;
@@ -283,19 +285,30 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Invalid DAGRUN command");
         goto cleanup;
     }
-    rinfo->dagOpCount = array_len(rinfo->dagOps);
-    if (rinfo->dagOpCount < 1) {
+
+    if (array_len(dag_ops) < 1) {
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR DAG is empty");
         goto cleanup;
     }
-    if (ParseDAGOps(rinfo, 0, rinfo->dagOpCount) != REDISMODULE_OK) {
+
+    if (ParseDAGOps(rinfo, dag_ops) != REDISMODULE_OK) {
+        for (size_t i = 0; i < array_len(dag_ops); i++) {
+            RAI_FreeDagOp(dag_ops[i]);
+        }
         goto cleanup;
     }
+    // After validating all the ops, insert them to the DAG.
+    for (size_t i = 0; i < array_len(dag_ops); i++) {
+        rinfo->dagOps = array_append(rinfo->dagOps, dag_ops[i]);
+    }
+    rinfo->dagOpCount = array_len(rinfo->dagOps);
+
     if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
         goto cleanup;
     }
-    return REDISMODULE_OK;
+    res = REDISMODULE_OK;
 
 cleanup:
-    return REDISMODULE_ERR;
+    array_free(dag_ops);
+    return res;
 }

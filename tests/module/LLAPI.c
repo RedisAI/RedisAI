@@ -1,18 +1,21 @@
 
 #define REDISMODULE_MAIN
+#define REDISAI_MAIN 1
 
-#include "../../src/redisai.h"
+#include "redisai.h"
 #include <errno.h>
 #include <string.h>
 #include <stdbool.h>
-#include <pthread.h>
-#include "LLAPI_DAG.c"
+#include "DAG_utils.h"
 
 typedef enum LLAPI_status {LLAPI_RUN_NONE = 0,
 						   LLAPI_RUN_SUCCESS,
 						   LLAPI_RUN_ERROR,
 						   LLAPI_NUM_OUTPUTS_ERROR
 } LLAPI_status;
+
+extern pthread_mutex_t global_lock;
+extern pthread_cond_t global_cond;
 
 
 int RAI_llapi_basic_check(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -233,6 +236,69 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
 		return RedisModule_ReplyWithSimpleString(ctx, "Async run failed");
 	return RedisModule_ReplyWithSimpleString(ctx, "Async run success");
 }
+
+int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    REDISMODULE_NOT_USED(argv);
+
+    if(argc > 1) {
+        RedisModule_WrongArity(ctx);
+        return REDISMODULE_OK;
+    }
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
+
+    // Test the case of a failure due to addition of a non compatible MODELRUN op.
+    if(testModelRunOpError(ctx, run_info) != LLAPIMODULE_OK) {
+        RedisAI_DAGFree(run_info);
+        return RedisModule_ReplyWithSimpleString(ctx, "MODELRUN op error test failed");
+    }
+    // Test the case of a failure due an empty DAG.
+    if(testEmptyDAGError(ctx, run_info) != LLAPIMODULE_OK) {
+        RedisAI_DAGFree(run_info);
+        return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of a failure due to an op within a DAG whose inkey does not exist in the DAG.
+    if(testKeysMismatchError(ctx, run_info) != LLAPIMODULE_OK) {
+        RedisAI_DAGFree(run_info);
+        return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of building and running a DAG with LOAD, TENSORGET and MODELRUN ops.
+    if(testSimpleDAGRun(ctx, run_info) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of building and running a DAG with TENSORSET, SCRIPTRUN and TENSORGET ops.
+    if(testSimpleDAGRun2(ctx, run_info) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of building the same DAG as in previous test, but when this time it should return with an error.
+    if(testSimpleDAGRun2Error(ctx, run_info) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 error test failed");
+    }
+    run_info = RedisAI_DAGRunCtxCreate();
+    // Test the case of building DAG ops from string.
+    if(testBuildDAGFromString(ctx, run_info) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "Build DAG from string test failed");
+    }
+    return RedisModule_ReplyWithSimpleString(ctx, "DAG run success");
+}
+
+int RAI_llapi_DAG_resnet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    REDISMODULE_NOT_USED(argv);
+
+    if(argc > 1) {
+        RedisModule_WrongArity(ctx);
+        return REDISMODULE_OK;
+    }
+
+    if (testDAGResnet(ctx) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet failed");
+    }
+    return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet success");
+}
+
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 	REDISMODULE_NOT_USED(argv);

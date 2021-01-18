@@ -571,6 +571,9 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
 
     if (currentOp->result != REDISMODULE_OK) {
         __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
+        RAI_ContextWriteLock(rinfo);
+        RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err), RAI_GetError(currentOp->err));
+        RAI_ContextUnlock(rinfo);
     }
 }
 
@@ -599,6 +602,8 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
 
         if (currentOp->result != REDISMODULE_OK) {
             __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
+            RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err),
+                         RAI_GetError(currentOp->err));
         }
     }
     return;
