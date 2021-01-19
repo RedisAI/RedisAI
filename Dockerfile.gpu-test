@@ -29,7 +29,7 @@ WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
 COPY --from=cuda_10.2 /usr/local/cuda-10.2 /usr/local/cuda-10.2
-COPY --from=cuda_10.2 /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu
+COPY --from=cuda_10.2 /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu/
 
 RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
 
