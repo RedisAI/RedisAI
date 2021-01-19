@@ -337,6 +337,13 @@ on-master: &on-master
     branches:
       only: master
 
+on-integ-branch: &on-integ-branch
+  filters:
+    branches:
+      only:
+        - master
+        - /^\d+\.\d+.*$/
+
 on-version-tags: &on-version-tags
   filters:
     branches:
