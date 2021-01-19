@@ -427,7 +427,9 @@ workflows:
     triggers:
       - schedule:
           cron: "20 17 * * *"
-          <<: *on-master
+          filters:
+            branches:
+              only: master
     jobs:
       - build-macos:
           <<: *never # temporarily disabled
