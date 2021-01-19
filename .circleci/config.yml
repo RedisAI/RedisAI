@@ -347,15 +347,24 @@ on-version-tags: &on-version-tags
 on-master-and-version-tags: &on-master-and-version-tags
   filters:
     branches:
-      only:
-        - master
+      only: master
     tags:
       only: /^v[0-9].*/
+
+on-integ-and-version-tags: &on-integ-and-version-tags
+  filters:
+    branches:
+      only:
+        - master
+        - /^\d+\.\d+.*$/
+    tags:
+      only: /^v[0-9].*/
+
 
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  <<: *on-master-and-version-tags
+  <<: *on-integ-and-version-tags
   # <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
@@ -405,7 +414,7 @@ workflows:
           # <<: *on-version-tags
       - deploy-snapshot:
           <<: *after-platform-builds
-          <<: *on-master
+          <<: *on-integ-branch
       - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
