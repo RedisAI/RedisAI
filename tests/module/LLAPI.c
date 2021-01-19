@@ -1,12 +1,10 @@
 
 #define REDISMODULE_MAIN
-#define REDISAI_MAIN 1
 
-#include "redisai.h"
+#include "DAG_utils.h"
 #include <errno.h>
 #include <string.h>
-#include <stdbool.h>
-#include "DAG_utils.h"
+
 
 typedef enum LLAPI_status {LLAPI_RUN_NONE = 0,
 						   LLAPI_RUN_SUCCESS,

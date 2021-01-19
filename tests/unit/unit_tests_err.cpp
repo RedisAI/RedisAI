@@ -6,8 +6,6 @@ extern "C" {
 #include "src/err.h"
 }
 
-#define REDISAI_MAIN
-
 class ErrorStructTest : public ::testing::Test {
     protected:
         static void SetUpTestCase() {

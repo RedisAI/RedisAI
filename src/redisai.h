@@ -7,7 +7,7 @@
 #define REDISAI_LLAPI_VERSION 1
 #define MODULE_API_FUNC(x)    (*x)
 
-#ifndef REDISAI_MAIN
+#ifdef REDISAI_EXTERN
 #define REDISAI_API extern
 #endif
 
@@ -134,6 +134,11 @@ REDISAI_API RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_GetAsModelRunCtx)(RAI_OnFin
 REDISAI_API RAI_Script *MODULE_API_FUNC(RedisAI_ScriptCreate)(char *devicestr, char *tag,
                                                               const char *scriptdef,
                                                               RAI_Error *err);
+REDISAI_API int MODULE_API_FUNC(RedisAI_GetScriptFromKeyspace)(RedisModuleCtx *ctx,
+                                                               RedisModuleString *keyName,
+                                                               RedisModuleKey **key,
+                                                               RAI_Script **script, int mode,
+                                                               RAI_Error *err);
 REDISAI_API void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script *script, RAI_Error *err);
 REDISAI_API RAI_ScriptRunCtx *MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script *script,
                                                                           const char *fnname);
@@ -258,6 +263,7 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetAsModelRunCtx);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptCreate);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, GetScriptFromKeyspace);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInput);

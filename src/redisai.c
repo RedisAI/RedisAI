@@ -990,6 +990,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(GetAsModelRunCtx, ctx);
 
     REGISTER_API(ScriptCreate, ctx);
+    REGISTER_API(GetScriptFromKeyspace, ctx);
     REGISTER_API(ScriptFree, ctx);
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);

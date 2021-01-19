@@ -1,6 +1,7 @@
 #pragma once
-#include "../../src/redisai.h"
+#include "redisai.h"
 #include <pthread.h>
+#include <stdbool.h>
 
 #define LLAPIMODULE_OK 0
 #define LLAPIMODULE_ERR 1

@@ -17,7 +17,7 @@ static int _parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long 
     return REDISMODULE_OK;
 }
 
-static int _ModelRunCommand_ParseArgs(RedisModuleString **argv, int argc, RedisModuleCtx *ctx,
+static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
                                       RedisModuleString ***inkeys, RedisModuleString ***outkeys,
                                       RedisModuleString **runkey, long long *timeout) {
@@ -130,7 +130,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     RAI_Model *model;
     long long timeout = 0;
-    if (_ModelRunCommand_ParseArgs(argv, argc, ctx, &model, rinfo->err, &currentOp->inkeys,
+    if (_ModelRunCommand_ParseArgs(ctx, argc, argv, &model, rinfo->err, &currentOp->inkeys,
                                    &currentOp->outkeys, &currentOp->runkey,
                                    &timeout) == REDISMODULE_ERR) {
         goto cleanup;

@@ -127,7 +127,7 @@ static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
 static int _parseTimeout(RedisModuleString **argv, int argc, long long *timeout, RAI_Error *err) {
 
-    if (argc == 0) {
+    if (argc < 2) {
         RAI_SetError(err, RAI_EDAGBUILDER, "ERR No value provided for TIMEOUT");
         return REDISMODULE_ERR;
     }

@@ -1,10 +1,10 @@
-#include "redisai.h"
+#define REDISAI_EXTERN 1
+#include "DAG_utils.h"
 #include <errno.h>
 #include <string.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include "util/arr.h"
-#include "DAG_utils.h"
 
 pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t global_cond = PTHREAD_COND_INITIALIZER;
