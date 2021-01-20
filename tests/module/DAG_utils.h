@@ -11,18 +11,18 @@ typedef struct RAI_RunResults {
     RAI_Error *error;
 } RAI_RunResults;
 
-int testModelRunOpError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info);
+int testModelRunOpError(RedisModuleCtx *ctx);
 
-int testEmptyDAGError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info);
+int testEmptyDAGError(RedisModuleCtx *ctx);
 
-int testKeysMismatchError(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info);
+int testKeysMismatchError(RedisModuleCtx *ctx);
 
-int testBuildDAGFromString(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info);
+int testBuildDAGFromString(RedisModuleCtx *ctx);
 
-int testSimpleDAGRun(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info);
+int testSimpleDAGRun(RedisModuleCtx *ctx);
 
-int testSimpleDAGRun2(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info);
+int testSimpleDAGRun2(RedisModuleCtx *ctx);
 
-int testSimpleDAGRun2Error(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info);
+int testSimpleDAGRun2Error(RedisModuleCtx *ctx);
 
 int testDAGResnet(RedisModuleCtx *ctx);

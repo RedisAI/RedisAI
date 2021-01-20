@@ -953,7 +953,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(GetError, ctx);
     REGISTER_API(GetErrorOneLine, ctx);
     REGISTER_API(GetErrorCode, ctx);
-    REGISTER_API(SetError, ctx);
+    REGISTER_API(CloneError, ctx);
 
     REGISTER_API(TensorCreate, ctx);
     REGISTER_API(TensorCreateByConcatenatingTensors, ctx);

@@ -82,6 +82,14 @@ const char *RAI_GetErrorOneLine(RAI_Error *err);
 RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err);
 
 /**
+ * Make dest a clone of src
+ *
+ * @param dest An allocated error
+ * @param src The error to copy
+ */
+void RAI_CloneError(RAI_Error *dest, const RAI_Error *src);
+
+/**
  * Resets an previously used/allocated RAI_Error
  *
  * @param err

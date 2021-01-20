@@ -174,7 +174,7 @@ int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
             if (currentOp->fmt == TENSOR_NONE)
-                return REDISMODULE_ERR;
+                goto cleanup;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.TENSORSET")) {
@@ -184,28 +184,40 @@ int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
             if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
                                        rinfo->err) == -1)
-                return REDISMODULE_ERR;
+                goto cleanup;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELRUN")) {
             if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
-                return REDISMODULE_ERR;
+                goto cleanup;
             }
             continue;
         }
         if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
             if (ParseScriptRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
-                return REDISMODULE_ERR;
+                goto cleanup;
             }
             continue;
         }
         // If none of the cases match, we have an invalid op.
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "unsupported command within DAG");
-        return REDISMODULE_ERR;
+        goto cleanup;
     }
+
+    // After validating all the ops, insert them to the DAG.
+    for (size_t i = 0; i < array_len(ops); i++) {
+        rinfo->dagOps = array_append(rinfo->dagOps, ops[i]);
+    }
+    rinfo->dagOpCount = array_len(rinfo->dagOps);
     return REDISMODULE_OK;
+
+cleanup:
+    for (size_t i = 0; i < array_len(ops); i++) {
+        RAI_FreeDagOp(ops[i]);
+    }
+    return REDISMODULE_ERR;
 }
 
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
@@ -292,16 +304,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
     }
 
     if (ParseDAGOps(rinfo, dag_ops) != REDISMODULE_OK) {
-        for (size_t i = 0; i < array_len(dag_ops); i++) {
-            RAI_FreeDagOp(dag_ops[i]);
-        }
         goto cleanup;
     }
-    // After validating all the ops, insert them to the DAG.
-    for (size_t i = 0; i < array_len(dag_ops); i++) {
-        rinfo->dagOps = array_append(rinfo->dagOps, dag_ops[i]);
-    }
-    rinfo->dagOpCount = array_len(rinfo->dagOps);
 
     if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
         goto cleanup;

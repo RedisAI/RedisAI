@@ -42,7 +42,7 @@ size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx);
  * @param index The index of the TENSORGET op in the DAG.
  * @retval returns the tensor that the i'th TENSORGET op outputs.
  */
-RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index);
+const RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index);
 
 /**
  * @brief Returns true if (at least) one of the DAG ops encountered an error.
@@ -55,4 +55,4 @@ bool RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx);
  * @retval returns an object that represents the DAG status, from which a user can
  * obtain the error code (error code is "OK" if no error has occurred) and error details.
  */
-RAI_Error *RAI_DAGGetError(RAI_OnFinishCtx *finish_ctx);
+const RAI_Error *RAI_DAGGetError(RAI_OnFinishCtx *finish_ctx);

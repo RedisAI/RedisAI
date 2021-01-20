@@ -54,10 +54,8 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 
     RAI_RunResults *results = (RAI_RunResults *)private_data;
     if (RedisAI_DAGRunError(onFinishCtx)) {
-        for (size_t i = 0; i < RedisAI_DAGNumOps(onFinishCtx); i++) {
-            RAI_Error *error = RedisAI_DAGGetError(onFinishCtx);
-            RedisAI_SetError(results->error, RedisAI_GetErrorCode(error), RedisAI_GetError(error));
-        }
+        const RAI_Error *error = RedisAI_DAGGetError(onFinishCtx);
+        RedisAI_CloneError(results->error, error);
         pthread_cond_signal(&global_cond);
         return;
     }
@@ -74,10 +72,12 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     pthread_cond_signal(&global_cond);
 }
 
-int testModelRunOpError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+int testModelRunOpError(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_Error *err;
     RedisAI_InitError(&err);
+    int res = LLAPIMODULE_ERR;
     // The model m{1} should exist in key space.
     RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "m{1}");
     RAI_DAGRunOp *op = RedisAI_DAGCreateModelRunOp(model);
@@ -86,8 +86,7 @@ int testModelRunOpError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     // This model expect for 2 inputs not 1.
     int status = RedisAI_DAGAddRunOp(run_info, op, err);
     if (!_assertError(err, status, "Number of keys given as INPUTS does not match model definition")) {
-        RedisAI_FreeError(err);
-        return LLAPIMODULE_ERR;
+        goto cleanup;
     }
     RedisAI_ClearError(err);
     RedisAI_DAGRunOpAddInput(op, "second_input");
@@ -95,16 +94,20 @@ int testModelRunOpError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
 
     // We still get an error since the model expects for an output as well.
     if (!_assertError(err, status, "Number of keys given as OUTPUTS does not match model definition")) {
-        RedisAI_FreeError(err);
-        return LLAPIMODULE_ERR;
+        goto cleanup;
     }
+    res = LLAPIMODULE_OK;
+
+    cleanup:
     RedisAI_FreeError(err);
     RedisAI_DAGRunOpFree(op);
-    return LLAPIMODULE_OK;
+    RedisAI_DAGFree(run_info);
+    return res;
 }
 
-int testEmptyDAGError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+int testEmptyDAGError(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_Error* err;
     RedisAI_InitError(&err);
     int res = LLAPIMODULE_ERR;
@@ -124,8 +127,9 @@ int testEmptyDAGError(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     return res;
 }
 
-int testKeysMismatchError(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info) {
+int testKeysMismatchError(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_Error* err;
     RedisAI_InitError(&err);
     int res = LLAPIMODULE_ERR;
@@ -146,8 +150,9 @@ int testKeysMismatchError(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info) {
     return res;
 }
 
-int testBuildDAGFromString(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info) {
+int testBuildDAGFromString(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunResults results;
     _InitRunResults(&results);
     int res = LLAPIMODULE_ERR;
@@ -200,8 +205,9 @@ int testBuildDAGFromString(RedisModuleCtx *ctx,RAI_DAGRunCtx *run_info) {
     return res;
 }
 
-int testSimpleDAGRun(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+int testSimpleDAGRun(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunResults results;
     _InitRunResults(&results);
     int res = LLAPIMODULE_ERR;
@@ -252,8 +258,9 @@ int testSimpleDAGRun(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     return res;
 }
 
-int testSimpleDAGRun2(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+int testSimpleDAGRun2(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunResults results;
     _InitRunResults(&results);
     int res = LLAPIMODULE_ERR;
@@ -304,8 +311,9 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
     return res;
 }
 
-int testSimpleDAGRun2Error(RedisModuleCtx *ctx, RAI_DAGRunCtx *run_info) {
+int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
 
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunResults results;
     _InitRunResults(&results);
     int res = LLAPIMODULE_ERR;

@@ -570,10 +570,11 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
     }
 
     if (currentOp->result != REDISMODULE_OK) {
-        __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
-        RAI_ContextWriteLock(rinfo);
-        RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err), RAI_GetError(currentOp->err));
-        RAI_ContextUnlock(rinfo);
+        // If this is the first op with error, save the error in the DAG runInfo.
+        if (__sync_val_compare_and_swap(rinfo->dagError, 0, 1) == 0) {
+            RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err),
+                         RAI_GetError(currentOp->err));
+        }
     }
 }
 
@@ -581,16 +582,12 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
     // Assumption: ops are guaranteed to be all MODELRUN
 
     int n_ops = array_len(batched_rinfo);
-
     assert(n_ops > 1);
-
     RAI_DagOp *currentOps[n_ops];
 
     for (int i = 0; i < n_ops; i++) {
         RedisAI_RunInfo *rinfo = batched_rinfo[i];
-
         RAI_DagOp *currentOp = RedisAI_DagCurrentOp(rinfo);
-
         currentOps[i] = currentOp;
     }
 
@@ -601,12 +598,13 @@ void RedisAI_BatchedDagRunSessionStep(RedisAI_RunInfo **batched_rinfo, const cha
         RAI_DagOp *currentOp = currentOps[i];
 
         if (currentOp->result != REDISMODULE_OK) {
-            __atomic_store_n(rinfo->dagError, 1, __ATOMIC_RELAXED);
-            RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err),
-                         RAI_GetError(currentOp->err));
+            // If this is the first op with error, save the error in the DAG runInfo.
+            if (__sync_val_compare_and_swap(rinfo->dagError, 0, 1) == 0) {
+                RAI_SetError(rinfo->err, RAI_GetErrorCode(currentOp->err),
+                             RAI_GetError(currentOp->err));
+            }
         }
     }
-    return;
 }
 
 int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {

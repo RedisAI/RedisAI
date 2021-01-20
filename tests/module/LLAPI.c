@@ -242,42 +242,33 @@ int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         RedisModule_WrongArity(ctx);
         return REDISMODULE_OK;
     }
-    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
 
     // Test the case of a failure due to addition of a non compatible MODELRUN op.
-    if(testModelRunOpError(ctx, run_info) != LLAPIMODULE_OK) {
-        RedisAI_DAGFree(run_info);
+    if(testModelRunOpError(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "MODELRUN op error test failed");
     }
     // Test the case of a failure due an empty DAG.
-    if(testEmptyDAGError(ctx, run_info) != LLAPIMODULE_OK) {
-        RedisAI_DAGFree(run_info);
+    if(testEmptyDAGError(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
     }
-    run_info = RedisAI_DAGRunCtxCreate();
     // Test the case of a failure due to an op within a DAG whose inkey does not exist in the DAG.
-    if(testKeysMismatchError(ctx, run_info) != LLAPIMODULE_OK) {
-        RedisAI_DAGFree(run_info);
+    if(testKeysMismatchError(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
     }
-    run_info = RedisAI_DAGRunCtxCreate();
     // Test the case of building and running a DAG with LOAD, TENSORGET and MODELRUN ops.
-    if(testSimpleDAGRun(ctx, run_info) != LLAPIMODULE_OK) {
+    if(testSimpleDAGRun(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run test failed");
     }
-    run_info = RedisAI_DAGRunCtxCreate();
     // Test the case of building and running a DAG with TENSORSET, SCRIPTRUN and TENSORGET ops.
-    if(testSimpleDAGRun2(ctx, run_info) != LLAPIMODULE_OK) {
+    if(testSimpleDAGRun2(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 test failed");
     }
-    run_info = RedisAI_DAGRunCtxCreate();
     // Test the case of building the same DAG as in previous test, but when this time it should return with an error.
-    if(testSimpleDAGRun2Error(ctx, run_info) != LLAPIMODULE_OK) {
+    if(testSimpleDAGRun2Error(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 error test failed");
     }
-    run_info = RedisAI_DAGRunCtxCreate();
     // Test the case of building DAG ops from string.
-    if(testBuildDAGFromString(ctx, run_info) != LLAPIMODULE_OK) {
+    if(testBuildDAGFromString(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "Build DAG from string test failed");
     }
     return RedisModule_ReplyWithSimpleString(ctx, "DAG run success");

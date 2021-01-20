@@ -67,7 +67,7 @@ REDISAI_API void MODULE_API_FUNC(RedisAI_FreeError)(RAI_Error *err);
 REDISAI_API const char *MODULE_API_FUNC(RedisAI_GetError)(RAI_Error *err);
 REDISAI_API const char *MODULE_API_FUNC(RedisAI_GetErrorOneLine)(RAI_Error *err);
 REDISAI_API RedisAI_ErrorCode MODULE_API_FUNC(RedisAI_GetErrorCode)(RAI_Error *err);
-REDISAI_API void MODULE_API_FUNC(RedisAI_SetError)(RAI_Error *err, int code, const char *detail);
+REDISAI_API void MODULE_API_FUNC(RedisAI_CloneError)(RAI_Error *dest, const RAI_Error *src);
 
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreate)(const char *dataTypeStr,
                                                               long long *dims, int ndims);
@@ -183,10 +183,10 @@ REDISAI_API int MODULE_API_FUNC(RedisAI_DAGRun)(RAI_DAGRunCtx *run_info,
                                                 RAI_OnFinishCB DAGAsyncFinish, void *private_data,
                                                 RAI_Error *err);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_DAGNumOutputs)(RAI_OnFinishCtx *finish_ctx);
-REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_DAGOutputTensor)(RAI_OnFinishCtx *finish_ctx,
-                                                                 size_t index);
+REDISAI_API const RAI_Tensor *MODULE_API_FUNC(RedisAI_DAGOutputTensor)(RAI_OnFinishCtx *finish_ctx,
+                                                                       size_t index);
 REDISAI_API int MODULE_API_FUNC(RedisAI_DAGRunError)(RAI_OnFinishCtx *finish_ctx);
-REDISAI_API RAI_Error *MODULE_API_FUNC(RedisAI_DAGGetError)(RAI_OnFinishCtx *finish_ctx);
+REDISAI_API const RAI_Error *MODULE_API_FUNC(RedisAI_DAGGetError)(RAI_OnFinishCtx *finish_ctx);
 REDISAI_API void MODULE_API_FUNC(RedisAI_DAGRunOpFree)(RAI_DAGRunOp *dagOp);
 REDISAI_API void MODULE_API_FUNC(RedisAI_DAGFree)(RAI_DAGRunCtx *run_info);
 
@@ -224,7 +224,7 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetError);
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorOneLine);
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetErrorCode);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, SetError);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, CloneError);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 

@@ -266,7 +266,7 @@ size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx) {
     return n_outputs;
 }
 
-RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
+const RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
     size_t tensor_get_op_ind = -1;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
     for (size_t i = 0; i < rinfo->dagOpCount; i++) {
@@ -289,7 +289,7 @@ bool RAI_DAGRunError(RAI_OnFinishCtx *finish_ctx) {
     return *((RedisAI_RunInfo *)finish_ctx)->dagError;
 }
 
-RAI_Error *RAI_DAGGetError(RAI_OnFinishCtx *finish_ctx) {
+const RAI_Error *RAI_DAGGetError(RAI_OnFinishCtx *finish_ctx) {
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
     return rinfo->err;
 }

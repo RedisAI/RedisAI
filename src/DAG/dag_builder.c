@@ -157,17 +157,8 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
     }
 
     if (ParseDAGOps(rinfo, new_ops) != REDISMODULE_OK) {
-        // Remove all ops that where created.
         RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
-        for (size_t i = 0; i < array_len(new_ops); i++) {
-            RAI_FreeDagOp(new_ops[i]);
-        }
         goto cleanup;
-    }
-
-    // Copy the new op pointers to the DAG run info.
-    for (size_t i = 0; i < array_len(new_ops); i++) {
-        rinfo->dagOps = array_append(rinfo->dagOps, new_ops[i]);
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
     res = REDISMODULE_OK;
