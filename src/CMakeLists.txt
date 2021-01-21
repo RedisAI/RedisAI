@@ -29,6 +29,8 @@ ADD_LIBRARY(redisai_obj OBJECT
         config.c
         DAG/dag.c
         DAG/dag_parser.c
+        DAG/dag_builder.c
+        DAG/dag_execute.c
         modelRun_ctx.c
         backends.c
         backends/util.c

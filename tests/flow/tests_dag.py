@@ -24,8 +24,42 @@ def test_dag_load(env):
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK'])
 
+
 def test_dag_load_errors(env):
     con = env.getConnection()
+
+    # ERR wrong number of arguments for LOAD
+    try:
+        command = "AI.DAGRUN PERSIST 1 no_tensor{1} LOAD 1"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for LOAD in 'AI.DAGRUN' command",exception.__str__())
+
+    # ERR invalid or negative number of arguments for LOAD
+    try:
+        command = "AI.DAGRUN LOAD notnumber{{1}} |> AI.TENSORGET 'no_tensor{1}'"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
+
+    con.execute_command('AI.TENSORSET', 'a{{1}}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    # ERR number of keys to LOAD does not match the number of given arguments.
+    try:
+        command = "AI.DAGRUN LOAD 2 a{{1}}"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("number of keys to LOAD in AI.DAGRUN command does not match the number of "
+                        "given arguments", exception.__str__())
 
     # ERR tensor key is empty
     try:
@@ -55,6 +89,68 @@ def test_dag_load_errors(env):
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
 
 
+def test_dag_persist_errors(env):
+    con = env.getConnection()
+    con.execute_command('AI.TENSORSET', 'a{{1}}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    # ERR wrong number of arguments for PERSIST
+    try:
+        command = "AI.DAGRUN LOAD 1 a{{1}} PERSIST 1"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("wrong number of arguments for PERSIST in 'AI.DAGRUN' command",exception.__str__())
+
+    # ERR invalid or negative value found in number of keys to PERSIST
+    try:
+        command = "AI.DAGRUN PERSIST notnumber{{1}} |> " \
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("invalid or negative value found in number of keys to PERSIST",exception.__str__())
+
+    # ERR number of keys to PERSIST does not match the number of given arguments.
+    try:
+        command = "AI.DAGRUN PERSIST 2 tensor1{1}"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("number of keys to PERSIST in AI.DAGRUN command does not match the number of "
+                        "given arguments", exception.__str__())
+
+
+def test_dag_timeout_errors(env):
+    con = env.getConnection()
+
+    # ERR no value provided for timeout
+    try:
+        command = "AI.DAGRUN PERSIST 1 no_tensor{1} TIMEOUT"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("No value provided for TIMEOUT",exception.__str__())
+
+    # ERR invalid timeout value
+    try:
+        command = "AI.DAGRUN TIMEOUT notnumber{{1}} |> " \
+                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
+
+        ret = con.execute_command(command)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("Invalid value for TIMEOUT",exception.__str__())
+
+
 def test_dag_common_errors(env):
     con = env.getConnection()
 
@@ -79,27 +175,17 @@ def test_dag_common_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("wrong number of arguments for 'AI.DAGRUN' command",exception.__str__())
 
-    # ERR invalid or negative value found in number of keys to PERSIST
+    # ERR DAG with no ops
+    command = "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10"
+    ret = con.execute_command(command)
+    env.assertEqual(ret, b'OK')
     try:
-        command = "AI.DAGRUN PERSIST notnumber{{1}} |> "\
-                  "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
-
+        command = "AI.DAGRUN LOAD 1 volatile_tensor1"
         ret = con.execute_command(command)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("invalid or negative value found in number of keys to PERSIST",exception.__str__())
-
-    # ERR invalid or negative value found in number of keys to LOAD
-    try:
-        command = "AI.DAGRUN LOAD notnumber{{1}} |> "\
-                "AI.TENSORSET tensor1 FLOAT 1 2 VALUES 5 10"
-
-        ret = con.execute_command(command)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("invalid or negative value found in number of keys to LOAD",exception.__str__())
+        env.assertEqual("DAG is empty",exception.__str__())
 
 
 def test_dagro_common_errors(env):
