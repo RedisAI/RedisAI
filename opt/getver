@@ -11,7 +11,7 @@ if [[ $NUMERIC != 1 ]]; then
 		#include "src/version.h"
 
 		int main(int argc, char *argv[]) {
-				printf("%d.%d.%d\n", RAI_ENC_VER / 10000, (RAI_ENC_VER / 100) % 100, RAI_ENC_VER % 100);
+				printf("%d.%d.%d\n", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
 				return 0;
 		}
 		EOF
@@ -22,7 +22,7 @@ else
 		#include "src/version.h"
 
 		int main(int argc, char *argv[]) {
-				printf("%d\n", RAI_ENC_VER);
+				printf("%d%d%d\n", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
 				return 0;
 		}
 		EOF
