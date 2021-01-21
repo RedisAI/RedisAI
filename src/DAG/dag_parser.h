@@ -13,3 +13,14 @@
  */
 int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                        int argc, bool dag_ro);
+
+/**
+ * @brief Parse the arguments of the given ops in the DAGRUN command and build every op accordingly.
+ * @param rinfo The DAG run info that will be populated with the ops if they are valid.
+ * with its op,
+ * @param ops A local array of ops, where every op has an argv field that points to an
+ * array of RedisModule strings arguments, and an argc field which is the number of
+ * args.
+ * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
+ */
+int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops);

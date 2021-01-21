@@ -6,7 +6,6 @@ extern "C" {
 #include "src/err.h"
 }
 
-
 class ErrorStructTest : public ::testing::Test {
     protected:
         static void SetUpTestCase() {
