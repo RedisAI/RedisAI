@@ -122,7 +122,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         goto clean_up;
     }
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, RAI_TensorGetShallowCopy(tensor)) !=
+    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) !=
         REDISMODULE_OK) {
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         RedisModule_CloseKey(key);

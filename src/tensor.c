@@ -15,6 +15,7 @@
 #include "rmutil/alloc.h"
 #include "tensor_struct.h"
 #include "util/dict.h"
+#include "util/string_utils.h"
 #include <assert.h>
 #include <pthread.h>
 #include <stddef.h>
@@ -162,7 +163,7 @@ void RAI_RStringDataTensorDeleter(DLManagedTensor *arg) {
         RedisModuleString *rstr = (RedisModuleString *)arg->manager_ctx;
         RedisModule_FreeString(NULL, rstr);
     }
-
+    RedisModule_Free(arg->dl_tensor.data);
     RedisModule_Free(arg);
 }
 
@@ -189,7 +190,10 @@ RAI_Tensor *RAI_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, long long
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
-    char *data = (char *)RedisModule_StringPtrLen(rstr, NULL);
+    long long nbytes = len*dtypeSize;
+
+    char *data = RedisModule_Alloc(nbytes);
+    memcpy(data, RedisModule_StringPtrLen(rstr, NULL), nbytes);
 
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
