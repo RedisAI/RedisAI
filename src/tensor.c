@@ -97,14 +97,11 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
 
 RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
                                            int tensorAllocMode) {
-    const size_t dtypeSize = Tensor_DataTypeSize(dtype);
-    if (dtypeSize == 0) {
-        return NULL;
-    }
 
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
     int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
+    size_t dtypeSize = Tensor_DataTypeSize(dtype);
 
     size_t len = 1;
     for (int64_t i = 0; i < ndims; ++i) {
@@ -131,11 +128,6 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
         /* assume TENSORALLOC_NONE
         shallow copy no alloc */
         break;
-    }
-
-    if (tensorAllocMode != TENSORALLOC_NONE && data == NULL) {
-        RedisModule_Free(ret);
-        return NULL;
     }
 
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
@@ -167,14 +159,10 @@ void RAI_RStringDataTensorDeleter(DLManagedTensor *arg) {
     RedisModule_Free(arg);
 }
 
-RAI_Tensor *RAI_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, long long *dims, int ndims,
-                                                     RedisModuleString *rstr) {
-    const size_t dtypeSize = Tensor_DataTypeSize(dtype);
-    if (dtypeSize == 0) {
-        return NULL;
-    }
+RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtypeSize,
+                                                  long long *dims, int ndims,
+                                                  RedisModuleString *rstr, RAI_Error *err) {
 
-    RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
     int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
 
@@ -189,12 +177,20 @@ RAI_Tensor *RAI_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, long long
     }
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    size_t nbytes = len * dtypeSize;
 
-    long long nbytes = len*dtypeSize;
-
+    size_t blob_len;
+    const char *blob = RedisModule_StringPtrLen(rstr, &blob_len);
+    if (blob_len != nbytes) {
+        RedisModule_Free(shape);
+        RedisModule_Free(strides);
+        RAI_SetError(err, RAI_ETENSORSET, "ERR data length does not match tensor shape and type");
+        return NULL;
+    }
     char *data = RedisModule_Alloc(nbytes);
-    memcpy(data, RedisModule_StringPtrLen(rstr, NULL), nbytes);
+    memcpy(data, blob, nbytes);
 
+    RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
                                                             .ndim = ndims,
@@ -641,13 +637,16 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
         RAI_SetError(error, RAI_ETENSORSET, "wrong number of arguments for 'AI.TENSORSET' command");
         return -1;
     }
+
     // get the tensor datatype
     const char *typestr = RedisModule_StringPtrLen(argv[2], NULL);
-    size_t datasize = RAI_TensorDataSizeFromString(typestr);
-    if (!datasize) {
+    DLDataType datatype = RAI_TensorDataTypeFromString(typestr);
+    size_t datasize = Tensor_DataTypeSize(datatype);
+    if (datasize == 0) {
         RAI_SetError(error, RAI_ETENSORSET, "ERR invalid data type");
         return -1;
     }
+
     const char *fmtstr;
     int datafmt = TENSOR_NONE;
     int tensorAllocMode = TENSORALLOC_CALLOC;
@@ -703,23 +702,18 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
         }
     }
 
-    const long long nbytes = len * datasize;
-    size_t datalen;
-    const char *data;
-    DLDataType datatype = RAI_TensorDataTypeFromString(typestr);
     if (datafmt == TENSOR_BLOB) {
         RedisModuleString *rstr = argv[argpos];
         RedisModule_RetainString(NULL, rstr);
-        *t = RAI_TensorCreateWithDLDataTypeAndRString(datatype, dims, ndims, rstr);
+        *t = _TensorCreateWithDLDataTypeAndRString(datatype, datasize, dims, ndims, rstr, error);
     } else {
         *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
     }
-
-    if (!t) {
+    if (!(*t)) {
         array_free(dims);
-        RAI_SetError(error, RAI_ETENSORSET, "ERR could not create tensor");
         return -1;
     }
+
     long i = 0;
     if (datafmt == TENSOR_VALUES) {
         for (; (argpos <= argc - 1) && (i < len); argpos++) {
