@@ -65,7 +65,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
             RAI_ContextUnlock(rinfo);
             return;
         }
-        inputTensors[i] = RAI_TensorGetShallowCopy(inputTensor);
+        inputTensors[i] = inputTensor;
     }
 
     RAI_ContextUnlock(rinfo);
