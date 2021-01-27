@@ -98,10 +98,14 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
 RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
                                            int tensorAllocMode) {
 
+    size_t dtypeSize = Tensor_DataTypeSize(dtype);
+    if (dtypeSize == 0) {
+        return NULL;
+    }
+
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
     int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
-    size_t dtypeSize = Tensor_DataTypeSize(dtype);
 
     size_t len = 1;
     for (int64_t i = 0; i < ndims; ++i) {

@@ -405,7 +405,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
-          <<: *on-master
+          <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
