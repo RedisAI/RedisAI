@@ -65,7 +65,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
             RAI_ContextUnlock(rinfo);
             return;
         }
-        inputTensors[i] = inputTensor;
+        inputTensors[i] = RAI_TensorGetShallowCopy(inputTensor);
     }
 
     RAI_ContextUnlock(rinfo);
@@ -151,6 +151,7 @@ static void _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             persist_entry = AI_dictNext(persist_iter);
             continue;
         }
+        tensor = RAI_TensorGetShallowCopy(tensor);
         if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, true) == REDISMODULE_ERR) {
             *rinfo->dagError = 1;
             RedisModule_Log(ctx, "warning",
