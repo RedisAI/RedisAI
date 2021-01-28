@@ -39,7 +39,6 @@ class RedisAISetup(paella.Setup):
         self.install("redhat-lsb-core")
         self.run("%s/bin/enable-utf8" % READIES)
 
-        self.group_install("'Development Tools'")
         self.run("%s/bin/getgcc --modern" % READIES)
         self.install("llvm-toolset-7")
 
