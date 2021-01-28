@@ -26,16 +26,16 @@
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
 int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                             RAI_Model **model, int mode, RAI_Error *error) {
+                             RAI_Model **model, int mode, RAI_Error *err) {
     *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
-        RAI_SetError(error, REDISMODULE_KEYTYPE_EMPTY, "ERR model key is empty");
+        RAI_SetError(err, RAI_EMODELRUN, "ERR model key is empty");
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ModelType) {
         RedisModule_CloseKey(*key);
-        RAI_SetError(error, REDISMODULE_ERR, REDISMODULE_ERRORMSG_WRONGTYPE);
+        RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
     *model = RedisModule_ModuleTypeGetValue(*key);
@@ -253,6 +253,10 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 
 RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
 
+size_t ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
+
+size_t ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+
 int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data) {
 
     RedisAI_RunInfo *rinfo = NULL;
@@ -270,5 +274,9 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RAI_FreeRunInfo(rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }

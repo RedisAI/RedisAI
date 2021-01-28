@@ -336,6 +336,17 @@ on-master: &on-master
   filters:
     branches:
       only: master
+    tags:
+      ignore: /.*/
+
+on-integ-branch: &on-integ-branch
+  filters:
+    branches:
+      only:
+        - master
+        - /^\d+\.\d+.*$/
+    tags:
+      ignore: /.*/
 
 on-version-tags: &on-version-tags
   filters:
@@ -344,18 +355,20 @@ on-version-tags: &on-version-tags
     tags:
       only: /^v[0-9].*/
 
-on-master-and-version-tags: &on-master-and-version-tags
+on-integ-and-version-tags: &on-integ-and-version-tags
   filters:
     branches:
       only:
         - master
+        - /^\d+\.\d+.*$/
     tags:
       only: /^v[0-9].*/
+
 
 platform-build-defs: &platform-build-defs
   requires:
     - build-debian
-  <<: *on-master-and-version-tags
+  <<: *on-integ-and-version-tags
   # <<: *on-any-branch # debugging
 
 after-platform-builds: &after-platform-builds
@@ -372,7 +385,8 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-      - lint
+      - lint:
+          <<: *on-any-branch
       - build-debian:
           <<: *on-any-branch
           <<: *after-linter
@@ -405,7 +419,7 @@ workflows:
           # <<: *on-version-tags
       - deploy-snapshot:
           <<: *after-platform-builds
-          <<: *on-master
+          <<: *on-integ-branch
       - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
@@ -414,7 +428,9 @@ workflows:
     triggers:
       - schedule:
           cron: "20 17 * * *"
-          <<: *on-master
+          filters:
+            branches:
+              only: master
     jobs:
       - build-macos:
           <<: *never # temporarily disabled
