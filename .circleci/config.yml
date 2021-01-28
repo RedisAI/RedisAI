@@ -17,7 +17,7 @@ commands:
       - run:
           name: Setup automation
           command: |
-            PIP=1 ./opt/readies/bin/getpy3
+            ./opt/readies/bin/getpy3
             ./opt/system-setup.py
 
   build-steps:
@@ -125,6 +125,7 @@ jobs:
       - run:
           name: Submodule checkout
           command: git submodule update --init --recursive
+      - setup-automation
       - run:
           name: lint
           command: |
