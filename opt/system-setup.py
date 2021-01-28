@@ -27,7 +27,6 @@ class RedisAISetup(paella.Setup):
         self.install("gawk")
         self.install("build-essential")
         self.install("libssl-dev")
-        self.install("clang-format")
         self.install("python3-regex")
         self.install("python3-psutil python3-networkx python3-numpy")
         if self.platform.is_arm():
@@ -40,7 +39,7 @@ class RedisAISetup(paella.Setup):
         self.run("%s/bin/enable-utf8" % READIES)
 
         self.run("%s/bin/getgcc --modern" % READIES)
-        self.install("llvm-toolset-7")
+        # self.install("llvm-toolset-7")
 
         if self.arch == 'x64':
             self.install_linux_gnu_tar()
@@ -59,7 +58,6 @@ class RedisAISetup(paella.Setup):
     def fedora(self):
         self.group_install("'Development Tools'")
         self.install("python3 python3-psutil python3-networkx")
-        self.install("clang")
         self.install_git_lfs_on_linux()
 
     def linux_last(self):
@@ -69,9 +67,9 @@ class RedisAISetup(paella.Setup):
         self.install_gnu_utils()
         self.install("git-lfs")
         self.install("redis")
-        self.install("clang-format")
 
     def common_last(self):
+        self.run("%s/bin/getclang --format" % READIES)
         self.run("%s/bin/getcmake" % READIES)
 
         self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
