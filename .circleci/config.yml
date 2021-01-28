@@ -466,10 +466,10 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind-cluster:
-          <<: *on-any-branch
+          <<: *on-integ-branch
           <<: *after-linter
       - valgrind-AOF:
-          <<: *on-any-branch
+          <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
