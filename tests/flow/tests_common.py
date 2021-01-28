@@ -332,3 +332,8 @@ def test_lua_multi(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Cannot run RedisAI command within a transaction or a LUA script", exception.__str__())
+
+def test_info(env):
+    con = env.getConnection()
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))
