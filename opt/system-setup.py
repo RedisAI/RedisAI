@@ -18,12 +18,9 @@ class RedisAISetup(paella.Setup):
 
     def common_first(self):
         self.install_downloaders()
-        self.setup_pip()
-        self.pip_install("wheel virtualenv")
+        self.pip_install("wheel")
 
-        if self.os == 'linux':
-            self.install("ca-certificates")
-        self.install("git unzip wget patchelf")
+        self.install("git unzip patchelf")
         self.install("coreutils") # for realpath
 
     def debian_compat(self):
@@ -33,14 +30,14 @@ class RedisAISetup(paella.Setup):
         self.install("clang-format")
         self.install("python3-regex")
         self.install("python3-psutil python3-networkx python3-numpy")
-        if self.arch == 'arm64v8' or self.arch == 'arm32v7':
+        if self.platform.is_arm():
             self.install("python3-dev") # python3-skimage
         self.install("libmpich-dev libopenblas-dev") # for libtorch
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
         self.install("redhat-lsb-core")
-        self.run("%s/readies/bin/enable-utf8" % HERE)
+        self.run("%s/bin/enable-utf8" % READIES)
 
         self.group_install("'Development Tools'")
         self.run("%s/bin/getgcc --modern" % READIES)
@@ -78,13 +75,8 @@ class RedisAISetup(paella.Setup):
     def common_last(self):
         self.run("%s/bin/getcmake" % READIES)
 
-        self.run("python3 -m pip uninstall -y ramp-packer RLTest || true")
-        # redis-py-cluster should be installed from git due to redis-py dependency
-        self.pip_install("--no-cache-dir git+https://github.com/Grokzen/redis-py-cluster.git@master")
-        self.pip_install("--no-cache-dir git+https://github.com/RedisLabsModules/RLTest.git@master")
-        self.pip_install("--no-cache-dir git+https://github.com/RedisLabs/RAMP@master")
+        self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
 
-        self.pip_install("-r %s/readies/paella/requirements.txt" % HERE)
         self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
