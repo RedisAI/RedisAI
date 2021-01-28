@@ -227,9 +227,7 @@ def test_dagro_common_errors(env):
 def test_dagrun_ro_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
-    if(VALGRIND):
-        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
-        env.skip()
+
     con = env.getConnection()
     model_name = 'imagenet_model{{1}}'
     script_name = 'imagenet_script{{1}}'
@@ -277,9 +275,6 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
 def test_dagrun_modelrun_scriptrun_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
-    if(VALGRIND):
-        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
-        env.skip()
     con = env.getConnection()
     model_name = 'imagenet_model:{{1}}'
     script_name = 'imagenet_script:{{1}}'

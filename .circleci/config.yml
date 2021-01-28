@@ -201,7 +201,63 @@ jobs:
       - run:
           name: Test with valgrind
           command: |
-            make -C opt test VALGRIND=1
+            make -C opt test VALGRIND=1 CLUSTER=0 AOF=0
+          no_output_timeout: 120m
+
+  valgrind-cluster:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - restore_cache:
+          keys:
+            - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-automation
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind with cluster
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind and cluster
+          command: |
+            make -C opt test VALGRIND=1 GEN=0 AOF=0
+          no_output_timeout: 120m
+
+  valgrind-AOF:
+    docker:
+      - image: redisfab/rmbuilder:6.0.5-x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - restore_cache:
+          keys:
+            - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-automation
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind with AOF
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind and AOF
+          command: |
+            make -C opt test VALGRIND=1 GEN=0 CLUSTER=0
           no_output_timeout: 120m
 
   build-macos:
@@ -406,6 +462,12 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
+          <<: *on-any-branch
+          <<: *after-linter
+      - valgrind-cluster:
+          <<: *on-any-branch
+          <<: *after-linter
+      - valgrind-AOF:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
