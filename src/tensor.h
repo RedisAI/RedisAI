@@ -50,6 +50,14 @@ extern RedisModuleType *RedisAI_TensorType;
 int RAI_TensorInit(RedisModuleCtx *ctx);
 
 /**
+ * @brief Allocate an empty tensor with no data.
+ * @note The new tensor ref coutn is 1.
+ *
+ * @return RAI_Tensor* - a pointer to the new tensor.
+ */
+RAI_Tensor *RAI_TensorNew(void);
+
+/**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
  * the passed 'dataType` string and with the specified number of dimensions
  * `ndims`, and n-dimension array `dims`.

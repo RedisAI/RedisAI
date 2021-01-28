@@ -48,7 +48,7 @@ void *RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
                                                             .ndim = ndims,
@@ -58,7 +58,6 @@ void *RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
                                                             .byte_offset = byte_offset},
                                     .manager_ctx = NULL,
                                     .deleter = NULL};
-    ret->refCount = 1;
     return ret;
 
 cleanup:
