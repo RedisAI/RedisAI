@@ -417,6 +417,16 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
+    backend.get_version = (const char*(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionORT");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionORT. ONNX backend "
+                        "not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
     RAI_backends.onnx = backend;
 
     RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);

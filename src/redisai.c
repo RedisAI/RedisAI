@@ -847,9 +847,9 @@ void _RedisAI_Info(RedisModuleCtx* ctx) {
         RedisModule_ReplyWithSimpleString(ctx, RAI_backends.tf.get_version()); 
     }
 
-    if(RAI_backends.torch.get_version){
-        RedisModule_ReplyWithSimpleString(ctx, "Torch version"); 
-        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.torch.get_version()); 
+    if(RAI_backends.onnx.get_version){
+        RedisModule_ReplyWithSimpleString(ctx, "ONNX version"); 
+        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.onnx.get_version()); 
     }
 
 
