@@ -132,6 +132,16 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
+    backend.get_version = (const char*(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTF");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionTF. TF backend "
+                        "not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
     RAI_backends.tf = backend;
 
     RedisModule_Log(ctx, "notice", "TF backend loaded from %s", path);
