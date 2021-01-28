@@ -193,7 +193,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     }
     char *data = RedisModule_Alloc(nbytes);
     memcpy(data, blob, nbytes);
-    RAI_HoldString(NULL, rstr);
+    RedisModule_RetainString(NULL, rstr);
 
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
