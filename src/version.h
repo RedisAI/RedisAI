@@ -11,4 +11,3 @@
 #define REDISAI_LLAPI_VERSION 1
 
 static const long long REDISAI_ENC_VER = 1;
-

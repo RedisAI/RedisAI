@@ -592,6 +592,4 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
     return 0;
 }
 
-const char* RAI_GetBackendVersionTF(void) {
-    return TF_Version();
-}
+const char *RAI_GetBackendVersionTF(void) { return TF_Version(); }

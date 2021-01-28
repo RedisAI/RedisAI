@@ -75,7 +75,7 @@ typedef struct RAI_LoadedBackend {
     int (*script_run)(RAI_ScriptRunCtx *, RAI_Error *);
 
     // Returns the backend version.
-    const char* (*get_version)(void);
+    const char *(*get_version)(void);
 
 } RAI_LoadedBackend;
 

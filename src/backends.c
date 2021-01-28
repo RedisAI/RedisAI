@@ -132,7 +132,8 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
-    backend.get_version = (const char*(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTF");
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTF");
     if (backend.get_version == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -417,7 +418,8 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
-    backend.get_version = (const char*(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionORT");
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionORT");
     if (backend.get_version == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
