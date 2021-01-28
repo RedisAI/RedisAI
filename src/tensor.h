@@ -315,8 +315,8 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
                        int mode);
 
 /**
- * Helper method to get Tensor from keyspace. In the case of failure the key is
- * closed and the error is replied ( no cleaning actions required )
+ * Helper method to get Tensor from keyspace. In case of a failure an
+ * error is documented.
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
@@ -329,12 +329,11 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
  * an error getting the Tensor
  */
 int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Tensor **tensor, int mode);
+                              RAI_Tensor **tensor, int mode, RAI_Error *err);
 
 /**
  * Helper method to get Tensor from local context ( no keyspace access )
  *
- * @param ctx Context in which Redis modules operate
  * @param localContextDict local non-blocking hash table containing DAG's
  * tensors
  * @param localContextKey key name
@@ -343,9 +342,8 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  * failure
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RAI_getTensorFromLocalContext(RedisModuleCtx *ctx, AI_dict *localContextDict,
-                                  RedisModuleString *localContextKey, RAI_Tensor **tensor,
-                                  RAI_Error *error);
+int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
+                                  RAI_Tensor **tensor, RAI_Error *error);
 
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the
@@ -363,7 +361,6 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
 /**
  * Helper method to parse AI.TENSORGET arguments
  *
- * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @param t Destination tensor to store the parsed data
@@ -372,19 +369,20 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RAI_parseTensorSetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Tensor **t,
-                           int enforceArity, RAI_Error *error);
+int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity,
+                           RAI_Error *error);
 
 /**
  * Helper method to parse AI.TENSORGET arguments
  *
- * @param ctx Context in which Redis modules operate
+ * @param error error data structure to store error message in the case of
+ * parsing failures
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @return The format in which tensor is returned.
  */
 
-uint ParseTensorGetArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+uint ParseTensorGetArgs(RAI_Error *error, RedisModuleString **argv, int argc);
 
 /**
  * Helper method to return a tensor to the client in a response to AI.TENSORGET

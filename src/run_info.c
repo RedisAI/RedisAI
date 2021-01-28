@@ -179,7 +179,8 @@ void RAI_ContextReadLock(RedisAI_RunInfo *rinfo) {
     if (rinfo->single_op_dag || rinfo->single_device_dag) {
         return;
     }
-    pthread_rwlock_rdlock(rinfo->dagLock);
+    // This is a temporary solution
+    pthread_rwlock_wrlock(rinfo->dagLock);
 }
 
 void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo) {

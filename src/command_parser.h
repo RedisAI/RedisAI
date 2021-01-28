@@ -12,8 +12,8 @@ typedef enum RunCommand { CMD_MODELRUN = 0, CMD_SCRIPTRUN, CMD_DAGRUN } RunComma
  * is saved as well (if given, otherwise it is zero).
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
-int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
-                         RedisModuleString **argv, int argc);
+int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                         int argc);
 
 /**
  * @brief  Parse and validate SCRIPTRUN command: create a scriptRunCtx based on the script obtained
@@ -22,8 +22,8 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
  * runkey, and the given timeout is saved as well (if given, otherwise it is zero).
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
-int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
-                          RedisModuleString **argv, int argc);
+int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                          int argc);
 
 /**
  * @brief  Parse and execute RedisAI run command. After parsing and validation, the resulted

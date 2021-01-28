@@ -17,7 +17,7 @@ static int _parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long 
     return REDISMODULE_OK;
 }
 
-static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
                                       RedisModuleString ***inkeys, RedisModuleString ***outkeys,
                                       RedisModuleString **runkey, long long *timeout) {
@@ -93,7 +93,8 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **a
  */
 
 static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                  RedisModuleString **outkeys, RAI_ModelRunCtx *mctx) {
+                                  RedisModuleString **outkeys, RAI_ModelRunCtx *mctx,
+                                  RAI_Error *err) {
 
     RAI_Model *model = mctx->model;
     RAI_Tensor *t;
@@ -101,9 +102,10 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
     char *opname = NULL;
     size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
     for (size_t i = 0; i < ninputs; i++) {
-        const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ);
+        const int status =
+            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning", "could not load tensor %s from keyspace",
+            RedisModule_Log(ctx, "warning", "could not load input tensor %s from keyspace",
                             RedisModule_StringPtrLen(inkeys[i], NULL));
             return REDISMODULE_ERR;
         }
@@ -111,6 +113,7 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
             opname = model->inputs[i];
         RAI_ModelRunCtxAddInput(mctx, opname, t);
     }
+
     for (size_t i = 0; i < noutputs; i++) {
         if (model->outputs)
             opname = model->outputs[i];
@@ -119,22 +122,22 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
     return REDISMODULE_OK;
 }
 
-int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
-                         RedisModuleString **argv, int argc) {
+int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                         int argc) {
 
+    int res = REDISMODULE_ERR;
     // Build a ModelRunCtx from command.
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     RAI_Model *model;
-
     long long timeout = 0;
-    if (_ModelRunCommand_ParseArgs(ctx, argv, argc, &model, currentOp->err, &currentOp->inkeys,
+    if (_ModelRunCommand_ParseArgs(ctx, argc, argv, &model, rinfo->err, &currentOp->inkeys,
                                    &currentOp->outkeys, &currentOp->runkey,
                                    &timeout) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(currentOp->err));
         goto cleanup;
     }
 
     if (timeout > 0 && !rinfo->single_op_dag) {
-        RedisModule_ReplyWithError(ctx, "ERR TIMEOUT not allowed within a DAG command");
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR TIMEOUT not allowed within a DAG command");
         goto cleanup;
     }
 
@@ -146,16 +149,15 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
-        if (_ModelRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, mctx) ==
+        if (_ModelRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, mctx, rinfo->err) ==
             REDISMODULE_ERR)
             goto cleanup;
     }
-    return REDISMODULE_OK;
+    res = REDISMODULE_OK;
 
 cleanup:
-    if (rinfo->single_op_dag)
-        RAI_FreeRunInfo(rinfo);
-    return REDISMODULE_ERR;
+    RedisModule_FreeThreadSafeContext(ctx);
+    return res;
 }
 
 static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
@@ -172,9 +174,8 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
     size_t argpos = 1;
     RedisModuleKey *scriptKey;
     const int status =
-        RAI_GetScriptFromKeyspace(ctx, argv[argpos], &scriptKey, script, REDISMODULE_READ);
+        RAI_GetScriptFromKeyspace(ctx, argv[argpos], &scriptKey, script, REDISMODULE_READ, error);
     if (status == REDISMODULE_ERR) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Script not found");
         return REDISMODULE_ERR;
     }
     RAI_HoldString(NULL, argv[argpos]);
@@ -276,16 +277,17 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
  */
 
 static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx) {
+                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx,
+                                   RAI_Error *err) {
 
     RAI_Tensor *t;
     RedisModuleKey *key;
-    RAI_Error *err;
     size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
     for (size_t i = 0; i < ninputs; i++) {
-        const int status = RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ);
+        const int status =
+            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning", "could not load tensor %s from keyspace",
+            RedisModule_Log(ctx, "warning", "could not load input tensor %s from keyspace",
                             RedisModule_StringPtrLen(inkeys[i], NULL));
             return REDISMODULE_ERR;
         }
@@ -297,23 +299,25 @@ static int _ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inke
     return REDISMODULE_OK;
 }
 
-int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleCtx *ctx,
-                          RedisModuleString **argv, int argc) {
+int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                          int argc) {
 
+    int res = REDISMODULE_ERR;
     // Build a ScriptRunCtx from command.
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    // int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
     RAI_Script *script;
     const char *func_name = NULL;
 
     long long timeout = 0;
     int variadic = -1;
-    if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, &script, currentOp->err, &currentOp->inkeys,
+    if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, &script, rinfo->err, &currentOp->inkeys,
                                     &currentOp->outkeys, &currentOp->runkey, &func_name, &timeout,
                                     &variadic) == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(currentOp->err));
         goto cleanup;
     }
     if (timeout > 0 && !rinfo->single_op_dag) {
-        RedisModule_ReplyWithError(ctx, "ERR TIMEOUT not allowed within a DAG command");
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR TIMEOUT not allowed within a DAG command");
         goto cleanup;
     }
 
@@ -326,16 +330,18 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ScriptRunCtx, bring inputs from key space.
-        if (_ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx) ==
+        if (_ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx, rinfo->err) ==
             REDISMODULE_ERR)
             goto cleanup;
     }
-    return REDISMODULE_OK;
+    res = REDISMODULE_OK;
 
 cleanup:
-    if (rinfo->single_op_dag)
-        RAI_FreeRunInfo(rinfo);
-    return REDISMODULE_ERR;
+    // if (lock_status == REDISMODULE_OK) {
+    // RedisModule_ThreadSafeContextUnlock(ctx);
+    //}
+    RedisModule_FreeThreadSafeContext(ctx);
+    return res;
 }
 
 int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
@@ -357,14 +363,14 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RAI_DagOp *modelRunOp;
         RAI_InitDagOp(&modelRunOp);
         rinfo->dagOps = array_append(rinfo->dagOps, modelRunOp);
-        status = ParseModelRunCommand(rinfo, modelRunOp, ctx, argv, argc);
+        status = ParseModelRunCommand(rinfo, modelRunOp, argv, argc);
         break;
     case CMD_SCRIPTRUN:
         rinfo->single_op_dag = 1;
         RAI_DagOp *scriptRunOp;
         RAI_InitDagOp(&scriptRunOp);
         rinfo->dagOps = array_append(rinfo->dagOps, scriptRunOp);
-        status = ParseScriptRunCommand(rinfo, scriptRunOp, ctx, argv, argc);
+        status = ParseScriptRunCommand(rinfo, scriptRunOp, argv, argc);
         break;
     case CMD_DAGRUN:
         status = ParseDAGRunCommand(rinfo, ctx, argv, argc, ro_dag);
@@ -373,11 +379,17 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         break;
     }
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(rinfo->err));
+        RAI_FreeRunInfo(rinfo);
         return REDISMODULE_OK;
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
 
     rinfo->OnFinish = DAG_ReplyAndUnblock;
     rinfo->client = RedisModule_BlockClient(ctx, RedisAI_DagRun_Reply, NULL, RunInfo_FreeData, 0);
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RedisModule_UnblockClient(rinfo->client, rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }

@@ -29,6 +29,13 @@ const char *RAI_GetErrorOneLine(RAI_Error *err) { return err->detail_oneline; }
 
 RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err) { return err->code; }
 
+void RAI_CloneError(RAI_Error *dest, const RAI_Error *src) {
+    dest->code = src->code;
+    RedisModule_Assert(!dest->detail);
+    dest->detail = RedisModule_Strdup(src->detail);
+    dest->detail_oneline = RAI_Chomp(dest->detail);
+}
+
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
     if (!err) {
         return;
