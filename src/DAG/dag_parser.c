@@ -15,17 +15,16 @@
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param loadedContextDict local non-blocking hash table containing key names
- * loaded from the keyspace tensors
- * @param localContextDict local non-blocking hash table containing DAG's
- * tensors
+ * @param tensorsToInd Hash table that maps tensor key name to its index in the
+ * shared tensors array of the DAG.
+ * @param sharedTensors An array that use to store intermideate tensors in the DAG
  * @param chaining_operator operator used to split operations. Any command
  * argument after the chaining operator is not considered
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                             AI_dict **localContextDict, const char *chaining_operator,
-                             RAI_Error *err) {
+                             AI_dict *tensorsToInd, RAI_Tensor ***sharedTensors,
+                             const char *chaining_operator, RAI_Error *err) {
     if (argc < 3) {
         RAI_SetError(err, RAI_EDAGBUILDER,
                      "ERR wrong number of arguments for LOAD in 'AI.DAGRUN' command");
@@ -59,11 +58,11 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
             return -1;
         }
 
-        // Add the tensor under its "mangled" key name to the DAG local context dict.
-        char buf[16];
-        sprintf(buf, "%04d", 1);
-        RedisModule_StringAppendBuffer(NULL, key_name, buf, strlen(buf));
-        AI_dictAdd(*localContextDict, (void *)key_name, (void *)RAI_TensorGetShallowCopy(t));
+        // Add the tensor to the DAG shared tensors and map its name to the relevant index.
+        int *instance = RedisModule_Alloc(sizeof(int));
+        *instance = array_len(*sharedTensors);
+        AI_dictAdd(tensorsToInd, (void *)key_name, (void *)instance);
+        *sharedTensors = array_append(*sharedTensors, (void *)RAI_TensorGetShallowCopy(t));
         number_loaded_keys++;
     }
 
@@ -79,18 +78,16 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 /**
  * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
  *
- * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param localContextDict local non-blocking hash table containing DAG's
+ * @param persistTensorsNames local hash table containing DAG's
  * keynames marked as persistent
  * @param chaining_operator operator used to split operations. Any command
  * argument after the chaining operator is not considered
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                AI_dict **persistContextDict, const char *chaining_operator,
-                                RAI_Error *err) {
+static int _ParseDAGPersistArgs(RedisModuleString **argv, int argc, AI_dict *persistTensorsNames,
+                                const char *chaining_operator, RAI_Error *err) {
     if (argc < 3) {
         RAI_SetError(err, RAI_EDAGBUILDER,
                      "ERR wrong number of arguments for PERSIST in 'AI.DAGRUN' command");
@@ -111,10 +108,13 @@ static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, i
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, chaining_operator)) {
             break;
-        } else {
-            AI_dictAdd(*persistContextDict, (void *)argv[argpos], (void *)1);
-            number_keys_to_persist++;
         }
+        if (AI_dictFind(persistTensorsNames, (void *)argv[argpos]) != NULL) {
+            RAI_SetError(err, RAI_EDAGRUN, "ERR PERSIST keys must be unique");
+            return -1;
+        }
+        AI_dictAdd(persistTensorsNames, (void *)argv[argpos], (void *)1);
+        number_keys_to_persist++;
     }
     if (number_keys_to_persist != n_keys) {
         RAI_SetError(err, RAI_EDAGBUILDER,
@@ -249,8 +249,9 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         if (!strcasecmp(arg_string, "LOAD") && !load_complete && chainingOpCount == 0) {
             /* Load the required tensors from key space and store them in both
                dagTensorsLoadedContext and dagTensorsContext dicts. */
-            const int parse_result = _ParseDAGLoadArgs(
-                ctx, &argv[arg_pos], argc - arg_pos, &(rinfo->dagTensorsContext), "|>", rinfo->err);
+            const int parse_result =
+                _ParseDAGLoadArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->tensorsNamesToIndices,
+                                  &rinfo->dagSharedTensors, "|>", rinfo->err);
             if (parse_result <= 0)
                 goto cleanup;
             arg_pos += parse_result;
@@ -265,10 +266,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
             }
             /* Store the keys to persist in dagTensorsPersistedContext dict.
                These keys will be populated later on with actual tensors. */
-            const int parse_result =
-                _ParseDAGPersistArgs(ctx, &argv[arg_pos], argc - arg_pos,
-                                     &(rinfo->dagTensorsPersistedContext), "|>", rinfo->err);
-
+            const int parse_result = _ParseDAGPersistArgs(&argv[arg_pos], argc - arg_pos,
+                                                          rinfo->persistTensors, "|>", rinfo->err);
             if (parse_result <= 0)
                 goto cleanup;
             arg_pos += parse_result;
@@ -307,7 +306,11 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         goto cleanup;
     }
 
-    if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
+    if (MapTensorsKeysToIndices(rinfo, rinfo->tensorsNamesToIndices) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    if (ValidatePersistKeys(rinfo, rinfo->tensorsNamesToIndices, rinfo->persistTensors) !=
+        REDISMODULE_OK) {
         goto cleanup;
     }
     res = REDISMODULE_OK;

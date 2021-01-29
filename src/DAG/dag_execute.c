@@ -3,155 +3,59 @@
 #include "background_workers.h"
 #include "util/string_utils.h"
 
-void _DAG_SetTensorsInLocalContext(RedisAI_RunInfo *rinfo) {
-    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
-        RAI_DagOp *op = rinfo->dagOps[i];
-        if (op->commandType == REDISAI_DAG_CMD_TENSORSET) {
-            // Insert the tensor with its mangled (unique) name.
-            void *t = (void *)RAI_TensorGetShallowCopy(op->outTensor);
-            AI_dictReplace(rinfo->dagTensorsContext, (void *)op->outkeys[0], t);
-        }
-    }
-}
-
-int MangleTensorsNames(RedisAI_RunInfo *rinfo) {
-
-    int res = REDISMODULE_ERR;
-    AI_dict *mangled_tensors = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
+int ValidatePersistKeys(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd,
+                        AI_dict *persistTensorsNames) {
 
     {
-        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsContext);
-        AI_dictEntry *entry = AI_dictNext(iter);
-        while (entry) {
-            RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
-            size_t key_len;
-            const char *key_str = RedisModule_StringPtrLen(key, &key_len);
-            RedisModuleString *demangled_key = RedisModule_CreateString(NULL, key_str, key_len - 4);
-            int *instance = RedisModule_Alloc(sizeof(int));
-            *instance = 1;
-            AI_dictAdd(mangled_tensors, (void *)demangled_key, (void *)instance);
-            RedisModule_FreeString(NULL, demangled_key);
-            entry = AI_dictNext(iter);
+        AI_dictIterator *iter = AI_dictGetSafeIterator(persistTensorsNames);
+        AI_dictEntry *persist_entry;
+        while ((persist_entry = AI_dictNext(iter))) {
+            RedisModuleString *persist_key = (RedisModuleString *)AI_dictGetKey(persist_entry);
+            AI_dictEntry *entry = AI_dictFind(tensorsNamesToInd, persist_key);
+            if (!entry) {
+                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
+                return REDISMODULE_ERR;
+            }
         }
         AI_dictReleaseIterator(iter);
     }
+    return REDISMODULE_OK;
+}
+
+int MapTensorsKeysToIndices(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd) {
 
     for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
         RAI_DagOp *currentOp = rinfo->dagOps[i];
 
-        RedisModuleString **mangled_inkeys =
-            array_new(RedisModuleString *, array_len(currentOp->inkeys));
         for (long long j = 0; j < array_len(currentOp->inkeys); j++) {
             RedisModuleString *key = currentOp->inkeys[j];
-            AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
+            AI_dictEntry *entry = AI_dictFind(tensorsNamesToInd, key);
             if (!entry) {
-                array_free(mangled_inkeys);
                 RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR INPUT key cannot be found in DAG");
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
-            int *instance = AI_dictGetVal(entry);
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            mangled_inkeys = array_append(mangled_inkeys, mangled_key);
+            int *ind = AI_dictGetVal(entry);
+            currentOp->inkeys_indices = array_append(currentOp->inkeys_indices, *ind);
         }
 
-        RedisModuleString **mangled_outkeys =
-            array_new(RedisModuleString *, array_len(currentOp->outkeys));
         for (long long j = 0; j < array_len(currentOp->outkeys); j++) {
             RedisModuleString *key = currentOp->outkeys[j];
-            AI_dictEntry *entry = AI_dictFind(mangled_tensors, key);
-            int *instance = NULL;
-            if (entry) {
-                instance = AI_dictGetVal(entry);
-                *instance += 1;
+            int *ind = RedisModule_Alloc(sizeof(int));
+            *ind = array_len(rinfo->dagSharedTensors);
+
+            // Add a new empty place holder in the array for an output tensor.
+            // If this is MODELSET op, the tensor is already realized.
+            if (currentOp->commandType == REDISAI_DAG_CMD_TENSORSET) {
+                RAI_Tensor *t = RAI_TensorGetShallowCopy(currentOp->outTensor);
+                rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, t);
             } else {
-                instance = RedisModule_Alloc(sizeof(int));
-                *instance = 1;
-                AI_dictAdd(mangled_tensors, (void *)key, (void *)instance);
+                rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, NULL);
             }
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            mangled_outkeys = array_append(mangled_outkeys, mangled_key);
-        }
-
-        if (currentOp->inkeys) {
-            for (size_t j = 0; j < array_len(currentOp->inkeys); j++) {
-                RedisModule_FreeString(NULL, currentOp->inkeys[j]);
-            }
-            array_free(currentOp->inkeys);
-        }
-
-        if (currentOp->outkeys) {
-            for (size_t j = 0; j < array_len(currentOp->outkeys); j++) {
-                RedisModule_FreeString(NULL, currentOp->outkeys[j]);
-            }
-            array_free(currentOp->outkeys);
-        }
-
-        currentOp->inkeys = mangled_inkeys;
-        currentOp->outkeys = mangled_outkeys;
-    }
-
-    AI_dict *mangled_persisted = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-    {
-        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->dagTensorsPersistedContext);
-        AI_dictEntry *entry = AI_dictNext(iter);
-        while (entry) {
-            RedisModuleString *key = (RedisModuleString *)AI_dictGetKey(entry);
-            AI_dictEntry *mangled_entry = AI_dictFind(mangled_tensors, key);
-            if (!mangled_entry) {
-                AI_dictRelease(mangled_persisted);
-                AI_dictReleaseIterator(iter);
-                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
-                goto cleanup;
-            }
-            if (AI_dictFind(mangled_persisted, key) != NULL) {
-                AI_dictRelease(mangled_persisted);
-                AI_dictReleaseIterator(iter);
-                RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST keys must be unique");
-                goto cleanup;
-            }
-            int *instance = AI_dictGetVal(mangled_entry);
-            char buf[16];
-            sprintf(buf, "%04d", *instance);
-            RedisModuleString *mangled_key = RedisModule_CreateStringFromString(NULL, key);
-            RedisModule_StringAppendBuffer(NULL, mangled_key, buf, strlen(buf));
-            AI_dictAdd(mangled_persisted, (void *)mangled_key, (void *)1);
-            RedisModule_FreeString(NULL, mangled_key);
-            entry = AI_dictNext(iter);
-        }
-        AI_dictReleaseIterator(iter);
-    }
-
-    AI_dictRelease(rinfo->dagTensorsPersistedContext);
-    rinfo->dagTensorsPersistedContext = mangled_persisted;
-
-    for (long long i = 0; i < array_len(rinfo->dagOps); i++) {
-        if (rinfo->dagOps[i]->devicestr == NULL) {
-            rinfo->dagOps[i]->devicestr = "CPU";
+            currentOp->outkeys_indices = array_append(currentOp->outkeys_indices, *ind);
+            AI_dictReplace(tensorsNamesToInd, (void *)key, (void *)ind);
         }
     }
-    // Tensors from TENSORSET ops are ready to be put in DAG local context under their mangled
-    // names.
-    _DAG_SetTensorsInLocalContext(rinfo);
-    res = REDISMODULE_OK;
-
-cleanup : {
-    AI_dictIterator *iter = AI_dictGetSafeIterator(mangled_tensors);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-        int *val = (int *)AI_dictGetVal(entry);
-        RedisModule_Free(val);
-        entry = AI_dictNext(iter);
-    }
-    AI_dictReleaseIterator(iter);
-}
-    AI_dictRelease(mangled_tensors);
-    return res;
+    return REDISMODULE_OK;
 }
 
 // Add Shallow copies of the DAG run info to the devices' queues.
@@ -242,7 +146,7 @@ int RAI_DAGRun(RAI_DAGRunCtx *run_info, RAI_OnFinishCB DAGAsyncFinish, void *pri
     }
     // Make the inkeys and outkeys of the DAG ops unique, to ensure that the operations
     // will be execute in the right order.
-    if (MangleTensorsNames(rinfo) != REDISMODULE_OK) {
+    if (MapTensorsKeysToIndices(rinfo, rinfo->tensorsNamesToIndices) != REDISMODULE_OK) {
         RAI_SetError(err, rinfo->err->code, rinfo->err->detail);
         return REDISMODULE_ERR;
     }
@@ -269,16 +173,13 @@ size_t RAI_DAGNumOutputs(RAI_OnFinishCtx *finish_ctx) {
 const RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index) {
     size_t tensor_get_op_ind = -1;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)finish_ctx;
+
     for (size_t i = 0; i < rinfo->dagOpCount; i++) {
         RAI_DagOp *op = rinfo->dagOps[i];
         if (op->commandType == REDISAI_DAG_CMD_TENSORGET) {
             tensor_get_op_ind++;
             if (tensor_get_op_ind == index) {
-                RAI_Tensor *t;
-                int res = RAI_getTensorFromLocalContext(rinfo->dagTensorsContext, op->inkeys[0], &t,
-                                                        op->err);
-                RedisModule_Assert(res == REDISMODULE_OK);
-                return t;
+                return Dag_GetInternalTensor(rinfo, op->inkeys_indices[0]);
             }
         }
     }

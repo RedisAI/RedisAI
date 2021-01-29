@@ -46,6 +46,8 @@ int RAI_InitDagOp(RAI_DagOp **result) {
     dagOp->runkey = NULL;
     dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
     dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
+    dagOp->inkeys_indices = array_new(size_t, 1);
+    dagOp->outkeys_indices = array_new(size_t, 1);
     dagOp->outTensor = NULL;
     dagOp->mctx = NULL;
     dagOp->sctx = NULL;
@@ -70,9 +72,9 @@ int RAI_InitRunInfo(RedisAI_RunInfo **result) {
     RedisAI_RunInfo *rinfo;
     rinfo = (RedisAI_RunInfo *)RedisModule_Calloc(1, sizeof(RedisAI_RunInfo));
 
-    rinfo->dagTensorsContext = AI_dictCreate(&AI_dictTypeTensorVals, NULL);
-    rinfo->dagTensorsPersistedContext = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
-
+    rinfo->dagSharedTensors = array_new(RAI_Tensor *, 1);
+    rinfo->persistTensors = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
+    rinfo->tensorsNamesToIndices = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
     rinfo->dagOps = (RAI_DagOp **)array_new(RAI_DagOp *, 1);
     rinfo->dagError = RedisModule_Calloc(1, sizeof(int));
     RAI_InitError(&rinfo->err);
@@ -125,6 +127,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
         }
         array_free(dagOp->inkeys);
     }
+    array_free(dagOp->inkeys_indices);
 
     if (dagOp->outkeys) {
         for (size_t i = 0; i < array_len(dagOp->outkeys); i++) {
@@ -132,6 +135,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
         }
         array_free(dagOp->outkeys);
     }
+    array_free(dagOp->outkeys_indices);
     RedisModule_Free(dagOp);
 }
 
@@ -152,10 +156,22 @@ void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
     pthread_rwlock_destroy(rinfo->dagLock);
     RedisModule_Free(rinfo->dagLock);
 
-    if (rinfo->dagTensorsContext) {
-        AI_dictRelease(rinfo->dagTensorsContext);
-        AI_dictRelease(rinfo->dagTensorsPersistedContext);
+    size_t dag_tensors_num = array_len(rinfo->dagSharedTensors);
+    for (size_t i = 0; i < dag_tensors_num; i++) {
+        RAI_TensorFree(rinfo->dagSharedTensors[i]);
     }
+    array_free(rinfo->dagSharedTensors);
+    {
+        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->tensorsNamesToIndices);
+        AI_dictEntry *entry;
+        while ((entry = AI_dictNext(iter))) {
+            int *val = (int *)AI_dictGetVal(entry);
+            RedisModule_Free(val);
+        }
+        AI_dictReleaseIterator(iter);
+    }
+    AI_dictRelease(rinfo->tensorsNamesToIndices);
+    AI_dictRelease(rinfo->persistTensors);
 
     if (rinfo->dagOps) {
         for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {
@@ -179,8 +195,7 @@ void RAI_ContextReadLock(RedisAI_RunInfo *rinfo) {
     if (rinfo->single_op_dag || rinfo->single_device_dag) {
         return;
     }
-    // This is a temporary solution
-    pthread_rwlock_wrlock(rinfo->dagLock);
+    pthread_rwlock_rdlock(rinfo->dagLock);
 }
 
 void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo) {
@@ -279,7 +294,7 @@ RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
 
     RAI_DagOp *op = rinfo->dagOps[0];
     if (!rinfo->single_op_dag || !op->mctx) {
-        RAI_SetError(err, RedisAI_ErrorCode_EFINISHCTX, "Finish ctx is not a model run ctx");
+        RAI_SetError(err, RAI_EFINISHCTX, "Finish ctx is not a model run ctx");
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
@@ -293,7 +308,7 @@ RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) 
 
     RAI_DagOp *op = rinfo->dagOps[0];
     if (!rinfo->single_op_dag || !op->sctx) {
-        RAI_SetError(err, RedisAI_ErrorCode_EFINISHCTX, "Finish ctx is not a script run ctx");
+        RAI_SetError(err, RAI_EFINISHCTX, "Finish ctx is not a script run ctx");
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
