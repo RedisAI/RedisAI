@@ -246,7 +246,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     for (size_t i = 0; i < ninputs; ++i) {
         TF_Operation *oper = TF_GraphOperationByName(model, inputs[i]);
-        if (oper == NULL) {
+        if (oper == NULL || strcmp(TF_OperationOpType(oper), "Placeholder") != 0) {
             size_t len = strlen(inputs[i]);
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
