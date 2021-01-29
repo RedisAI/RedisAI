@@ -84,10 +84,6 @@ def test_run_mobilenet(env):
 
 @skip_if_no_TF
 def test_run_mobilenet_multiproc(env):
-    if VALGRIND:
-        env.debugPrint("skipping {} since VALGRIND=1".format(
-            sys._getframe().f_code.co_name), force=True)
-        return
 
     con = env.getConnection()
 
@@ -332,6 +328,7 @@ def test_run_tf_model_errors(env):
 
     try:
         con.execute_command('AI.MODELGET')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -342,6 +339,7 @@ def test_run_tf_model_errors(env):
     con.execute_command('SET', 'NOT_MODEL{1}', 'BAR')
     try:
         con.execute_command('AI.MODELGET', 'NOT_MODEL{1}')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -354,6 +352,7 @@ def test_run_tf_model_errors(env):
     con.execute_command('DEL', 'DONT_EXIST{1}')
     try:
         con.execute_command('AI.MODELGET', 'DONT_EXIST{1}')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -362,6 +361,7 @@ def test_run_tf_model_errors(env):
     try:
         ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
                                   'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', wrong_model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -370,6 +370,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_1{1}', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -378,6 +379,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_2{1}', 'PORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -386,6 +388,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_3{1}', 'TORCH', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -393,6 +396,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_4{1}', 'TF',
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -400,15 +404,17 @@ def test_run_tf_model_errors(env):
 
     try:
         con.execute_command('AI.MODELSET', 'm_5{1}', 'TF', DEVICE,
-                            'INPUTS', 'a', 'b', 'c', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+                            'INPUTS', 'a', 'b', 'bad_input', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+        env.assertEqual("Input node named \"bad_input\" not found in TF graph.", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_6{1}', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -416,6 +422,7 @@ def test_run_tf_model_errors(env):
 
     try:
         con.execute_command('AI.MODELSET', 'm_7{1}', 'TF', DEVICE, 'BLOB', model_pb)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -424,6 +431,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -432,6 +440,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
                             'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -440,6 +449,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
                             'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'mul_')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -448,6 +458,7 @@ def test_run_tf_model_errors(env):
     try:
         con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
                             'INPUTS', 'a', 'b', 'OUTPUTS')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -455,6 +466,7 @@ def test_run_tf_model_errors(env):
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -462,6 +474,7 @@ def test_run_tf_model_errors(env):
 
     try:
         con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}', 'd{1}', 'e{1}')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -617,10 +630,7 @@ def test_tensorflow_modelrun_disconnect(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_and_minbatch(env):
-    if VALGRIND:
-        env.debugPrint("skipping {} since VALGRIND=1".format(
-            sys._getframe().f_code.co_name), force=True)
-        return
+
     con = env.getConnection()
     batch_size = 2
     minbatch_size = 2
