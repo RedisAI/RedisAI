@@ -122,8 +122,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         goto clean_up;
     }
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, RAI_TensorGetShallowCopy(tensor)) !=
-        REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) != REDISMODULE_OK) {
         RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
         RedisModule_CloseKey(key);
         goto clean_up;
@@ -152,6 +151,7 @@ static void _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
             persist_entry = AI_dictNext(persist_iter);
             continue;
         }
+        tensor = RAI_TensorGetShallowCopy(tensor);
         if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, true) == REDISMODULE_ERR) {
             *rinfo->dagError = 1;
             RedisModule_Log(ctx, "warning",
