@@ -56,8 +56,8 @@ torch::IValue redisExecute(std::string fn_name, std::vector<std::string> args ) 
     RedisModuleCallReply *reply = RedisModule_Call(ctx, fn_name.c_str(), "!v", arguments, len);
     RedisModule_ThreadSafeContextUnlock(ctx);
     torch::IValue value = IValueFromRedisReply(reply);
-    RedisModule_FreeThreadSafeContext(ctx);
     RedisModule_FreeCallReply(reply);
+    RedisModule_FreeThreadSafeContext(ctx);
     for(int i= 0; i < len; i++){
         RedisModule_FreeString(NULL, arguments[i]);
     }
