@@ -98,10 +98,14 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
 RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
                                            int tensorAllocMode) {
 
+    size_t dtypeSize = Tensor_DataTypeSize(dtype);
+    if (dtypeSize == 0) {
+        return NULL;
+    }
+
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
     int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
-    size_t dtypeSize = Tensor_DataTypeSize(dtype);
 
     size_t len = 1;
     for (int64_t i = 0; i < ndims; ++i) {
@@ -189,6 +193,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     }
     char *data = RedisModule_Alloc(nbytes);
     memcpy(data, blob, nbytes);
+    RAI_HoldString(NULL, rstr);
 
     RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
@@ -686,7 +691,6 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
 
     if (datafmt == TENSOR_BLOB) {
         RedisModuleString *rstr = argv[argpos];
-        RedisModule_RetainString(NULL, rstr);
         *t = _TensorCreateWithDLDataTypeAndRString(datatype, datasize, dims, ndims, rstr, error);
     } else {
         *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);

@@ -122,7 +122,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(
-        unsigned long)dlsym(handle, "RAI_ModelSerializeTF");
+        (unsigned long)dlsym(handle, "RAI_ModelSerializeTF"));
     if (backend.model_serialize == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",

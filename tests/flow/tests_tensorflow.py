@@ -84,10 +84,6 @@ def test_run_mobilenet(env):
 
 @skip_if_no_TF
 def test_run_mobilenet_multiproc(env):
-    if VALGRIND:
-        env.debugPrint("skipping {} since VALGRIND=1".format(
-            sys._getframe().f_code.co_name), force=True)
-        return
 
     con = env.getConnection()
 
@@ -634,10 +630,7 @@ def test_tensorflow_modelrun_disconnect(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_and_minbatch(env):
-    if VALGRIND:
-        env.debugPrint("skipping {} since VALGRIND=1".format(
-            sys._getframe().f_code.co_name), force=True)
-        return
+
     con = env.getConnection()
     batch_size = 2
     minbatch_size = 2
