@@ -6,7 +6,13 @@ include $(ROOT)/opt/readies/mk/main
 # OSNICK=buster|stretch|bionic|xenial|centos7
 OSNICK ?= buster
 
+ifeq ($(REPO),redisai)
+REPO=redisai
+SIMPLE ?= 1
+else
 REPO=redisfab
+endif
+
 STEM=$(REPO)/redisai
 
 REDIS_VER:=6.0.9

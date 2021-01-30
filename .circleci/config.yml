@@ -106,6 +106,29 @@ commands:
       - store_artifacts:
           path: test/logs
 
+  dockerhub-build-steps:
+    parameters:
+      build_args:
+        type: string
+    steps:
+      - setup-executor
+      - checkout
+      - run:
+          name: Setup
+          command: |
+            git submodule update --init --recursive
+            ./opt/readies/bin/getpy3
+      - run:
+          name: Build for platform
+          command: |
+            #@@ docker login -u redisai -p $DOCKER_REDISAI_PWD
+            cd opt/build/docker
+            #@@ make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            #@@ make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            make build $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            make build $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+          no_output_timeout: 40m
+
   deploy-steps:
     parameters:
       from:
@@ -131,9 +154,9 @@ jobs:
           command: |
             make -C opt lint
 
-  build-debian:
+  build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - build-steps:
           platform: debian
@@ -150,7 +173,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - checkout
       - run:
@@ -178,8 +201,12 @@ jobs:
           no_output_timeout: 30m
 
   valgrind:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - checkout
       - run:
@@ -202,63 +229,7 @@ jobs:
       - run:
           name: Test with valgrind
           command: |
-            make -C opt test VALGRIND=1 CLUSTER=0 AOF=0
-          no_output_timeout: 120m
-
-  valgrind-cluster:
-    docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-            - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-automation
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind with cluster
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind and cluster
-          command: |
-            make -C opt test VALGRIND=1 GEN=0 AOF=0
-          no_output_timeout: 120m
-
-  valgrind-AOF:
-    docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-            - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-automation
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind with AOF
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind and AOF
-          command: |
-            make -C opt test VALGRIND=1 GEN=0 CLUSTER=0
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
 
   build-macos:
@@ -325,12 +296,22 @@ jobs:
       - store_artifacts:
           path: test/log
 
+  dockerhub-build:
+    parameters:
+      build_args:
+        type: string
+    docker:
+      - image: debian:buster
+    steps:
+      - dockerhub-build-steps:
+          build_args: <<parameters.build_args>>
+
   deploy-artifacts:
     parameters:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -344,7 +325,7 @@ jobs:
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -362,7 +343,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -422,11 +403,13 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only: /^v[0-9].*/
 
 
-platform-build-defs: &platform-build-defs
+after-linter: &after-linter
   requires:
-    - build-debian
-  <<: *on-integ-and-version-tags
-  # <<: *on-any-branch # debugging
+    - lint
+
+after-build-and-test: &after-build-and-test
+  requires:
+    - build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
@@ -434,9 +417,11 @@ after-platform-builds: &after-platform-builds
     - build-bionic
     - build-xenial
 
-after-linter: &after-linter
-  requires:
-    - lint
+platform-build-defs: &platform-build-defs
+  <<: *after-build-and-test
+  <<: *on-integ-and-version-tags
+  # <<: *on-any-branch # debugging
+
 
 workflows:
   version: 2
@@ -444,9 +429,14 @@ workflows:
     jobs:
       - lint:
           <<: *on-any-branch
-      - build-debian:
+      - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
+      - dockerhub-build:
+          name: dockerhub-edge
+          build_args: EDGE=1
+          <<: *after-build-and-test
+          <<: *on-any-branch
       - platform-build:
           name: build-centos7
           platform: centos7
@@ -463,12 +453,17 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
+          test_args: CLUSTER=0 AOF=0
           <<: *on-any-branch
           <<: *after-linter
-      - valgrind-cluster:
+      - valgrind:
+          name: valgrind-cluster
+          test_args: GEN=0 AOF=0
           <<: *on-integ-branch
           <<: *after-linter
-      - valgrind-AOF:
+      - valgrind:
+          name: valgrind-aof
+          test_args: GEN=0 CLUSTER=0
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu:
@@ -484,6 +479,11 @@ workflows:
           <<: *after-platform-builds
           <<: *on-integ-branch
       - deploy-release:
+          <<: *after-platform-builds
+          <<: *on-version-tags
+      - dockerhub-build:
+          name: dockerhub-release
+          build_args: LATEST=1
           <<: *after-platform-builds
           <<: *on-version-tags
 
