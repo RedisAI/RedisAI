@@ -14,6 +14,7 @@ int ValidatePersistKeys(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd,
             AI_dictEntry *entry = AI_dictFind(tensorsNamesToInd, persist_key);
             if (!entry) {
                 RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR PERSIST key cannot be found in DAG");
+                AI_dictReleaseIterator(iter);
                 return REDISMODULE_ERR;
             }
         }
@@ -52,6 +53,11 @@ int MapTensorsKeysToIndices(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd) 
                 rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, NULL);
             }
             currentOp->outkeys_indices = array_append(currentOp->outkeys_indices, *ind);
+            AI_dictEntry *entry = AI_dictFind(tensorsNamesToInd, (void *)key);
+            // If this key was already in the dict, remove and free the previous index
+            if (entry) {
+                RedisModule_Free(AI_dictGetVal(entry));
+            }
             AI_dictReplace(tensorsNamesToInd, (void *)key, (void *)ind);
         }
     }
