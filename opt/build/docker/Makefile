@@ -15,6 +15,8 @@ endif
 
 STEM=$(REPO)/redisai
 
+LATEST_BRANCH=1.2
+
 REDIS_VER:=6.0.9
 
 ART_DIR=$(ROOT)/bin/artifacts

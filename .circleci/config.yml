@@ -432,11 +432,6 @@ workflows:
       - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
-      - dockerhub-build:
-          name: dockerhub-edge
-          build_args: EDGE=1
-          <<: *after-build-and-test
-          <<: *on-any-branch
       - platform-build:
           name: build-centos7
           platform: centos7
@@ -450,11 +445,13 @@ workflows:
           platform: xenial
           <<: *platform-build-defs
       - coverage:
-          <<: *on-any-branch
+          #@@ <<: *on-any-branch
           <<: *after-linter
+          <<: *never #@@ remove this
       - valgrind:
           test_args: CLUSTER=0 AOF=0
-          <<: *on-any-branch
+          #@@ <<: *on-any-branch
+          <<: *never #@@ remove this
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
@@ -467,7 +464,8 @@ workflows:
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu:
-          <<: *on-any-branch
+          #@@<<: *on-any-branch
+          <<: *never #@@ remove this
           <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
@@ -478,6 +476,12 @@ workflows:
       - deploy-snapshot:
           <<: *after-platform-builds
           <<: *on-integ-branch
+      - dockerhub-build:
+          name: dockerhub-edge
+          build_args: EDGE=1
+          <<: *after-build-and-test
+          #@@ <<: *on-master
+          <<: *on-any-branch
       - deploy-release:
           <<: *after-platform-builds
           <<: *on-version-tags
