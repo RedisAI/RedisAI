@@ -31,9 +31,8 @@ int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *t
     RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
 
     // Add the tensor to the DAG shared tensors and map its name to the relevant index.
-    int *instance = RedisModule_Alloc(sizeof(int));
-    *instance = array_len(rinfo->dagSharedTensors);
-    AI_dictAdd(rinfo->tensorsNamesToIndices, (void *)key_name, (void *)instance);
+    size_t index = array_len(rinfo->dagSharedTensors);
+    AI_dictAdd(rinfo->tensorsNamesToIndices, (void *)key_name, (void *)index);
     RAI_TensorGetShallowCopy(tensor);
     rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, (void *)tensor);
     RedisModule_FreeString(NULL, key_name);

@@ -59,9 +59,8 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         }
 
         // Add the tensor to the DAG shared tensors and map its name to the relevant index.
-        int *instance = RedisModule_Alloc(sizeof(int));
-        *instance = array_len(*sharedTensors);
-        AI_dictAdd(tensorsToInd, (void *)key_name, (void *)instance);
+        size_t index = array_len(*sharedTensors);
+        AI_dictAdd(tensorsToInd, (void *)key_name, (void *)index);
         *sharedTensors = array_append(*sharedTensors, (void *)RAI_TensorGetShallowCopy(t));
         number_loaded_keys++;
     }
@@ -113,7 +112,7 @@ static int _ParseDAGPersistArgs(RedisModuleString **argv, int argc, AI_dict *per
             RAI_SetError(err, RAI_EDAGRUN, "ERR PERSIST keys must be unique");
             return -1;
         }
-        AI_dictAdd(persistTensorsNames, (void *)argv[argpos], (void *)1);
+        AI_dictAdd(persistTensorsNames, (void *)argv[argpos], NULL);
         number_keys_to_persist++;
     }
     if (number_keys_to_persist != n_keys) {
@@ -313,6 +312,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         REDISMODULE_OK) {
         goto cleanup;
     }
+    AI_dictRelease(rinfo->tensorsNamesToIndices);
+    rinfo->tensorsNamesToIndices = NULL;
     res = REDISMODULE_OK;
 
 cleanup:

@@ -17,6 +17,8 @@ int ValidatePersistKeys(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd,
                 AI_dictReleaseIterator(iter);
                 return REDISMODULE_ERR;
             }
+            size_t index = (size_t)AI_dictGetVal(entry);
+            AI_dictReplace(persistTensorsNames, (void *)persist_key, (void *)index);
         }
         AI_dictReleaseIterator(iter);
     }
@@ -35,29 +37,23 @@ int MapTensorsKeysToIndices(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd) 
                 RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR INPUT key cannot be found in DAG");
                 return REDISMODULE_ERR;
             }
-            int *ind = AI_dictGetVal(entry);
-            currentOp->inkeys_indices = array_append(currentOp->inkeys_indices, *ind);
+            size_t ind = (size_t)AI_dictGetVal(entry);
+            currentOp->inkeys_indices = array_append(currentOp->inkeys_indices, ind);
         }
 
         for (long long j = 0; j < array_len(currentOp->outkeys); j++) {
             RedisModuleString *key = currentOp->outkeys[j];
-            int *ind = RedisModule_Alloc(sizeof(int));
-            *ind = array_len(rinfo->dagSharedTensors);
+            size_t ind = array_len(rinfo->dagSharedTensors);
 
             // Add a new empty place holder in the array for an output tensor.
-            // If this is MODELSET op, the tensor is already realized.
+            // If this is a TENSORSET op, the tensor is already realized.
             if (currentOp->commandType == REDISAI_DAG_CMD_TENSORSET) {
                 RAI_Tensor *t = RAI_TensorGetShallowCopy(currentOp->outTensor);
                 rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, t);
             } else {
                 rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, NULL);
             }
-            currentOp->outkeys_indices = array_append(currentOp->outkeys_indices, *ind);
-            AI_dictEntry *entry = AI_dictFind(tensorsNamesToInd, (void *)key);
-            // If this key was already in the dict, remove and free the previous index
-            if (entry) {
-                RedisModule_Free(AI_dictGetVal(entry));
-            }
+            currentOp->outkeys_indices = array_append(currentOp->outkeys_indices, ind);
             AI_dictReplace(tensorsNamesToInd, (void *)key, (void *)ind);
         }
     }

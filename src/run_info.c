@@ -161,17 +161,10 @@ void RAI_FreeRunInfo(struct RedisAI_RunInfo *rinfo) {
         RAI_TensorFree(rinfo->dagSharedTensors[i]);
     }
     array_free(rinfo->dagSharedTensors);
-    {
-        AI_dictIterator *iter = AI_dictGetSafeIterator(rinfo->tensorsNamesToIndices);
-        AI_dictEntry *entry;
-        while ((entry = AI_dictNext(iter))) {
-            int *val = (int *)AI_dictGetVal(entry);
-            RedisModule_Free(val);
-        }
-        AI_dictReleaseIterator(iter);
-    }
-    AI_dictRelease(rinfo->tensorsNamesToIndices);
     AI_dictRelease(rinfo->persistTensors);
+    if (rinfo->tensorsNamesToIndices) {
+        AI_dictRelease(rinfo->tensorsNamesToIndices);
+    }
 
     if (rinfo->dagOps) {
         for (size_t i = 0; i < array_len(rinfo->dagOps); i++) {

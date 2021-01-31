@@ -94,7 +94,7 @@ struct RedisAI_RunInfo {
     int single_op_dag;
     int single_device_dag;
     RAI_Tensor **dagSharedTensors;  // Shared array of tensors that dag ops use.
-    AI_dict *persistTensors;        // The keys of the tensors that will be persisted.
+    AI_dict *persistTensors;        // Associates the tensors to persist with their indices .
     AI_dict *tensorsNamesToIndices; // Maps tensor key name to its (maximal) index.
     RAI_DagOp **dagOps;             // all ops in DAG
     RAI_DagOp **dagDeviceOps;       // all ops in DAG for device

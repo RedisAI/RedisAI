@@ -118,10 +118,8 @@ static int _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
 
     while ((persist_entry = AI_dictNext(persist_iter))) {
         RedisModuleString *persist_key_name = AI_dictGetKey(persist_entry);
-        AI_dictEntry *tensor_entry = AI_dictFind(rinfo->tensorsNamesToIndices, persist_key_name);
-        RedisModule_Assert(tensor_entry);
-        int *index = AI_dictGetVal(tensor_entry);
-        RAI_Tensor *tensor = Dag_GetInternalTensor(rinfo, *index);
+        size_t index = (size_t)AI_dictGetVal(persist_entry);
+        RAI_Tensor *tensor = Dag_GetInternalTensor(rinfo, index);
         tensor = RAI_TensorGetShallowCopy(tensor);
 
         if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, rinfo->err) == REDISMODULE_ERR) {
