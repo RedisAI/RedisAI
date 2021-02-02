@@ -1,8 +1,8 @@
 # <img src="images/logo.svg" alt="logo" style="width: 2em; vertical-align: middle;"/> RedisAI
 [![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
-[![Gitter](https://badges.gitter.im/RedisLabs/RedisAI.svg)](https://gitter.im/RedisLabs/RedisAI?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge)
+[![Discord](https://img.shields.io/discord/697882427875393627?style=flat-square)](https://discord.gg/rTQm7UZ)
 
-RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. RedisAI both maximizes computation throughput and reduces latency by adhering to the principle of data locality, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
+RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **RedisAI both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
 RedisAI is a joint effort between [Redis Labs](https://www.redislabs.com) and [Tensorwerk](https://tensorwerk.com).
 

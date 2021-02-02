@@ -8,6 +8,10 @@ This introduction is intended to present the core concepts it uses and the funct
 !!! important "Prerequisites"
     Before diving into RedisAI please make sure that you are familiar with the basic concepts of machine learning and Redis.
 
+This video will introduce you to RedisAI at a high level. Give it a watch, then keep reading for more details.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/gbiqF-eyTW4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 In broad strokes, RedisAI's looks as follows:
 
 ```
@@ -191,13 +195,13 @@ A **Model** is a Deep Learning or Machine Learning frozen graph that was generat
 
 Models, like any other Redis and RedisAI data structures, are identified by keys. A Model's key is created using the [`AI.MODELSET` command](commands.md#aimodelset) and requires the graph payload serialized as protobuf for input.
 
-In our examples, we'll use one of the graphs that RedisAI uses in its tests, namely 'graph.pb', which can be downloaded from [here](https://github.com/RedisAI/RedisAI/raw/master/test/test_data/graph.pb). This graph was created using TensorFlow with [this script](https://github.com/RedisAI/RedisAI/blob/master/test/test_data/tf-minimal.py).
+In our examples, we'll use one of the graphs that RedisAI uses in its tests, namely 'graph.pb', which can be downloaded from [here](https://github.com/RedisAI/RedisAI/raw/master/tests/test_data/graph.pb). This graph was created using TensorFlow with [this script](https://github.com/RedisAI/RedisAI/blob/master/tests/test_data/tf-minimal.py).
 
 ??? info "Downloading 'graph.pb'"
     Use a web browser or the command line to download 'graph.pb':
 
     ```
-    wget https://github.com/RedisAI/RedisAI/raw/master/test/test_data/graph.pb
+    wget https://github.com/RedisAI/RedisAI/raw/master/tests/test_data/graph.pb
     ```
 
 You can view the computation graph using [Netron](https://lutzroeder.github.io/netron/), which supports all frameworks supported by RedisAI.
@@ -304,7 +308,7 @@ The RedisAI Script data structure is managed via a set of dedicated commands, si
 
 * Created with the [`AI.SCRIPTSET` command](commands.md#aiscriptset)
 * Run with the [`AI.SCRIPTRUN` command](commands.md#aiscriptrun)
-* Deleted with the [`AI.SCRIPTSEL` command](commands.md#aiscriptdel)
+* Deleted with the [`AI.SCRIPTDEL` command](commands.md#aiscriptdel)
 
 We can create a RedisAI Script that performs the same computation as the 'graph.pb' model. The script can look like this:
 

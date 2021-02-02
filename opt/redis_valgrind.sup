@@ -9,6 +9,13 @@
    ignore_unversioned_libs
    Memcheck:Leak
    ...
+   obj:*/libtensorflow_framework.so.*
+}
+
+{
+   ignore_unversioned_libs
+   Memcheck:Leak
+   ...
    obj:*/libonnxruntime.so.*
 }
 
@@ -17,6 +24,13 @@
    Memcheck:Leak
    ...
    obj:*/libtorch.so.*
+}
+
+{
+   ignore_unversioned_libs
+   Memcheck:Overlap
+   ...
+   obj:*/libtorch_cpu.so*
 }
 
 {
@@ -43,3 +57,14 @@
    Memcheck:Value8
    fun:lzf_compress
 }
+
+{
+   <dlopen>
+   Memcheck:Leak
+   fun:malloc
+   ...
+   fun:dlopen@@GLIBC_2.2.5
+   ...
+   fun:RAI_LoadBackend
+}
+

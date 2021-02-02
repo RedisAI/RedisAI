@@ -9,19 +9,18 @@
  *
  */
 
-#if defined(__linux__)
-#define _GNU_SOURCE
-#endif
-
 #ifndef SRC_BACKGROUND_WORKERS_H_
 #define SRC_BACKGROUND_WORKERS_H_
+
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
 
 #include <pthread.h>
 
 #include "config.h"
-#include "dag.h"
+#include "DAG/dag.h"
 #include "model.h"
-#include "model_script_run_session.h"
 #include "redisai.h"
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -37,28 +36,28 @@
 #define RAI_PTHREAD_SETNAME(name) pthread_setname_np(pthread_self(), name)
 #else
 #if (defined __NetBSD__ || defined __FreeBSD__ || defined __OpenBSD__)
-    #include <pthread_np.h>
-    #define RAI_PTHREAD_SETNAME(name) pthread_set_name_np(pthread_self(), name)
-    #else
-        #if (defined __APPLE__ && defined(MAC_OS_X_VERSION_10_7))
-        int pthread_setname_np(const char *name);
-        #include <pthread.h>
-        #define RAI_PTHREAD_SETNAME(name) pthread_setname_np(name)
-        #else
-        #define RAI_PTHREAD_SETNAME(name)
-        #endif
-    #endif
+#include <pthread_np.h>
+#define RAI_PTHREAD_SETNAME(name) pthread_set_name_np(pthread_self(), name)
+#else
+#if (defined __APPLE__ && defined(MAC_OS_X_VERSION_10_7))
+int pthread_setname_np(const char *name);
+#include <pthread.h>
+#define RAI_PTHREAD_SETNAME(name) pthread_setname_np(name)
+#else
+#define RAI_PTHREAD_SETNAME(name)
+#endif
+#endif
 #endif
 
 AI_dict *run_queues;
 long long perqueueThreadPoolSize;
 
 typedef struct RunQueueInfo {
-  pthread_mutex_t run_queue_mutex;
-  pthread_cond_t queue_condition_var;
-  queue *run_queue;
-  pthread_t *threads;
-  char* devicestr;
+    pthread_mutex_t run_queue_mutex;
+    pthread_cond_t queue_condition_var;
+    queue *run_queue;
+    pthread_t *threads;
+    char *devicestr;
 } RunQueueInfo;
 
 int freeRunQueueInfo(RunQueueInfo *info);

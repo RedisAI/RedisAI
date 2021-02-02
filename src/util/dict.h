@@ -39,11 +39,11 @@
 #ifndef __DICT_H
 #define __DICT_H
 
-#define DICT_OK 0
+#define DICT_OK  0
 #define DICT_ERR 1
 
 /* Unused arguments generate annoying warnings... */
-#define DICT_NOTUSED(V) ((void) V)
+#define DICT_NOTUSED(V) ((void)V)
 
 typedef struct AI_dictEntry {
     void *key;
@@ -78,7 +78,7 @@ typedef struct AI_dict {
     AI_dictType *type;
     void *privdata;
     AI_dictht ht[2];
-    long rehashidx; /* rehashing not in progress if rehashidx == -1 */
+    long rehashidx;          /* rehashing not in progress if rehashidx == -1 */
     unsigned long iterators; /* number of iterators currently running */
 } AI_dict;
 
@@ -95,58 +95,64 @@ typedef struct AI_dictIterator {
     long long fingerprint;
 } AI_dictIterator;
 
-typedef void (AI_dictScanFunction)(void *privdata, const AI_dictEntry *de);
-typedef void (AI_dictScanBucketFunction)(void *privdata, AI_dictEntry **bucketref);
+typedef void(AI_dictScanFunction)(void *privdata, const AI_dictEntry *de);
+typedef void(AI_dictScanBucketFunction)(void *privdata, AI_dictEntry **bucketref);
 
 /* This is the initial size of every hash table */
-#define DICT_HT_INITIAL_SIZE     4
+#define DICT_HT_INITIAL_SIZE 4
 
 /* ------------------------------- Macros ------------------------------------*/
-#define AI_dictFreeVal(d, entry) \
-    if ((d)->type->valDestructor) \
-        (d)->type->valDestructor((d)->privdata, (entry)->v.val)
+#define AI_dictFreeVal(d, entry)                                                                   \
+    if ((d)->type->valDestructor)                                                                  \
+    (d)->type->valDestructor((d)->privdata, (entry)->v.val)
 
-#define AI_dictSetVal(d, entry, _val_) do { \
-    if ((d)->type->valDup) \
-        (entry)->v.val = (d)->type->valDup((d)->privdata, _val_); \
-    else \
-        (entry)->v.val = (_val_); \
-} while(0)
+#define AI_dictSetVal(d, entry, _val_)                                                             \
+    do {                                                                                           \
+        if ((d)->type->valDup)                                                                     \
+            (entry)->v.val = (d)->type->valDup((d)->privdata, _val_);                              \
+        else                                                                                       \
+            (entry)->v.val = (_val_);                                                              \
+    } while (0)
 
-#define AI_dictSetSignedIntegerVal(entry, _val_) \
-    do { (entry)->v.s64 = _val_; } while(0)
+#define AI_dictSetSignedIntegerVal(entry, _val_)                                                   \
+    do {                                                                                           \
+        (entry)->v.s64 = _val_;                                                                    \
+    } while (0)
 
-#define AI_dictSetUnsignedIntegerVal(entry, _val_) \
-    do { (entry)->v.u64 = _val_; } while(0)
+#define AI_dictSetUnsignedIntegerVal(entry, _val_)                                                 \
+    do {                                                                                           \
+        (entry)->v.u64 = _val_;                                                                    \
+    } while (0)
 
-#define AI_dictSetDoubleVal(entry, _val_) \
-    do { (entry)->v.d = _val_; } while(0)
+#define AI_dictSetDoubleVal(entry, _val_)                                                          \
+    do {                                                                                           \
+        (entry)->v.d = _val_;                                                                      \
+    } while (0)
 
-#define AI_dictFreeKey(d, entry) \
-    if ((d)->type->keyDestructor) \
-        (d)->type->keyDestructor((d)->privdata, (entry)->key)
+#define AI_dictFreeKey(d, entry)                                                                   \
+    if ((d)->type->keyDestructor)                                                                  \
+    (d)->type->keyDestructor((d)->privdata, (entry)->key)
 
-#define AI_dictSetKey(d, entry, _key_) do { \
-    if ((d)->type->keyDup) \
-        (entry)->key = (d)->type->keyDup((d)->privdata, _key_); \
-    else \
-        (entry)->key = (_key_); \
-} while(0)
+#define AI_dictSetKey(d, entry, _key_)                                                             \
+    do {                                                                                           \
+        if ((d)->type->keyDup)                                                                     \
+            (entry)->key = (d)->type->keyDup((d)->privdata, _key_);                                \
+        else                                                                                       \
+            (entry)->key = (_key_);                                                                \
+    } while (0)
 
-#define AI_dictCompareKeys(d, key1, key2) \
-    (((d)->type->keyCompare) ? \
-        (d)->type->keyCompare((d)->privdata, key1, key2) : \
-        (key1) == (key2))
+#define AI_dictCompareKeys(d, key1, key2)                                                          \
+    (((d)->type->keyCompare) ? (d)->type->keyCompare((d)->privdata, key1, key2) : (key1) == (key2))
 
-#define AI_dictHashKey(d, key) (d)->type->hashFunction(key)
-#define AI_dictGetKey(he) ((he)->key)
-#define AI_dictGetVal(he) ((he)->v.val)
-#define AI_dictGetSignedIntegerVal(he) ((he)->v.s64)
+#define AI_dictHashKey(d, key)           (d)->type->hashFunction(key)
+#define AI_dictGetKey(he)                ((he)->key)
+#define AI_dictGetVal(he)                ((he)->v.val)
+#define AI_dictGetSignedIntegerVal(he)   ((he)->v.s64)
 #define AI_dictGetUnsignedIntegerVal(he) ((he)->v.u64)
-#define AI_dictGetDoubleVal(he) ((he)->v.d)
-#define AI_dictSlots(d) ((d)->ht[0].size+(d)->ht[1].size)
-#define AI_dictSize(d) ((d)->ht[0].used+(d)->ht[1].used)
-#define AI_dictIsRehashing(d) ((d)->rehashidx != -1)
+#define AI_dictGetDoubleVal(he)          ((he)->v.d)
+#define AI_dictSlots(d)                  ((d)->ht[0].size + (d)->ht[1].size)
+#define AI_dictSize(d)                   ((d)->ht[0].used + (d)->ht[1].used)
+#define AI_dictIsRehashing(d)            ((d)->rehashidx != -1)
 
 /* API */
 AI_dict *AI_dictCreate(AI_dictType *type, void *privDataPtr);
@@ -159,7 +165,7 @@ int AI_dictDelete(AI_dict *d, const void *key);
 AI_dictEntry *AI_dictUnlink(AI_dict *ht, const void *key);
 void AI_dictFreeUnlinkedEntry(AI_dict *d, AI_dictEntry *he);
 void AI_dictRelease(AI_dict *d);
-AI_dictEntry * AI_dictFind(AI_dict *d, const void *key);
+AI_dictEntry *AI_dictFind(AI_dict *d, const void *key);
 void *AI_dictFetchValue(AI_dict *d, const void *key);
 int AI_dictResize(AI_dict *d);
 AI_dictIterator *AI_dictGetIterator(AI_dict *d);
@@ -171,19 +177,16 @@ unsigned int AI_dictGetSomeKeys(AI_dict *d, AI_dictEntry **des, unsigned int cou
 void AI_dictGetStats(char *buf, size_t bufsize, AI_dict *d);
 uint64_t AI_dictGenHashFunction(const void *key, int len);
 uint64_t AI_dictGenCaseHashFunction(const unsigned char *buf, int len);
-void AI_dictEmpty(AI_dict *d, void(callback)(void*));
+void AI_dictEmpty(AI_dict *d, void(callback)(void *));
 void AI_dictEnableResize(void);
 void AI_dictDisableResize(void);
 int AI_dictRehash(AI_dict *d, int n);
 int AI_dictRehashMilliseconds(AI_dict *d, int ms);
 void AI_dictSetHashFunctionSeed(uint8_t *seed);
 uint8_t *AI_dictGetHashFunctionSeed(void);
-unsigned long AI_dictScan(AI_dict *d, unsigned long v, AI_dictScanFunction *fn, AI_dictScanBucketFunction *bucketfn, void *privdata);
+unsigned long AI_dictScan(AI_dict *d, unsigned long v, AI_dictScanFunction *fn,
+                          AI_dictScanBucketFunction *bucketfn, void *privdata);
 uint64_t AI_dictGetHash(AI_dict *d, const void *key);
 AI_dictEntry **AI_dictFindEntryRefByPtrAndHash(AI_dict *d, const void *oldptr, uint64_t hash);
-
-
-extern AI_dictType AI_dictTypeHeapStrings;
-extern AI_dictType AI_dictTypeHeapStringsVals;
 
 #endif /* __DICT_H */

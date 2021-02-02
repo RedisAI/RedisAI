@@ -13,10 +13,10 @@ extern "C" {
  * Works like C++ std::vector with an underlying resizable buffer
  */
 typedef struct {
-  char *data;
-  size_t elemSize;
-  size_t cap;
-  size_t top;
+    char *data;
+    size_t elemSize;
+    size_t cap;
+    size_t top;
 
 } Vector;
 

@@ -43,6 +43,6 @@
 #include <malloc.h>
 #endif
 //#include "zmalloc.h"
-#define s_malloc malloc
+#define s_malloc  malloc
 #define s_realloc realloc
-#define s_free free
+#define s_free    free

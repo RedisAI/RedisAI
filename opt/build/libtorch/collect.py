@@ -13,7 +13,7 @@ import paella
 
 #----------------------------------------------------------------------------------------------
 
-PYTORCH_VERSION = '1.2.0'
+PYTORCH_VERSION = '1.7.0'
 
 parser = argparse.ArgumentParser(description='Prepare RedisAI dependant distribution packages.')
 parser.add_argument('--pytorch', default='pytorch', help='root of pytorch repository')
@@ -34,7 +34,7 @@ pt_build='cpu'
 platform = paella.Platform()
 
 pt_os = platform.os
-if pt_os == 'macosx':
+if pt_os == 'macos':
     pt_os = 'darwin'
 
 pt_arch = platform.arch

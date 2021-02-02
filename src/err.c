@@ -13,44 +13,45 @@
 #include "string.h"
 
 char *RAI_Chomp(const char *src) {
-  char *str = RedisModule_Strdup(src);
-  size_t len = strlen(src);
-  for (size_t i = 0; i < len; i++) {
-    if (str[i] == '\n' || str[i] == '\r') {
-      str[i] = ' ';
+    char *str = RedisModule_Strdup(src);
+    size_t len = strlen(src);
+    for (size_t i = 0; i < len; i++) {
+        if (str[i] == '\n' || str[i] == '\r') {
+            str[i] = ' ';
+        }
     }
-  }
-  return str;
+    return str;
 }
 
-const char* RAI_GetError(RAI_Error *err) {
-  return err->detail;
-}
+const char *RAI_GetError(RAI_Error *err) { return err->detail; }
 
-const char* RAI_GetErrorOneLine(RAI_Error *err) {
-  return err->detail_oneline;
-}
+const char *RAI_GetErrorOneLine(RAI_Error *err) { return err->detail_oneline; }
 
-RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err) {
-  return err->code;
+RAI_ErrorCode RAI_GetErrorCode(RAI_Error *err) { return err->code; }
+
+void RAI_CloneError(RAI_Error *dest, const RAI_Error *src) {
+    dest->code = src->code;
+    RedisModule_Assert(!dest->detail);
+    dest->detail = RedisModule_Strdup(src->detail);
+    dest->detail_oneline = RAI_Chomp(dest->detail);
 }
 
 void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
-  if(!err){
-    return;
-  }
-  if (err->code != RAI_OK) {
-    return;
-  }
-  assert(!err->detail);
-  err->code = code;
+    if (!err) {
+        return;
+    }
+    if (err->code != RAI_OK) {
+        return;
+    }
+    assert(!err->detail);
+    err->code = code;
 
-  if (detail) {
-    err->detail = RedisModule_Strdup(detail);
-  } else {
-    err->detail = RedisModule_Strdup("ERR Generic error");
-  }
-  err->detail_oneline = RAI_Chomp(err->detail);
+    if (detail) {
+        err->detail = RedisModule_Strdup(detail);
+    } else {
+        err->detail = RedisModule_Strdup("ERR Generic error");
+    }
+    err->detail_oneline = RAI_Chomp(err->detail);
 }
 
 /**
@@ -60,35 +61,29 @@ void RAI_SetError(RAI_Error *err, RAI_ErrorCode code, const char *detail) {
  * failed.
  */
 int RAI_InitError(RAI_Error **result) {
-  RAI_Error *err;
-  err = (RAI_Error *)RedisModule_Calloc(1, sizeof(RAI_Error));
-  if (!err) {
-    return 1;
-  }
-  err->code = 0;
-  err->detail = NULL;
-  err->detail_oneline = NULL;
-  *result = err;
-  return 0;
+    RAI_Error *err;
+    err = (RAI_Error *)RedisModule_Calloc(1, sizeof(RAI_Error));
+    *result = err;
+    return REDISMODULE_OK;
 }
 
 void RAI_ClearError(RAI_Error *err) {
-  if (err) {
-    if (err->detail) {
-      RedisModule_Free(err->detail);
-      err->detail = NULL;
+    if (err) {
+        if (err->detail) {
+            RedisModule_Free(err->detail);
+            err->detail = NULL;
+        }
+        if (err->detail_oneline) {
+            RedisModule_Free(err->detail_oneline);
+            err->detail_oneline = NULL;
+        }
+        err->code = RAI_OK;
     }
-    if (err->detail_oneline) {
-      RedisModule_Free(err->detail_oneline);
-      err->detail_oneline = NULL;
-    }
-    err->code = RAI_OK;
-  }
 }
 
 void RAI_FreeError(RAI_Error *err) {
-  if (err) {
-    RAI_ClearError(err);
-    RedisModule_Free(err);
-  }
+    if (err) {
+        RAI_ClearError(err);
+        RedisModule_Free(err);
+    }
 }

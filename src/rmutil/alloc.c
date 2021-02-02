@@ -5,10 +5,10 @@
 
 /* A patched implementation of strdup that will use our patched calloc */
 char *rmalloc_strndup(const char *s, size_t n) {
-  char *ret = calloc(n + 1, sizeof(char));
-  if (ret)
-    memcpy(ret, s, n);
-  return ret;
+    char *ret = calloc(n + 1, sizeof(char));
+    if (ret)
+        memcpy(ret, s, n);
+    return ret;
 }
 
 /*
@@ -24,9 +24,9 @@ char *rmalloc_strndup(const char *s, size_t n) {
  * patches the RM_Alloc functions back to the original mallocs. */
 void RMUTil_InitAlloc() {
 
-  RedisModule_Alloc = malloc;
-  RedisModule_Realloc = realloc;
-  RedisModule_Calloc = calloc;
-  RedisModule_Free = free;
-  RedisModule_Strdup = strdup;
+    RedisModule_Alloc = malloc;
+    RedisModule_Realloc = realloc;
+    RedisModule_Calloc = calloc;
+    RedisModule_Free = free;
+    RedisModule_Strdup = strdup;
 }

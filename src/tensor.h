@@ -14,25 +14,32 @@
 #include "dlpack/dlpack.h"
 #include "err.h"
 #include "redismodule.h"
+#include "redisai.h"
 #include "tensor_struct.h"
 #include "util/dict.h"
 
-#define TENSORALLOC_NONE 0
-#define TENSORALLOC_ALLOC 1
+#define TENSORALLOC_NONE   0
+#define TENSORALLOC_ALLOC  1
 #define TENSORALLOC_CALLOC 2
 
 // Numeric data type of tensor elements, one of FLOAT, DOUBLE, INT8, INT16,
 // INT32, INT64, UINT8, UINT16
-static const char* RAI_DATATYPE_STR_FLOAT = "FLOAT";
-static const char* RAI_DATATYPE_STR_DOUBLE = "DOUBLE";
-static const char* RAI_DATATYPE_STR_INT8 = "INT8";
-static const char* RAI_DATATYPE_STR_INT16 = "INT16";
-static const char* RAI_DATATYPE_STR_INT32 = "INT32";
-static const char* RAI_DATATYPE_STR_INT64 = "INT64";
-static const char* RAI_DATATYPE_STR_UINT8 = "UINT8";
-static const char* RAI_DATATYPE_STR_UINT16 = "UINT16";
+static const char *RAI_DATATYPE_STR_FLOAT = "FLOAT";
+static const char *RAI_DATATYPE_STR_DOUBLE = "DOUBLE";
+static const char *RAI_DATATYPE_STR_INT8 = "INT8";
+static const char *RAI_DATATYPE_STR_INT16 = "INT16";
+static const char *RAI_DATATYPE_STR_INT32 = "INT32";
+static const char *RAI_DATATYPE_STR_INT64 = "INT64";
+static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
+static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
 
-extern RedisModuleType* RedisAI_TensorType;
+#define TENSOR_NONE                0
+#define TENSOR_VALUES              (1 << 0)
+#define TENSOR_META                (1 << 1)
+#define TENSOR_BLOB                (1 << 2)
+#define TENSOR_ILLEGAL_VALUES_BLOB (TENSOR_VALUES | TENSOR_BLOB)
+
+extern RedisModuleType *RedisAI_TensorType;
 
 /**
  * Helper method to register the tensor type exported by the module.
@@ -40,7 +47,7 @@ extern RedisModuleType* RedisAI_TensorType;
  * @param ctx Context in which Redis modules operate
  * @return
  */
-int RAI_TensorInit(RedisModuleCtx* ctx);
+int RAI_TensorInit(RedisModuleCtx *ctx);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
@@ -54,8 +61,7 @@ int RAI_TensorInit(RedisModuleCtx* ctx);
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor* RAI_TensorCreate(const char* dataType, long long* dims, int ndims,
-                             int hasdata);
+RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, int hasdata);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
@@ -71,8 +77,8 @@ RAI_Tensor* RAI_TensorCreate(const char* dataType, long long* dims, int ndims,
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims,
-                                           int ndims, int tensorAllocMode);
+RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
+                                           int tensorAllocMode);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
@@ -82,7 +88,7 @@ RAI_Tensor* RAI_TensorCreateWithDLDataType(DLDataType dtype, long long* dims,
  * @return 0 on success, or 1 if the copy failed
  * failed.
  */
-int RAI_TensorDeepCopy(RAI_Tensor* t, RAI_Tensor** dest);
+int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor, performing a shallow copy
@@ -94,7 +100,7 @@ int RAI_TensorDeepCopy(RAI_Tensor* t, RAI_Tensor** dest);
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor);
+RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor, performing a deep copy of
@@ -105,8 +111,7 @@ RAI_Tensor* RAI_TensorCreateFromDLTensor(DLManagedTensor* dl_tensor);
  * @return allocated RAI_Tensor on success, or NULL if the allocation and deep
  * copy failed failed.
  */
-RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts,
-                                                   long long n);
+RAI_Tensor *RAI_TensorCreateByConcatenatingTensors(RAI_Tensor **ts, long long n);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor, performing a deep copy of
@@ -118,8 +123,7 @@ RAI_Tensor* RAI_TensorCreateByConcatenatingTensors(RAI_Tensor** ts,
  * @return allocated RAI_Tensor on success, or NULL if the allocation and deep
  * copy failed failed.
  */
-RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset,
-                                            long long len);
+RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, long long len);
 
 /**
  * Returns the length of the input tensor
@@ -127,7 +131,7 @@ RAI_Tensor* RAI_TensorCreateBySlicingTensor(RAI_Tensor* t, long long offset,
  * @param t input tensor
  * @return the length of the input tensor
  */
-size_t RAI_TensorLength(RAI_Tensor* t);
+size_t RAI_TensorLength(RAI_Tensor *t);
 
 /**
  * Returns the size in bytes of each element of the tensor
@@ -135,7 +139,7 @@ size_t RAI_TensorLength(RAI_Tensor* t);
  * @param t input tensor
  * @return size in bytes of each the underlying tensor data type
  */
-size_t RAI_TensorDataSize(RAI_Tensor* t);
+size_t RAI_TensorDataSize(RAI_Tensor *t);
 
 /**
  * Returns the size in bytes of the given DLDataType
@@ -152,7 +156,7 @@ size_t RAI_TensorDataSizeFromDLDataType(DLDataType dtype);
  * @param dataType
  * @return size in bytes of each the underlying tensor data type
  */
-size_t RAI_TensorDataSizeFromString(const char* dataType);
+size_t RAI_TensorDataSizeFromString(const char *dataType);
 
 /**
  * Get the associated `DLDataType` for the given input tensor
@@ -160,7 +164,16 @@ size_t RAI_TensorDataSizeFromString(const char* dataType);
  * @param t input tensor
  * @return the associated `DLDataType` for the given input tensor
  */
-DLDataType RAI_TensorDataType(RAI_Tensor* t);
+DLDataType RAI_TensorDataType(RAI_Tensor *t);
+
+/**
+ * Check whether two tensors have the same data type
+ *
+ * @param t1 input tensor
+ * @param t2 input tensor
+ * @return 1 if data types match, 0 otherwise
+ */
+int RAI_TensorIsDataTypeEqual(RAI_Tensor *t1, RAI_Tensor *t2);
 
 /**
  * Returns the DLDataType represented by the input string
@@ -168,7 +181,7 @@ DLDataType RAI_TensorDataType(RAI_Tensor* t);
  * @param dataType
  * @return the DLDataType represented by the input string
  */
-DLDataType RAI_TensorDataTypeFromString(const char* dataType);
+DLDataType RAI_TensorDataTypeFromString(const char *dataType);
 
 /**
  * sets in dtypestr the string representing the associated DLDataType
@@ -178,7 +191,7 @@ DLDataType RAI_TensorDataTypeFromString(const char* dataType);
  * DLDataType
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int Tensor_DataTypeStr(DLDataType dtype, char** dtypestr);
+int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr);
 
 /**
  * Frees the memory of the RAI_Tensor when the tensor reference count reaches 0.
@@ -186,7 +199,7 @@ int Tensor_DataTypeStr(DLDataType dtype, char** dtypestr);
  *
  * @param t tensor
  */
-void RAI_TensorFree(RAI_Tensor* t);
+void RAI_TensorFree(RAI_Tensor *t);
 
 /**
  * Sets the associated data to the deep learning tensor via deep copying the
@@ -197,7 +210,7 @@ void RAI_TensorFree(RAI_Tensor* t);
  * @param len input data length
  * @return 1 on success
  */
-int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len);
+int RAI_TensorSetData(RAI_Tensor *t, const char *data, size_t len);
 
 /**
  * Sets the long value for the given tensor, at the given array data pointer
@@ -208,7 +221,7 @@ int RAI_TensorSetData(RAI_Tensor* t, const char* data, size_t len);
  * @param val value to set the data from
  * @return 0 on success, or 1 if the setting failed
  */
-int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val);
+int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val);
 
 /**
  * Sets the double value for the given tensor, at the given array data pointer
@@ -219,7 +232,7 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor* t, long long i, long long val);
  * @param val value to set the data from
  * @return 0 on success, or 1 if the setting failed
  */
-int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val);
+int RAI_TensorSetValueFromDouble(RAI_Tensor *t, long long i, double val);
 
 /**
  * Gets the double value from the given input tensor, at the given array data
@@ -230,7 +243,7 @@ int RAI_TensorSetValueFromDouble(RAI_Tensor* t, long long i, double val);
  * @param val value to set the data to
  * @return 0 on success, or 1 if getting the data failed
  */
-int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val);
+int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val);
 
 /**
  * Gets the long value from the given input tensor, at the given array data
@@ -241,7 +254,7 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor* t, long long i, double* val);
  * @param val value to set the data to
  * @return 0 on success, or 1 if getting the data failed
  */
-int RAI_TensorGetValueAsLongLong(RAI_Tensor* t, long long i, long long* val);
+int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val);
 
 /**
  * Every call to this function, will make the RAI_Tensor 't' requiring an
@@ -251,7 +264,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor* t, long long i, long long* val);
  * @param t input tensor
  * @return shallow copy of the tensor
  */
-RAI_Tensor* RAI_TensorGetShallowCopy(RAI_Tensor* t);
+RAI_Tensor *RAI_TensorGetShallowCopy(RAI_Tensor *t);
 
 /**
  * Returns the number of dimensions for the given input tensor
@@ -259,7 +272,7 @@ RAI_Tensor* RAI_TensorGetShallowCopy(RAI_Tensor* t);
  * @param t input tensor
  * @return number of dimensions for the given input tensor
  */
-int RAI_TensorNumDims(RAI_Tensor* t);
+int RAI_TensorNumDims(RAI_Tensor *t);
 
 /**
  * Returns the dimension length for the given input tensor and dimension
@@ -268,7 +281,7 @@ int RAI_TensorNumDims(RAI_Tensor* t);
  * @param dim dimension
  * @return the dimension length
  */
-long long RAI_TensorDim(RAI_Tensor* t, int dim);
+long long RAI_TensorDim(RAI_Tensor *t, int dim);
 
 /**
  * Returns the size in bytes of the underlying deep learning tensor data
@@ -276,7 +289,7 @@ long long RAI_TensorDim(RAI_Tensor* t, int dim);
  * @param t input tensor
  * @return the size in bytes of the underlying deep learning tensor data
  */
-size_t RAI_TensorByteSize(RAI_Tensor* t);
+size_t RAI_TensorByteSize(RAI_Tensor *t);
 
 /**
  * Return the pointer the the deep learning tensor data
@@ -284,7 +297,7 @@ size_t RAI_TensorByteSize(RAI_Tensor* t);
  * @param t input tensor
  * @return direct access to the array data pointer
  */
-char* RAI_TensorData(RAI_Tensor* t);
+char *RAI_TensorData(RAI_Tensor *t);
 
 /**
  * Helper method to open a key handler for the tensor data type
@@ -298,12 +311,12 @@ char* RAI_TensorData(RAI_Tensor* t);
  * the tensor type, or REDISMODULE_ERR if is the key not associated with a
  * tensor type.
  */
-int RAI_OpenKey_Tensor(RedisModuleCtx* ctx, RedisModuleString* keyName,
-                       RedisModuleKey** key, int mode);
+int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
+                       int mode);
 
 /**
- * Helper method to get Tensor from keyspace. In the case of failure the key is
- * closed and the error is replied ( no cleaning actions required )
+ * Helper method to get Tensor from keyspace. In case of a failure an
+ * error is documented.
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
@@ -315,14 +328,12 @@ int RAI_OpenKey_Tensor(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * returned and available at *tensor variable, or REDISMODULE_ERR if there was
  * an error getting the Tensor
  */
-int RAI_GetTensorFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
-                              RedisModuleKey** key, RAI_Tensor** tensor,
-                              int mode);
+int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
+                              RAI_Tensor **tensor, int mode, RAI_Error *err);
 
 /**
  * Helper method to get Tensor from local context ( no keyspace access )
  *
- * @param ctx Context in which Redis modules operate
  * @param localContextDict local non-blocking hash table containing DAG's
  * tensors
  * @param localContextKey key name
@@ -331,10 +342,8 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx* ctx, RedisModuleString* keyName,
  * failure
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RAI_getTensorFromLocalContext(RedisModuleCtx* ctx,
-                                  AI_dict* localContextDict,
-                                  const char* localContextKey,
-                                  RAI_Tensor** tensor, RAI_Error* error);
+int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
+                                  RAI_Tensor **tensor, RAI_Error *error);
 
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the
@@ -347,13 +356,11 @@ int RAI_getTensorFromLocalContext(RedisModuleCtx* ctx,
  * @param key Destination key name
  * @param t source tensor
  */
-void RedisAI_ReplicateTensorSet(RedisModuleCtx* ctx, RedisModuleString* key,
-                                RAI_Tensor* t);
+void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
 
 /**
  * Helper method to parse AI.TENSORGET arguments
  *
- * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @param t Destination tensor to store the parsed data
@@ -362,21 +369,32 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx* ctx, RedisModuleString* key,
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RAI_parseTensorSetArgs(RedisModuleCtx* ctx, RedisModuleString** argv,
-                           int argc, RAI_Tensor** t, int enforceArity,
-                           RAI_Error* error);
+int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity,
+                           RAI_Error *error);
 
 /**
  * Helper method to parse AI.TENSORGET arguments
  *
- * @param ctx Context in which Redis modules operate
+ * @param error error data structure to store error message in the case of
+ * parsing failures
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @param t Destination tensor to store the parsed data
- * @return processed number of arguments on success, or -1 if the parsing failed
+ * @return The format in which tensor is returned.
  */
-int RAI_parseTensorGetArgs(RedisModuleCtx* ctx, RedisModuleString** argv,
-                           int argc, RAI_Tensor* t);
+
+uint ParseTensorGetArgs(RAI_Error *error, RedisModuleString **argv, int argc);
+
+/**
+ * Helper method to return a tensor to the client in a response to AI.TENSORGET
+ *
+ * @param ctx Context in which Redis modules operate.
+ * @param fmt The format in which tensor is returned.
+ * @param t The tensor to reply with.
+
+ * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise.
+ */
+
+int ReplyWithTensor(RedisModuleCtx *ctx, uint fmt, RAI_Tensor *t);
 
 /**
  * @brief  Returns the redis module type representing a tensor.

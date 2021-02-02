@@ -14,28 +14,29 @@ import paella
 #----------------------------------------------------------------------------------------------
 
 TENSORFLOW_VERSION = '1.15.0'
+VARIANT='cpu'
 
 parser = argparse.ArgumentParser(description='Prepare RedisAI dependant distribution packages.')
-parser.add_argument('--tensorflow', default='tensorflow', help='root of tensorflow repository')
-parser.add_argument('--tensorflow-ver', default=TENSORFLOW_VERSION, help='tensorflow version')
+parser.add_argument('--root', default='tensorflow', help='root of tensorflow repository')
+parser.add_argument('--version', default=TENSORFLOW_VERSION, help='tensorflow version')
+parser.add_argument('--variant', default=VARIANT, help='build variant')
 parser.add_argument('--dest', default='dest', help='destination directory')
 parser.add_argument('-n', '--nop', action="store_true", help='no operation')
 args = parser.parse_args()
 
 #----------------------------------------------------------------------------------------------
 
-tensorflow = Path(args.tensorflow).resolve()
+tensorflow = Path(args.root).resolve()
 dest = Path(args.dest).resolve()
-
 
 #----------------------------------------------------------------------------------------------
 
-tf_build='cpu'
+tf_build=args.variant
 
 platform = paella.Platform()
 
 tf_os = platform.os
-if tf_os == 'macosx':
+if tf_os == 'macos':
     tf_os = 'darwin'
 
 tf_arch = platform.arch
@@ -44,7 +45,7 @@ if tf_arch == 'x64':
 elif tf_arch == 'arm64v8':
     tf_arch = 'arm64'
 
-tf_ver = args.tensorflow_ver
+tf_ver = args.version
 
 #----------------------------------------------------------------------------------------------
 

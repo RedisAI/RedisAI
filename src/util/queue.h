@@ -10,16 +10,16 @@
 #define __QUEUE_H
 
 typedef struct queueItem {
-  struct queueItem *next;
-  struct queueItem *prev;
-  void *value;
+    struct queueItem *next;
+    struct queueItem *prev;
+    void *value;
 } queueItem;
 
 typedef struct queue {
-  queueItem *front;
-  queueItem *back;
-  void (*free)(void *ptr);
-  unsigned long len;
+    queueItem *front;
+    queueItem *back;
+    void (*free)(void *ptr);
+    unsigned long len;
 } queue;
 
 queue *queueCreate(void);

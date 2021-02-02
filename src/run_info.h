@@ -18,34 +18,36 @@
 #include "util/arr_rm_alloc.h"
 #include "util/dict.h"
 
-enum RedisAI_DAGCommands {
-  REDISAI_DAG_CMD_NONE = 0,
-  REDISAI_DAG_CMD_TENSORSET,
-  REDISAI_DAG_CMD_TENSORGET,
-  REDISAI_DAG_CMD_MODELRUN,
-  REDISAI_DAG_CMD_SCRIPTRUN
-};
+typedef enum DAGCommand {
+    REDISAI_DAG_CMD_NONE = 0,
+    REDISAI_DAG_CMD_TENSORSET,
+    REDISAI_DAG_CMD_TENSORGET,
+    REDISAI_DAG_CMD_MODELRUN,
+    REDISAI_DAG_CMD_SCRIPTRUN
+} DAGCommand;
 
-enum RedisAI_DAGMode {
-    REDISAI_DAG_READONLY_MODE = 0,
-    REDISAI_DAG_WRITE_MODE
-};
+enum RedisAI_DAGMode { REDISAI_DAG_READONLY_MODE = 0, REDISAI_DAG_WRITE_MODE };
 
 typedef struct RAI_DagOp {
-  int commandType;
-  RedisModuleString *runkey;
-  RedisModuleString **inkeys;
-  RedisModuleString **outkeys;
-  RAI_Tensor **outTensors;
-  RAI_ModelRunCtx *mctx;
-  RAI_ScriptRunCtx *sctx;
-  char* devicestr;
-  int result;  // REDISMODULE_OK or REDISMODULE_ERR
-  long long duration_us;
-  RAI_Error *err;
-  RedisModuleString **argv;
-  int argc;
+    int commandType;
+    RedisModuleString *runkey;
+    RedisModuleString **inkeys;
+    RedisModuleString **outkeys;
+    RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
+    RAI_ModelRunCtx *mctx;
+    RAI_ScriptRunCtx *sctx;
+    uint fmt; // This is relevant for TENSORGET op.
+    char *devicestr;
+    int result; // REDISMODULE_OK or REDISMODULE_ERR
+    long long duration_us;
+    RAI_Error *err;
+    RedisModuleString **argv;
+    int argc;
 } RAI_DagOp;
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 /**
  * Allocate the memory and initialise the RAI_DagOp.
@@ -60,7 +62,22 @@ int RAI_InitDagOp(RAI_DagOp **result);
  * @param ctx Context in which Redis modules operate
  * @param RAI_DagOp context in which RedisAI command operates.
  */
-void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
+void RAI_FreeDagOp(RAI_DagOp *dagOp);
+
+typedef struct RedisAI_RunInfo RedisAI_RunInfo;
+
+/**
+ * This structure contains the context data at the end of the execution.
+ * user can access results and errors through LLAPI.
+ */
+typedef RedisAI_RunInfo RedisAI_OnFinishCtx;
+
+/**
+ * @brief User defined callback to execute at the end of the run.
+ * @param ctx parameter includes the running results and errors.
+ * @param private_data is an optional pointer to the user's private data.
+ */
+typedef void (*RedisAI_OnFinishCB)(RedisAI_OnFinishCtx *ctx, void *private_data);
 
 /**
  * This structure represents the context in which RedisAI blocking commands
@@ -69,33 +86,36 @@ void RAI_FreeDagOp(RedisModuleCtx *ctx, RAI_DagOp *dagOp);
  * Note that not all the context structure is always filled with actual values
  * but only the fields needed in a given operation.
  */
-typedef struct RedisAI_RunInfo {
-  RedisModuleBlockedClient *client;
-  // TODO: completly move modelrun and scriptrun to dagOps
-  RedisModuleString *runkey;
-  RedisModuleString **outkeys;
-  RAI_ModelRunCtx *mctx;
-  RAI_ScriptRunCtx *sctx;
-  int result;  // REDISMODULE_OK or REDISMODULE_ERR
-  long long duration_us;
-  RAI_Error *err;
-  // DAG
-  int use_local_context;
-  AI_dict *dagTensorsContext;
-  AI_dict *dagTensorsPersistedContext;  // dict to flag tensors to persist
-  AI_dict *dagTensorsLoadedContext;  // dict to flag tensors loaded from the keyspace
-  RAI_DagOp **dagOps;
-  int dagReplyLength;
-  int dagNumberCommands;
-  // Pointer to integer signaling whether an error occurred anywhere in the DAG.
-  // This is shared across shallow copies in device queues.
-  int *dagError;
-  // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
-  pthread_mutex_t *dagMutex;
-  int dagMaster;
-  // Pointer to ref count in DAG, shared across multiple worker thread
-  long long *dagRefCount;
-} RedisAI_RunInfo;
+
+struct RedisAI_RunInfo {
+    RedisModuleBlockedClient *client;
+    int single_op_dag;
+    int single_device_dag;
+    AI_dict *dagTensorsContext;
+    AI_dict *dagTensorsPersistedContext; // dict to flag tensors to persist
+    RAI_DagOp **dagOps;                  // all ops in DAG
+    RAI_DagOp **dagDeviceOps;            // all ops in DAG for device
+    int dagReplyLength;
+    int dagOpCount;               // number of ops in DAG
+    int *dagCompleteOpCount;      // number of completed ops in DAG
+    int dagDeviceOpCount;         // number of ops in DAG for device
+    int dagDeviceCompleteOpCount; // number of completed ops in DAG for device
+    // Pointer to integer signaling whether an error occurred anywhere in the DAG.
+    // This is shared across shallow copies in device queues.
+    int *dagError;
+    // DAG global error.
+    RAI_Error *err;
+    // Pointer to mutex used to exclusively access DagOps from multiple worker threads.
+    pthread_rwlock_t *dagLock;
+    // Pointer to ref count in DAG, shared across multiple worker thread
+    long long *dagRefCount;
+    long long timeout;
+    int *timedOut;
+    struct timeval queuingTime;
+    RedisAI_OnFinishCB OnFinish;
+    RedisAI_RunInfo *orig_copy;
+    void *private_data; // This is going to be sent to the OnFinish callback.
+};
 
 /**
  * Allocate the memory and initialise the RedisAI_RunInfo.
@@ -106,28 +126,78 @@ typedef struct RedisAI_RunInfo {
 int RAI_InitRunInfo(RedisAI_RunInfo **result);
 
 int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src);
- 
+
+/**
+ * Frees the shallow copy of RedisAI_RunInfo pointed by rinfo.
+ * @param rinfo copy to be freed.
+ * @retval The ref_count of the rinfo object after freeing this copy.
+ */
+long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo);
+
 /**
  * Frees the memory allocated on RedisAI_RunInfo
  * @param ctx Context in which Redis modules operate
  * @param rinfo context in which RedisAI blocking command operate.
  */
-void RAI_FreeRunInfo(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo);
+void RAI_FreeRunInfo(RedisAI_RunInfo *rinfo);
 
 /**
- *
+ * Locks the DAG tensor context rwlock for reads. No-op in case of single
+ * op or single device DAGS.
  * @param rinfo context in which RedisAI blocking command operate.
- * @return
  */
-size_t RAI_RunInfoBatchSize(struct RedisAI_RunInfo *rinfo);
+void RAI_ContextReadLock(RedisAI_RunInfo *rinfo);
 
 /**
- *
- * @param rinfo1 rinfo context 1 in which RedisAI blocking command 1 operates.
- * @param rinfo2 rinfo context 2 in which RedisAI blocking command 2 operates.
- * @return
+ * Locks the DAG tensor context rwlock for writes. No-op in case of single
+ * op or single device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
  */
-int RAI_RunInfoBatchable(struct RedisAI_RunInfo *rinfo1,
-                         struct RedisAI_RunInfo *rinfo2);
+void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Unlocks the DAG tensor context rwlock. No-op in case of single op or single
+ * device DAGS.
+ * @param rinfo context in which RedisAI blocking command operate.
+ */
+void RAI_ContextUnlock(RedisAI_RunInfo *rinfo);
+
+/**
+ * Obtain the batch size for the provided DAG operation, that is, the
+ * size of the tensor in the zero-th dimension
+ * @param op DAG operation to operate on
+ * @return size of the batch for op
+ */
+size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
+
+/**
+ * Find out whether two DAG operations are batchable. That means they must be
+ * two MODELRUN operations with the same model, where respective inputs have
+ * compatible shapes (all dimensions except the zero-th must match)
+ * @param op1 first DAG operation
+ * @param op2 second DAG operation
+ * @return 1 if batchable, 0 otherwise
+ */
+int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
+
+/**
+ * Retreive the ModelRunCtx of a DAG runInfo that contains a single op of type
+ * MODELRUN.
+ * @param DAG runInfo.
+ * @return Pointer to the ModelRunCtx in DAG's single op.
+ */
+RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
+
+/**
+ * Retreive the ScriptRunCtx of a DAG runInfo that contains a single op of type
+ * SCRIPTRUN.
+ * @param DAG runInfo.
+ * @return Pointer to the ScriptRunCtx in DAG's single op.
+ */
+RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err);
+
+#ifdef __cplusplus
+} // extern "C"
+#endif
 
 #endif /* SRC_RUN_INFO_H_ */
