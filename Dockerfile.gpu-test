@@ -29,6 +29,7 @@ COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
+COPY ./tests/flow/Install_RedisGears.sh tests/flow/
 
 RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
 

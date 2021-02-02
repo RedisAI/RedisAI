@@ -13,9 +13,9 @@ def skip_if_gears_not_loaded(f):
         if b'rg' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
         try:
-            redisgears_path = os.path.join(os.path.dirname(__file__), '../../deps/linux-x64-cpu/bin/RedisGears/redisgears.so')
-            python_plugin_path = os.path.join(os.path.dirname(__file__), '../../deps/linux-x64-cpu/bin/RedisGears/plugin/gears_python.so')
-            python_env_path = os.path.join(os.path.dirname(__file__), '../../deps/linux-x64-cpu/bin/RedisGears')
+            redisgears_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears/redisgears.so')
+            python_plugin_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears/plugin/gears_python.so')
+            python_env_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears')
             ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv',
                                       0, 'PythonInstallationDir', python_env_path)
             env.assertEqual(ret, b'OK')
