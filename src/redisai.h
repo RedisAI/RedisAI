@@ -107,7 +107,6 @@ REDISAI_API void MODULE_API_FUNC(RedisAI_ModelFree)(RAI_Model *model, RAI_Error 
 REDISAI_API RAI_ModelRunCtx *MODULE_API_FUNC(RedisAI_ModelRunCtxCreate)(RAI_Model *model);
 REDISAI_API int MODULE_API_FUNC(RedisAI_GetModelFromKeyspace)(RedisModuleCtx *ctx,
                                                               RedisModuleString *keyName,
-                                                              RedisModuleKey **key,
                                                               RAI_Model **model, int mode,
                                                               RAI_Error *err);
 REDISAI_API int MODULE_API_FUNC(RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx *mctx,
@@ -136,7 +135,6 @@ REDISAI_API RAI_Script *MODULE_API_FUNC(RedisAI_ScriptCreate)(char *devicestr, c
                                                               RAI_Error *err);
 REDISAI_API int MODULE_API_FUNC(RedisAI_GetScriptFromKeyspace)(RedisModuleCtx *ctx,
                                                                RedisModuleString *keyName,
-                                                               RedisModuleKey **key,
                                                                RAI_Script **script, int mode,
                                                                RAI_Error *err);
 REDISAI_API void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script *script, RAI_Error *err);
@@ -175,7 +173,7 @@ REDISAI_API int MODULE_API_FUNC(RedisAI_DAGLoadTensor)(RAI_DAGRunCtx *run_info, 
 REDISAI_API int MODULE_API_FUNC(RedisAI_DAGAddTensorSet)(RAI_DAGRunCtx *run_info,
                                                          const char *t_name, RAI_Tensor *tensor);
 REDISAI_API int MODULE_API_FUNC(RedisAI_DAGAddTensorGet)(RAI_DAGRunCtx *run_info,
-                                                         const char *t_name, RAI_Error *err);
+                                                         const char *t_name);
 REDISAI_API int MODULE_API_FUNC(RedisAI_DAGAddOpsFromString)(RAI_DAGRunCtx *run_info,
                                                              const char *dag, RAI_Error *err);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_DAGNumOps)(RAI_DAGRunCtx *run_info);
