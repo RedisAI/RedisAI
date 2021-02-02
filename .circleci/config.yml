@@ -121,12 +121,10 @@ commands:
       - run:
           name: Build for platform
           command: |
-            #@@ docker login -u redisai -p $DOCKER_REDISAI_PWD
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             cd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
-            #@@ make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
-            make build $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
-            make build $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
           no_output_timeout: 40m
 
   deploy-steps:
@@ -445,6 +443,7 @@ workflows:
           platform: xenial
           <<: *platform-build-defs
       - coverage:
+		  context: common
           #@@ <<: *on-any-branch
           <<: *after-linter
           <<: *never #@@ remove this
@@ -471,22 +470,27 @@ workflows:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - build-multiarch-docker:
+		  context: common
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - deploy-snapshot:
+		  context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
       - dockerhub-build:
           name: dockerhub-edge
+		  context: common
           build_args: EDGE=1
           <<: *after-build-and-test
           #@@ <<: *on-master
           <<: *on-any-branch
       - deploy-release:
+		  context: common
           <<: *after-platform-builds
           <<: *on-version-tags
       - dockerhub-build:
           name: dockerhub-release
+		  context: common
           build_args: LATEST=1
           <<: *after-platform-builds
           <<: *on-version-tags
