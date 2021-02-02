@@ -72,6 +72,26 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     pthread_cond_signal(&global_cond);
 }
 
+int testLoadTensor(RedisModuleCtx *ctx) {
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
+    int res = LLAPIMODULE_ERR;
+    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    t = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
+
+    // cannot load more than one tensor under the same name.
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_ERR) {
+        goto cleanup;
+    }
+    res = LLAPIMODULE_OK;
+
+    cleanup:
+    RedisAI_DAGFree(run_info);
+    return res;
+}
+
 int testModelRunOpError(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
