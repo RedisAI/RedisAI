@@ -28,9 +28,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
         return REDISMODULE_ERR;
     }
     size_t argpos = 1;
-    RedisModuleKey *modelKey;
-    const int status =
-        RAI_GetModelFromKeyspace(ctx, argv[argpos], &modelKey, model, REDISMODULE_READ, error);
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], model, REDISMODULE_READ, error);
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
@@ -172,9 +170,8 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
         return REDISMODULE_ERR;
     }
     size_t argpos = 1;
-    RedisModuleKey *scriptKey;
     const int status =
-        RAI_GetScriptFromKeyspace(ctx, argv[argpos], &scriptKey, script, REDISMODULE_READ, error);
+        RAI_GetScriptFromKeyspace(ctx, argv[argpos], script, REDISMODULE_READ, error);
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }

@@ -154,21 +154,21 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script) {
 /* Return REDISMODULE_ERR if there was an error getting the Script.
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
-int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Script **script, int mode, RAI_Error *err) {
-    *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(*key);
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Script **script,
+                              int mode, RAI_Error *err) {
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
+    if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
+        RedisModule_CloseKey(key);
         RAI_SetError(err, RAI_ESCRIPTRUN, "ERR script key is empty");
         return REDISMODULE_ERR;
     }
-    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ScriptType) {
-        RedisModule_CloseKey(*key);
+    if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+        RedisModule_CloseKey(key);
         RAI_SetError(err, RAI_ESCRIPTRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
-    *script = RedisModule_ModuleTypeGetValue(*key);
-    RedisModule_CloseKey(*key);
+    *script = RedisModule_ModuleTypeGetValue(key);
+    RedisModule_CloseKey(key);
     return REDISMODULE_OK;
 }
 
