@@ -181,7 +181,7 @@ const RAI_Tensor *RAI_DAGOutputTensor(RAI_OnFinishCtx *finish_ctx, size_t index)
         if (op->commandType == REDISAI_DAG_CMD_TENSORGET) {
             tensor_get_op_ind++;
             if (tensor_get_op_ind == index) {
-                return Dag_GetInternalTensor(rinfo, op->inkeys_indices[0]);
+                return Dag_GetTensorFromGlobalCtx(rinfo, op->inkeys_indices[0]);
             }
         }
     }

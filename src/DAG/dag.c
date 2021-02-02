@@ -55,7 +55,7 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
 
     RAI_Tensor *inputTensors[n_inkeys];
     for (uint i = 0; i < n_inkeys; i++) {
-        RAI_Tensor *inputTensor = Dag_GetInternalTensor(rinfo, currentOp->inkeys_indices[i]);
+        RAI_Tensor *inputTensor = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[i]);
         inputTensors[i] = inputTensor;
     }
 
@@ -86,7 +86,7 @@ static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *c
     const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
-        Dag_SetInternalTensor(rinfo, currentOp->outkeys_indices[outputNumber], tensor);
+        Dag_SetTensorInGlobalCtx(rinfo, currentOp->outkeys_indices[outputNumber], tensor);
     }
     RAI_ContextUnlock(rinfo);
 }
@@ -119,7 +119,7 @@ static int _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
     while ((persist_entry = AI_dictNext(persist_iter))) {
         RedisModuleString *persist_key_name = AI_dictGetKey(persist_entry);
         size_t index = (size_t)AI_dictGetVal(persist_entry);
-        RAI_Tensor *tensor = Dag_GetInternalTensor(rinfo, index);
+        RAI_Tensor *tensor = Dag_GetTensorFromGlobalCtx(rinfo, index);
         tensor = RAI_TensorGetShallowCopy(tensor);
 
         if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, rinfo->err) == REDISMODULE_ERR) {
@@ -276,7 +276,8 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
         RAI_ContextReadLock(rinfo);
         RAI_Tensor *inputTensors[n_inkeys];
         for (uint i = 0; i < n_inkeys; i++) {
-            RAI_Tensor *inputTensor = Dag_GetInternalTensor(rinfo, currentOp->inkeys_indices[i]);
+            RAI_Tensor *inputTensor =
+                Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[i]);
             inputTensors[i] = inputTensor;
         }
         RAI_ContextUnlock(rinfo);
@@ -303,7 +304,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
         const size_t noutputs = RAI_ScriptRunCtxNumOutputs(currentOp->sctx);
         for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
             RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(currentOp->sctx, outputNumber);
-            Dag_SetInternalTensor(rinfo, currentOp->outkeys_indices[outputNumber], tensor);
+            Dag_SetTensorInGlobalCtx(rinfo, currentOp->outkeys_indices[outputNumber], tensor);
         }
         RAI_ContextUnlock(rinfo);
     }
@@ -323,7 +324,7 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
         if (rinfo->single_op_dag) {
             input = op->mctx->inputs[i].tensor;
         } else {
-            input = Dag_GetInternalTensor(rinfo, op->inkeys_indices[i]);
+            input = Dag_GetTensorFromGlobalCtx(rinfo, op->inkeys_indices[i]);
         }
 
         if (i == 0) {
@@ -360,13 +361,13 @@ bool RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
         if (rinfo1->single_op_dag) {
             input1 = op1->mctx->inputs[i].tensor;
         } else {
-            input1 = Dag_GetInternalTensor(rinfo1, op1->inkeys_indices[i]);
+            input1 = Dag_GetTensorFromGlobalCtx(rinfo1, op1->inkeys_indices[i]);
         }
         RAI_Tensor *input2;
         if (rinfo2->single_op_dag) {
             input2 = op2->mctx->inputs[i].tensor;
         } else {
-            input2 = Dag_GetInternalTensor(rinfo2, op2->inkeys_indices[i]);
+            input2 = Dag_GetTensorFromGlobalCtx(rinfo2, op2->inkeys_indices[i]);
         }
         int ndims1 = RAI_TensorNumDims(input1);
         int ndims2 = RAI_TensorNumDims(input2);
@@ -432,7 +433,7 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
     RAI_ContextReadLock(rinfo);
 
     for (int i = 0; i < n_inkeys; i++) {
-        if (Dag_GetInternalTensor(rinfo, currentOp_->inkeys_indices[i]) == NULL) {
+        if (Dag_GetTensorFromGlobalCtx(rinfo, currentOp_->inkeys_indices[i]) == NULL) {
             RAI_ContextUnlock(rinfo);
             *currentOpReady = false;
             return;
@@ -470,12 +471,12 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1, RedisAI
     }
 }
 
-RAI_Tensor *Dag_GetInternalTensor(RedisAI_RunInfo *rinfo, size_t index) {
+RAI_Tensor *Dag_GetTensorFromGlobalCtx(RedisAI_RunInfo *rinfo, size_t index) {
     RedisModule_Assert(index < array_len(rinfo->dagSharedTensors));
     return rinfo->dagSharedTensors[index];
 }
 
-void Dag_SetInternalTensor(RedisAI_RunInfo *rinfo, size_t index, RAI_Tensor *t) {
+void Dag_SetTensorInGlobalCtx(RedisAI_RunInfo *rinfo, size_t index, RAI_Tensor *t) {
     RedisModule_Assert(index < array_len(rinfo->dagSharedTensors));
     RedisModule_Assert(rinfo->dagSharedTensors[index] == NULL);
     rinfo->dagSharedTensors[index] = RAI_TensorGetShallowCopy(t);
@@ -588,7 +589,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
-            RAI_Tensor *t = Dag_GetInternalTensor(rinfo, currentOp->inkeys_indices[0]);
+            RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
             ReplyWithTensor(ctx, currentOp->fmt, t);
             break;
         }

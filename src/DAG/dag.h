@@ -95,7 +95,7 @@ void RedisAI_DagOpBatchingMatch(RedisAI_RunInfo *rinfo1, RAI_DagOp *op1, RedisAI
  * @param index The index of the tensor in the Dag shared array to return
  * @return The tensor of the given index (NULL is returned if this tensor hasn't been realized yet)
  */
-RAI_Tensor *Dag_GetInternalTensor(RedisAI_RunInfo *rinfo, size_t index);
+RAI_Tensor *Dag_GetTensorFromGlobalCtx(RedisAI_RunInfo *rinfo, size_t index);
 
 /**
  * @brief Shallow copy and set a tensor in the dag local context in a given index.
@@ -104,7 +104,7 @@ RAI_Tensor *Dag_GetInternalTensor(RedisAI_RunInfo *rinfo, size_t index);
  * @param index The index to put in the given tensor in the Dag shared array.
  * @param t The tensor to shallow copy and store in the given index.
  */
-void Dag_SetInternalTensor(RedisAI_RunInfo *rinfo, size_t index, RAI_Tensor *t);
+void Dag_SetTensorInGlobalCtx(RedisAI_RunInfo *rinfo, size_t index, RAI_Tensor *t);
 
 /**
  * Run the first unrealized DAG operation in rinfo for the given device.
