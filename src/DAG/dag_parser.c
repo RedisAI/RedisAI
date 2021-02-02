@@ -246,8 +246,8 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
         const char *arg_string = RedisModule_StringPtrLen(argv[arg_pos], NULL);
 
         if (!strcasecmp(arg_string, "LOAD") && !load_complete && chainingOpCount == 0) {
-            /* Load the required tensors from key space and store them in both
-               dagTensorsLoadedContext and dagTensorsContext dicts. */
+            /* Load the required tensors from key space to the dag shared tensors
+             * array, and save a mapping of their names to the corresponding indices. */
             const int parse_result =
                 _ParseDAGLoadArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->tensorsNamesToIndices,
                                   &rinfo->dagSharedTensors, "|>", rinfo->err);
@@ -263,8 +263,9 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
                              "ERR PERSIST cannot be specified in a read-only DAG");
                 goto cleanup;
             }
-            /* Store the keys to persist in dagTensorsPersistedContext dict.
-               These keys will be populated later on with actual tensors. */
+            /* Store the keys to persist in persistTensors dict, these keys will
+             * be mapped later to the indices in the dagSharedTensors array in which the
+             * tensors to persist will be found by the end of the DAG run. */
             const int parse_result = _ParseDAGPersistArgs(&argv[arg_pos], argc - arg_pos,
                                                           rinfo->persistTensors, "|>", rinfo->err);
             if (parse_result <= 0)
