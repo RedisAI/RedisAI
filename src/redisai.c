@@ -101,13 +101,16 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     RedisModuleKey *key;
-    const int status = RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE);
+    RAI_Error err = {0};
+    const int status =
+        RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
     RAI_Tensor *t = NULL;
-    RAI_Error err = {0};
     const int parse_result = RAI_parseTensorSetArgs(argv, argc, &t, 1, &err);
 
     // if the number of parsed args is negative something went wrong
