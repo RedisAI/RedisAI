@@ -330,3 +330,7 @@ if [[ $WITH_ORT != 0 ]]; then
 else
 	echo "Skipping ONNXRuntime."
 fi # WITH_ORT
+
+################################################################################### REDISGEARS
+
+OS=bionic /bin/bash $HERE/Install_RedisGears.sh
