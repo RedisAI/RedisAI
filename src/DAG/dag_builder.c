@@ -112,7 +112,7 @@ int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err
     return REDISMODULE_OK;
 }
 
-int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err) {
+int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
     RAI_DagOp *op;
