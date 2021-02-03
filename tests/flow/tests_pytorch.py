@@ -984,3 +984,22 @@ def test_modelget_for_tuple_output(env):
     env.assertEqual(ret[9], 0)
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 2)
+
+def test_torch_info(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(8, len(ret))
+    env.assertEqual(b'Torch version', ret[6])

@@ -17,4 +17,6 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
+const char *RAI_GetBackendVersionORT(void);
+
 #endif /* SRC_BACKENDS_ONNXRUNTIME_H_ */
