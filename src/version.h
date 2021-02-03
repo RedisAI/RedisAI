@@ -1,5 +1,4 @@
-#ifndef SRC_VERSION_H_
-#define SRC_VERSION_H_
+#pragma once
 
 #define REDISAI_VERSION_MAJOR 1
 #define REDISAI_VERSION_MINOR 2
@@ -12,5 +11,3 @@
 #define REDISAI_LLAPI_VERSION 1
 
 static const long long REDISAI_ENC_VER = 1;
-
-#endif /* SRC_VERSION_H_ */
