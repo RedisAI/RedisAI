@@ -443,7 +443,7 @@ workflows:
           platform: xenial
           <<: *platform-build-defs
       - coverage:
-		  context: common
+          context: common
           #@@ <<: *on-any-branch
           <<: *after-linter
           <<: *never #@@ remove this
