@@ -95,6 +95,12 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
     return result;
 }
 
+RAI_Tensor *RAI_TensorNew(void) {
+    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    ret->refCount = 1;
+    ret->len = LEN_UNKOWN;
+}
+
 RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
                                            int tensorAllocMode) {
 
@@ -103,7 +109,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
         return NULL;
     }
 
-    RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
     int64_t *shape = RedisModule_Alloc(ndims * sizeof(*shape));
     int64_t *strides = RedisModule_Alloc(ndims * sizeof(*strides));
 
@@ -144,7 +150,6 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
                                     .manager_ctx = NULL,
                                     .deleter = NULL};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -195,7 +200,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     memcpy(data, blob, nbytes);
     RAI_HoldString(NULL, rstr);
 
-    RAI_Tensor *ret = RedisModule_Alloc(sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
                                                             .ndim = ndims,
@@ -206,7 +211,6 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
                                     .manager_ctx = rstr,
                                     .deleter = RAI_RStringDataTensorDeleter};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -335,7 +339,7 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest) {
 // Beware: this will take ownership of dltensor
 RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
 
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
 
     ret->tensor =
         (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = dl_tensor->dl_tensor.ctx,
@@ -348,7 +352,6 @@ RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
                           .manager_ctx = dl_tensor->manager_ctx,
                           .deleter = dl_tensor->deleter};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -361,12 +364,15 @@ int RAI_TensorIsDataTypeEqual(RAI_Tensor *t1, RAI_Tensor *t2) {
 }
 
 size_t RAI_TensorLength(RAI_Tensor *t) {
-    int64_t *shape = t->tensor.dl_tensor.shape;
-    size_t len = 1;
-    for (size_t i = 0; i < t->tensor.dl_tensor.ndim; ++i) {
-        len *= shape[i];
+    if (t->len == LEN_UNKOWN) {
+        int64_t *shape = t->tensor.dl_tensor.shape;
+        size_t len = 1;
+        for (size_t i = 0; i < t->tensor.dl_tensor.ndim; ++i) {
+            len *= shape[i];
+        }
+        t->len = len;
     }
-    return len;
+    return t->len;
 }
 
 size_t RAI_TensorDataSize(RAI_Tensor *t) { return Tensor_DataTypeSize(RAI_TensorDataType(t)); }
