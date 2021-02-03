@@ -284,6 +284,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+    t.join()
 
 
 

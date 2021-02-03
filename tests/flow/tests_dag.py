@@ -771,6 +771,7 @@ def test_dag_modelrun_financialNet_autobatch(env):
             # assert that result tensor exists
             ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
             env.assertEqual(ret, 1)
+            t.join()
 
 
 def test_dag_with_timeout(env):

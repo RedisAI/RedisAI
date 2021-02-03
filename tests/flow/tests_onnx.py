@@ -229,6 +229,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     argmax = max(range(len(values)), key=lambda i: values[i])
 
     env.assertEqual(argmax, 1)
+    t.join()
 
 
 def test_onnx_modelrun_iris(env):
