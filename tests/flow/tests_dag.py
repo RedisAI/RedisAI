@@ -761,6 +761,7 @@ def test_dag_modelrun_financialNet_autobatch(env):
                 'AI.TENSORGET', result_tensor_keyname, 'META',
             )
 
+            t.join()
             ensureSlaveSynced(con, env)
 
             env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)

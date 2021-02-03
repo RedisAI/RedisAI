@@ -215,6 +215,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
+    t.join()
 
     ensureSlaveSynced(con, env)
 
