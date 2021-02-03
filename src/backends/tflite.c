@@ -237,3 +237,5 @@ int RAI_ModelSerializeTFLite(RAI_Model *model, char **buffer, size_t *len, RAI_E
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTFLite(void) { return "NA"; }

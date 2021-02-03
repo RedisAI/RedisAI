@@ -354,3 +354,24 @@ def test_tflite_model_rdb_save_load(env):
     env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
     # Assert input model binary is equal to loaded model binary
     env.assertTrue(model_pb == model_serialized_after_rdbload)
+
+def test_tflite_info(env):
+    if not TEST_TFLITE:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist_model_quant.tflite')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(8, len(ret))
+    env.assertEqual(b'TFLite version', ret[6])

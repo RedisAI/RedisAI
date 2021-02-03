@@ -670,3 +670,5 @@ int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Erro
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionORT(void) { return OrtGetApiBase()->GetVersionString(); }
