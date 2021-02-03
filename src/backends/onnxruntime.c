@@ -174,7 +174,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         return NULL;
     }
 
-    ret = RedisModule_Calloc(1, sizeof(*ret));
+    ret = RAI_TensorNew();
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
@@ -261,7 +261,6 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
                                         .manager_ctx = NULL,
                                         .deleter = NULL};
 
-        ret->refCount = 1;
         return ret;
     }
 
@@ -670,3 +669,5 @@ int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Erro
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionORT(void) { return OrtGetApiBase()->GetVersionString(); }

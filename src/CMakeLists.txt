@@ -16,6 +16,7 @@ file (GLOB BACKEND_COMMON_SRC
         err.c
         util/dict.c
         tensor.c
+        util/string_utils.c
         serialization/ai_datatypes.c)
 
 ADD_LIBRARY(redisai_obj OBJECT

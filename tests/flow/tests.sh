@@ -72,7 +72,6 @@ valgrind_config() {
 
 	RLTEST_ARGS+="\
 		--use-valgrind \
-		--vg-no-fail-on-errors \
 		--vg-suppressions $VALGRIND_SUPRESSIONS"
 }
 

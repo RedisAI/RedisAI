@@ -72,6 +72,26 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     pthread_cond_signal(&global_cond);
 }
 
+int testLoadTensor(RedisModuleCtx *ctx) {
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
+    int res = LLAPIMODULE_ERR;
+    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    t = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
+
+    // cannot load more than one tensor under the same name.
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_ERR) {
+        goto cleanup;
+    }
+    res = LLAPIMODULE_OK;
+
+    cleanup:
+    RedisAI_DAGFree(run_info);
+    return res;
+}
+
 int testModelRunOpError(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
@@ -137,7 +157,7 @@ int testKeysMismatchError(RedisModuleCtx *ctx) {
     RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
     RedisAI_DAGLoadTensor(run_info, "input", t);
 
-    RedisAI_DAGAddTensorGet(run_info, "non existing tensor", err);
+    RedisAI_DAGAddTensorGet(run_info, "non existing tensor");
     int status = RedisAI_DAGRun(run_info, _DAGFinishFuncError, NULL, err);
     if(!_assertError(err, status, "ERR INPUT key cannot be found in DAG")) {
         goto cleanup;
@@ -183,7 +203,7 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
         goto cleanup;
     }
     RedisModule_Assert(RedisAI_DAGNumOps(run_info) == 3);
-    RedisAI_DAGAddTensorGet(run_info, "input1", results.error);
+    RedisAI_DAGAddTensorGet(run_info, "input1");
     RedisModule_Assert(RedisAI_DAGNumOps(run_info) == 4);
 
     pthread_mutex_lock(&global_lock);
@@ -227,7 +247,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
         goto cleanup;
     }
 
-    RedisAI_DAGAddTensorGet(run_info, "output", results.error);
+    RedisAI_DAGAddTensorGet(run_info, "output");
     pthread_mutex_lock(&global_lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &results, results.error) != REDISMODULE_OK) {
         pthread_mutex_unlock(&global_lock);
@@ -280,7 +300,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
         goto cleanup;
     }
 
-    RedisAI_DAGAddTensorGet(run_info, "output", results.error);
+    RedisAI_DAGAddTensorGet(run_info, "output");
     pthread_mutex_lock(&global_lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &results, results.error) != REDISMODULE_OK) {
         pthread_mutex_unlock(&global_lock);
@@ -330,7 +350,7 @@ int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
         goto cleanup;
     }
 
-    RedisAI_DAGAddTensorGet(run_info, "output", results.error);
+    RedisAI_DAGAddTensorGet(run_info, "output");
     pthread_mutex_lock(&global_lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &results, results.error) != REDISMODULE_OK) {
         pthread_mutex_unlock(&global_lock);
@@ -392,7 +412,7 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     RedisAI_DAGRunOpAddOutput(script_op, "output:{{1}}");
     RedisAI_DAGAddRunOp(run_info, script_op, results.error);
 
-    RedisAI_DAGAddTensorGet(run_info, "output:{{1}}", results.error);
+    RedisAI_DAGAddTensorGet(run_info, "output:{{1}}");
 
     pthread_mutex_lock(&global_lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &results, results.error) != REDISMODULE_OK) {
