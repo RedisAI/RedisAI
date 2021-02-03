@@ -123,8 +123,8 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             cd opt/build/docker
-            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
-            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redisai VERBOSE=1 <<parameters.build_args>>
+            make -n build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
+            make -n build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
           no_output_timeout: 40m
 
   deploy-steps:
