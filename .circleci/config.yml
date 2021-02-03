@@ -470,27 +470,27 @@ workflows:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - build-multiarch-docker:
-		  context: common
+          context: common
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - deploy-snapshot:
-		  context: common
+          context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
       - dockerhub-build:
           name: dockerhub-edge
-		  context: common
+          context: common
           build_args: EDGE=1
           <<: *after-build-and-test
           #@@ <<: *on-master
           <<: *on-any-branch
       - deploy-release:
-		  context: common
+          context: common
           <<: *after-platform-builds
           <<: *on-version-tags
       - dockerhub-build:
           name: dockerhub-release
-		  context: common
+          context: common
           build_args: LATEST=1
           <<: *after-platform-builds
           <<: *on-version-tags
