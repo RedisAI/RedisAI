@@ -568,17 +568,15 @@ size_t RAI_TensorByteSize(RAI_Tensor *t) {
 
 char *RAI_TensorData(RAI_Tensor *t) { return t->tensor.dl_tensor.data; }
 
-/* Return REDISMODULE_ERR if is the key not associated with a tensor type.
- * Return REDISMODULE_OK otherwise. */
 int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                       int mode) {
+                       int mode, RAI_Error *err) {
     *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         return REDISMODULE_OK;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
         RedisModule_CloseKey(*key);
-        RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+        RAI_SetError(err, RAI_ETENSORSET, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
@@ -600,22 +598,6 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     *tensor = RedisModule_ModuleTypeGetValue(*key);
     RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
-}
-
-/* Return REDISMODULE_ERR if there was an error getting the Tensor.
- * Return REDISMODULE_OK if the tensor value is present at the localContextDict.
- */
-int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
-                                  RAI_Tensor **tensor, RAI_Error *error) {
-    int result = REDISMODULE_ERR;
-    AI_dictEntry *tensor_entry = AI_dictFind(localContextDict, localContextKey);
-    if (tensor_entry) {
-        *tensor = AI_dictGetVal(tensor_entry);
-        result = REDISMODULE_OK;
-    } else {
-        RAI_SetError(error, RAI_ETENSORGET, "ERR tensor key is empty");
-    }
-    return result;
 }
 
 void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t) {

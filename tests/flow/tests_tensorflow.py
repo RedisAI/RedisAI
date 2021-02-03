@@ -870,3 +870,23 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
     ret = con.execute_command('AI.TENSORGET', output_key, 'VALUES' )
     # tf model has 100 classes [0,999]
     env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
+
+@skip_if_no_TF
+def test_tf_info(env):
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(8, len(ret))
+    env.assertEqual(b'TensorFlow version', ret[6])

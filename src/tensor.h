@@ -320,7 +320,7 @@ char *RAI_TensorData(RAI_Tensor *t);
  * tensor type.
  */
 int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                       int mode);
+                       int mode, RAI_Error *err);
 
 /**
  * Helper method to get Tensor from keyspace. In case of a failure an
@@ -338,20 +338,6 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
  */
 int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
                               RAI_Tensor **tensor, int mode, RAI_Error *err);
-
-/**
- * Helper method to get Tensor from local context ( no keyspace access )
- *
- * @param localContextDict local non-blocking hash table containing DAG's
- * tensors
- * @param localContextKey key name
- * @param tensor destination tensor
- * @param error error data structure to store error message in the case of
- * failure
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
- */
-int RAI_getTensorFromLocalContext(AI_dict *localContextDict, RedisModuleString *localContextKey,
-                                  RAI_Tensor **tensor, RAI_Error *error);
 
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the

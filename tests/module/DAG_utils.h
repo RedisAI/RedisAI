@@ -11,6 +11,8 @@ typedef struct RAI_RunResults {
     RAI_Error *error;
 } RAI_RunResults;
 
+int testLoadTensor(RedisModuleCtx *ctx);
+
 int testModelRunOpError(RedisModuleCtx *ctx);
 
 int testEmptyDAGError(RedisModuleCtx *ctx);

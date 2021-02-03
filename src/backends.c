@@ -132,6 +132,17 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTF");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionTF. TF backend "
+                        "not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
     RAI_backends.tf = backend;
 
     RedisModule_Log(ctx, "notice", "TF backend loaded from %s", path);
@@ -209,6 +220,17 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
         RedisModule_Log(ctx, "warning",
                         "Backend does not export RAI_ModelSerializeTFLite. TFLITE "
                         "backend not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTFLite");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionTFLite. TFLite backend "
+                        "not loaded from %s",
                         path);
         return REDISMODULE_ERR;
     }
@@ -327,6 +349,17 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionTorch");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionTorch. TORCH backend "
+                        "not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
     RAI_backends.torch = backend;
 
     RedisModule_Log(ctx, "notice", "TORCH backend loaded from %s", path);
@@ -403,6 +436,17 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         RedisModule_Log(ctx, "warning",
                         "Backend does not export RAI_ModelSerializeORT. ONNX "
                         "backend not loaded from %s",
+                        path);
+        return REDISMODULE_ERR;
+    }
+
+    backend.get_version =
+        (const char *(*)(void))(unsigned long)dlsym(handle, "RAI_GetBackendVersionORT");
+    if (backend.get_version == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetBackendVersionORT. ONNX backend "
+                        "not loaded from %s",
                         path);
         return REDISMODULE_ERR;
     }
