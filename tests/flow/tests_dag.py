@@ -761,6 +761,7 @@ def test_dag_modelrun_financialNet_autobatch(env):
                 'AI.TENSORGET', result_tensor_keyname, 'META',
             )
 
+            t.join()
             ensureSlaveSynced(con, env)
 
             env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)
@@ -771,7 +772,6 @@ def test_dag_modelrun_financialNet_autobatch(env):
             # assert that result tensor exists
             ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
             env.assertEqual(ret, 1)
-            t.join()
 
 
 def test_dag_with_timeout(env):

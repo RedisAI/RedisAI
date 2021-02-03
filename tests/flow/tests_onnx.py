@@ -214,6 +214,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
+    t.join()
 
     ensureSlaveSynced(con, env)
 
@@ -229,7 +230,6 @@ def test_onnx_modelrun_mnist_autobatch(env):
     argmax = max(range(len(values)), key=lambda i: values[i])
 
     env.assertEqual(argmax, 1)
-    t.join()
 
 
 def test_onnx_modelrun_iris(env):
