@@ -91,10 +91,6 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
         return NULL;
     }
 
-    if (count == 0) {
-        return NULL;
-    }
-
     size_t batch_size = 0;
     size_t batch_byte_size = 0;
 
@@ -174,7 +170,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         return NULL;
     }
 
-    ret = RedisModule_Calloc(1, sizeof(*ret));
+    ret = RAI_TensorNew();
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
@@ -261,7 +257,6 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
                                         .manager_ctx = NULL,
                                         .deleter = NULL};
 
-        ret->refCount = 1;
         return ret;
     }
 
@@ -329,6 +324,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         ort->ReleaseSessionOptions(session_options);
         goto error;
     }
+    ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism);
+    ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism);
+
     // TODO: we will need to propose a more dynamic way to request a specific provider,
     // e.g. given the name, in ONNXRuntime
 #if RAI_ONNXRUNTIME_USE_CUDA
@@ -345,7 +343,6 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 #endif
 
     OrtSession *session;
-
     status = ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session);
 
     ort->ReleaseSessionOptions(session_options);
@@ -670,3 +667,5 @@ int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Erro
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionORT(void) { return OrtGetApiBase()->GetVersionString(); }

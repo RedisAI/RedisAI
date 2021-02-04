@@ -4,17 +4,39 @@
 #include "run_info.h"
 
 /**
- * @brief We are given a DAG runInfo of a sequence of operations, each with its own
+ @brief We are given a DAG runInfo of a sequence of operations, each with its own
  input and output keys. The names of the keys will be used to look whether the
  inputs to a DAG operation have all been realized by previous operations (or if
  they are available as part of LOADed keys from keyspace).
  This strategy is fine if keys are not aliased, that is, if a command's output
  overwrites the key of a previous command. This would trick DAG operations into
  thinking that their input is ready when it's not.
- To overcome this, we make key names unique, so that names are not aliased. We
- mangle the names by appending a numerical suffix ":0001". After computing, we
- demangle the keys in order to persist them.*/
-int MangleTensorsNames(RedisAI_RunInfo *rinfo);
+ To overcome this, we map the input and output tensors for every operation to indices,
+ in the following way. For every input of an operation having the key "x", we map the index
+ for which "x" was last mapped to when, it was an output of a previous operation.
+ For every output of an operation "y", we map the next available index in the array.
+ Every entry in the DAG array contains NULL (except for tensors that where loaded
+ before the DAG run starts).
+ @param rinfo The DAG runInfo.
+ @param tensorsNamesToInd A dict mapping every key name of a tensor that appeared
+ in DAG operation, to the maximal index of the DAG shared array for which they were mapped to.
+ @returns REDISMODULE_ERR if there exists an operation for which one of the input
+ tensors didn't appear as an output of a previous operation, REDISMODULE_OK otherwise
+ */
+int MapTensorsKeysToIndices(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd);
+
+/**
+ * @brief Validates that tensors key names to persist appeared in the DAG operations.
+ * @param rinfo The DAG runInfo.
+ * @param tensorsNamesToInd A dict mapping every key name of a tensor that appeared
+ * in DAG operation, to the maximal index of the DAG shared array for which they were mapped to.
+ * @param persistTensorsNames A hash table the contains the names of the tensors
+ * to persist when the DAG run is finished.
+ * @return REDISMODULE_ERR if there exists a tensor key to persist that didn't
+ * appear in DAG operation, REDISMODULE_OK otherwise
+ */
+int ValidatePersistKeys(RedisAI_RunInfo *rinfo, AI_dict *tensorsNamesToInd,
+                        AI_dict *persistTensorsNames);
 
 /**
  * @brief Run asynchronously a DAG. This will validate that the sequence of DAG ops

@@ -88,7 +88,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
@@ -143,7 +143,6 @@ RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
         .manager_ctx = NULL,
         .deleter = NULL};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -591,3 +590,5 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTF(void) { return TF_Version(); }

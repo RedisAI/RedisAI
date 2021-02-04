@@ -153,16 +153,14 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script);
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key script's key handle. On success it contains an handle representing
- * a Redis key with the requested access mode
  * @param script destination script structure
  * @param mode key access mode
  * @return REDISMODULE_OK if the script value stored at key was correctly
  * returned and available at *script variable, or REDISMODULE_ERR if there was
  * an error getting the Script
  */
-int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Script **script, int mode, RAI_Error *err);
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Script **script,
+                              int mode, RAI_Error *err);
 
 /**
  * When a module command is called in order to obtain the position of
