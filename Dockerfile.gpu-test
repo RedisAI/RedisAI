@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}-test
 
-ARG REDIS_VER=6.0.5
+ARG REDIS_VER=6.0.9
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -30,12 +30,10 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
 
-RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
+RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 
 RUN set -e ;\
-	python3 -m virtualenv venv --system-site-packages ;\
 	. venv/bin/activate ;\
-	python -m pip install pip==19.3.1 ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
