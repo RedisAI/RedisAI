@@ -123,8 +123,8 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             cd opt/build/docker
-            make -n build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-            make -n build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
+            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
+            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
           no_output_timeout: 40m
 
   deploy-steps:
@@ -444,13 +444,11 @@ workflows:
           <<: *platform-build-defs
       - coverage:
           context: common
-          #@@ <<: *on-any-branch
+          <<: *on-any-branch
           <<: *after-linter
-          <<: *never #@@ remove this
       - valgrind:
           test_args: CLUSTER=0 AOF=0
-          #@@ <<: *on-any-branch
-          <<: *never #@@ remove this
+          <<: *on-any-branch
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
@@ -463,8 +461,7 @@ workflows:
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu:
-          #@@<<: *on-any-branch
-          <<: *never #@@ remove this
+          <<: *on-any-branch
           <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
@@ -482,8 +479,7 @@ workflows:
           context: common
           build_args: EDGE=1
           <<: *after-build-and-test
-          #@@ <<: *on-master
-          <<: *on-any-branch
+          <<: *on-master
       - deploy-release:
           context: common
           <<: *after-platform-builds
