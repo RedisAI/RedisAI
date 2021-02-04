@@ -269,7 +269,8 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     def run():
         con = env.getConnection()
         try:
-            con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'd{1}', 'e{1}', 'OUTPUTS', 'f1{1}', 'f2{1}')
+            ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'd{1}', 'e{1}', 'OUTPUTS', 'f1{1}', 'f2{1}')
+            env.assertEqual(ret, b'OK')
         except Exception as e:
             exception = e
             env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -279,11 +280,13 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     t.start()
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c1{1}', 'c2{1}')
+        ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c1{1}', 'c2{1}')
+        env.assertEqual(ret, b'OK')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+    t.join()
 
 
 

@@ -3,6 +3,7 @@ import os
 import subprocess
 import redis
 from includes import *
+from RLTest import Env
 
 '''
 python -m RLTest --test tests_onnx.py --module path/to/redisai.so
@@ -214,6 +215,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     t.start()
 
     con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
+    t.join()
 
     ensureSlaveSynced(con, env)
 
@@ -413,3 +415,40 @@ def tests_onnx_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(8, len(ret))
     env.assertEqual(b'ONNX version', ret[6])
+
+
+def test_parallelism():
+    env = Env(moduleArgs='INTRA_OP_PARALLELISM 1 INTER_OP_PARALLELISM 1')
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist.onnx')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
+    ensureSlaveSynced(con, env)
+    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
+    argmax = max(range(len(values)), key=lambda i: values[i])
+    env.assertEqual(argmax, 1)
+
+    load_time_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    env.assertEqual(load_time_config["ai_inter_op_parallelism"], "1")
+    env.assertEqual(load_time_config["ai_intra_op_parallelism"], "1")
+
+    env = Env(moduleArgs='INTRA_OP_PARALLELISM 2 INTER_OP_PARALLELISM 2')
+    load_time_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
+    env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
