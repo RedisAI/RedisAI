@@ -70,38 +70,6 @@ commands:
       - store_artifacts:
           path: tests/logs
 
-  platform-build-steps:
-    steps:
-      - checkout
-      - run:
-          name: Setup
-          command: |
-            git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
-      - run:
-          name: Build for platform
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            pushd opt/build/docker
-            #@@ make CPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 TEST=1 VERBOSE=1
-            make CPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 VERBOSE=1
-            make GPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 VERBOSE=1
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
-          no_output_timeout: 40m
-      - persist_to_workspace:
-          root: bin/
-          paths:
-            - artifacts/*.zip
-            - artifacts/*.tgz
-            - artifacts/*.tar
-      - store_artifacts:
-          path: test/logs
-
   platforms-build-steps:
     steps:
       - checkout
@@ -127,8 +95,6 @@ commands:
             for osnick in bionic xenial; do
                 make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
                 make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -145,27 +111,6 @@ commands:
             - artifacts/*.tar
       - store_artifacts:
           path: test/logs
-
-#  dockerhub-build-steps:
-#    parameters:
-#      build_args:
-#        type: string
-#    steps:
-#      - setup-executor
-#      - checkout
-#      - run:
-#          name: Setup
-#          command: |
-#            git submodule update --init --recursive
-#            ./opt/readies/bin/getpy3
-#      - run:
-#          name: Build for platform
-#          command: |
-#            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-#            cd opt/build/docker
-#            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-#            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-#          no_output_timeout: 40m
 
   deploy-steps:
     parameters:
@@ -198,16 +143,6 @@ jobs:
     steps:
       - build-steps:
           platform: debian
-
-  platform-build:
-    parameters:
-      platform:
-        type: string
-    docker:
-      - image: debian:buster
-    steps:
-      - platform-build-steps:
-          platform: <<parameters.platform>>
 
   platforms-build:
     machine:
@@ -352,16 +287,6 @@ jobs:
       - store_artifacts:
           path: tests/logs
 
-#  dockerhub-build:
-#    parameters:
-#      build_args:
-#        type: string
-#    docker:
-#      - image: debian:buster
-#    steps:
-#      - dockerhub-build-steps:
-#          build_args: <<parameters.build_args>>
-
   deploy-artifacts:
     parameters:
       location:
@@ -470,14 +395,11 @@ after-build-and-test: &after-build-and-test
 after-platform-builds: &after-platform-builds
   requires:
     - platforms-build
-    # - build-centos7
-#    - build-bionic
-#    - build-xenial
 
 platform-build-defs: &platform-build-defs
   <<: *after-build-and-test
-  #@@ <<: *on-integ-and-version-tags
-  <<: *on-any-branch # debugging
+  <<: *on-integ-and-version-tags
+  # <<: *on-any-branch # debugging
 
 
 workflows:
@@ -489,29 +411,15 @@ workflows:
       - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
-#      - platform-build:
-#          name: build-centos7
-#          platform: centos7
-#          <<: *never # temporarily disabled
       - platforms-build:
           <<: *platform-build-defs
-#      - platform-build:
-#          name: build-bionic
-#          platform: bionic
-#          <<: *platform-build-defs
-#      - platform-build:
-#          name: build-xenial
-#          platform: xenial
-#          <<: *platform-build-defs
       - coverage:
           context: common
-          #@@ <<: *on-any-branch
-          <<: *never # remove this line
+          <<: *on-any-branch
           <<: *after-linter
       - valgrind:
           test_args: CLUSTER=0 AOF=0
-          #@@<<: *on-any-branch
-          <<: *never # remove this line
+          <<: *on-any-branch
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
@@ -537,22 +445,10 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
-#      - dockerhub-build:
-#          name: dockerhub-edge
-#          context: common
-#          build_args: EDGE=1
-#          <<: *after-build-and-test
-#          <<: *on-master
       - deploy-release:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
-#      - dockerhub-build:
-#          name: dockerhub-release
-#          context: common
-#          build_args: LATEST=1
-#          <<: *after-platform-builds
-#          <<: *on-version-tags
 
   nightly:
     triggers:
