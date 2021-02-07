@@ -87,9 +87,9 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
-            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            #@@ make CPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 TEST=1 VERBOSE=1
+            make CPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 VERBOSE=1
+            make GPU=1 OSNICK=<<parameters.platform>> ARTIFACTS=1 VERBOSE=1
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -106,26 +106,26 @@ commands:
       - store_artifacts:
           path: test/logs
 
-  dockerhub-build-steps:
-    parameters:
-      build_args:
-        type: string
-    steps:
-      - setup-executor
-      - checkout
-      - run:
-          name: Setup
-          command: |
-            git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
-      - run:
-          name: Build for platform
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-          no_output_timeout: 40m
+#  dockerhub-build-steps:
+#    parameters:
+#      build_args:
+#        type: string
+#    steps:
+#      - setup-executor
+#      - checkout
+#      - run:
+#          name: Setup
+#          command: |
+#            git submodule update --init --recursive
+#            ./opt/readies/bin/getpy3
+#      - run:
+#          name: Build for platform
+#          command: |
+#            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+#            cd opt/build/docker
+#            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
+#            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
+#          no_output_timeout: 40m
 
   deploy-steps:
     parameters:
@@ -294,15 +294,15 @@ jobs:
       - store_artifacts:
           path: test/log
 
-  dockerhub-build:
-    parameters:
-      build_args:
-        type: string
-    docker:
-      - image: debian:buster
-    steps:
-      - dockerhub-build-steps:
-          build_args: <<parameters.build_args>>
+#  dockerhub-build:
+#    parameters:
+#      build_args:
+#        type: string
+#    docker:
+#      - image: debian:buster
+#    steps:
+#      - dockerhub-build-steps:
+#          build_args: <<parameters.build_args>>
 
   deploy-artifacts:
     parameters:
@@ -417,8 +417,8 @@ after-platform-builds: &after-platform-builds
 
 platform-build-defs: &platform-build-defs
   <<: *after-build-and-test
-  <<: *on-integ-and-version-tags
-  # <<: *on-any-branch # debugging
+  #@@ <<: *on-integ-and-version-tags
+  <<: *on-any-branch # debugging
 
 
 workflows:
@@ -474,22 +474,22 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
-      - dockerhub-build:
-          name: dockerhub-edge
-          context: common
-          build_args: EDGE=1
-          <<: *after-build-and-test
-          <<: *on-master
+#      - dockerhub-build:
+#          name: dockerhub-edge
+#          context: common
+#          build_args: EDGE=1
+#          <<: *after-build-and-test
+#          <<: *on-master
       - deploy-release:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
-      - dockerhub-build:
-          name: dockerhub-release
-          context: common
-          build_args: LATEST=1
-          <<: *after-platform-builds
-          <<: *on-version-tags
+#      - dockerhub-build:
+#          name: dockerhub-release
+#          context: common
+#          build_args: LATEST=1
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
 
   nightly:
     triggers:
