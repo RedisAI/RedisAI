@@ -70,13 +70,18 @@ commands:
       - store_artifacts:
           path: tests/logs
 
-  platform-build-steps:
-    parameters:
-      platform:
-        type: string
+  platforms-build-steps:
     steps:
-      - setup-executor
       - checkout
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - run:
           name: Setup
           command: |
@@ -87,15 +92,16 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
-            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
+            done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -105,27 +111,6 @@ commands:
             - artifacts/*.tar
       - store_artifacts:
           path: test/logs
-
-  dockerhub-build-steps:
-    parameters:
-      build_args:
-        type: string
-    steps:
-      - setup-executor
-      - checkout
-      - run:
-          name: Setup
-          command: |
-            git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
-      - run:
-          name: Build for platform
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            make build publish $(./version-params) CPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-            make build publish $(./version-params) GPU=1 OSNICK=bionic X64=1 REPO=redislabs VERBOSE=1 <<parameters.build_args>>
-          no_output_timeout: 40m
 
   deploy-steps:
     parameters:
@@ -159,15 +144,14 @@ jobs:
       - build-steps:
           platform: debian
 
-  platform-build:
-    parameters:
-      platform:
-        type: string
-    docker:
-      - image: debian:buster
+  platforms-build:
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-11.1:202012-01
     steps:
-      - platform-build-steps:
-          platform: <<parameters.platform>>
+      - platforms-build-steps
 
   coverage:
     docker:
@@ -282,6 +266,15 @@ jobs:
           name: Submodule checkout
           command: git submodule update --init --recursive
       - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
+      - run:
           name: Build
           command: |
             docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
@@ -292,17 +285,7 @@ jobs:
             docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: test/log
-
-  dockerhub-build:
-    parameters:
-      build_args:
-        type: string
-    docker:
-      - image: debian:buster
-    steps:
-      - dockerhub-build-steps:
-          build_args: <<parameters.build_args>>
+          path: tests/logs
 
   deploy-artifacts:
     parameters:
@@ -411,9 +394,7 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    # - build-centos7
-    - build-bionic
-    - build-xenial
+    - platforms-build
 
 platform-build-defs: &platform-build-defs
   <<: *after-build-and-test
@@ -430,17 +411,7 @@ workflows:
       - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
-      - platform-build:
-          name: build-centos7
-          platform: centos7
-          <<: *never # temporarily disabled
-      - platform-build:
-          name: build-bionic
-          platform: bionic
-          <<: *platform-build-defs
-      - platform-build:
-          name: build-xenial
-          platform: xenial
+      - platforms-build:
           <<: *platform-build-defs
       - coverage:
           context: common
@@ -474,20 +445,8 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
-      - dockerhub-build:
-          name: dockerhub-edge
-          context: common
-          build_args: EDGE=1
-          <<: *after-build-and-test
-          <<: *on-master
       - deploy-release:
           context: common
-          <<: *after-platform-builds
-          <<: *on-version-tags
-      - dockerhub-build:
-          name: dockerhub-release
-          context: common
-          build_args: LATEST=1
           <<: *after-platform-builds
           <<: *on-version-tags
 
