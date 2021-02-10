@@ -100,11 +100,17 @@ pack_ramp() {
 
 		xtx_vars+=" -e NAME_$dep -e PATH_$dep -e SHA256_$dep"
 	done
-	
+
+	if [[ -z $VARIANT ]]; then
+		local rampfile=ramp.yml
+	else
+		local rampfile=ramp$VARIANT.yml
+	fi
+
 	python3 $READIES/xtx \
 		$xtx_vars \
 		-e DEVICE -e NUMVER -e SEMVER \
-		$ROOT/ramp.yml > /tmp/ramp.yml
+		$ROOT/$rampfile > /tmp/ramp.yml
 	rm -f /tmp/ramp.fname $packfile
 	$RAMP_PROG pack -m /tmp/ramp.yml --packname-file /tmp/ramp.fname --verbose --debug -o $packfile $product_so >/tmp/ramp.err 2>&1 || true
 	if [[ ! -e $packfile ]]; then
@@ -179,7 +185,7 @@ if [[ $RAMP == 1 ]]; then
 		exit 1
 	fi
 
-	echo "Building RAMP files ..."
+	echo "Building RAMP $VARIANT files ..."
 	SNAPSHOT=0 pack_ramp
 	SNAPSHOT=1 pack_ramp
 	echo "Done."
