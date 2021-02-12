@@ -120,6 +120,7 @@ commands:
       - run:
           name: Deploy to S3
           command: |
+            du -ah --apparent-size artifacts/*
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
@@ -300,6 +301,7 @@ jobs:
           name: Deploy to S3
           command: |
             cd "workspace/artifacts/<<parameters.location>>"
+            du -ah --apparent-size *
             for f in *.zip snapshot/*.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
             done
@@ -314,9 +316,12 @@ jobs:
           name: Deploy Snapshots to S3
           command: |
             cd workspace/artifacts
-            for f in snapshots-*.tar; do
+            for f in snapshots*.tar; do
+                echo "Extracting $f ..."
                 tar xf $f
             done
+            echo "... done."
+            du -ah --apparent-size *
             cd snapshots
             for f in *.zip *.tgz; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
@@ -332,6 +337,7 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
+            du -ah --apparent-size *
             for f in *.zip *.tgz; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
