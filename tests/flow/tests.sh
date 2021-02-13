@@ -52,12 +52,6 @@ install_git_lfs() {
 
 #----------------------------------------------------------------------------------------------
 
-install_redis_gears() {
-
-  OS=bionic /bin/bash $HERE/Install_RedisGears.sh
-}
-
-#----------------------------------------------------------------------------------------------
 check_redis_server() {
 	if ! command -v redis-server > /dev/null; then
 		echo "Cannot find redis-server. Aborting."
@@ -142,8 +136,7 @@ cd $ROOT/tests/flow
 
 install_git_lfs
 check_redis_server
-install_redis_gears
-
+./Install_RedisGears.sh
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
