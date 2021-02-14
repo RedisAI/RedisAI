@@ -66,6 +66,7 @@ if [[ -d $FINAL_WORK_DIR && -f $FINAL_WORK_DIR/redisgears.so ]]; then
 	exit 0
 fi
 
+$OP mkdir -p $(dirname $FINAL_WORK_DIR)
 $OP rm -rf ${FINAL_WORK_DIR}.*
 WORK_DIR=$(mktemp -d ${FINAL_WORK_DIR}.XXXXXX)
 $OP mkdir -p $WORK_DIR
