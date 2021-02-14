@@ -76,22 +76,3 @@ RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index);
  * @return RAI_Tensor
  */
 RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index);
-
-/**
- * Helper method to parse AI.MODELRUN arguments
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @param mctx Destination Model context to store the parsed data
- * @param outkeys array to store the parsed output keys
- * @param mto model to run the session from
- * @param error error data structure to store error message in the case of
- * parsing failures
- * @return processed number of arguments on success, or -1 if the parsing failed
- */
-// todo: remove this after DAG LLAPI is done.
-int RedisAI_Parse_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                        RAI_ModelRunCtx **mctx, RedisModuleString ***inkeys,
-                                        RedisModuleString ***outkeys, RAI_Model **mto,
-                                        RAI_Error *error);

@@ -11,6 +11,8 @@
 #include "backends/util.h"
 #include "background_workers.h"
 #include "DAG/dag.h"
+#include "DAG/dag_builder.h"
+#include "DAG/dag_execute.h"
 #include "model.h"
 #include "modelRun_ctx.h"
 #include "script.h"
@@ -99,18 +101,23 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     RedisModuleKey *key;
-    const int status = RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE);
+    RAI_Error err = {0};
+    const int status =
+        RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
     RAI_Tensor *t = NULL;
-    RAI_Error err;
-    const int parse_result = RAI_parseTensorSetArgs(ctx, argv, argc, &t, 1, &err);
+    const int parse_result = RAI_parseTensorSetArgs(argv, argc, &t, 1, &err);
 
     // if the number of parsed args is negative something went wrong
     if (parse_result < 0) {
         RedisModule_CloseKey(key);
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -134,13 +141,17 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RAI_Tensor *t;
     RedisModuleKey *key;
-    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ);
+    RAI_Error err = {0};
+    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-
-    uint fmt = ParseTensorGetArgs(ctx, argv, argc);
+    uint fmt = ParseTensorGetArgs(&err, argv, argc);
     if (fmt == TENSOR_NONE) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         // This means that args are invalid.
         return REDISMODULE_ERR;
     }
@@ -410,12 +421,11 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (argc < 2 || argc > 4)
         return RedisModule_WrongArity(ctx);
 
-    RAI_Model *mto;
-    RedisModuleKey *key;
     RAI_Error err = {0};
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto, REDISMODULE_READ, &err);
+    RAI_Model *mto;
+    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &mto, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, err.detail);
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
@@ -512,18 +522,17 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (argc != 2)
         return RedisModule_WrongArity(ctx);
 
-    RAI_Error err = {0};
     RAI_Model *mto;
-    RedisModuleKey *key;
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[1], &key, &mto,
-                                                REDISMODULE_READ | REDISMODULE_WRITE, &err);
+    RAI_Error err = {0};
+    const int status =
+        RAI_GetModelFromKeyspace(ctx, argv[1], &mto, REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
-        RedisModule_ReplyWithError(ctx, err.detail);
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
-    key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
     RedisModule_ReplicateVerbatim(ctx);
@@ -597,9 +606,11 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     RAI_Script *sto;
-    RedisModuleKey *key;
-    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_READ);
+    RAI_Error err = {0};
+    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &sto, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
 
@@ -645,12 +656,14 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return RedisModule_WrongArity(ctx);
 
     RAI_Script *sto;
-    RedisModuleKey *key;
-    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &key, &sto, REDISMODULE_WRITE);
+    RAI_Error err = {0};
+    const int status = RAI_GetScriptFromKeyspace(ctx, argv[1], &sto, REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
+        RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
+        RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-    key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
 
@@ -791,12 +804,81 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     return REDISMODULE_OK;
 }
 
+void _RedisAI_Info(RedisModuleCtx *ctx) {
+    RedisModuleString *rai_version = RedisModule_CreateStringPrintf(
+        ctx, "%d.%d.%d", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
+    RedisModuleString *llapi_version =
+        RedisModule_CreateStringPrintf(ctx, "%d", REDISAI_LLAPI_VERSION);
+    RedisModuleString *rdb_version = RedisModule_CreateStringPrintf(ctx, "%llu", REDISAI_ENC_VER);
+
+    int reponse_len = 6;
+
+    if (RAI_backends.tf.get_version) {
+        reponse_len += 2;
+    }
+
+    if (RAI_backends.torch.get_version) {
+        reponse_len += 2;
+    }
+
+    if (RAI_backends.tflite.get_version) {
+        reponse_len += 2;
+    }
+
+    if (RAI_backends.onnx.get_version) {
+        reponse_len += 2;
+    }
+
+    RedisModule_ReplyWithArray(ctx, reponse_len);
+
+    RedisModule_ReplyWithSimpleString(ctx, "Version");
+    RedisModule_ReplyWithString(ctx, rai_version);
+
+    // TODO: Add Git SHA
+
+    RedisModule_ReplyWithSimpleString(ctx, "Low Level API Version");
+    RedisModule_ReplyWithString(ctx, llapi_version);
+
+    RedisModule_ReplyWithSimpleString(ctx, "RDB Encoding version");
+    RedisModule_ReplyWithString(ctx, llapi_version);
+
+    if (RAI_backends.tf.get_version) {
+        RedisModule_ReplyWithSimpleString(ctx, "TensorFlow version");
+        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.tf.get_version());
+    }
+
+    if (RAI_backends.torch.get_version) {
+        RedisModule_ReplyWithSimpleString(ctx, "Torch version");
+        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.torch.get_version());
+    }
+
+    if (RAI_backends.tflite.get_version) {
+        RedisModule_ReplyWithSimpleString(ctx, "TFLite version");
+        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.tflite.get_version());
+    }
+
+    if (RAI_backends.onnx.get_version) {
+        RedisModule_ReplyWithSimpleString(ctx, "ONNX version");
+        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.onnx.get_version());
+    }
+
+    RedisModule_FreeString(ctx, rai_version);
+    RedisModule_FreeString(ctx, llapi_version);
+    RedisModule_FreeString(ctx, rdb_version);
+}
+
 /**
  * AI.INFO <model_or_script_key> [RESETSTAT]
  */
 int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc != 2 && argc != 3)
+    if (argc > 3)
         return RedisModule_WrongArity(ctx);
+
+    if (argc == 1) {
+        _RedisAI_Info(ctx);
+        return REDISMODULE_OK;
+    }
+
     RedisModuleString *runkey = argv[1];
     struct RedisAI_RunStats *rstats = NULL;
     if (RAI_GetRunStats(runkey, &rstats) == REDISMODULE_ERR) {
@@ -939,6 +1021,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(GetError, ctx);
     REGISTER_API(GetErrorOneLine, ctx);
     REGISTER_API(GetErrorCode, ctx);
+    REGISTER_API(CloneError, ctx);
 
     REGISTER_API(TensorCreate, ctx);
     REGISTER_API(TensorCreateByConcatenatingTensors, ctx);
@@ -961,6 +1044,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ModelCreate, ctx);
     REGISTER_API(ModelFree, ctx);
     REGISTER_API(ModelRunCtxCreate, ctx);
+    REGISTER_API(GetModelFromKeyspace, ctx);
     REGISTER_API(ModelRunCtxAddInput, ctx);
     REGISTER_API(ModelRunCtxAddOutput, ctx);
     REGISTER_API(ModelRunCtxNumOutputs, ctx);
@@ -974,6 +1058,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(GetAsModelRunCtx, ctx);
 
     REGISTER_API(ScriptCreate, ctx);
+    REGISTER_API(GetScriptFromKeyspace, ctx);
     REGISTER_API(ScriptFree, ctx);
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
@@ -987,6 +1072,25 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRedisType, ctx);
     REGISTER_API(ScriptRunAsync, ctx);
     REGISTER_API(GetAsScriptRunCtx, ctx);
+
+    REGISTER_API(DAGRunCtxCreate, ctx);
+    REGISTER_API(DAGCreateModelRunOp, ctx);
+    REGISTER_API(DAGCreateScriptRunOp, ctx);
+    REGISTER_API(DAGRunOpAddInput, ctx);
+    REGISTER_API(DAGRunOpAddOutput, ctx);
+    REGISTER_API(DAGAddRunOp, ctx);
+    REGISTER_API(DAGLoadTensor, ctx);
+    REGISTER_API(DAGAddTensorSet, ctx);
+    REGISTER_API(DAGAddTensorGet, ctx);
+    REGISTER_API(DAGAddOpsFromString, ctx);
+    REGISTER_API(DAGNumOps, ctx);
+    REGISTER_API(DAGRun, ctx);
+    REGISTER_API(DAGNumOutputs, ctx);
+    REGISTER_API(DAGOutputTensor, ctx);
+    REGISTER_API(DAGRunError, ctx);
+    REGISTER_API(DAGGetError, ctx);
+    REGISTER_API(DAGRunOpFree, ctx);
+    REGISTER_API(DAGFree, ctx);
 
     return REDISMODULE_OK;
 }

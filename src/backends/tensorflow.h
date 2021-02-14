@@ -19,4 +19,6 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
+const char *RAI_GetBackendVersionTF(void);
+
 #endif /* SRC_BACKENDS_TENSORFLOW_H_ */

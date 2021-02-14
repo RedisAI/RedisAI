@@ -29,8 +29,8 @@ all: $(TEST_MODULES)
 %.o: %.c
 	$(CC) $(DEBUGFLAGS) -I../../src -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
 
-%.so: %.o
-	$(CC) -o $@ LLAPI.o $(SHOBJ_LDFLAGS) -lc -lm
+%.so: %.o DAG_utils.o
+	$(CC) -o $@ $^ $(SHOBJ_LDFLAGS) -lc -lm
 	chmod +x LLAPI.so
 
 .PHONY: clean

@@ -8,6 +8,10 @@ This introduction is intended to present the core concepts it uses and the funct
 !!! important "Prerequisites"
     Before diving into RedisAI please make sure that you are familiar with the basic concepts of machine learning and Redis.
 
+This video will introduce you to RedisAI at a high level. Give it a watch, then keep reading for more details.
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/gbiqF-eyTW4" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 In broad strokes, RedisAI's looks as follows:
 
 ```

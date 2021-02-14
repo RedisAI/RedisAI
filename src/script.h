@@ -153,16 +153,14 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script);
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key script's key handle. On success it contains an handle representing
- * a Redis key with the requested access mode
  * @param script destination script structure
  * @param mode key access mode
  * @return REDISMODULE_OK if the script value stored at key was correctly
  * returned and available at *script variable, or REDISMODULE_ERR if there was
  * an error getting the Script
  */
-int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Script **script, int mode);
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Script **script,
+                              int mode, RAI_Error *err);
 
 /**
  * When a module command is called in order to obtain the position of
@@ -178,23 +176,6 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
  */
 int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                                                        RedisModuleString **argv, int argc);
-
-/**
- * Helper method to parse AI.SCRIPTRUN arguments
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @param outkeys array to store the parsed input keys
- * @param outkeys array to store the parsed output keys
- * @param variadic int to store the variadic input location
- * @param error error data structure to store error message in the case of
- * parsing failures
- * @return processed number of arguments on success, or -1 if the parsing failed
- */
-int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                         RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                         int *variadic, RAI_Error *error);
 
 #if 0
 /**

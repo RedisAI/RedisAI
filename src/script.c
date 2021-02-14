@@ -154,21 +154,21 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script) {
 /* Return REDISMODULE_ERR if there was an error getting the Script.
  * Return REDISMODULE_OK if the model value stored at key was correctly
  * returned and available at *model variable. */
-int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Script **script, int mode) {
-    *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(*key);
-        RedisModule_ReplyWithError(ctx, "ERR script key is empty");
+int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Script **script,
+                              int mode, RAI_Error *err) {
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
+    if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
+        RedisModule_CloseKey(key);
+        RAI_SetError(err, RAI_ESCRIPTRUN, "ERR script key is empty");
         return REDISMODULE_ERR;
     }
-    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_ScriptType) {
-        RedisModule_CloseKey(*key);
-        RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
+        RedisModule_CloseKey(key);
+        RAI_SetError(err, RAI_ESCRIPTRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
-    *script = RedisModule_ModuleTypeGetValue(*key);
-    RedisModule_CloseKey(*key);
+    *script = RedisModule_ModuleTypeGetValue(key);
+    RedisModule_CloseKey(key);
     return REDISMODULE_OK;
 }
 
@@ -197,69 +197,6 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     return REDISMODULE_OK;
 }
 
-/**
- * AI.SCRIPTRUN <key> <function> INPUTS <input> [input ...] OUTPUTS <output>
- * [output ...]
- */
-int RedisAI_Parse_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                         RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                         int *variadic, RAI_Error *error) {
-    if (argc < 6) {
-        RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
-        return -1;
-    }
-
-    const char *inputstr = RedisModule_StringPtrLen(argv[2], NULL);
-    if (strcasecmp(inputstr, "INPUTS") == 0) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR function name not specified");
-        return -1;
-    }
-
-    inputstr = RedisModule_StringPtrLen(argv[3], NULL);
-    if (strcasecmp(inputstr, "INPUTS")) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR INPUTS not specified");
-        return -1;
-    }
-
-    // parsing aux vars
-    int is_output = 0;
-    int outputs_flag_count = 0;
-    int variadic_ = *variadic;
-    size_t argpos = 4;
-    for (; argpos <= argc - 1; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if (!arg_string) {
-            RAI_SetError(error, RAI_ESCRIPTRUN, "ERR NULL argument on SCRIPTRUN");
-            return -1;
-        }
-        if (!strcasecmp(arg_string, "OUTPUTS") && outputs_flag_count == 0) {
-            is_output = 1;
-            outputs_flag_count = 1;
-        } else {
-            if (!strcasecmp(arg_string, "$")) {
-                if (variadic_ > -1) {
-                    RAI_SetError(error, RAI_ESCRIPTRUN,
-                                 "ERR Already encountered a variable size list of tensors");
-                    return -1;
-                }
-                variadic_ = argpos - 4;
-                continue;
-            }
-            RedisModule_RetainString(ctx, argv[argpos]);
-            if (is_output == 0) {
-                *inkeys = array_append(*inkeys, argv[argpos]);
-            } else {
-                *outkeys = array_append(*outkeys, argv[argpos]);
-            }
-        }
-    }
-
-    *variadic = variadic_;
-
-    return argpos;
-}
-
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
 
 int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
@@ -281,5 +218,9 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
-    return DAG_InsertDAGToQueue(rinfo);
+    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
+        RAI_FreeRunInfo(rinfo);
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }

@@ -50,6 +50,7 @@ def test_common_tensorset_error_replies(env):
     try:
         con.execute_command('SET','non-tensor','value')
         con.execute_command('AI.TENSORSET', 'non-tensor', 'INT32', 2, 'unsupported', 2, 3)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -58,6 +59,7 @@ def test_common_tensorset_error_replies(env):
     # ERR invalid data type
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT128', 2, 'VALUES', 2, 3)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -66,6 +68,7 @@ def test_common_tensorset_error_replies(env):
     # ERR invalid or negative value found in tensor shape
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', -1, 'VALUES', 2, 3)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -74,6 +77,7 @@ def test_common_tensorset_error_replies(env):
     # ERR invalid argument found in tensor shape
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'unsupported', 2, 3)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -82,6 +86,7 @@ def test_common_tensorset_error_replies(env):
     # ERR invalid value
     try:
         con.execute_command('AI.TENSORSET', 'z', 'FLOAT', 2, 'VALUES', 2, 'A')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -90,6 +95,7 @@ def test_common_tensorset_error_replies(env):
     # ERR invalid value
     try:
         con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'VALUES', 2, 'A')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -97,42 +103,42 @@ def test_common_tensorset_error_replies(env):
 
     try:
         con.execute_command('AI.TENSORSET', 1)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', '2')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
         con.execute_command('AI.TENSORSET', 'blob_tensor_moreargs', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -140,6 +146,7 @@ def test_common_tensorset_error_replies(env):
 
     try:
         con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs', 'FLOAT', 2, 'BLOB')
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -148,6 +155,7 @@ def test_common_tensorset_error_replies(env):
     # ERR data length does not match tensor shape and type
     try:
         con.execute_command('AI.TENSORSET', 'sample_raw_wrong_blob_for_dim', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
+        env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -204,6 +212,16 @@ def test_common_tensorget(env):
                                                                              'META', 'BLOB')
         env.assertEqual(datatype.encode('utf-8'), tensor_dtype)
         env.assertEqual([2], tensor_dim)
+
+    # Confirm that default reply format is META BLOB
+    for datatype in tested_datatypes:
+        _, tensor_dtype, _, tensor_dim, _, tensor_blob = con.execute_command('AI.TENSORGET', 'tensor_{0}'.format(datatype),
+                                                                             'META', 'BLOB')
+        _, tensor_dtype_default, _, tensor_dim_default, _, tensor_blob_default = con.execute_command('AI.TENSORGET',
+                                                                                                     'tensor_{0}'.format(datatype))
+        env.assertEqual(tensor_dtype, tensor_dtype_default)
+        env.assertEqual(tensor_dim, tensor_dim_default)
+        env.assertEqual(tensor_blob, tensor_blob_default)
 
 
 def test_common_tensorget_error_replies(env):
@@ -322,3 +340,8 @@ def test_lua_multi(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Cannot run RedisAI command within a transaction or a LUA script", exception.__str__())
+
+def test_info(env):
+    con = env.getConnection()
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))

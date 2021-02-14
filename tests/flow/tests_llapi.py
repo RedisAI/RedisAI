@@ -12,7 +12,7 @@ python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 def ensure_test_module_loaded(f):
     @wraps(f)
     def wrapper(env, *args, **kwargs):
-        goal_dir = os.path.join(os.getcwd(), "../module/LLAPI.so")
+        goal_dir = os.path.join(os.path.dirname(__file__), "../module/LLAPI.so")
         TEST_MODULE_PATH = os.path.abspath(goal_dir)
         con = env.getConnection()
         modules = con.execute_command("MODULE", "LIST")
@@ -21,11 +21,11 @@ def ensure_test_module_loaded(f):
         try:
             ret = con.execute_command('MODULE', 'LOAD', TEST_MODULE_PATH)
             env.assertEqual(ret, b'OK')
-            return f(env, *args, **kwargs)
         except Exception as e:
             env.assertFalse(True)
             env.debugPrint(str(e), force=True)
             return
+        return f(env, *args, **kwargs)
     return wrapper
 
 
@@ -76,3 +76,74 @@ def test_script_run_async(env):
 
     ret = con.execute_command("RAI_llapi.scriptRun")
     env.assertEqual(ret, b'Async run success')
+
+
+@ensure_test_module_loaded
+def test_dag_build_and_run(env):
+    con = env.getConnection()
+
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT',
+                        2, 2, 'VALUES', 2, 3, 2, 3)
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    script_filename = os.path.join(test_data_path, 'script.txt')
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command("RAI_llapi.DAGrun")
+    env.assertEqual(ret, b'DAG run success')
+
+
+@ensure_test_module_loaded
+def test_dagrun_multidevice_resnet(env):
+    con = env.getConnection()
+
+    model_name_0 = 'imagenet_model1:{{1}}'
+    model_name_1 = 'imagenet_model2:{{1}}'
+    script_name_0 = 'imagenet_script1:{{1}}'
+    script_name_1 = 'imagenet_script2:{{1}}'
+    inputvar = 'images'
+    outputvar = 'output'
+    image_key = 'image:{{1}}'
+    temp_key1 = 'temp_key1:{{1}}'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0:{{1}}'
+    class_key_1 = 'output1:{{1}}'
+
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    device_0 = 'CPU:1'
+    device_1 = DEVICE
+
+    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command("RAI_llapi.DAG_resnet")
+    env.assertEqual(ret, b'DAG resnet success')

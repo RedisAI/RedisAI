@@ -112,8 +112,6 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
  *
  * @param ctx Context in which Redis modules operate
  * @param keyName key name
- * @param key models's key handle. On success it contains an handle representing
- * a Redis key with the requested access mode
  * @param model destination model structure
  * @param mode key access mode
  * @param error contains the error in case of problem with retrival
@@ -121,8 +119,8 @@ int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *
  * returned and available at *model variable, or REDISMODULE_ERR if there was
  * an error getting the Model
  */
-int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                             RAI_Model **model, int mode, RAI_Error *error);
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Model **model,
+                             int mode, RAI_Error *err);
 
 /**
  * When a module command is called in order to obtain the position of
@@ -145,6 +143,15 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
  */
 RedisModuleType *RAI_ModelRedisType(void);
 
+/**
+ * @brief  Returns the number of inputs in the model definition.
+ */
+size_t ModelGetNumInputs(RAI_Model *model);
+
+/**
+ * @brief  Returns the number of outputs in the model definition.
+ */
+size_t ModelGetNumOutputs(RAI_Model *model);
 /**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.
  *

@@ -16,6 +16,7 @@ file (GLOB BACKEND_COMMON_SRC
         err.c
         util/dict.c
         tensor.c
+        util/string_utils.c
         serialization/ai_datatypes.c)
 
 ADD_LIBRARY(redisai_obj OBJECT
@@ -29,6 +30,8 @@ ADD_LIBRARY(redisai_obj OBJECT
         config.c
         DAG/dag.c
         DAG/dag_parser.c
+        DAG/dag_builder.c
+        DAG/dag_execute.c
         modelRun_ctx.c
         backends.c
         backends/util.c
