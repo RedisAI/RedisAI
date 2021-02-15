@@ -243,6 +243,10 @@ int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         return REDISMODULE_OK;
     }
 
+    // Test the case a successful and failure tensor load input to DAG.
+    if(testLoadTensor(ctx) != LLAPIMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "LOAD tensor test failed");
+    }
     // Test the case of a failure due to addition of a non compatible MODELRUN op.
     if(testModelRunOpError(ctx) != LLAPIMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "MODELRUN op error test failed");

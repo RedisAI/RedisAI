@@ -1,5 +1,4 @@
-#ifndef SRC_BACKENDS_TFLITE_H_
-#define SRC_BACKENDS_TFLITE_H_
+#pragma once
 
 #include "config.h"
 #include "tensor_struct.h"
@@ -17,4 +16,4 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error);
 
 int RAI_ModelSerializeTFLite(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
-#endif /* SRC_BACKENDS_TFLITE_H_ */
+const char *RAI_GetBackendVersionTFLite(void);

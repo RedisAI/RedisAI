@@ -70,13 +70,18 @@ commands:
       - store_artifacts:
           path: tests/logs
 
-  platform-build-steps:
-    parameters:
-      platform:
-        type: string
+  platforms-build-steps:
     steps:
-      - setup-executor
       - checkout
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - run:
           name: Setup
           command: |
@@ -87,15 +92,16 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
-            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
+            done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -114,6 +120,7 @@ commands:
       - run:
           name: Deploy to S3
           command: |
+            du -ah --apparent-size artifacts/*
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
@@ -131,26 +138,25 @@ jobs:
           command: |
             make -C opt lint
 
-  build-debian:
+  build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - build-steps:
           platform: debian
 
-  platform-build:
-    parameters:
-      platform:
-        type: string
-    docker:
-      - image: debian:buster
+  platforms-build:
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-11.1:202012-01
     steps:
-      - platform-build-steps:
-          platform: <<parameters.platform>>
+      - platforms-build-steps
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - checkout
       - run:
@@ -178,8 +184,12 @@ jobs:
           no_output_timeout: 30m
 
   valgrind:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - checkout
       - run:
@@ -202,63 +212,7 @@ jobs:
       - run:
           name: Test with valgrind
           command: |
-            make -C opt test VALGRIND=1 CLUSTER=0 AOF=0
-          no_output_timeout: 120m
-
-  valgrind-cluster:
-    docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-            - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-automation
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind with cluster
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind and cluster
-          command: |
-            make -C opt test VALGRIND=1 GEN=0 AOF=0
-          no_output_timeout: 120m
-
-  valgrind-AOF:
-    docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-            - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-automation
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind with AOF
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind and AOF
-          command: |
-            make -C opt test VALGRIND=1 GEN=0 CLUSTER=0
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
 
   build-macos:
@@ -306,12 +260,21 @@ jobs:
       enabled: true
       docker_layer_caching: true
       resource_class: gpu.nvidia.small
-      image: ubuntu-1604-cuda-10.1:201909-23
+      image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - checkout
       - run:
           name: Submodule checkout
           command: git submodule update --init --recursive
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - run:
           name: Build
           command: |
@@ -323,14 +286,14 @@ jobs:
             docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: test/log
+          path: tests/logs
 
   deploy-artifacts:
     parameters:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -338,13 +301,14 @@ jobs:
           name: Deploy to S3
           command: |
             cd "workspace/artifacts/<<parameters.location>>"
+            du -ah --apparent-size *
             for f in *.zip snapshot/*.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
             done
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -352,9 +316,12 @@ jobs:
           name: Deploy Snapshots to S3
           command: |
             cd workspace/artifacts
-            for f in snapshots-*.tar; do
+            for f in snapshots*.tar; do
+                echo "Extracting $f ..."
                 tar xf $f
             done
+            echo "... done."
+            du -ah --apparent-size *
             cd snapshots
             for f in *.zip *.tgz; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
@@ -362,7 +329,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.0.5-x64-buster
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
       - attach_workspace:
           at: workspace
@@ -370,6 +337,7 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
+            du -ah --apparent-size *
             for f in *.zip *.tgz; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
@@ -422,21 +390,23 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only: /^v[0-9].*/
 
 
-platform-build-defs: &platform-build-defs
-  requires:
-    - build-debian
-  <<: *on-integ-and-version-tags
-  # <<: *on-any-branch # debugging
-
-after-platform-builds: &after-platform-builds
-  requires:
-    # - build-centos7
-    - build-bionic
-    - build-xenial
-
 after-linter: &after-linter
   requires:
     - lint
+
+after-build-and-test: &after-build-and-test
+  requires:
+    - build-and-test
+
+after-platform-builds: &after-platform-builds
+  requires:
+    - platforms-build
+
+platform-build-defs: &platform-build-defs
+  <<: *after-build-and-test
+  <<: *on-integ-and-version-tags
+  # <<: *on-any-branch # debugging
+
 
 workflows:
   version: 2
@@ -444,31 +414,27 @@ workflows:
     jobs:
       - lint:
           <<: *on-any-branch
-      - build-debian:
+      - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
-      - platform-build:
-          name: build-centos7
-          platform: centos7
-          <<: *never # temporarily disabled
-      - platform-build:
-          name: build-bionic
-          platform: bionic
-          <<: *platform-build-defs
-      - platform-build:
-          name: build-xenial
-          platform: xenial
+      - platforms-build:
           <<: *platform-build-defs
       - coverage:
+          context: common
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
+          test_args: CLUSTER=0 AOF=0
           <<: *on-any-branch
           <<: *after-linter
-      - valgrind-cluster:
+      - valgrind:
+          name: valgrind-cluster
+          test_args: GEN=0 AOF=0
           <<: *on-integ-branch
           <<: *after-linter
-      - valgrind-AOF:
+      - valgrind:
+          name: valgrind-aof
+          test_args: GEN=0 CLUSTER=0
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu:
@@ -478,12 +444,15 @@ workflows:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - build-multiarch-docker:
+          context: common
           <<: *never # temporarily disabled
           # <<: *on-version-tags
       - deploy-snapshot:
+          context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
       - deploy-release:
+          context: common
           <<: *after-platform-builds
           <<: *on-version-tags
 

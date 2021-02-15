@@ -29,12 +29,18 @@ int RAI_DAGLoadTensor(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor *t
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
     RedisModuleString *key_name = RedisModule_CreateString(NULL, t_name, strlen(t_name));
-    // Add the tensor under its "mangled" key name to the DAG local context dict.
-    char buf[16];
-    sprintf(buf, "%04d", 1);
-    RedisModule_StringAppendBuffer(NULL, key_name, buf, strlen(buf));
-    AI_dictAdd(rinfo->dagTensorsContext, (void *)key_name,
-               (void *)RAI_TensorGetShallowCopy(tensor));
+
+    // Cannot load more than one tensor under the same name
+    if (AI_dictFind(rinfo->tensorsNamesToIndices, key_name) != NULL) {
+        RedisModule_FreeString(NULL, key_name);
+        return REDISMODULE_ERR;
+    }
+
+    // Add the tensor to the DAG shared tensors and map its name to the relevant index.
+    size_t index = array_len(rinfo->dagSharedTensors);
+    AI_dictAdd(rinfo->tensorsNamesToIndices, (void *)key_name, (void *)index);
+    RAI_TensorGetShallowCopy(tensor);
+    rinfo->dagSharedTensors = array_append(rinfo->dagSharedTensors, (void *)tensor);
     RedisModule_FreeString(NULL, key_name);
 
     return REDISMODULE_OK;

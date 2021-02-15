@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=6.0.5
+ARG REDIS_VER=6.0.9
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
@@ -31,7 +31,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
 
-RUN PIP=1 FORCE=1 ./opt/readies/bin/getpy3
+RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""

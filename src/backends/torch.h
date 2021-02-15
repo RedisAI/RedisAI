@@ -1,5 +1,4 @@
-#ifndef SRC_BACKENDS_TORCH_H_
-#define SRC_BACKENDS_TORCH_H_
+#pragma once
 
 #include "config.h"
 #include "tensor_struct.h"
@@ -24,4 +23,4 @@ void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 
 int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error);
 
-#endif /* SRC_BACKENDS_TORCH_H_ */
+const char *RAI_GetBackendVersionTorch(void);
