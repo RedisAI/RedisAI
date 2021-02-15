@@ -13,11 +13,12 @@ def skip_if_gears_not_loaded(f):
         if b'rg' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
         try:
-            redisgears_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears/redisgears.so')
-            python_plugin_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears/plugin/gears_python.so')
-            python_env_path = os.path.join(os.path.dirname(__file__), 'bin/RedisGears')
+            platform = paella.Platform()
+            redisgears_dir = "{ROOT}/bin/{PLATFORM}/RedisGears".format(ROOT=ROOT, PLATFORM=platform.triplet())
+            redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
+            python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
             ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv',
-                                      0, 'PythonInstallationDir', python_env_path)
+                                      0, 'PythonInstallationDir', redisgears_dir)
             env.assertEqual(ret, b'OK')
         except Exception as e:
             env.debugPrint(str(e), force=True)
@@ -44,7 +45,7 @@ GB("CommandReader").map(ping).register(trigger="ping_test")
 
 
 @skip_if_gears_not_loaded
-def ntest_model_run(env):
+def test_model_run(env):
     script = '''
 
 import redisAI
@@ -119,7 +120,7 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
 
 
 @skip_if_gears_not_loaded
-def ntest_script_run(env):
+def test_script_run(env):
     script = '''
 
 import redisAI
@@ -198,7 +199,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
 
 
 @skip_if_gears_not_loaded
-def ntest_DAG_run_via_gears(env):
+def test_DAG_run_via_gears(env):
     script = '''
 
 import redisAI
@@ -322,3 +323,4 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     values = con.execute_command('AI.TENSORGET', 'test5_res{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
