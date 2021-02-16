@@ -5,7 +5,7 @@ ARG OS=debian:buster
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 
-ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
+ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
 ARG ONNXRUNTIME_VER=1.0.0
 
 RUN apt-get -qq update

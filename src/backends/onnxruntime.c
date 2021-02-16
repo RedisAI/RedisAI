@@ -7,13 +7,19 @@
 
 #include "onnxruntime_c_api.h"
 
+
+OrtEnv *env = NULL;
+OrtAllocator *global_allocator = NULL;
+
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
     get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
     get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
-
+    get_api_fn("RedisModule_Log", ((void **)&RedisModule_Log));
+    get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
+    get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     return REDISMODULE_OK;
 }
 
@@ -85,8 +91,8 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
         return NULL;
     }
 
-    OrtAllocator *allocator;
-    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    //OrtAllocator *allocator;
+    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
     if (status != NULL) {
         return NULL;
     }
@@ -114,7 +120,7 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
 
     if (count > 1) {
         status =
-            ort->CreateTensorAsOrtValue(allocator, batched_shape, t0->tensor.dl_tensor.ndim,
+            ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                         RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out);
         if (status != NULL) {
             goto error;
@@ -133,7 +139,7 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
         }
     } else {
         status = ort->CreateTensorWithDataAsOrtValue(
-            allocator->Info(allocator), t0->tensor.dl_tensor.data, RAI_TensorByteSize(t0),
+          global_allocator->Info(global_allocator), t0->tensor.dl_tensor.data, RAI_TensorByteSize(t0),
             t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out);
 
@@ -275,7 +281,31 @@ error:
     return NULL;
 }
 
-OrtEnv *env = NULL;
+const OrtMemoryInfo* myInfo(const OrtAllocator* allocator) {
+    (void)allocator;
+    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
+    OrtMemoryInfo* mem_info;
+    if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
+        return NULL;
+    }
+    return mem_info;
+}
+
+void* myAlloc(OrtAllocator *ptr, size_t size) {
+    (void)ptr;
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModule_Log(ctx, "warning", "Allocating %zu\n", size);
+    RedisModule_FreeThreadSafeContext(ctx);
+    return RedisModule_Alloc(size);
+}
+
+void myFree(OrtAllocator *ptr, void* p) {
+    (void)ptr;
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModule_Log(ctx, "warning", "Freeing\n");
+    RedisModule_FreeThreadSafeContext(ctx);
+    return RedisModule_Free(p);
+}
 
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
                               const char *modeldef, size_t modellen, RAI_Error *error) {
@@ -300,6 +330,11 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     if (env == NULL) {
         status = ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
+        RedisModule_Assert(!status);
+        status = ort->CreateCustomAllocator(myInfo, myAlloc, myFree, 7, &global_allocator);
+        RedisModule_Assert(!status);
+        status = ort->RegisterAllocator(env, global_allocator);
+        RedisModule_Assert(!status);
     }
 
     if (status != NULL || env == NULL) {
@@ -324,8 +359,10 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         ort->ReleaseSessionOptions(session_options);
         goto error;
     }
-    ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism);
-    ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism);
+    RedisModule_Assert(!ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism));
+    RedisModule_Assert(!ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism));
+    RedisModule_Assert(!ort->SetUseEnvAllocators(session_options, "1"));
+    RedisModule_Assert(!ort->DisableCpuMemArena(session_options));
 
     // TODO: we will need to propose a more dynamic way to request a specific provider,
     // e.g. given the name, in ONNXRuntime
@@ -363,13 +400,13 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         goto error;
     }
 
-    OrtAllocator *allocator;
-    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    //OrtAllocator *allocator;
+    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
 
     inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
         char *input_name;
-        status = ort->SessionGetInputName(session, i, allocator, &input_name);
+        status = ort->SessionGetInputName(session, i, global_allocator, &input_name);
         if (status != NULL) {
             goto error;
         }
@@ -379,7 +416,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     outputs_ = array_new(char *, n_output_nodes);
     for (long long i = 0; i < n_output_nodes; i++) {
         char *output_name;
-        status = ort->SessionGetOutputName(session, i, allocator, &output_name);
+        status = ort->SessionGetOutputName(session, i, global_allocator, &output_name);
         if (status != NULL) {
             goto error;
         }
@@ -413,14 +450,14 @@ error:
     if (inputs_) {
         n_input_nodes = array_len(inputs_);
         for (uint32_t i = 0; i < n_input_nodes; i++) {
-            status = ort->AllocatorFree(allocator, inputs_[i]);
+            status = ort->AllocatorFree(global_allocator, inputs_[i]);
         }
         array_free(inputs_);
     }
     if (outputs_) {
         n_output_nodes = array_len(outputs_);
         for (uint32_t i = 0; i < n_output_nodes; i++) {
-            status = ort->AllocatorFree(allocator, outputs_[i]);
+            status = ort->AllocatorFree(global_allocator, outputs_[i]);
         }
         array_free(outputs_);
     }
@@ -433,16 +470,16 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
 
     RedisModule_Free(model->data);
     RedisModule_Free(model->devicestr);
-    OrtAllocator *allocator;
+    //OrtAllocator *allocator;
     OrtStatus *status = NULL;
-    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
     for (uint32_t i = 0; i < model->ninputs; i++) {
-        status = ort->AllocatorFree(allocator, model->inputs[i]);
+        status = ort->AllocatorFree(global_allocator, model->inputs[i]);
     }
     array_free(model->inputs);
 
     for (uint32_t i = 0; i < model->noutputs; i++) {
-        status = ort->AllocatorFree(allocator, model->outputs[i]);
+        status = ort->AllocatorFree(global_allocator, model->outputs[i]);
     }
     array_free(model->outputs);
 
@@ -484,8 +521,8 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     OrtStatus *status = NULL;
 
-    OrtAllocator *allocator;
-    status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    //OrtAllocator *allocator;
+    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
     if (status != NULL) {
         goto error;
     }
@@ -528,7 +565,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
         for (size_t i = 0; i < n_input_nodes; i++) {
             char *input_name;
-            status = ort->SessionGetInputName(session, i, allocator, &input_name);
+            status = ort->SessionGetInputName(session, i, global_allocator, &input_name);
             if (status != NULL) {
                 goto error;
             }
@@ -568,7 +605,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             char *output_name;
-            status = ort->SessionGetOutputName(session, i, allocator, &output_name);
+            status = ort->SessionGetOutputName(session, i, global_allocator, &output_name);
             if (status != NULL) {
                 goto error;
             }
