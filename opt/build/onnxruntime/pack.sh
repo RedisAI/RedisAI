@@ -2,6 +2,7 @@
 
 set -e
 VER="$1"
+PLATFORM="$2"
 
 mkdir -p pack/include pack/lib
 cp onnxruntime/build/Linux/MinSizeRel/libonnxruntime.so.${VER} pack/lib/
@@ -15,7 +16,7 @@ git rev-parse HEAD > ../pack/GIT_COMMIT_ID
 cd ..
 cp onnxruntime/include/onnxruntime/core/session/onnxruntime_c_api.h pack/include/
 cd pack/lib/
-ln -s libonnxruntime.so.${VER} libonnxruntime.so
+ln -s libonnxruntime.so.${VER} libonnxruntimeo
 cd ../..
-mv pack onnxruntime-linux-arm64-${VER}
-tar czf onnxruntime-linux-arm64-${VER}.tgz onnxruntime-linux-arm64-${VER}/
+mv pack onnxruntime-linux-${PLATFORM}-${VER}
+tar czf onnxruntime-linux-${PLATFORM}-${VER}.tgz onnxruntime-linux-${PLATFORM}-${VER}/
