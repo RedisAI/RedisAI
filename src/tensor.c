@@ -101,8 +101,7 @@ RAI_Tensor *RAI_TensorNew(void) {
     ret->len = LEN_UNKOWN;
 }
 
-RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
-                                           int tensorAllocMode) {
+RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims) {
 
     size_t dtypeSize = Tensor_DataTypeSize(dtype);
     if (dtypeSize == 0) {
@@ -124,21 +123,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     }
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
-    void *data = NULL;
-    switch (tensorAllocMode) {
-    case TENSORALLOC_ALLOC:
-        data = RedisModule_Alloc(len * dtypeSize);
-        break;
-    case TENSORALLOC_CALLOC:
-        data = RedisModule_Calloc(len, dtypeSize);
-        break;
-    case TENSORALLOC_NONE:
-        /* shallow copy no alloc */
-    default:
-        /* assume TENSORALLOC_NONE
-        shallow copy no alloc */
-        break;
-    }
+    void *data = RedisModule_Alloc(len * dtypeSize);
 
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
@@ -214,9 +199,9 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     return ret;
 }
 
-RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, int hasdata) {
+RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims) {
     DLDataType dtype = RAI_TensorDataTypeFromString(dataType);
-    return RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
+    return RAI_TensorCreateWithDLDataType(dtype, dims, ndims);
 }
 
 #if 0
@@ -273,7 +258,7 @@ RAI_Tensor *RAI_TensorCreateByConcatenatingTensors(RAI_Tensor **ts, long long n)
 
     DLDataType dtype = RAI_TensorDataType(ts[0]);
 
-    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
+    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims);
 
     for (long long i = 0; i < n; i++) {
         memcpy(RAI_TensorData(ret) + batch_offsets[i] * sample_size * dtype_size,
@@ -300,7 +285,7 @@ RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, lon
 
     DLDataType dtype = RAI_TensorDataType(t);
 
-    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
+    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims);
 
     memcpy(RAI_TensorData(ret), RAI_TensorData(t) + offset * sample_size * dtype_size,
            len * sample_size * dtype_size);
@@ -329,7 +314,7 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest) {
 
     DLDataType dtype = RAI_TensorDataType(t);
 
-    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims, TENSORALLOC_ALLOC);
+    RAI_Tensor *ret = RAI_TensorCreateWithDLDataType(dtype, dims, ndims);
 
     memcpy(RAI_TensorData(ret), RAI_TensorData(t), sample_size * dtype_size);
     *dest = ret;
@@ -642,7 +627,6 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
 
     const char *fmtstr;
     int datafmt = TENSOR_NONE;
-    int tensorAllocMode = TENSORALLOC_CALLOC;
     size_t ndims = 0;
     long long len = 1;
     long long *dims = (long long *)array_new(long long, 1);
@@ -656,7 +640,6 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
         remaining_args = argc - 1 - argpos;
         if (!strcasecmp(opt, "BLOB")) {
             datafmt = TENSOR_BLOB;
-            tensorAllocMode = TENSORALLOC_CALLOC;
             // if we've found the dataformat there are no more dimensions
             // check right away if the arity is correct
             if (remaining_args != 1 && enforceArity == 1) {
@@ -669,7 +652,6 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
             break;
         } else if (!strcasecmp(opt, "VALUES")) {
             datafmt = TENSOR_VALUES;
-            tensorAllocMode = TENSORALLOC_CALLOC;
             // if we've found the dataformat there are no more dimensions
             // check right away if the arity is correct
             if (remaining_args != len && enforceArity == 1) {
@@ -699,7 +681,7 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
         RedisModuleString *rstr = argv[argpos];
         *t = _TensorCreateWithDLDataTypeAndRString(datatype, datasize, dims, ndims, rstr, error);
     } else {
-        *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims, tensorAllocMode);
+        *t = RAI_TensorCreateWithDLDataType(datatype, dims, ndims);
     }
     if (!(*t)) {
         array_free(dims);

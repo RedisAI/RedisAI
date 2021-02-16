@@ -65,11 +65,10 @@ RAI_Tensor *RAI_TensorNew(void);
  * @param dataType string containing the numeric data type of tensor elements
  * @param dims n-dimensional array ( the dimension values are copied )
  * @param ndims number of dimensions
- * @param hasdata ( deprecated parameter )
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, int hasdata);
+RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
@@ -81,12 +80,10 @@ RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims, i
  * @param dtype DLDataType
  * @param dims n-dimensional array ( the dimension values are copied )
  * @param ndims number of dimensions
- * @param tensorAllocMode
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
-                                           int tensorAllocMode);
+RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
