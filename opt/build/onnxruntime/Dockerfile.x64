@@ -7,6 +7,7 @@ FROM ${OS}
 
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
 ARG ONNXRUNTIME_VER=1.0.0
+ARG ARCH=x64
 
 RUN apt-get -qq update
 RUN apt-get -qq install -y curl wget tar git
@@ -31,4 +32,4 @@ RUN	cd onnxruntime ;\
 	./build.sh ${BUILDARGS} --build_shared_lib
 # RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel
 
-RUN ./pack.sh ${ONNXRUNTIME_VER}
+RUN ./pack.sh ${ONNXRUNTIME_VER} ${ARCH}

@@ -4,6 +4,7 @@ ARG ONNXRUNTIME_REPO=https://github.com/Microsoft/onnxruntime
 ARG ONNXRUNTIME_BRANCH=rel-1.0.0
 ARG ONNXRUNTIME_VER=1.0.0
 ARG ARCH_FLAG="--arm"
+ARG ARCH=arm64v7
 
 RUN [ "cross-build-start" ]
 
@@ -41,6 +42,6 @@ RUN set -e ;\
 	./build.sh ${BUILDARGS} --build_shared_lib
 # RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel
 
-RUN ./pack.sh ${ONNXRUNTIME_VER}
+RUN ./pack.sh ${ONNXRUNTIME_VER} ${ARCH}
 
 RUN [ "cross-build-end" ]
