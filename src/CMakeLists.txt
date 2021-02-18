@@ -3,9 +3,9 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
 endif()
 
 file (GLOB_RECURSE SERIALIZATION_SRC 
-        tensor.c
-        model.c
-        script.c
+        tensor/tensor.c
+        model/model.c
+        script/script.c
         backends.c
         stats.c
         config.c
@@ -15,7 +15,7 @@ file (GLOB BACKEND_COMMON_SRC
         backends/util.c
         err.c
         util/dict.c
-        tensor.c
+        tensor/tensor.c
         util/string_utils.c
         serialization/ai_datatypes.c)
 
@@ -32,14 +32,14 @@ ADD_LIBRARY(redisai_obj OBJECT
         DAG/dag_parser.c
         DAG/dag_builder.c
         DAG/dag_execute.c
-        modelRun_ctx.c
+        model/modelRun_ctx.c
         backends.c
         backends/util.c
-        model.c
+        model/model.c
         err.c
-        script.c
+        script/script.c
         stats.c
-        tensor.c
+        tensor/tensor.c
         rmutil/alloc.c
         rmutil/sds.c
         rmutil/args.c
@@ -83,3 +83,6 @@ ENDIF()
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/rmutil)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/util)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/model)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/script)
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/tensor)

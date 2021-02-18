@@ -1,5 +1,5 @@
 #include "tensor_type.h"
-#include "../tensor.h"
+#include "tensor.h"
 #include "../serialization/AOF/rai_aof_rewrite.h"
 #include "../serialization/RDB/encoder/rai_rdb_encode.h"
 #include "../serialization/RDB/decoder/rai_rdb_decoder.h"
