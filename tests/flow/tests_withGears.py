@@ -12,16 +12,18 @@ def skip_if_gears_not_loaded(f):
         modules = con.execute_command("MODULE", "LIST")
         if b'rg' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
+        platform = paella.Platform()
+        redisgears_dir = "{ROOT}/bin/{PLATFORM}/RedisGears".format(ROOT=ROOT, PLATFORM=platform.triplet())
+        if not os.path.isdir(redisgears_dir):
+            env.debugPrint("RedisGears directory does not exist", force=True)
+            return
+        redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
+        python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
         try:
-            platform = paella.Platform()
-            redisgears_dir = "{ROOT}/bin/{PLATFORM}/RedisGears".format(ROOT=ROOT, PLATFORM=platform.triplet())
-            redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
-            python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
             ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv',
                                       0, 'PythonInstallationDir', redisgears_dir)
             env.assertEqual(ret, b'OK')
-        except Exception as e:
-            env.debugPrint(str(e), force=True)
+        except Exception:
             env.debugPrint("skipping since RedisGears not loaded", force=True)
             return
         return f(env, *args, **kwargs)
