@@ -17,7 +17,9 @@ else
 	SHOBJ_LDFLAGS ?= -bundle -undefined dynamic_lookup
 endif
 
-TEST_MODULES = LLAPI.so
+TEST_MODULES = \
+    LLAPI.so \
+    OnnxAllocator.so
 
 .PHONY: all
 
@@ -27,11 +29,15 @@ all: $(TEST_MODULES)
 	$(MAKE) CFLAGS="-m32" LDFLAGS="-melf_i386"
 
 %.o: %.c
-	$(CC) $(DEBUGFLAGS) -I../../src -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
+	$(CC) $(DEBUGFLAGS) -I../../src -I../../deps -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
 
-%.so: %.o DAG_utils.o
+LLAPI.so: LLAPI.o DAG_utils.o
 	$(CC) -o $@ $^ $(SHOBJ_LDFLAGS) -lc -lm
 	chmod +x LLAPI.so
+
+OnnxAllocator.so: OnnxAllocator.o
+	$(CC) -o $@ $^ $(SHOBJ_LDFLAGS) -lc -lm
+	chmod +x OnnxAllocator.so
 
 .PHONY: clean
 

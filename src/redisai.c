@@ -23,6 +23,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include "backends/onnxruntime.h"
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -1091,6 +1092,10 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(DAGGetError, ctx);
     REGISTER_API(DAGRunOpFree, ctx);
     REGISTER_API(DAGFree, ctx);
+
+    // For ORT test module
+    REGISTER_API(LoadDefaultBackend, ctx);
+    //REGISTER_API(ModelCreateORT, ctx);
 
     return REDISMODULE_OK;
 }

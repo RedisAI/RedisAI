@@ -1,3 +1,4 @@
+set(CMAKE_BUILD_TYPE Debug)
 if (CMAKE_BUILD_TYPE STREQUAL Debug)
 	SET(DEBUG_SRC "${CMAKE_CURRENT_SOURCE_DIR}/../opt/readies/cetara/diag/gdb.c")
 endif()

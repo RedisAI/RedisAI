@@ -331,9 +331,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     if (env == NULL) {
         status = ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
         RedisModule_Assert(!status);
-        status = ort->CreateCustomAllocator(myInfo, myAlloc, myFree, 7, &global_allocator);
+        status = ort->CreateCustomDeviceAllocator(7, myAlloc, myFree, myInfo, &global_allocator);
         RedisModule_Assert(!status);
-        status = ort->RegisterAllocator(env, global_allocator);
+        status = ort->RegisterCustomDeviceAllocator(env, global_allocator);
         RedisModule_Assert(!status);
     }
 
@@ -361,7 +361,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     }
     RedisModule_Assert(!ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism));
     RedisModule_Assert(!ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism));
-    RedisModule_Assert(!ort->SetUseEnvAllocators(session_options, "1"));
+
+    RedisModule_Assert(!ort->AddSessionConfigEntry(session_options,"session.use_env_allocators", "1"));
     RedisModule_Assert(!ort->DisableCpuMemArena(session_options));
 
     // TODO: we will need to propose a more dynamic way to request a specific provider,
