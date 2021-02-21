@@ -1,7 +1,7 @@
 #!/bin/bash
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-ROOT=$(cd $HERE/../..; pwd)
+ROOT=$(cd $HERE/../.. && pwd)
 READIES=$ROOT/opt/readies
 . $READIES/shibumi/defs
 
@@ -56,8 +56,8 @@ else
 fi
 
 GEARS_S3_URL=http://redismodules.s3.amazonaws.com/redisgears/snapshots
-GEARS_MOD=redisgears.$platform.master.zip
-GEARS_DEPS=redisgears-python.$platform.master.tgz
+GEARS_MOD=redisgears.${platform}.master.zip
+GEARS_DEPS=redisgears-python.${platform}.master.tgz
 
 FINAL_WORK_DIR=$ROOT/bin/$($READIES/bin/platform -t)/RedisGears
 
