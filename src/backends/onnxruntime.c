@@ -172,7 +172,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
 
     ret = RAI_TensorNew();
 
-    DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
     OrtTensorTypeAndShapeInfo *info;
     status = ort->GetTensorTypeAndShape(v, &info);
@@ -243,7 +243,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         // TODO: use manager_ctx to ensure ORT tensor doesn't get deallocated
         // This applies to outputs
 
-        ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
+        ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
 #ifdef RAI_COPY_RUN_OUTPUT
                                                                 .data = data,
 #else
