@@ -172,7 +172,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
 
     ret = RAI_TensorNew();
 
-    DLDevice device = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
 
     OrtTensorTypeAndShapeInfo *info;
     status = ort->GetTensorTypeAndShape(v, &info);
