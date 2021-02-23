@@ -35,6 +35,7 @@ RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64
 
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
+COPY ./tests/flow/Install_RedisGears.sh tests/flow/
 
 RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 

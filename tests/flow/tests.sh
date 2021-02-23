@@ -136,6 +136,7 @@ cd $ROOT/tests/flow
 
 install_git_lfs
 check_redis_server
+./Install_RedisGears.sh
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
