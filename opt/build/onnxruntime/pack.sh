@@ -15,8 +15,9 @@ cd onnxruntime/
 git rev-parse HEAD > ../pack/GIT_COMMIT_ID
 cd ..
 cp onnxruntime/include/onnxruntime/core/session/onnxruntime_c_api.h pack/include/
+cp onnxruntime/include/onnxruntime/core/providers/cuda/cuda_provider_factory.h pack/include/
 cd pack/lib/
-ln -s libonnxruntime.so.${VER} libonnxruntimeo
+ln -s libonnxruntime.so.${VER} libonnxruntime.so
 cd ../..
 mv pack onnxruntime-linux-${PLATFORM}-${VER}
 tar czf onnxruntime-linux-${PLATFORM}-${VER}.tgz onnxruntime-linux-${PLATFORM}-${VER}/
