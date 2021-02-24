@@ -2,5 +2,6 @@ mkdocs==1.0.4
 mkdocs-material==4.6.3
 -e git+https://github.com/RedisLabs/mkdocs-versions-menu.git#egg=mkdocs-versions-menu
 -e git+https://github.com/RedisLabs/mkdocs-include.git#egg=mkdocs-include
+-e git+https://github.com/RedisLabs/mkdocs-modules-template.git#egg=mkdocs-modules-template
 # uncomment requirement to build LL API
 # -e git+https://github.com/matusnovak/doxybook.git#egg=doxybook
