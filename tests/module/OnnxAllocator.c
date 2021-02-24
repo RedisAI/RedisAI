@@ -12,22 +12,25 @@ typedef unsigned int uint;
 #include "config.h"
 #include "err.h"
 #include <limits.h>
+#include "path.h"
 
-size_t _get_memory_usage(RedisModuleCtx *ctx) {
-    RedisModuleCallReply *reply;
-    reply = RedisModule_Call(ctx, "INFO", "c", "memory");
-    if (RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING) {
-        // Retrieve the used_memory field sub string and convert it to a number
-        size_t len;
-        const char *info_str = RedisModule_CallReplyStringPtr(reply, &len);
-        const char *used_memory_str = strchr(info_str, ':') + 1;
-        char *ptr;
-        size_t used_memory = strtoul(used_memory_str, &ptr, 10);
-        printf("used_memory: %zu\n", used_memory);
-        RedisModule_FreeCallReply(reply);
-        return used_memory;
-    }
-    return 0;
+typedef struct MemoryInfo {
+    size_t usage;
+    size_t access_counter;
+} MemoryInfo;
+
+MemoryInfo _get_memory_info() {
+
+    RedisModuleServerInfoData *server_info = RedisModule_GetServerInfo(NULL, "everything");
+    int onnx_info_error;
+    unsigned long long onnx_counter = RedisModule_ServerInfoGetFieldUnsigned(server_info,
+      "ai_onnxruntime_memory_access_num", &onnx_info_error);
+    RedisModule_Assert(onnx_info_error == 0);
+    unsigned long long onnx_mem = RedisModule_ServerInfoGetFieldUnsigned(server_info,
+      "ai_onnxruntime_memory", &onnx_info_error);
+    RedisModule_Assert(onnx_info_error == 0);
+    RedisModule_FreeServerInfo(NULL, server_info);
+    return (MemoryInfo){.usage = onnx_mem, .access_counter = onnx_counter};
 }
 
 int RAI_onnxAllocator_modelSet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -37,31 +40,48 @@ int RAI_onnxAllocator_modelSet(RedisModuleCtx *ctx, RedisModuleString **argv, in
         RedisModule_WrongArity(ctx);
         return REDISMODULE_OK;
     }
-    size_t memory_usage_before = _get_memory_usage(ctx);
-    RAI_ModelOpts opts = {0};
-    RAI_Error err = {0};
-    size_t model_len = 26454;
+    RedisAI_LoadDefaultBackend(ctx, RAI_BACKEND_ONNXRUNTIME);
+    RedisModule_Assert(_get_memory_info().usage == 0);
 
-    // Get onnx Model
+    // Load onnx model to local buffer.
+    size_t model_len = 130;
     FILE *fp;
-    char model[model_len];
+    char model_data[model_len];
     size_t index = 0;
-    char model_path[1000];
-    strcat(getcwd(model_path, sizeof(model_path)), "/../../RedisAI/tests/flow/test_data/linear_iris.onnx");
-    fp = fopen(model_path, "r");
+    char model_path[1024];
+    strcpy(model_path, path);
+    strcat(model_path, "/test_data/mul_1.onnx");
+    fp = fopen(model_path, "rb");
     char c;
-    while((c = getc(fp)) != EOF) {
-        model[index++] = c;
+    while((c = fgetc(fp)) != EOF) {
+        model_data[index++] = c;
     }
     fclose(fp);
-    model_len = index;
-    RedisAI_LoadDefaultBackend(ctx, RAI_BACKEND_ONNXRUNTIME);
-    RedisAI_ModelCreate(RAI_BACKEND_ONNXRUNTIME, "CPU", NULL, opts, 0, NULL, 0, NULL,
-      model, model_len, &err);
-    size_t memory_usage_after = _get_memory_usage(ctx);
-    printf("Redis allocated : %zu\n", memory_usage_after-memory_usage_before);
+    RedisModule_Assert(model_len == index);
+
+    // Create model and verify that onnx backend uses REDIS allocator.
+    RAI_ModelOpts opts = {0};
+    RAI_Error err = {0};
+    RAI_Model *model = RedisAI_ModelCreate(RAI_BACKEND_ONNXRUNTIME, "CPU", NULL, opts, 0, NULL, 0, NULL,
+      model_data, model_len, &err);
+    RedisModule_Assert(err.code == RAI_OK);
+
+    // Expect 3 allocation access by onnx backend for allocating model, input name
+    // and output name
+    MemoryInfo mem_info = _get_memory_info();
+    if (mem_info.access_counter != 3 || mem_info.usage == 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "model set allocation error");
+    }
+
+    RedisAI_ModelFree(model, &err);
+    RedisModule_Assert(err.code == RAI_OK);
+    mem_info = _get_memory_info();
+    if (mem_info.access_counter != 6 || mem_info.usage != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "model free error");
+    }
     return RedisModule_ReplyWithSimpleString(ctx, "OK");
 }
+
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     REDISMODULE_NOT_USED(argv);

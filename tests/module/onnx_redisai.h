@@ -61,6 +61,9 @@ REDISAI_API RAI_Model *MODULE_API_FUNC(RedisAI_ModelCreate)(int backend, char *d
   const char **outputs,
   const char *modeldef, size_t modellen,
   RAI_Error *err);
+REDISAI_API void MODULE_API_FUNC(RedisAI_ModelFree)(RAI_Model *model, RAI_Error *err);
+REDISAI_API int MODULE_API_FUNC(RedisAI_ModelRun)(RAI_ModelRunCtx **mctx, long long n,
+  RAI_Error *err);
 
 REDISAI_API int MODULE_API_FUNC(RedisAI_GetLLAPIVersion)();
 
@@ -92,6 +95,8 @@ static int RedisAI_OnnxInitialize(RedisModuleCtx *ctx) {
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, LoadDefaultBackend);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ModelCreate);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ModelFree);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ModelRun);
 
     REDISAI_MODULE_INIT_FUNCTION(ctx, GetLLAPIVersion);
 

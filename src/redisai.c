@@ -1095,7 +1095,6 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
 
     // For ORT test module
     REGISTER_API(LoadDefaultBackend, ctx);
-    //REGISTER_API(ModelCreateORT, ctx);
 
     return REDISMODULE_OK;
 }
@@ -1107,8 +1106,15 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", perqueueThreadPoolSize);
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
-    struct rusage self_ru, c_ru;
+    RedisModule_InfoAddSection(ctx, "memory_usage");
+    if (RAI_backends.onnx.get_memory_info) {
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
+                                          RAI_backends.onnx.get_memory_info());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
+                                          RAI_backends.onnx.get_memory_access_num());
+    }
 
+    struct rusage self_ru, c_ru;
     // Return resource usage statistics for the calling process,
     // which is the sum of resources used by all threads in the
     // process

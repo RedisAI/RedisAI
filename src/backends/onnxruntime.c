@@ -4,12 +4,22 @@
 #include "backends/util.h"
 #include "tensor.h"
 #include "util/arr_rm_alloc.h"
+#include <stdatomic.h>
 
 #include "onnxruntime_c_api.h"
 
+#define ONNX_API(x)                                                                                \
+    if ((status = (x)) != NULL)                                                                    \
+        goto error;
 
 OrtEnv *env = NULL;
 OrtAllocator *global_allocator = NULL;
+unsigned long long OnnxMemory = 0;
+unsigned long long OnnxMemoryAccessCounter = 0;
+
+unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
+
+unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
@@ -20,7 +30,38 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Log", ((void **)&RedisModule_Log));
     get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
+    get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
     return REDISMODULE_OK;
+}
+
+bool setDeviceId(const char *devicestr, OrtSessionOptions *sessionOptions, RAI_Error *error) {
+
+    RAI_Device device;
+    int64_t deviceid;
+    if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+        RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
+        return false;
+    }
+
+    // TODO: we will need to propose a more dynamic way to request a specific provider,
+    // e.g. given the name, in ONNXRuntime
+#if RAI_ONNXRUNTIME_USE_CUDA
+    if (device == RAI_DEVICE_GPU) {
+        if (deviceid == -1) {
+            // ORT does not like device id as -1
+            deviceid = 0;
+        }
+        OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
+    }
+#else
+    // TODO: Do dynamic device/provider check with GetExecutionProviderType or something on these
+    // lines
+    if (device == RAI_DEVICE_GPU) {
+        RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but ONNX couldn't find CUDA");
+        return false;
+    }
+#endif
+    return true;
 }
 
 ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
@@ -80,22 +121,11 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
     default:
         return (DLDataType){.bits = 0};
     }
-    return (DLDataType){.bits = 0};
 }
 
 OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *error) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-
-    if (count == 0) {
-        return NULL;
-    }
-
-    //OrtAllocator *allocator;
-    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
-    if (status != NULL) {
-        return NULL;
-    }
 
     size_t batch_size = 0;
     size_t batch_byte_size = 0;
@@ -106,52 +136,36 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
     }
 
     RAI_Tensor *t0 = ts[0];
-
     const int ndim = t0->tensor.dl_tensor.ndim;
     int64_t batched_shape[ndim];
-
     for (size_t i = 1; i < ndim; i++) {
         batched_shape[i] = t0->tensor.dl_tensor.shape[i];
     }
-
     batched_shape[0] = batch_size;
 
     OrtValue *out;
-
     if (count > 1) {
-        status =
+        ONNX_API(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
-                                        RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out);
-        if (status != NULL) {
-            goto error;
-        }
+                                        RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
 
         char *ort_data;
-        status = ort->GetTensorMutableData(out, (void **)&ort_data);
-        if (status != NULL) {
-            goto error;
-        }
-
+        ONNX_API(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;
         for (size_t i = 0; i < count; i++) {
             memcpy(ort_data + offset, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
             offset += RAI_TensorByteSize(ts[i]);
         }
     } else {
-        status = ort->CreateTensorWithDataAsOrtValue(
-          global_allocator->Info(global_allocator), t0->tensor.dl_tensor.data, RAI_TensorByteSize(t0),
-            t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
-            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out);
-
-        if (status != NULL) {
-            goto error;
-        }
+        ONNX_API(ort->CreateTensorWithDataAsOrtValue(
+            global_allocator->Info(global_allocator), t0->tensor.dl_tensor.data,
+            RAI_TensorByteSize(t0), t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
+            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
     }
-
     return out;
 
 error:
-    RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+    RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
     ort->ReleaseStatus(status);
     return NULL;
 }
@@ -160,16 +174,12 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
                                          RAI_Error *error) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-
     RAI_Tensor *ret = NULL;
     int64_t *shape = NULL;
     int64_t *strides = NULL;
 
     int is_tensor;
-    status = ort->IsTensor(v, &is_tensor);
-    if (status != NULL)
-        goto error;
-
+    ONNX_API(ort->IsTensor(v, &is_tensor))
     if (!is_tensor) {
         // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a
         // tensor. If return value is string, emit warning.
@@ -177,30 +187,17 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     }
 
     ret = RAI_TensorNew();
-
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
-
     OrtTensorTypeAndShapeInfo *info;
-    status = ort->GetTensorTypeAndShape(v, &info);
-    if (status != NULL)
-        goto error;
+    ONNX_API(ort->GetTensorTypeAndShape(v, &info))
 
     {
         size_t ndims;
-        status = ort->GetDimensionsCount(info, &ndims);
-        if (status != NULL)
-            goto error;
-
+        ONNX_API(ort->GetDimensionsCount(info, &ndims))
         int64_t dims[ndims];
-        status = ort->GetDimensions(info, dims, ndims);
-        if (status != NULL)
-            goto error;
-
+        ONNX_API(ort->GetDimensions(info, dims, ndims))
         enum ONNXTensorElementDataType ort_dtype;
-        status = ort->GetTensorElementType(info, &ort_dtype);
-        if (status != NULL)
-            goto error;
-
+        ONNX_API(ort->GetTensorElementType(info, &ort_dtype))
         int64_t total_batch_size = dims[0];
         total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
@@ -219,23 +216,14 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
             strides[i] *= strides[i + 1] * shape[i + 1];
         }
 
-        // size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
-
         DLDataType dtype = RAI_GetDLDataTypeFromORT(ort_dtype);
 #ifdef RAI_COPY_RUN_OUTPUT
         char *ort_data;
-        status = ort->GetTensorMutableData(v, (void **)&ort_data);
-        if (status != NULL) {
-            goto error;
-        }
+        ONNX_API(ort->GetTensorMutableData(v, (void **)&ort_data))
         size_t elem_count;
-        status = ort->GetTensorShapeElementCount(info, &elem_count);
-        if (status != NULL) {
-            goto error;
-        }
+        ONNX_API(ort->GetTensorShapeElementCount(info, &elem_count))
 
         const size_t len = dtype.bits * elem_count / 8;
-
         const size_t total_bytesize = len * sizeof(char);
         const size_t sample_bytesize = total_bytesize / total_batch_size;
         const size_t batch_bytesize = sample_bytesize * batch_size;
@@ -281,146 +269,82 @@ error:
     return NULL;
 }
 
-const OrtMemoryInfo* myInfo(const OrtAllocator* allocator) {
+const OrtMemoryInfo *myInfo(const OrtAllocator *allocator) {
     (void)allocator;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    OrtMemoryInfo* mem_info;
+    OrtMemoryInfo *mem_info;
     if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
         return NULL;
     }
     return mem_info;
 }
 
-void* myAlloc(OrtAllocator *ptr, size_t size) {
+void *myAlloc(OrtAllocator *ptr, size_t size) {
     (void)ptr;
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisModule_Log(ctx, "warning", "Allocating %zu\n", size);
-    RedisModule_FreeThreadSafeContext(ctx);
-    return RedisModule_Alloc(size);
+    void *p = RedisModule_Alloc(size);
+    size_t allocated_size = RedisModule_MallocSize(p);
+    atomic_fetch_add(&OnnxMemory, allocated_size);
+    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
+    return p;
 }
 
-void myFree(OrtAllocator *ptr, void* p) {
+void myFree(OrtAllocator *ptr, void *p) {
     (void)ptr;
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisModule_Log(ctx, "warning", "Freeing\n");
-    RedisModule_FreeThreadSafeContext(ctx);
+    size_t allocated_size = RedisModule_MallocSize(p);
+    atomic_fetch_add(&OnnxMemory, -1 * allocated_size);
+    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
     return RedisModule_Free(p);
 }
 
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
                               const char *modeldef, size_t modellen, RAI_Error *error) {
-    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    RAI_Device device;
-    int64_t deviceid;
+    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     char **inputs_ = NULL;
     char **outputs_ = NULL;
-
-    if (!parseDeviceStr(devicestr, &device, &deviceid)) {
-        RAI_SetError(error, RAI_EMODELCREATE, "ERR unsupported device");
-        return NULL;
-    }
-
-    if (deviceid == -1) {
-        // ORT does not like device id as -1
-        deviceid = 0;
-    }
-
+    OrtSessionOptions *session_options = NULL;
+    OrtSession *session = NULL;
     OrtStatus *status = NULL;
 
     if (env == NULL) {
-        status = ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env);
-        RedisModule_Assert(!status);
-        status = ort->CreateCustomDeviceAllocator(7, myAlloc, myFree, myInfo, &global_allocator);
-        RedisModule_Assert(!status);
-        status = ort->RegisterCustomDeviceAllocator(env, global_allocator);
-        RedisModule_Assert(!status);
+        ONNX_API(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
+        ONNX_API(ort->CreateCustomDeviceAllocator(ORT_API_VERSION, myAlloc, myFree, myInfo,
+                                                  &global_allocator))
+        ONNX_API(ort->RegisterCustomDeviceAllocator(env, global_allocator))
     }
 
-    if (status != NULL || env == NULL) {
-        goto error;
-    }
+    ONNX_API(ort->CreateSessionOptions(&session_options))
+
+    // These are required to ensure that onnx will use the registered REDIS allocator.
+    ONNX_API(ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
+    ONNX_API(ort->DisableCpuMemArena(session_options))
 
     // TODO: these options could be configured at the AI.CONFIG level
-    OrtSessionOptions *session_options;
-    status = ort->CreateSessionOptions(&session_options);
-    if (status != NULL) {
-        goto error;
-    }
-
-    // status = ort->SetSessionThreadPoolSize(session_options, 1);
-    if (status != NULL) {
-        ort->ReleaseSessionOptions(session_options);
-        goto error;
-    }
-
-    status = ort->SetSessionGraphOptimizationLevel(session_options, 1);
-    if (status != NULL) {
-        ort->ReleaseSessionOptions(session_options);
-        goto error;
-    }
-    RedisModule_Assert(!ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism));
-    RedisModule_Assert(!ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism));
-
-    RedisModule_Assert(!ort->AddSessionConfigEntry(session_options,"session.use_env_allocators", "1"));
-    RedisModule_Assert(!ort->DisableCpuMemArena(session_options));
-
-    // TODO: we will need to propose a more dynamic way to request a specific provider,
-    // e.g. given the name, in ONNXRuntime
-#if RAI_ONNXRUNTIME_USE_CUDA
-    if (device == RAI_DEVICE_GPU) {
-        OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, deviceid);
-    }
-#else
-    // TODO: Do dynamic device/provider check with GetExecutionProviderType or something on these
-    // lines
-    if (device == RAI_DEVICE_GPU) {
-        RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but ONNX couldn't find CUDA");
+    ONNX_API(ort->SetSessionGraphOptimizationLevel(session_options, 1))
+    ONNX_API(ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
+    ONNX_API(ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
+    if (!setDeviceId(devicestr, session_options, error)) {
         return NULL;
     }
-#endif
 
-    OrtSession *session;
-    status = ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session);
-
-    ort->ReleaseSessionOptions(session_options);
-
-    if (status != NULL) {
-        goto error;
-    }
+    ONNX_API(ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session))
 
     size_t n_input_nodes;
-    status = ort->SessionGetInputCount(session, &n_input_nodes);
-    if (status != NULL) {
-        goto error;
-    }
-
+    ONNX_API(ort->SessionGetInputCount(session, &n_input_nodes))
     size_t n_output_nodes;
-    status = ort->SessionGetOutputCount(session, &n_output_nodes);
-    if (status != NULL) {
-        goto error;
-    }
-
-    //OrtAllocator *allocator;
-    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
+    ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
 
     inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
         char *input_name;
-        status = ort->SessionGetInputName(session, i, global_allocator, &input_name);
-        if (status != NULL) {
-            goto error;
-        }
+        ONNX_API(ort->SessionGetInputName(session, i, global_allocator, &input_name))
         inputs_ = array_append(inputs_, input_name);
     }
 
     outputs_ = array_new(char *, n_output_nodes);
     for (long long i = 0; i < n_output_nodes; i++) {
         char *output_name;
-        status = ort->SessionGetOutputName(session, i, global_allocator, &output_name);
-        if (status != NULL) {
-            goto error;
-        }
+        ONNX_API(ort->SessionGetOutputName(session, i, global_allocator, &output_name))
         outputs_ = array_append(outputs_, output_name);
     }
 
@@ -448,6 +372,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
 error:
     RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
+    if (session_options) {
+        ort->ReleaseSessionOptions(session_options);
+    }
     if (inputs_) {
         n_input_nodes = array_len(inputs_);
         for (uint32_t i = 0; i < n_input_nodes; i++) {
@@ -462,48 +389,52 @@ error:
         }
         array_free(outputs_);
     }
+    if (session) {
+        ort->ReleaseSession(session);
+    }
     ort->ReleaseStatus(status);
     return NULL;
 }
 
 void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-
-    RedisModule_Free(model->data);
-    RedisModule_Free(model->devicestr);
-    //OrtAllocator *allocator;
     OrtStatus *status = NULL;
-    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
+
+    RedisModule_Free(model->devicestr);
     for (uint32_t i = 0; i < model->ninputs; i++) {
-        status = ort->AllocatorFree(global_allocator, model->inputs[i]);
+        ONNX_API(ort->AllocatorFree(global_allocator, model->inputs[i]))
     }
     array_free(model->inputs);
 
     for (uint32_t i = 0; i < model->noutputs; i++) {
-        status = ort->AllocatorFree(global_allocator, model->outputs[i]);
+        ONNX_API(ort->AllocatorFree(global_allocator, model->outputs[i]))
     }
     array_free(model->outputs);
 
+    RedisModule_Free(model->data);
     ort->ReleaseSession(model->session);
-
     model->model = NULL;
     model->session = NULL;
+    return;
+
+error:
+    RAI_SetError(error, RAI_EMODELFREE, ort->GetErrorMessage(status));
+    ort->ReleaseStatus(status);
 }
 
 int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
     OrtSession *session = mctxs[0]->model->session;
-
     if (session == NULL) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR ONNXRuntime session was not allocated");
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     const size_t nbatches = array_len(mctxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     size_t batch_sizes[nbatches];
@@ -521,24 +452,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     OrtStatus *status = NULL;
-
-    //OrtAllocator *allocator;
-    //status = ort->GetAllocatorWithDefaultOptions(&allocator);
-    if (status != NULL) {
-        goto error;
-    }
-
     size_t n_input_nodes;
-    status = ort->SessionGetInputCount(session, &n_input_nodes);
-    if (status != NULL) {
-        goto error;
-    }
+    ONNX_API(ort->SessionGetInputCount(session, &n_input_nodes))
 
     size_t n_output_nodes;
-    status = ort->SessionGetOutputCount(session, &n_output_nodes);
-    if (status != NULL) {
-        goto error;
-    }
+    ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
 
     {
         const char *input_names[n_input_nodes];
@@ -554,23 +472,19 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             char msg[70];
             sprintf(msg, "ERR Expected %li inputs but got %li", n_input_nodes, ninputs);
             RAI_SetError(error, RAI_EMODELRUN, msg);
-            return 1;
+            return REDISMODULE_ERR;
         }
 
         if (noutputs != n_output_nodes) {
             char msg[70];
             sprintf(msg, "ERR Expected %li outputs but got %li", n_output_nodes, noutputs);
             RAI_SetError(error, RAI_EMODELRUN, msg);
-            return 1;
+            return REDISMODULE_ERR;
         }
 
         for (size_t i = 0; i < n_input_nodes; i++) {
             char *input_name;
-            status = ort->SessionGetInputName(session, i, global_allocator, &input_name);
-            if (status != NULL) {
-                goto error;
-            }
-
+            ONNX_API(ort->SessionGetInputName(session, i, global_allocator, &input_name))
             input_names[i] = input_name;
 
             RAI_Tensor *batched_input_tensors[nbatches];
@@ -581,75 +495,34 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             inputs[i] = RAI_OrtValueFromTensors(batched_input_tensors, nbatches, error);
             if (error->code != RAI_OK) {
                 ort->ReleaseStatus(status);
-                return 1;
+                return REDISMODULE_ERR;
             }
-
-// TODO: use this to check input dim, shapes
-#if 0
-    OrtTypeInfo* typeinfo;
-    status = OrtSessionGetInputTypeInfo(session, i, &typeinfo);
-    const OrtTensorTypeAndShapeInfo* tensor_info = OrtCastTypeInfoToTensorInfo(typeinfo);
-    ONNXTensorElementDataType type = OrtGetTensorElementType(tensor_info);
-    // printf("Input %zu : type=%d", i, type);
-
-    size_t num_dims = OrtGetDimensionsCount(tensor_info);
-    // printf("Input %zu : num_dims=%zu", i, num_dims);
-    input_node_dims.resize(num_dims);
-    OrtGetDimensions(tensor_info, (int64_t*)input_node_dims.data(), num_dims);
-    for (size_t j = 0; j < num_dims; j++) {
-      // printf("Input %zu : dim %zu=%jd", i, j, input_node_dims[j]);
-    }
-
-    OrtReleaseTypeInfo(typeinfo);
-#endif
         }
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             char *output_name;
-            status = ort->SessionGetOutputName(session, i, global_allocator, &output_name);
-            if (status != NULL) {
-                goto error;
-            }
-
+            ONNX_API(ort->SessionGetOutputName(session, i, global_allocator, &output_name))
             output_names[i] = output_name;
             outputs[i] = NULL;
         }
 
-        // ORT_API_STATUS(OrtRun, _Inout_ OrtSession* sess,
-        //                _In_ OrtRunOptions* run_options,
-        //                _In_ const char* const* input_names, _In_ const OrtValue* const* input,
-        //                size_t input_len, _In_ const char* const* output_names, size_t
-        //                output_names_len, _Out_ OrtValue** output);
         OrtRunOptions *run_options = NULL;
-        status = ort->Run(session, run_options, input_names, (const OrtValue *const *)inputs,
-                          n_input_nodes, output_names, n_output_nodes, outputs);
-
-        if (status) {
-            goto error;
-        }
+        ONNX_API(ort->Run(session, run_options, input_names, (const OrtValue *const *)inputs,
+                          n_input_nodes, output_names, n_output_nodes, outputs))
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             if (nbatches > 1) {
                 OrtTensorTypeAndShapeInfo *info;
-                status = ort->GetTensorTypeAndShape(outputs[i], &info);
-                if (status != NULL)
-                    goto error;
-
+                ONNX_API(ort->GetTensorTypeAndShape(outputs[i], &info))
                 size_t ndims;
-                status = ort->GetDimensionsCount(info, &ndims);
-                if (status != NULL)
-                    goto error;
-
+                ONNX_API(ort->GetDimensionsCount(info, &ndims))
                 int64_t dims[ndims];
-                status = ort->GetDimensions(info, dims, ndims);
-                if (status != NULL)
-                    goto error;
-
+                ONNX_API(ort->GetDimensions(info, dims, ndims))
                 if (dims[0] != total_batch_size) {
                     RAI_SetError(error, RAI_EMODELRUN,
                                  "ERR Model did not generate the expected batch size");
                     ort->ReleaseStatus(status);
-                    return 1;
+                    return REDISMODULE_ERR;
                 }
 
                 for (size_t b = 0; b < nbatches; b++) {
@@ -657,7 +530,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                         outputs[i], batch_offsets[b], batch_sizes[b], error);
                     if (error->code != RAI_OK) {
                         ort->ReleaseStatus(status);
-                        return 1;
+                        return REDISMODULE_ERR;
                     }
                     if (output_tensor) {
                         mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
@@ -671,7 +544,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                 RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], 0, -1, error);
                 if (error->code != RAI_OK) {
                     ort->ReleaseStatus(status);
-                    return 1;
+                    return REDISMODULE_ERR;
                 }
                 if (output_tensor) {
                     mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
@@ -681,21 +554,18 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                            "unsupported)");
                 }
             }
-
             ort->ReleaseValue(outputs[i]);
         }
-
         for (size_t i = 0; i < n_input_nodes; i++) {
             ort->ReleaseValue(inputs[i]);
         }
-
-        return 0;
+        return REDISMODULE_OK;
     }
 
 error:
     RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
     ort->ReleaseStatus(status);
-    return 1;
+    return REDISMODULE_ERR;
 }
 
 int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
@@ -703,7 +573,7 @@ int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Erro
     memcpy(*buffer, model->data, model->datalen);
     *len = model->datalen;
 
-    return 0;
+    return REDISMODULE_OK;
 }
 
 const char *RAI_GetBackendVersionORT(void) { return OrtGetApiBase()->GetVersionString(); }

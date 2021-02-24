@@ -4,10 +4,31 @@ import subprocess
 import redis
 from includes import *
 from RLTest import Env
+from functools import wraps
 
 '''
 python -m RLTest --test tests_onnx.py --module path/to/redisai.so
 '''
+
+
+def load_onnx_test_module(f):
+    @wraps(f)
+    def wrapper(env, *args, **kwargs):
+        goal_dir = os.path.join(os.path.dirname(__file__), "../module/OnnxAllocator.so")
+        TEST_MODULE_PATH = os.path.abspath(goal_dir)
+        con = env.getConnection()
+        modules = con.execute_command("MODULE", "LIST")
+        if b'RAI_onnxAllocator' in [module[1] for module in modules]:
+            return f(env, *args, **kwargs)
+        try:
+            ret = con.execute_command('MODULE', 'LOAD', TEST_MODULE_PATH)
+            env.assertEqual(ret, b'OK')
+        except Exception as e:
+            env.assertFalse(True)
+            env.debugPrint(str(e), force=True)
+            return
+        return f(env, *args, **kwargs)
+    return wrapper
 
 
 def test_onnx_modelrun_mnist(env):
@@ -452,3 +473,41 @@ def test_parallelism():
                         for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
     env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
+
+
+@load_onnx_test_module
+def test_onnx_use_custom_allocator(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    ret = con.execute_command("RAI_onnxAllocator.modelSet")
+    env.assertEquals(ret, b'OK')
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mnist.onnx')
+    sample_filename = os.path.join(test_data_path, 'one.raw')
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    with open(sample_filename, 'rb') as f:
+        sample_raw = f.read()
+
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    # Expect 16 allocator's access from onnx during the run.
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    allocator_access_num_before = ai_memory_config["ai_onnxruntime_memory_access_num"]
+    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    allocator_access_num_after = ai_memory_config["ai_onnxruntime_memory_access_num"]
+    env.assertEqual(int(allocator_access_num_after) - int(allocator_access_num_before), 16)
+
+    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
+    argmax = max(range(len(values)), key=lambda i: values[i])
+    env.assertEqual(argmax, 1)
