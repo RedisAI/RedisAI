@@ -88,7 +88,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
 
@@ -143,7 +143,6 @@ RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
         .manager_ctx = NULL,
         .deleter = NULL};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -247,7 +246,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     for (size_t i = 0; i < ninputs; ++i) {
         TF_Operation *oper = TF_GraphOperationByName(model, inputs[i]);
-        if (oper == NULL) {
+        if (oper == NULL || strcmp(TF_OperationOpType(oper), "Placeholder") != 0) {
             size_t len = strlen(inputs[i]);
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
@@ -591,3 +590,5 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTF(void) { return TF_Version(); }

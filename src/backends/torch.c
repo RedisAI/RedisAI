@@ -367,3 +367,5 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTorch(void) { return "NA"; }

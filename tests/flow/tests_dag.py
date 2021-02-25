@@ -230,6 +230,7 @@ def test_dagrun_ro_modelrun_scriptrun_resnet(env):
     if(VALGRIND):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         env.skip()
+
     con = env.getConnection()
     model_name = 'imagenet_model{{1}}'
     script_name = 'imagenet_script{{1}}'
@@ -760,6 +761,7 @@ def test_dag_modelrun_financialNet_autobatch(env):
                 'AI.TENSORGET', result_tensor_keyname, 'META',
             )
 
+            t.join()
             ensureSlaveSynced(con, env)
 
             env.assertEqual([b'OK',b'OK',[b'dtype', b'FLOAT', b'shape', [1, 2]]], ret)

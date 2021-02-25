@@ -64,7 +64,7 @@ int RAI_DAGAddTensorSet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Tensor 
  * @param runInfo The DAG to append this op into.
  * @param tensor The tensor to set.
  */
-int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name, RAI_Error *err);
+int RAI_DAGAddTensorGet(RAI_DAGRunCtx *run_info, const char *t_name);
 
 /**
  * @brief Add ops to a DAG from string (according to the command syntax). In case of a valid

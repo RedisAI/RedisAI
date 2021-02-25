@@ -70,13 +70,13 @@ MKL=mkl
 ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
-
+DLPACK_VERSION="v0.3"
 if [[ $WITH_DLPACK != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
 	if [[ ! -d $DLPACK ]]; then
 		echo "Cloning dlpack ..."
-		git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+		git clone --depth 1 --branch $DLPACK_VERSION https://github.com/dmlc/dlpack.git $DLPACK
 		echo "Done."
 	else
 		echo "dlpack is in place."
@@ -87,7 +87,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.3.1"
+TF_VERSION="2.4.0"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -194,7 +194,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.7.0"
+PT_VERSION="1.7.1"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
@@ -212,7 +212,7 @@ if [[ $WITH_PT != 0 ]]; then
 				if [[ $JETSON == 1 ]]; then
 					PT_BUILD=cu102-jetson
 				else
-					PT_BUILD=cu101
+					PT_BUILD=cu110
 				fi
 			fi
 			if [[ $ARCH == x64 ]]; then
@@ -282,7 +282,7 @@ fi
 
 ################################################################################### ONNXRUNTIME
 
-ORT_VERSION="1.2.0"
+ORT_VERSION="1.6.0"
 
 if [[ $WITH_ORT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
