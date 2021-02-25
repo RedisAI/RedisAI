@@ -2,7 +2,7 @@
 
 set -e
 VER="$1"
-PLATFORM="$2"
+PLATFORM=$($READIES/bin/platform -t)
 
 mkdir -p pack/include pack/lib
 cp onnxruntime/build/Linux/MinSizeRel/libonnxruntime.so.${VER} pack/lib/
@@ -19,5 +19,5 @@ cp onnxruntime/include/onnxruntime/core/providers/cuda/cuda_provider_factory.h p
 cd pack/lib/
 ln -s libonnxruntime.so.${VER} libonnxruntime.so
 cd ../..
-mv pack onnxruntime-linux-${PLATFORM}-${VER}
-tar czf onnxruntime-linux-${PLATFORM}-${VER}.tgz onnxruntime-linux-${PLATFORM}-${VER}/
+mv pack onnxruntime-${PLATFORM}-${VER}
+tar czf onnxruntime-${PLATFORM}-${VER}.tgz onnxruntime-${PLATFORM}-${VER}/

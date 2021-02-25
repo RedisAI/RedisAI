@@ -42,6 +42,6 @@ RUN set -e ;\
 	./build.sh ${BUILDARGS} --build_shared_lib
 # RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel
 
-RUN ./pack.sh ${ONNXRUNTIME_VER} ${ARCH}
+RUN ./pack.sh ${ONNXRUNTIME_VER}
 
 RUN [ "cross-build-end" ]
