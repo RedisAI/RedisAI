@@ -12,36 +12,22 @@ def skip_if_gears_not_loaded(f):
         modules = con.execute_command("MODULE", "LIST")
         if b'rg' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
+        platform = paella.Platform()
+        redisgears_dir = "{ROOT}/bin/{PLATFORM}/RedisGears".format(ROOT=ROOT, PLATFORM=platform.triplet())
+        if not os.path.isdir(redisgears_dir):
+            env.debugPrint("RedisGears directory does not exist", force=True)
+            return
+        redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
+        python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
         try:
-            platform = paella.Platform()
-            redisgears_dir = "{ROOT}/bin/{PLATFORM}/RedisGears".format(ROOT=ROOT, PLATFORM=platform.triplet())
-            redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
-            python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
             ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv',
                                       0, 'PythonInstallationDir', redisgears_dir)
             env.assertEqual(ret, b'OK')
-        except Exception as e:
-            env.debugPrint(str(e), force=True)
+        except Exception:
             env.debugPrint("skipping since RedisGears not loaded", force=True)
             return
         return f(env, *args, **kwargs)
     return wrapper
-
-
-@skip_if_gears_not_loaded
-def test_ping_gears(env):
-
-    script = '''
-def ping(record):
-    return "pong"
-    
-GB("CommandReader").map(ping).register(trigger="ping_test")
-'''
-    con = env.getConnection()
-    ret = con.execute_command('rg.pyexecute', script)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('rg.trigger', 'ping_test')
-    env.assertEqual(ret[0], b'pong')
 
 
 @skip_if_gears_not_loaded
@@ -56,7 +42,7 @@ def ModelRun_oldAPI(record):
     modelRunner = redisAI.createModelRunner('m{1}')
     redisAI.modelRunnerAddInput(modelRunner, 'a', tensors[0])
     redisAI.modelRunnerAddInput(modelRunner, 'b', tensors[1])
-    redisAI.modelRunnerAddOutput(modelRunner, 'mul')
+    redisAI.modelRunnerAddOutput(modelRunner, 'c')
     res = redisAI.modelRunnerRun(modelRunner)
     redisAI.setTensorInKey('c{1}', res[0])
     return "ModelRun_oldAPI_OK"
@@ -67,7 +53,7 @@ async def ModelRun_Async(record):
     modelRunner = redisAI.createModelRunner('m{1}')
     redisAI.modelRunnerAddInput(modelRunner, 'a', tensors[0])
     redisAI.modelRunnerAddInput(modelRunner, 'b', tensors[1])
-    redisAI.modelRunnerAddOutput(modelRunner, 'mul')
+    redisAI.modelRunnerAddOutput(modelRunner, 'c')
     res = await redisAI.modelRunnerRunAsync(modelRunner)
     redisAI.setTensorInKey('c{1}', res[0])
     return "ModelRun_Async_OK"
@@ -108,6 +94,8 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     env.assertEqual(ret[0], b'ModelRun_oldAPI_OK')
     values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+    ret = con.execute_command('DEL', 'c{1}')
+    env.assertEqual(ret, 1)
 
     ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
     env.assertEqual(ret[0], b'ModelRun_Async_OK')
@@ -186,6 +174,8 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
     env.assertEqual(ret[0], b'ScriptRun_oldAPI_OK')
     values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+    ret = con.execute_command('DEL', 'c{1}')
+    env.assertEqual(ret, 1)
 
     ret = con.execute_command('rg.trigger', 'ScriptRun_Async_test2')
     env.assertEqual(ret[0], b'ScriptRun_Async_OK')
@@ -194,8 +184,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
 
     ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
     # This should raise an exception
-    error_string = b'attempted to get undefined function bad_func'
-    env.assertEqual(str(ret[0])[:len(error_string)+2]+"'", "{}".format(error_string))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function bad_func"))
 
 
 @skip_if_gears_not_loaded
@@ -314,9 +303,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test4')
     # This should raise an exception
-
-    error_string = b'attempted to get undefined function no_func'
-    env.assertEqual(str(ret[0])[:len(error_string)+2]+"'", "{}".format(error_string))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function no_func"))
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test5')
     env.assertEqual(ret[0], b'test5_OK')
