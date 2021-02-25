@@ -123,7 +123,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     }
 
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
-    void *data = RedisModule_Alloc(len * dtypeSize);
+    void *data = RedisModule_Calloc(len, dtypeSize);
 
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
                                                             .data = data,
