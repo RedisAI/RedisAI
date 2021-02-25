@@ -12,6 +12,13 @@
     if ((status = (x)) != NULL)                                                                    \
         goto error;
 
+#ifdef RAI_ONNXRUNTIME_USE_CUDA
+#define GET_GLOBAL_ALLOCATOR
+ONNX_API(ort->GetAllocatorWithDefaultOptions(&global_allocator))
+#else
+#define GET_GLOBAL_ALLOCATOR
+#endif
+
 OrtEnv *env = NULL;
 OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
@@ -171,6 +178,7 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
     batched_shape[0] = batch_size;
 
     OrtValue *out;
+    GET_GLOBAL_ALLOCATOR
     if (count > 1) {
         ONNX_API(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
@@ -308,16 +316,21 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     if (env == NULL) {
         ONNX_API(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
+#ifndef RAI_ONNXRUNTIME_USE_CUDA
         ONNX_API(ort->CreateCustomDeviceAllocator(ORT_API_VERSION, AllocatorAlloc, AllocatorFree,
                                                   AllocatorInfo, &global_allocator))
         ONNX_API(ort->RegisterCustomDeviceAllocator(env, global_allocator))
+#endif
     }
 
     ONNX_API(ort->CreateSessionOptions(&session_options))
 
-    // These are required to ensure that onnx will use the registered REDIS allocator.
+#ifndef RAI_ONNXRUNTIME_USE_CUDA
+    // These are required to ensure that onnx will use the registered REDIS allocator (for CPU
+    // only).
     ONNX_API(ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
     ONNX_API(ort->DisableCpuMemArena(session_options))
+#endif
 
     // TODO: these options could be configured at the AI.CONFIG level
     ONNX_API(ort->SetSessionGraphOptimizationLevel(session_options, 1))
@@ -334,6 +347,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     size_t n_output_nodes;
     ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
 
+    GET_GLOBAL_ALLOCATOR
     inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
         char *input_name;
@@ -400,7 +414,7 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     OrtStatus *status = NULL;
 
-    RedisModule_Free(model->devicestr);
+    GET_GLOBAL_ALLOCATOR
     for (uint32_t i = 0; i < model->ninputs; i++) {
         ONNX_API(ort->AllocatorFree(global_allocator, model->inputs[i]))
     }
@@ -411,6 +425,7 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     }
     array_free(model->outputs);
 
+    RedisModule_Free(model->devicestr);
     RedisModule_Free(model->data);
     ort->ReleaseSession(model->session);
     model->model = NULL;
@@ -457,8 +472,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     size_t n_output_nodes;
     ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
-
-    {
+    GET_GLOBAL_ALLOCATOR {
         const char *input_names[n_input_nodes];
         const char *output_names[n_output_nodes];
 

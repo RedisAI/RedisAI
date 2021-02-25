@@ -73,6 +73,13 @@ publish_x64:
 .PHONY: publish_x64
 endef
 
+define publish_x64-gpu # (1=arch, 2=tar-arch)
+publish_x64-gpu:
+	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
+
+.PHONY: publish_x64-gpu
+endef
+
 define publish_arm # (1=arch, 2=tar-arch)
 publish_$(1):
 	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
@@ -102,6 +109,7 @@ endif
 publish: $(PUBLISH_TARGETS)
 
 $(eval $(call publish_x64,x64,x64))
+$(eval $(call publish_x64-gpu,x64-gpu,x64-gpu))
 $(eval $(call publish_arm,arm64v8,arm64))
 $(eval $(call publish_arm,arm32v7,arm))
 
