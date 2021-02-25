@@ -13,8 +13,7 @@
         goto error;
 
 #ifdef RAI_ONNXRUNTIME_USE_CUDA
-#define GET_GLOBAL_ALLOCATOR
-ONNX_API(ort->GetAllocatorWithDefaultOptions(&global_allocator))
+#define GET_GLOBAL_ALLOCATOR ONNX_API(ort->GetAllocatorWithDefaultOptions(&global_allocator))
 #else
 #define GET_GLOBAL_ALLOCATOR
 #endif
@@ -68,7 +67,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     return REDISMODULE_OK;
 }
 
-bool setDeviceId(const char *devicestr, OrtSessionOptions *sessionOptions, RAI_Error *error) {
+bool setDeviceId(const char *devicestr, OrtSessionOptions *session_options, RAI_Error *error) {
 
     RAI_Device device;
     int64_t deviceid;
