@@ -4,31 +4,10 @@ import subprocess
 import redis
 from includes import *
 from RLTest import Env
-from functools import wraps
 
 '''
 python -m RLTest --test tests_onnx.py --module path/to/redisai.so
 '''
-
-
-def load_onnx_test_module(f):
-    @wraps(f)
-    def wrapper(env, *args, **kwargs):
-        goal_dir = os.path.join(os.path.dirname(__file__), "../module/OnnxAllocator.so")
-        TEST_MODULE_PATH = os.path.abspath(goal_dir)
-        con = env.getConnection()
-        modules = con.execute_command("MODULE", "LIST")
-        if b'RAI_onnxAllocator' in [module[1] for module in modules]:
-            return f(env, *args, **kwargs)
-        try:
-            ret = con.execute_command('MODULE', 'LOAD', TEST_MODULE_PATH)
-            env.assertEqual(ret, b'OK')
-        except Exception as e:
-            env.assertFalse(True)
-            env.debugPrint(str(e), force=True)
-            return
-        return f(env, *args, **kwargs)
-    return wrapper
 
 
 def test_onnx_modelrun_mnist(env):
@@ -475,17 +454,40 @@ def test_parallelism():
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
 
 
-@load_onnx_test_module
 def test_onnx_use_custom_allocator(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
+    if DEVICE != 'CPU':
+        env.debugPrint("skipping {} since the custom allocator is for CPU".format(sys._getframe().f_code.co_name), force=True)
+        return
 
     con = env.getConnection()
-    ret = con.execute_command("RAI_onnxAllocator.modelSet")
-    env.assertEquals(ret, b'OK')
-
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mul_1.onnx')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                            for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
+
+    # Expect using the allocator during model set for allocating the model, its input name and output name.
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 3)
+
+    # Expect using the allocator free function when releasing the model.
+    con.execute_command('AI.MODELDEL', 'm{1}')
+    env.assertFalse(con.execute_command('EXISTS', 'm{1}'))
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 6)
+
+    # test allocator in model run op
     model_filename = os.path.join(test_data_path, 'mnist.onnx')
     sample_filename = os.path.join(test_data_path, 'one.raw')
 

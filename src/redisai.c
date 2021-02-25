@@ -23,7 +23,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include "backends/onnxruntime.h"
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -1093,9 +1092,6 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(DAGRunOpFree, ctx);
     REGISTER_API(DAGFree, ctx);
 
-    // For ORT test module
-    REGISTER_API(LoadDefaultBackend, ctx);
-
     return REDISMODULE_OK;
 }
 
@@ -1112,6 +1108,9 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                                           RAI_backends.onnx.get_memory_info());
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
                                           RAI_backends.onnx.get_memory_access_num());
+    } else {
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory", 0);
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num", 0);
     }
 
     struct rusage self_ru, c_ru;

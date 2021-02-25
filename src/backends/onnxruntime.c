@@ -17,6 +17,33 @@ OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
 unsigned long long OnnxMemoryAccessCounter = 0;
 
+const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
+    (void)allocator;
+    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
+    OrtMemoryInfo *mem_info;
+    if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
+        return NULL;
+    }
+    return mem_info;
+}
+
+void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
+    (void)ptr;
+    void *p = RedisModule_Alloc(size);
+    size_t allocated_size = RedisModule_MallocSize(p);
+    atomic_fetch_add(&OnnxMemory, allocated_size);
+    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
+    return p;
+}
+
+void AllocatorFree(OrtAllocator *ptr, void *p) {
+    (void)ptr;
+    size_t allocated_size = RedisModule_MallocSize(p);
+    atomic_fetch_add(&OnnxMemory, -1 * allocated_size);
+    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
+    return RedisModule_Free(p);
+}
+
 unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
 
 unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
@@ -269,33 +296,6 @@ error:
     return NULL;
 }
 
-const OrtMemoryInfo *myInfo(const OrtAllocator *allocator) {
-    (void)allocator;
-    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    OrtMemoryInfo *mem_info;
-    if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
-        return NULL;
-    }
-    return mem_info;
-}
-
-void *myAlloc(OrtAllocator *ptr, size_t size) {
-    (void)ptr;
-    void *p = RedisModule_Alloc(size);
-    size_t allocated_size = RedisModule_MallocSize(p);
-    atomic_fetch_add(&OnnxMemory, allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return p;
-}
-
-void myFree(OrtAllocator *ptr, void *p) {
-    (void)ptr;
-    size_t allocated_size = RedisModule_MallocSize(p);
-    atomic_fetch_add(&OnnxMemory, -1 * allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return RedisModule_Free(p);
-}
-
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
                               const char *modeldef, size_t modellen, RAI_Error *error) {
 
@@ -308,8 +308,8 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     if (env == NULL) {
         ONNX_API(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        ONNX_API(ort->CreateCustomDeviceAllocator(ORT_API_VERSION, myAlloc, myFree, myInfo,
-                                                  &global_allocator))
+        ONNX_API(ort->CreateCustomDeviceAllocator(ORT_API_VERSION, AllocatorAlloc, AllocatorFree,
+                                                  AllocatorInfo, &global_allocator))
         ONNX_API(ort->RegisterCustomDeviceAllocator(env, global_allocator))
     }
 

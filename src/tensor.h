@@ -11,7 +11,7 @@
 #define SRC_TENSOR_H_
 
 #include "config.h"
-//#include "dlpack/dlpack.h"
+#include "dlpack/dlpack.h"
 #include "err.h"
 #include "redismodule.h"
 #include "redisai.h"
