@@ -48,6 +48,19 @@ build_x64:
 .PHONY: build_x64
 endef
 
+define build_x64-gpu # (1=arch, 2=tar-arch)
+IID_$(1)=$(1)_$(VERSION).iid
+CID_$(1)=$(1)_$(VERSION).cid
+
+build_x64-gpu:
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-x64:$(VERSION) -f Dockerfile.x64-gpu \
+		--build-arg OS=$(DOCKER_OS) $(ROOT)
+	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-x64-$(VERSION).tgz .
+
+.PHONY: build_x64
+endef
+
 define build_arm # (1=arch, 2=tar-arch)
 IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
@@ -97,6 +110,7 @@ all: build publish
 build: $(BUILD_TARGETS)
 
 $(eval $(call build_x64,x64,x86_64))
+$(eval $(call build_x64-gpu,x64-gpu,x86_64-gpu))
 $(eval $(call build_arm,arm64v8,arm64))
 $(eval $(call build_arm,arm32v7,arm))
 

@@ -1,0 +1,47 @@
+ARG OS=ubuntu18.04
+ARG CUDA_VER=11.0-cudnn8
+
+FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+
+ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
+ARG ONNXRUNTIME_VER=1.6.0
+ARG ARCH=x64-gpu
+
+RUN apt-get -qq update
+RUN apt-get -qq install -y curl wget tar git
+RUN apt-get -qq install -y build-essential
+RUN apt-get -qq install -y libcurl4-openssl-dev libssl-dev libatlas-base-dev zlib1g-dev
+
+RUN apt-get -qq install -y python3 python3-pip python3-dev
+RUN pip3 install --upgrade pip setuptools wheel
+# RUN pip3 install numpy
+RUN apt-get -q install -y python3-numpy
+RUN apt-get install -y snapd
+RUN wget https://github.com/Kitware/CMake/releases/download/v3.15.2/cmake-3.15.2.tar.gz; \
+    tar -zxvf cmake-3.15.2.tar.gz; \
+    cd cmake-3.15.2; \
+    ./bootstrap; \
+    make -j4; \
+    make install
+
+
+ENV LANG=en_US.UTF-8
+RUN apt-get install -y locales && \
+    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=$LANG
+
+WORKDIR /build
+
+ADD ./pack.sh /build/
+ARG BUILDTYPE=MinSizeRel
+ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
+
+RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} --recursive ${ONNXRUNTIME_REPO} onnxruntime
+
+
+RUN	cd onnxruntime ;\
+    ./build.sh ${BUILDARGS} --update --build --use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda --build_shared_lib --parallel
+# RUN ./build.sh ${BUILDARGS} --enable_pybind --build_wheel
+
+RUN ./pack.sh ${ONNXRUNTIME_VER} ${ARCH}
