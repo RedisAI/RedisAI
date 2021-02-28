@@ -70,7 +70,7 @@ MKL=mkl
 ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
-DLPACK_VERSION="v0.3"
+DLPACK_VERSION="v0.4"
 if [[ $WITH_DLPACK != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
