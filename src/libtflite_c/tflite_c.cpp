@@ -48,16 +48,11 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
     return dtype;
 }
 
-static DLContext getDLContext(const TfLiteTensor *tensor, const int64_t &device_id) {
-    DLContext ctx;
-    ctx.device_id = device_id;
-    // if (tensor->.is_cuda()) {
-    //   ctx.device_type = DLDeviceType::kDLGPU;
-    // } else {
-    //   ctx.device_type = DLDeviceType::kDLCPU;
-    // }
-    ctx.device_type = DLDeviceType::kDLCPU;
-    return ctx;
+static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id) {
+    DLDevice device;
+    device.device_id = device_id;
+    device.device_type = DLDeviceType::kDLCPU;
+    return device;
 }
 
 #if 0
@@ -139,10 +134,10 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     DLDataType dtype = getDLDataType(tensor);
 
     int64_t device_id = 0;
-    DLContext ctx = getDLContext(tensor, device_id);
+    DLDevice device = getDLDevice(tensor, device_id);
 
     DLTensor dl_tensor = (DLTensor){.data = new uint8_t[tensor->bytes],
-                                    .ctx = ctx,
+                                    .device = device,
                                     .ndim = output_dims->size,
                                     .dtype = dtype,
                                     .shape = new int64_t[output_dims->size],
