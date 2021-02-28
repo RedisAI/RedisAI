@@ -122,10 +122,10 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
 
-    DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
     void *data = RedisModule_Calloc(len, dtypeSize);
 
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
+    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
                                                             .ndim = ndims,
                                                             .dtype = dtype,
@@ -170,7 +170,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
 
-    DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
     size_t nbytes = len * dtypeSize;
 
     size_t blob_len;
@@ -186,7 +186,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     RAI_HoldString(NULL, rstr);
 
     RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
+    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
                                                             .ndim = ndims,
                                                             .dtype = dtype,
@@ -327,7 +327,7 @@ RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
     RAI_Tensor *ret = RAI_TensorNew();
 
     ret->tensor =
-        (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = dl_tensor->dl_tensor.ctx,
+        (DLManagedTensor){.dl_tensor = (DLTensor){.device = dl_tensor->dl_tensor.device,
                                                   .data = dl_tensor->dl_tensor.data,
                                                   .ndim = dl_tensor->dl_tensor.ndim,
                                                   .dtype = dl_tensor->dl_tensor.dtype,
