@@ -64,15 +64,15 @@ static DLDataType getDLDataType(const at::Tensor &t) {
     return dtype;
 }
 
-static DLContext getDLContext(const at::Tensor &tensor, const int64_t &device_id) {
-    DLContext ctx;
-    ctx.device_id = device_id;
+static DLDevice getDLDevice(const at::Tensor &tensor, const int64_t &device_id) {
+    DLDevice device;
+    device.device_id = device_id;
     if (tensor.is_cuda()) {
-        ctx.device_type = DLDeviceType::kDLGPU;
+        device.device_type = DLDeviceType::kDLGPU;
     } else {
-        ctx.device_type = DLDeviceType::kDLCPU;
+        device.device_type = DLDeviceType::kDLCPU;
     }
-    return ctx;
+    return device;
 }
 
 static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
@@ -145,7 +145,7 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
 }
 
 torch::Tensor fromDLPack(const DLTensor *src) {
-    at::DeviceType device_type = getATenDeviceType(src->ctx.device_type);
+    at::DeviceType device_type = getATenDeviceType(src->device.device_type);
     at::ScalarType stype = toScalarType(src->dtype);
     // torch::Device device(device_type, src->ctx.device_id);
     torch::Device device(device_type, -1);
@@ -176,7 +176,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     if (src.is_cuda()) {
         device_id = src.get_device();
     }
-    atDLMTensor->tensor.dl_tensor.ctx = getDLContext(src, device_id);
+    atDLMTensor->tensor.dl_tensor.device = getDLDevice(src, device_id);
     atDLMTensor->tensor.dl_tensor.ndim = src.dim();
     atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src);
     atDLMTensor->tensor.dl_tensor.shape = const_cast<int64_t *>(src.sizes().data());

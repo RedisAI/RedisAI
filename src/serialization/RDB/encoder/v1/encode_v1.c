@@ -5,8 +5,8 @@ void RAI_RDBSaveTensor_v1(RedisModuleIO *io, void *value) {
 
     size_t ndim = tensor->tensor.dl_tensor.ndim;
 
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_type);
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.ctx.device_id);
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.device.device_type);
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.device.device_id);
     RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.bits);
     RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.code);
     RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.lanes);
