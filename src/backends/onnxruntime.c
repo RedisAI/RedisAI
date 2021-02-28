@@ -13,17 +13,11 @@
     if ((status = (x)) != NULL)                                                                    \
         goto error;
 
-// If we run on GPU, we do not use the custom allocator (redis allocator), but
-// the default allocator returned by ORT api. If we run on CPU, we do not need to
-// use this api, as the global allocator is already set to be the custom allocator.
-#ifdef RAI_ONNXRUNTIME_USE_CUDA
-#define GET_GLOBAL_ALLOCATOR                                                                       \
-    ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator))
-#else
-#define GET_GLOBAL_ALLOCATOR
-#endif
-
 OrtEnv *env = NULL;
+
+// For model that run on GPU, onnx will not use the custom allocator (redis allocator), but
+// the onnx allocator for GPU. But for the auxilery allocations of the input and output names,
+// we will use the custom global allocator for models that run on GPU as well
 OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
 unsigned long long OnnxMemoryAccessCounter = 0;
@@ -182,7 +176,6 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
     batched_shape[0] = batch_size;
 
     OrtValue *out;
-    GET_GLOBAL_ALLOCATOR
     if (count > 1) {
         ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
@@ -321,18 +314,16 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     if (env == NULL) {
         ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-#ifndef RAI_ONNXRUNTIME_USE_CUDA
         ONNX_VALIDATE_STATUS(ort->CreateCustomDeviceAllocator(
             ORT_API_VERSION, AllocatorAlloc, AllocatorFree, AllocatorInfo, &global_allocator))
         ONNX_VALIDATE_STATUS(ort->RegisterCustomDeviceAllocator(env, global_allocator))
-#endif
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
 
 #ifndef RAI_ONNXRUNTIME_USE_CUDA
-    // These are required to ensure that onnx will use the registered REDIS allocator (for CPU
-    // only).
+    // These are required to ensure that onnx will use the registered REDIS allocator (for
+    // a model that defined to run on CPU).
     ONNX_VALIDATE_STATUS(
         ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
     ONNX_VALIDATE_STATUS(ort->DisableCpuMemArena(session_options))
@@ -357,7 +348,6 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     size_t n_output_nodes;
     ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
 
-    GET_GLOBAL_ALLOCATOR
     inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
         char *input_name;
@@ -424,7 +414,6 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     OrtStatus *status = NULL;
 
-    GET_GLOBAL_ALLOCATOR
     for (uint32_t i = 0; i < model->ninputs; i++) {
         ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->inputs[i]))
     }
@@ -481,8 +470,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
 
     size_t n_output_nodes;
-    ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
-    GET_GLOBAL_ALLOCATOR {
+    ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes)) {
         const char *input_names[n_input_nodes];
         const char *output_names[n_output_nodes];
 

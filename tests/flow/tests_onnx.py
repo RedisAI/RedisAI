@@ -532,7 +532,9 @@ def test_onnx_use_custom_allocator_with_GPU(env):
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
 
-    # Create the same model, once for CPU and once for GPU, and verify that redis allocator was being used only for CPU
+    # Create the same model, once for CPU and once for GPU.
+    # Expect using the allocator during model set for allocating the model, its input name and output name in CPU,
+    # but for GPU, expcet using the allocator only for allocating input and output names.
     ret = con.execute_command('AI.MODELSET', 'm_gpu{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('AI.MODELSET', 'm_cpu{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
@@ -540,4 +542,5 @@ def test_onnx_use_custom_allocator_with_GPU(env):
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
-    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 3)
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) < 400)
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 5)
