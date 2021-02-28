@@ -27,7 +27,7 @@ all: $(TEST_MODULES)
 	$(MAKE) CFLAGS="-m32" LDFLAGS="-melf_i386"
 
 %.o: %.c
-	$(CC) $(DEBUGFLAGS) -I../../src -I../../deps -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
+	$(CC) $(DEBUGFLAGS) -I../../src -DREDIS_MODULE_TARGET -DREDISMODULE_EXPERIMENTAL_API $(SHOBJ_CFLAGS) -fPIC -c $< -o $@
 
 LLAPI.so: LLAPI.o DAG_utils.o
 	$(CC) -o $@ $^ $(SHOBJ_LDFLAGS) -lc -lm

@@ -513,3 +513,31 @@ def test_onnx_use_custom_allocator(env):
     values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
     argmax = max(range(len(values)), key=lambda i: values[i])
     env.assertEqual(argmax, 1)
+
+
+def test_onnx_use_custom_allocator_with_GPU(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+    if DEVICE == 'CPU':
+        env.debugPrint("skipping {} since this test if for GPU only".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'mul_1.onnx')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
+
+    # Create the same model, once for CPU and once for GPU, and verify that redis allocator was being used only for CPU
+    ret = con.execute_command('AI.MODELSET', 'm_gpu{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.MODELSET', 'm_cpu{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ai_memory_config = {k.split(":")[0]: k.split(":")[1]
+                        for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
+    env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 3)

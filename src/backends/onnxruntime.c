@@ -8,12 +8,17 @@
 
 #include "onnxruntime_c_api.h"
 
-#define ONNX_API(x)                                                                                \
+// Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
+#define ONNX_VALIDATE_STATUS(x)                                                                    \
     if ((status = (x)) != NULL)                                                                    \
         goto error;
 
+// If we run on GPU, we do not use the custom allocator (redis allocator), but
+// the default allocator returned by ORT api. If we run on CPU, we do not need to
+// use this api, as the global allocator is already set to be the custom allocator.
 #ifdef RAI_ONNXRUNTIME_USE_CUDA
-#define GET_GLOBAL_ALLOCATOR ONNX_API(ort->GetAllocatorWithDefaultOptions(&global_allocator))
+#define GET_GLOBAL_ALLOCATOR                                                                       \
+    ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator))
 #else
 #define GET_GLOBAL_ALLOCATOR
 #endif
@@ -45,7 +50,7 @@ void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
 void AllocatorFree(OrtAllocator *ptr, void *p) {
     (void)ptr;
     size_t allocated_size = RedisModule_MallocSize(p);
-    atomic_fetch_add(&OnnxMemory, -1 * allocated_size);
+    atomic_fetch_sub(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
     return RedisModule_Free(p);
 }
@@ -179,19 +184,19 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
     OrtValue *out;
     GET_GLOBAL_ALLOCATOR
     if (count > 1) {
-        ONNX_API(
+        ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                         RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
 
         char *ort_data;
-        ONNX_API(ort->GetTensorMutableData(out, (void **)&ort_data))
+        ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;
         for (size_t i = 0; i < count; i++) {
             memcpy(ort_data + offset, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
             offset += RAI_TensorByteSize(ts[i]);
         }
     } else {
-        ONNX_API(ort->CreateTensorWithDataAsOrtValue(
+        ONNX_VALIDATE_STATUS(ort->CreateTensorWithDataAsOrtValue(
             global_allocator->Info(global_allocator), t0->tensor.dl_tensor.data,
             RAI_TensorByteSize(t0), t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
@@ -213,7 +218,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     int64_t *strides = NULL;
 
     int is_tensor;
-    ONNX_API(ort->IsTensor(v, &is_tensor))
+    ONNX_VALIDATE_STATUS(ort->IsTensor(v, &is_tensor))
     if (!is_tensor) {
         // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a
         // tensor. If return value is string, emit warning.
@@ -223,15 +228,15 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     ret = RAI_TensorNew();
     DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
     OrtTensorTypeAndShapeInfo *info;
-    ONNX_API(ort->GetTensorTypeAndShape(v, &info))
+    ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))
 
     {
         size_t ndims;
-        ONNX_API(ort->GetDimensionsCount(info, &ndims))
+        ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
         int64_t dims[ndims];
-        ONNX_API(ort->GetDimensions(info, dims, ndims))
+        ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, ndims))
         enum ONNXTensorElementDataType ort_dtype;
-        ONNX_API(ort->GetTensorElementType(info, &ort_dtype))
+        ONNX_VALIDATE_STATUS(ort->GetTensorElementType(info, &ort_dtype))
         int64_t total_batch_size = dims[0];
         total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
@@ -253,9 +258,9 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         DLDataType dtype = RAI_GetDLDataTypeFromORT(ort_dtype);
 #ifdef RAI_COPY_RUN_OUTPUT
         char *ort_data;
-        ONNX_API(ort->GetTensorMutableData(v, (void **)&ort_data))
+        ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(v, (void **)&ort_data))
         size_t elem_count;
-        ONNX_API(ort->GetTensorShapeElementCount(info, &elem_count))
+        ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
 
         const size_t len = dtype.bits * elem_count / 8;
         const size_t total_bytesize = len * sizeof(char);
@@ -314,50 +319,55 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     OrtStatus *status = NULL;
 
     if (env == NULL) {
-        ONNX_API(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
+        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
 #ifndef RAI_ONNXRUNTIME_USE_CUDA
-        ONNX_API(ort->CreateCustomDeviceAllocator(ORT_API_VERSION, AllocatorAlloc, AllocatorFree,
-                                                  AllocatorInfo, &global_allocator))
-        ONNX_API(ort->RegisterCustomDeviceAllocator(env, global_allocator))
+        ONNX_VALIDATE_STATUS(ort->CreateCustomDeviceAllocator(
+            ORT_API_VERSION, AllocatorAlloc, AllocatorFree, AllocatorInfo, &global_allocator))
+        ONNX_VALIDATE_STATUS(ort->RegisterCustomDeviceAllocator(env, global_allocator))
 #endif
     }
 
-    ONNX_API(ort->CreateSessionOptions(&session_options))
+    ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
 
 #ifndef RAI_ONNXRUNTIME_USE_CUDA
     // These are required to ensure that onnx will use the registered REDIS allocator (for CPU
     // only).
-    ONNX_API(ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
-    ONNX_API(ort->DisableCpuMemArena(session_options))
+    ONNX_VALIDATE_STATUS(
+        ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
+    ONNX_VALIDATE_STATUS(ort->DisableCpuMemArena(session_options))
 #endif
 
     // TODO: these options could be configured at the AI.CONFIG level
-    ONNX_API(ort->SetSessionGraphOptimizationLevel(session_options, 1))
-    ONNX_API(ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
-    ONNX_API(ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
+    ONNX_VALIDATE_STATUS(ort->SetSessionGraphOptimizationLevel(session_options, 1))
+    ONNX_VALIDATE_STATUS(
+        ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
+    ONNX_VALIDATE_STATUS(
+        ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
     if (!setDeviceId(devicestr, session_options, error)) {
+        ort->ReleaseSessionOptions(session_options);
         return NULL;
     }
 
-    ONNX_API(ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session))
+    ONNX_VALIDATE_STATUS(
+        ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session))
 
     size_t n_input_nodes;
-    ONNX_API(ort->SessionGetInputCount(session, &n_input_nodes))
+    ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
     size_t n_output_nodes;
-    ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
+    ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
 
     GET_GLOBAL_ALLOCATOR
     inputs_ = array_new(char *, n_input_nodes);
     for (long long i = 0; i < n_input_nodes; i++) {
         char *input_name;
-        ONNX_API(ort->SessionGetInputName(session, i, global_allocator, &input_name))
+        ONNX_VALIDATE_STATUS(ort->SessionGetInputName(session, i, global_allocator, &input_name))
         inputs_ = array_append(inputs_, input_name);
     }
 
     outputs_ = array_new(char *, n_output_nodes);
     for (long long i = 0; i < n_output_nodes; i++) {
         char *output_name;
-        ONNX_API(ort->SessionGetOutputName(session, i, global_allocator, &output_name))
+        ONNX_VALIDATE_STATUS(ort->SessionGetOutputName(session, i, global_allocator, &output_name))
         outputs_ = array_append(outputs_, output_name);
     }
 
@@ -415,12 +425,12 @@ void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
 
     GET_GLOBAL_ALLOCATOR
     for (uint32_t i = 0; i < model->ninputs; i++) {
-        ONNX_API(ort->AllocatorFree(global_allocator, model->inputs[i]))
+        ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->inputs[i]))
     }
     array_free(model->inputs);
 
     for (uint32_t i = 0; i < model->noutputs; i++) {
-        ONNX_API(ort->AllocatorFree(global_allocator, model->outputs[i]))
+        ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->outputs[i]))
     }
     array_free(model->outputs);
 
@@ -467,10 +477,10 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     OrtStatus *status = NULL;
     size_t n_input_nodes;
-    ONNX_API(ort->SessionGetInputCount(session, &n_input_nodes))
+    ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
 
     size_t n_output_nodes;
-    ONNX_API(ort->SessionGetOutputCount(session, &n_output_nodes))
+    ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
     GET_GLOBAL_ALLOCATOR {
         const char *input_names[n_input_nodes];
         const char *output_names[n_output_nodes];
@@ -497,7 +507,8 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
         for (size_t i = 0; i < n_input_nodes; i++) {
             char *input_name;
-            ONNX_API(ort->SessionGetInputName(session, i, global_allocator, &input_name))
+            ONNX_VALIDATE_STATUS(
+                ort->SessionGetInputName(session, i, global_allocator, &input_name))
             input_names[i] = input_name;
 
             RAI_Tensor *batched_input_tensors[nbatches];
@@ -514,23 +525,25 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             char *output_name;
-            ONNX_API(ort->SessionGetOutputName(session, i, global_allocator, &output_name))
+            ONNX_VALIDATE_STATUS(
+                ort->SessionGetOutputName(session, i, global_allocator, &output_name))
             output_names[i] = output_name;
             outputs[i] = NULL;
         }
 
         OrtRunOptions *run_options = NULL;
-        ONNX_API(ort->Run(session, run_options, input_names, (const OrtValue *const *)inputs,
-                          n_input_nodes, output_names, n_output_nodes, outputs))
+        ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
+                                      (const OrtValue *const *)inputs, n_input_nodes, output_names,
+                                      n_output_nodes, outputs))
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             if (nbatches > 1) {
                 OrtTensorTypeAndShapeInfo *info;
-                ONNX_API(ort->GetTensorTypeAndShape(outputs[i], &info))
+                ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(outputs[i], &info))
                 size_t ndims;
-                ONNX_API(ort->GetDimensionsCount(info, &ndims))
+                ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
                 int64_t dims[ndims];
-                ONNX_API(ort->GetDimensions(info, dims, ndims))
+                ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, ndims))
                 if (dims[0] != total_batch_size) {
                     RAI_SetError(error, RAI_EMODELRUN,
                                  "ERR Model did not generate the expected batch size");
