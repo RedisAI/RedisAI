@@ -70,13 +70,13 @@ MKL=mkl
 ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
-
+DLPACK_VERSION="v0.4"
 if [[ $WITH_DLPACK != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
 	if [[ ! -d $DLPACK ]]; then
 		echo "Cloning dlpack ..."
-		git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+		git clone --depth 1 --branch $DLPACK_VERSION https://github.com/dmlc/dlpack.git $DLPACK
 		echo "Done."
 	else
 		echo "dlpack is in place."
