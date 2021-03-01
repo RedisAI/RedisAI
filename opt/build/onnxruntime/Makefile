@@ -53,10 +53,10 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_x64-gpu:
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-x64:$(VERSION) -f Dockerfile.x64-gpu \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64-gpu \
 		--build-arg OS=$(DOCKER_OS) $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-x64-$(VERSION).tgz .
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(1)-$(VERSION).tgz .
 
 .PHONY: build_x64
 endef
