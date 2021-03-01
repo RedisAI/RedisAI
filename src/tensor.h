@@ -80,10 +80,12 @@ RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims);
  * @param dtype DLDataType
  * @param dims n-dimensional array ( the dimension values are copied )
  * @param ndims number of dimensions
+ * @param empty True if creating an empty tensor (need to be initialized)
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims);
+RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
+                                           bool empty);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
