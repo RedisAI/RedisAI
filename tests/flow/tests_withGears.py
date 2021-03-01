@@ -311,3 +311,40 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
     values = con.execute_command('AI.TENSORGET', 'test5_res{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
+
+@skip_if_gears_not_loaded
+def test_tensor_create_via_gears(env):
+    script = '''
+
+import redisAI
+        
+def TensorCreate_FromValues(record):
+    
+    tensor = redisAI.createTensorFromValues('DOUBLE', [2,2], [1.0, 2.0, 3.0, 4.0])
+    redisAI.setTensorInKey('test1_res{1}', tensor)
+    return "test1_OK"
+
+def TensorCreate_FromBlob(record):
+    tensor_blob = bytearray([5, 6, 7, 8])
+    tensor = redisAI.createTensorFromBlob('INT8', [2,2], tensor_blob)
+    redisAI.setTensorInKey('test2_res{1}', tensor)
+    return "test2_OK"
+        
+GB("CommandReader").map(TensorCreate_FromValues).register(trigger="TensorCreate_FromValues_test1")
+GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_FromBlob_test2")
+    '''
+
+    con = env.getConnection()
+    ret = con.execute_command('rg.pyexecute', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('rg.trigger', 'TensorCreate_FromValues_test1')
+    env.assertEqual(ret[0], b'test1_OK')
+
+    values = con.execute_command('AI.TENSORGET', 'test1_res{1}', 'VALUES')
+    env.assertEqual(values, [b'1', b'2', b'3', b'4'])
+
+    ret = con.execute_command('rg.trigger', 'TensorCreate_FromBlob_test2')
+    env.assertEqual(ret[0], b'test2_OK')
+
+    values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
+    env.assertEqual(values, [5, 6, 7, 8])

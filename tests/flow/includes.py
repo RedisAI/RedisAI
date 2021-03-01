@@ -55,6 +55,8 @@ def send_and_disconnect(cmd, red):
     con = pool.get_connection(cmd[0])
     ret = con.send_command(*cmd)
     con.disconnect()
+    # For making sure that Redis will have the time to exit cleanly.
+    time.sleep(1)
     return ret
 
 
