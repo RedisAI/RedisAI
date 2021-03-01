@@ -12,8 +12,8 @@ python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 def ensure_test_module_loaded(f):
     @wraps(f)
     def wrapper(env, *args, **kwargs):
-        goal_dir = os.path.join(os.path.dirname(__file__), "../module/LLAPI.so")
-        TEST_MODULE_PATH = os.path.abspath(goal_dir)
+        #goal_dir = os.path.join(os.path.dirname(__file__), "../module/testmod.so")
+        TEST_MODULE_PATH = "{ROOT}/bin/linux-x64-release/src/tests/module/testmod.so".format(ROOT=ROOT)
         con = env.getConnection()
         modules = con.execute_command("MODULE", "LIST")
         if b'RAI_llapi' in [module[1] for module in modules]:

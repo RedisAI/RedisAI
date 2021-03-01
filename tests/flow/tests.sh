@@ -92,7 +92,6 @@ valgrind_summary() {
 #----------------------------------------------------------------------------------------------
 
 run_tests() {
-  make -C ../module
 	local title="$1"
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
 	cd $ROOT/tests/flow
