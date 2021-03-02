@@ -320,7 +320,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
-    if (strcasecmp(devicestr, "CPU") != 0) {
+    if (strcasecmp(devicestr, "CPU") == 0) {
         // These are required to ensure that onnx will use the registered REDIS allocator (for
         // a model that defined to run on CPU).
         ONNX_VALIDATE_STATUS(

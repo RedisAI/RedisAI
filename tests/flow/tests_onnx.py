@@ -16,7 +16,6 @@ def test_onnx_modelrun_mnist(env):
         return
 
     con = env.getConnection()
-    x=input()
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'mnist.onnx')
     wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
