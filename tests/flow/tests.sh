@@ -28,6 +28,9 @@ help() {
 		Argument variables:
 		VERBOSE=1     Print commands
 		IGNERR=1      Do not abort on error
+
+		MODULE=path     Path to redisai.so
+		TESTMOD=path    Path to LLAPI module
 		
 		DEVICE=cpu|gpu  Device for testing
 		GEN=0|1         General tests
@@ -115,6 +118,8 @@ OP=""
 
 MODULE=${MODULE:-$1}
 [[ -z $MODULE || ! -f $MODULE ]] && { echo "Module not found at ${MODULE}. Aborting."; exit 1; }
+TESTMOD=${TESTMOD}
+echo "Test module path is ${TESTMOD}"
 
 [[ $VALGRIND == 1 || $VGD == 1 ]] && valgrind_config
 
