@@ -276,6 +276,7 @@ test: build
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
+		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
