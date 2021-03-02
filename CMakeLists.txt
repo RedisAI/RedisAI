@@ -200,6 +200,7 @@ ENDIF()
 #----------------------------------------------------------------------------------------------
 
 ADD_SUBDIRECTORY(src)
+ADD_SUBDIRECTORY(tests/module)
 ADD_LIBRARY(redisai SHARED $<TARGET_OBJECTS:redisai_obj>)
 
 TARGET_LINK_LIBRARIES(redisai ${CMAKE_DL_LIBS})
