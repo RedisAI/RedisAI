@@ -458,9 +458,6 @@ def test_onnx_use_custom_allocator(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
-    if DEVICE != 'CPU':
-        env.debugPrint("skipping {} since the custom allocator is for CPU".format(sys._getframe().f_code.co_name), force=True)
-        return
 
     con = env.getConnection()
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -472,7 +469,7 @@ def test_onnx_use_custom_allocator(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
 
     # Expect using the allocator during model set for allocating the model, its input name and output name.
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
@@ -496,7 +493,7 @@ def test_onnx_use_custom_allocator(env):
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
