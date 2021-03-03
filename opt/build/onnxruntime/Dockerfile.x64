@@ -28,7 +28,7 @@ RUN apt-get install -y locales && \
 WORKDIR /build
 
 ADD ./pack.sh /build/
-ARG BUILDTYPE=MinSizeRel
+ARG BUILDTYPE=RelWithDebInfo
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 
 RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} --recursive ${ONNXRUNTIME_REPO} onnxruntime
