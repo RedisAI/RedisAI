@@ -162,9 +162,9 @@ jobs:
       - run:
           name: Submodule checkout
           command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+      #- restore_cache:
+      #    keys:
+      #    - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
       - setup-automation
       - run:

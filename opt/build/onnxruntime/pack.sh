@@ -5,7 +5,7 @@ VER="$1"
 PLATFORM="$2"
 
 mkdir -p pack/include pack/lib
-cp onnxruntime/build/Linux/RelWithDebInfo/libonnxruntime.so.${VER} pack/lib/
+cp onnxruntime/build/Linux/Debug/libonnxruntime.so.${VER} pack/lib/
 cp onnxruntime/docs/C_API.md pack/
 cp onnxruntime/LICENSE pack/
 cp onnxruntime/README.md pack/
