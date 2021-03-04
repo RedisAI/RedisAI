@@ -4,7 +4,7 @@
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
-#include "tensorflow/lite/tools/evaluation/utils.h"
+#include "tensorflow/lite/delegates/gpu/delegate.h"
 #include "../redismodule.h"
 
 namespace {
@@ -127,6 +127,7 @@ void deleter(DLManagedTensor *arg) {
 
 DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interpreter,
                                  int tflite_output) {
+
     TfLiteTensor *tensor = interpreter->tensor(tflite_output);
 
     TfLiteIntArray *output_dims = tensor->dims;
@@ -204,6 +205,9 @@ struct ModelContext {
     std::string buffer;
     DLDeviceType device;
     int64_t device_id;
+#if RAI_TFLITE_USE_CUDA
+    TfLiteDelegate *delegate;
+#endif
 };
 
 } // namespace
@@ -230,17 +234,6 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
         return NULL;
     }
 
-#if RAI_TFLITE_USE_CUDA
-    if (device == DLDeviceType::kDLGPU) {
-        tflite::Interpreter::TfLiteDelegatePtr delegate =
-            tflite::evaluation::CreateGPUDelegate(model.get());
-        if (interpreter_->ModifyGraphWithDelegate(std::move(delegate)) != kTfLiteOk) {
-            _setError("Failed to set GPU delegate", error);
-            return NULL;
-        }
-    }
-#endif
-
     if (interpreter_->AllocateTensors() != kTfLiteOk) {
         _setError("Failed to allocate tensors", error);
         return NULL;
@@ -254,6 +247,9 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     ctx->model = std::move(model);
     ctx->interpreter = std::move(interpreter);
     ctx->buffer = std::move(graphstr);
+#if RAI_TFLITE_USE_CUDA
+    ctx->delegate = nullptr;
+#endif
 
     return ctx;
 }
@@ -337,6 +333,19 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
         return;
     }
 
+#if RAI_TFLITE_USE_CUDA
+    if (ctx_->device == DLDeviceType::kDLGPU) {
+      if (!ctx_->delegate) {
+        auto* delegate = TfLiteGpuDelegateV2Create(/*default options=*/nullptr);
+        if (interpreter->ModifyGraphWithDelegate(delegate) != kTfLiteOk) {
+          _setError("Failed to set GPU delegate", error);
+          return;
+        }
+	ctx_->delegate = delegate;
+      }
+   }
+#endif
+
     if (interpreter->Invoke() != kTfLiteOk) {
         _setError("Failed to invoke TfLite", error);
         return;
@@ -358,7 +367,17 @@ extern "C" void tfliteSerializeModel(void *ctx, char **buffer, size_t *len, char
 
 extern "C" void tfliteDeallocContext(void *ctx) {
     ModelContext *ctx_ = (ModelContext *)ctx;
+
+#if RAI_TFLITE_USE_CUDA
+    if (ctx_->device == DLDeviceType::kDLGPU) {
+      if (ctx_->delegate) {
+        TfLiteGpuDelegateV2Delete(ctx_->delegate);
+      }
+   }
+#endif
+
     if (ctx_) {
-        delete ctx_;
+        //delete ctx_;
     }
 }
+
