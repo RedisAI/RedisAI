@@ -35,12 +35,12 @@ const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
 void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
 
     (void)ptr;
-    int offset = 31 + sizeof(void *);
+    int offset = 63 + sizeof(void *);
     void *p1 = (void *)RedisModule_Alloc(size + offset);
     size_t allocated_size = RedisModule_MallocSize(p1);
     atomic_fetch_add(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    void **p2 = (void **)(((uintptr_t)(p1) + offset) & (~31));
+    void **p2 = (void **)(((uintptr_t)(p1) + offset) & (~63));
     p2[-1] = p1;
     return p2;
 }
