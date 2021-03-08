@@ -6,7 +6,7 @@ PLATFORM="$2"
 
 mkdir -p pack/include pack/lib
 cp onnxruntime/build/Linux/MinSizeRel/libonnxruntime.so.${VER} pack/lib/
-cp onnxruntime/docs/C_API.md pack/
+cp onnxruntime/docs/C_API_Guidelines.md pack/
 cp onnxruntime/LICENSE pack/
 cp onnxruntime/README.md pack/
 cp onnxruntime/ThirdPartyNotices.txt pack/

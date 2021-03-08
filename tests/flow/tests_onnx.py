@@ -504,7 +504,7 @@ def test_onnx_use_custom_allocator(env):
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     allocator_access_num_after = ai_memory_config["ai_onnxruntime_memory_access_num"]
-    env.assertEqual(int(allocator_access_num_after) - int(allocator_access_num_before), 22)
+    env.assertEqual(int(allocator_access_num_after) - int(allocator_access_num_before), 16)
 
     values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
     argmax = max(range(len(values)), key=lambda i: values[i])
