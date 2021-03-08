@@ -77,9 +77,10 @@ commands:
           command: |
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
-            #@@ make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 TEST=1 VERBOSE=1
-            make build publish $(./version-params) CPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
-            make build publish $(./version-params) GPU=1 OSNICK=<<parameters.platform>> X64=1 ARTIFACTS=1 VERBOSE=1
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+            done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -133,7 +134,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -154,7 +155,40 @@ jobs:
           command: |
             make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
-          no_output_timeout: 20m
+          no_output_timeout: 30m
+
+  valgrind:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
+    docker:
+      - image: redisfab/rmbuilder:6.0.9-x64-buster
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-automation
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
+          no_output_timeout: 120m
+>>>>>>> efe2bad (Merge pull request #626 from RedisAI/ck-605)
 
   build-macos:
     macos:
@@ -175,7 +209,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Checkout LFS
           command: |
@@ -206,7 +240,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - run:
           name: Build
           command: |
