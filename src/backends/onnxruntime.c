@@ -33,20 +33,27 @@ const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
 }
 
 void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
+
     (void)ptr;
-    void *p = RedisModule_Alloc(size);
-    size_t allocated_size = RedisModule_MallocSize(p);
+    int offset = 31 + sizeof(void *);
+    void *p1 = (void *)RedisModule_Alloc(size + offset);
+    size_t allocated_size = RedisModule_MallocSize(p1);
     atomic_fetch_add(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return p;
+    void **p2 = (void **)(((uintptr_t)(p1) + offset) & (~31));
+    p2[-1] = p1;
+    return p2;
 }
 
 void AllocatorFree(OrtAllocator *ptr, void *p) {
     (void)ptr;
-    size_t allocated_size = RedisModule_MallocSize(p);
+    if (p == NULL)
+        return;
+    void *p1 = ((void **)p)[-1];
+    size_t allocated_size = RedisModule_MallocSize(p1);
     atomic_fetch_sub(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return RedisModule_Free(p);
+    return RedisModule_Free(p1);
 }
 
 unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
