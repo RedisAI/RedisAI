@@ -182,7 +182,7 @@ IF(BUILD_TFLITE)
     # Find TensorFlow Lite stuff and build our wrapper
     INCLUDE_DIRECTORIES(util/libtflite_c)
 
-    ADD_SUBDIRECTORY(src/libtflite_c)
+    ADD_SUBDIRECTORY(src/backends/libtflite_c)
 ENDIF()
 
 #----------------------------------------------------------------------------------------------
@@ -194,7 +194,7 @@ IF(BUILD_TORCH)
 
     INCLUDE_DIRECTORIES(util/libtorch_c)
 
-    ADD_SUBDIRECTORY(src/libtorch_c)
+    ADD_SUBDIRECTORY(src/backends/libtorch_c)
 ENDIF()
 
 #----------------------------------------------------------------------------------------------

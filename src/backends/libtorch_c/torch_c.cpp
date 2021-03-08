@@ -3,7 +3,7 @@
 #include "torch/csrc/jit/serialization/import.h"
 #include "torch/csrc/jit/api/compilation_unit.h"
 #include "ATen/Functions.h"
-#include "../redismodule.h"
+#include "../../redismodule.h"
 
 #include <iostream>
 #include <sstream>

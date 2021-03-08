@@ -5,7 +5,7 @@
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
-#include "../redismodule.h"
+#include "../../redismodule.h"
 
 namespace {
 
