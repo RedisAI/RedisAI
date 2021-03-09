@@ -538,5 +538,5 @@ def test_onnx_use_custom_allocator_with_GPU(env):
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
-    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) < 400)
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) < 705)
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 5)

@@ -32,6 +32,7 @@ const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
     return mem_info;
 }
 
+// Allocate address with 64-byte alignment to cope with onnx optimizations.
 void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
 
     (void)ptr;
@@ -47,8 +48,9 @@ void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
 
 void AllocatorFree(OrtAllocator *ptr, void *p) {
     (void)ptr;
-    if (p == NULL)
+    if (p == NULL) {
         return;
+    }
     void *p1 = ((void **)p)[-1];
     size_t allocated_size = RedisModule_MallocSize(p1);
     atomic_fetch_sub(&OnnxMemory, allocated_size);
