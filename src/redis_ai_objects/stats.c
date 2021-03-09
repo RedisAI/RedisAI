@@ -11,7 +11,6 @@
 #include "stats.h"
 #include "util/string_utils.h"
 
-
 long long ustime(void) {
     struct timeval tv;
     long long ust;

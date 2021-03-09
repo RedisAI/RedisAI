@@ -300,4 +300,3 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
 
     return REDISMODULE_OK;
 }
-

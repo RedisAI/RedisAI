@@ -199,4 +199,3 @@ static void array_free(array_t arr) {
         RedisModule_Assert(array_hdr(arr)->len > 0);                                               \
         arr[--(array_hdr(arr)->len)];                                                              \
     })
-
