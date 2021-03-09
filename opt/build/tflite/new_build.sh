@@ -2,6 +2,7 @@
 set -e
 set -x
 VERSION=$1
+ARCH=$2
 wget https://github.com/tensorflow/tensorflow/archive/v$VERSION.tar.gz
 tar -xzf v$VERSION.tar.gz
 cd tensorflow-$VERSION
@@ -41,4 +42,4 @@ bazel build -c opt --copt -DMESA_EGL_NO_X11_HEADERS --copt -DEGL_NO_X11 tensorfl
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so $TMP_LIB/lib
 # create .tar.gz file
 cd $TMP_LIB
-tar -cvzf libtensorflowlite-linux-arm64-$VERSION.tar.gz .
+tar -cvzf libtensorflowlite-linux-$ARCH-$VERSION.tar.gz .
