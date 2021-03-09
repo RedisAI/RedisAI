@@ -93,8 +93,8 @@ commands:
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -194,7 +194,7 @@ jobs:
       - checkout
       - run:
           name: Submodule checkout
-          command: git submodule update --init --recursive 
+          command: git submodule update --init --recursive
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
