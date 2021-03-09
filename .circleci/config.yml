@@ -188,7 +188,6 @@ jobs:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
->>>>>>> efe2bad (Merge pull request #626 from RedisAI/ck-605)
 
   build-macos:
     macos:
