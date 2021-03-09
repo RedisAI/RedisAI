@@ -1,5 +1,4 @@
-#ifndef __TFLITE_C_H__
-#define __TFLITE_C_H__
+#pragma once
 
 #include "dlpack/dlpack.h"
 
@@ -30,5 +29,3 @@ const char *tfliteModelOutputNameAtIndex(void *modelCtx, size_t index, char **er
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __TFLITE_C_H__

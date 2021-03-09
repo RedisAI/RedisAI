@@ -1,5 +1,4 @@
-#ifndef __TORCH_C_H__
-#define __TORCH_C_H__
+#pragma once
 
 #include "dlpack/dlpack.h"
 
@@ -43,5 +42,3 @@ size_t torchModelNumOutputs(void *modelCtx, char **error);
 #ifdef __cplusplus
 }
 #endif
-
-#endif // __TORCH_C_H__

@@ -1,9 +1,9 @@
 #include "torch_c.h"
 #include "torch/torch.h"
+#include "redismodule.h"
+#include "ATen/Functions.h"
 #include "torch/csrc/jit/serialization/import.h"
 #include "torch/csrc/jit/api/compilation_unit.h"
-#include "ATen/Functions.h"
-#include "../../redismodule.h"
 
 #include <iostream>
 #include <sstream>

@@ -1,5 +1,4 @@
-#ifndef UTIL_ARR_H_
-#define UTIL_ARR_H_
+#pragma once
 /* arr.h - simple, easy to use dynamic array with fat pointers,
  * to allow native access to members. It can accept pointers, struct literals and scalars.
  *
@@ -26,15 +25,16 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <assert.h>
+#include <stdbool.h>
 
 /* Definition of malloc & friedns that can be overridden before including arr.h.
  * Alternatively you can include arr_rm_alloc.h, which wraps arr.h and sets the allcoation functions
  * to those of the RM_ family
  */
 #ifndef array_alloc_fn
-#define array_alloc_fn   malloc
-#define array_realloc_fn realloc
-#define array_free_fn    free
+#define array_alloc_fn   RedisModule_Alloc
+#define array_realloc_fn RedisModule_Realloc
+#define array_free_fn    RedisModule_Free
 #endif
 
 typedef struct {
@@ -200,4 +200,3 @@ static void array_free(array_t arr) {
         arr[--(array_hdr(arr)->len)];                                                              \
     })
 
-#endif

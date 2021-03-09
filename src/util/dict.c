@@ -45,7 +45,7 @@
 #include "redismodule.h"
 #include <assert.h>
 
-#include "../redisai_memory.h"
+#include "util/redisai_memory.h"
 
 #include "siphash.c.inc"
 

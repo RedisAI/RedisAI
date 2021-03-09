@@ -61,13 +61,13 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     }
     size_t n_outputs = RedisAI_DAGNumOutputs(onFinishCtx);
     for (size_t i = 0; i < n_outputs; i++) {
-        RAI_Tensor *t = RedisAI_DAGOutputTensor(onFinishCtx, i);
+        RAI_Tensor *t = (RAI_Tensor *)RedisAI_DAGOutputTensor(onFinishCtx, i);
         RedisModule_Assert(t != NULL);
         results->outputs = array_append(results->outputs, RedisAI_TensorGetShallowCopy(t));
     }
 
     // Verify that we return NULL as output for an index out of range.
-    RAI_Tensor *t = RedisAI_DAGOutputTensor(onFinishCtx, n_outputs);
+    RAI_Tensor *t = (RAI_Tensor *)RedisAI_DAGOutputTensor(onFinishCtx, n_outputs);
     RedisModule_Assert(t == NULL);
     pthread_cond_signal(&global_cond);
 }

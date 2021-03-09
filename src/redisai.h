@@ -1,5 +1,4 @@
-#ifndef SRC_REDISAI_H_
-#define SRC_REDISAI_H_
+#pragma once
 
 #include <stdbool.h>
 #include "redismodule.h"
@@ -302,4 +301,3 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     return REDISMODULE_OK;
 }
 
-#endif /* SRC_REDISAI_H_ */

@@ -3,7 +3,7 @@
 #include <stdint.h>
 
 #include "queue.h"
-#include "../redisai_memory.h"
+#include "util/redisai_memory.h"
 #include "redismodule.h"
 
 queue *queueCreate(void) {

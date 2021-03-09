@@ -1,11 +1,11 @@
-#include "tflite_c.h"
-#include <iostream>
 #include <sstream>
+#include <iostream>
+#include "tflite_c.h"
+#include "redismodule.h"
+#include "tensorflow/lite/model.h"
 #include "tensorflow/lite/interpreter.h"
 #include "tensorflow/lite/kernels/register.h"
-#include "tensorflow/lite/model.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
-#include "../../redismodule.h"
 
 namespace {
 
