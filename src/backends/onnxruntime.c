@@ -9,6 +9,7 @@
 #include "onnxruntime_c_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
+// A label "error" must exist in every function that uses this macro.
 #define ONNX_VALIDATE_STATUS(x)                                                                    \
     if ((status = (x)) != NULL)                                                                    \
         goto error;
@@ -36,12 +37,19 @@ const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
 void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
 
     (void)ptr;
+    // Allocate an additional 63 bytes to ensure that we can return an address which is
+    // 64-byte aligned, and an additional space in the size of a pointer to store
+    // the address that RedisModule_Alloc returns.
     int offset = 63 + sizeof(void *);
     void *p1 = (void *)RedisModule_Alloc(size + offset);
     size_t allocated_size = RedisModule_MallocSize(p1);
+    // Update the total number of bytes that onnx is using and the number of accesses
+    // that onnx made to the allocator.
     atomic_fetch_add(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    void **p2 = (void **)(((uintptr_t)(p1) + offset) & (~63));
+    // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
+    void **p2 = (void **)(((size_t)(p1) + offset) & (~63));
+    // This stores the address p1 right before p2 (so we can retrieve it when we free).
     p2[-1] = p1;
     return p2;
 }
@@ -51,8 +59,12 @@ void AllocatorFree(OrtAllocator *ptr, void *p) {
     if (p == NULL) {
         return;
     }
+    // Retrieve the address that we originally received from RedisModule_Alloc
+    // (this is the address that we need to sent to RedisModule_Free).
     void *p1 = ((void **)p)[-1];
     size_t allocated_size = RedisModule_MallocSize(p1);
+    // Update the total number of bytes that onnx is using and the number of accesses
+    // that onnx made to the allocator.
     atomic_fetch_sub(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
     return RedisModule_Free(p1);
@@ -321,6 +333,10 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     OrtSession *session = NULL;
     OrtStatus *status = NULL;
 
+    // In the first time we set a model for onnx, we create an environment and register
+    // an allocator to it that uses Redis allocator. This allocator is going to be used for
+    // allocating buffers when creating and running models that run on CPU, and for allocations of
+    // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
         ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
         ONNX_VALIDATE_STATUS(ort->CreateCustomDeviceAllocator(
@@ -343,6 +359,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
     ONNX_VALIDATE_STATUS(
         ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
+
+    // If the model is set for GPU, this will set CUDA provider for the session,
+    // so that onnx will use its own allocator for CUDA (not Redis allocator)
     if (!setDeviceId(devicestr, session_options, error)) {
         ort->ReleaseSessionOptions(session_options);
         return NULL;

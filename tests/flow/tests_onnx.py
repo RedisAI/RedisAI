@@ -467,15 +467,21 @@ def test_onnx_use_custom_allocator(env):
                             for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
 
-    # Expect using the allocator during model set for allocating the model, its input name and output name.
+    # Expect using the allocator during model set for allocating the model, its input name and output name:
+    # overall 3 allocations. The model raw size is 130B ,and the names are 2B each. In practice we allocate
+    # more than 134B as Redis allocator will use additional memory for its internal management and for the
+    # 64-Byte alignment. When the test runs with valgrind, redis will use malloc for the allocations
+    # (hence will not use additional memory).
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
-    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
+
+    # Expect using at least 130+63+(size of an address) + 2*(2+63+(size of an address)) bytes.
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 334)
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 3)
 
-    # Expect using the allocator free function when releasing the model.
+    # Expect using the allocator free function when releasing the model and input and output names.
     con.execute_command('AI.MODELDEL', 'm{1}')
     env.assertFalse(con.execute_command('EXISTS', 'm{1}'))
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
@@ -483,7 +489,7 @@ def test_onnx_use_custom_allocator(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 6)
 
-    # test allocator in model run op
+    # test the use of Redis allocator in model run op.
     model_filename = os.path.join(test_data_path, 'mnist.onnx')
     sample_filename = os.path.join(test_data_path, 'one.raw')
 
@@ -496,7 +502,8 @@ def test_onnx_use_custom_allocator(env):
     env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-    # Expect 16 allocator's access from onnx during the run.
+    # Expect 16 allocator's access from onnx during the run (in addition to the allocations that were made while
+    # creating the model).
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     allocator_access_num_before = ai_memory_config["ai_onnxruntime_memory_access_num"]
@@ -528,15 +535,20 @@ def test_onnx_use_custom_allocator_with_GPU(env):
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
 
-    # Create the same model, once for CPU and once for GPU.
-    # Expect using the allocator during model set for allocating the model, its input name and output name in CPU,
-    # but for GPU, expcet using the allocator only for allocating input and output names.
+    # Expect using the allocator during model set for allocating the model, its input name and output name:
+    # overall 3 allocations. The model raw size is 130B ,and the names are 2B each. In practice we allocate
+    # more than 134B as Redis allocator will use additional memory for its internal management and for the
+    # 64-Byte alignment. When the test runs with valgrind, redis will use malloc for the allocations.
     ret = con.execute_command('AI.MODELSET', 'm_gpu{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
+
+    # but for GPU, expect using the allocator only for allocating input and output names (not the model itself).
     ret = con.execute_command('AI.MODELSET', 'm_cpu{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
-    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 100)
+
+    # Expect using at least 130+63+(size of an address) + 4*(2+63+(size of an address)) bytes.
+    env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) > 472)
     env.assertTrue(int(ai_memory_config["ai_onnxruntime_memory"]) < 705)
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 5)
