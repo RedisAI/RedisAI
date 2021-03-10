@@ -17,7 +17,7 @@ RedisAI is a joint effort between [Redis Labs](https://www.redislabs.com) and [T
 ## Quick Links
   * [Source code repository](https://github.com/RedisAI/RedisAI)
   * [Releases](https://github.com/RedisAI/RedisAI/releases)
-  * [Docker image](https://hub.docker.com/r/redisai/redisai/)
+  * [Docker image](https://hub.docker.com/r/redislabs/redisai/)
 
 ## Contact Us
 If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
