@@ -130,19 +130,6 @@ commands:
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
-  lint:
-    docker:
-      - image: redislabsmodules/llvm-toolset:latest
-    steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - setup-automation
-      - run:
-          name: lint
-          command: |
-            make -C opt lint
 
   build-and-test:
     docker:
@@ -385,10 +372,6 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only: /^v[0-9].*/
 
 
-after-linter: &after-linter
-  requires:
-    - lint
-
 after-build-and-test: &after-build-and-test
   requires:
     - build-and-test
@@ -407,34 +390,26 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-      - lint:
-          <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch
-          <<: *after-linter
       - platforms-build:
           <<: *platform-build-defs
       - coverage:
           context: common
           <<: *on-any-branch
-          <<: *after-linter
       - valgrind:
           test_args: CLUSTER=0 AOF=0
           <<: *on-any-branch
-          <<: *after-linter
       - valgrind:
           name: valgrind-cluster
           test_args: GEN=0 AOF=0
           <<: *on-integ-branch
-          <<: *after-linter
       - valgrind:
           name: valgrind-aof
           test_args: GEN=0 CLUSTER=0
           <<: *on-integ-branch
-          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
-          <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
