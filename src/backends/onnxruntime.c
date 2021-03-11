@@ -41,33 +41,33 @@ void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
     // 64-byte aligned, and an additional space in the size of a pointer to store
     // the address that RedisModule_Alloc returns.
     int offset = 63 + sizeof(void *);
-    void *p1 = (void *)RedisModule_Alloc(size + offset);
-    size_t allocated_size = RedisModule_MallocSize(p1);
+    void *allocated_address = (void *)RedisModule_Alloc(size + offset);
+    size_t allocated_size = RedisModule_MallocSize(allocated_address);
     // Update the total number of bytes that onnx is using and the number of accesses
     // that onnx made to the allocator.
     atomic_fetch_add(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
     // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
-    void **p2 = (void **)(((size_t)(p1) + offset) & (~63));
+    void **aligned_address = (void **)(((size_t)(allocated_address) + offset) & (~63));
     // This stores the address p1 right before p2 (so we can retrieve it when we free).
-    p2[-1] = p1;
-    return p2;
+    aligned_address[-1] = allocated_address;
+    return aligned_address;
 }
 
-void AllocatorFree(OrtAllocator *ptr, void *p) {
+void AllocatorFree(OrtAllocator *ptr, void *aligned_address) {
     (void)ptr;
-    if (p == NULL) {
+    if (aligned_address == NULL) {
         return;
     }
     // Retrieve the address that we originally received from RedisModule_Alloc
     // (this is the address that we need to sent to RedisModule_Free).
-    void *p1 = ((void **)p)[-1];
-    size_t allocated_size = RedisModule_MallocSize(p1);
+    void *allocated_address = ((void **)aligned_address)[-1];
+    size_t allocated_size = RedisModule_MallocSize(allocated_address);
     // Update the total number of bytes that onnx is using and the number of accesses
     // that onnx made to the allocator.
     atomic_fetch_sub(&OnnxMemory, allocated_size);
     atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return RedisModule_Free(p1);
+    return RedisModule_Free(allocated_address);
 }
 
 unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
