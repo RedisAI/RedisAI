@@ -215,17 +215,16 @@ lint-docker:
 
 #----------------------------------------------------------------------------------------------
 
-pack: $(INSTALLED_TARGET)
-	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
-	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
-
 ifneq ($(PACK_DEPS),0)
 override PACK_DEPS:=1
 endif
-DEPS=$(PACK_DEPS)
-$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 ./pack.sh
-$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 VARIANT=lite ./pack.sh
-$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 VARIANT=rce ./pack.sh
+
+pack: $(INSTALLED_TARGET)
+	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
+	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
 
 #----------------------------------------------------------------------------------------------
 
