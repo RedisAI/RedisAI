@@ -263,7 +263,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 9, 4, 9};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val) != 0) {
+        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -316,7 +316,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 6, 4, 6};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val) != 0) {
+        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -427,7 +427,7 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     RedisModule_Assert(_ResultsNumOutputs(results) == 1);
     RAI_Tensor *out_tensor = results.outputs[0];
     long long val;
-    if(RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val) != 0) goto cleanup;
+    if(!RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val)) goto cleanup;
     if (0 <= val && val <= 1000) {
         res = LLAPIMODULE_OK;
     }

@@ -237,7 +237,7 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val);
  * @param t tensor to set the data
  * @param i dl_tensor data pointer position
  * @param val value to set the data from
- * @return 0 on success, or 1 if the setting failed
+ * @return 1 on success, or 0 if the setting failed
  */
 int RAI_TensorSetValueFromDouble(RAI_Tensor *t, long long i, double val);
 
@@ -248,7 +248,7 @@ int RAI_TensorSetValueFromDouble(RAI_Tensor *t, long long i, double val);
  * @param t tensor to get the data
  * @param i dl_tensor data pointer position
  * @param val value to set the data to
- * @return 0 on success, or 1 if getting the data failed
+ * @return 1 on success, or 0 if getting the data failed
  */
 int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val);
 
@@ -259,7 +259,7 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val);
  * @param t tensor to get the data
  * @param i dl_tensor data pointer position
  * @param val value to set the data to
- * @return 0 on success, or 1 if getting the data failed
+ * @return 1 on success, or 0 if getting the data failed
  */
 int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val);
 
