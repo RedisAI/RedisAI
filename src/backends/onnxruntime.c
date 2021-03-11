@@ -17,8 +17,9 @@
 OrtEnv *env = NULL;
 
 // For model that run on GPU, onnx will not use the custom allocator (redis allocator), but
-// the onnx allocator for GPU. But for the auxilery allocations of the input and output names,
-// we will use the custom global allocator for models that run on GPU as well
+// the onnx allocator for GPU. But for the auxiliary allocations of the input and output names,
+// we will use the custom global allocator for models that run on GPU as well.
+OrtMemoryInfo *mem_info = NULL;
 OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
 unsigned long long OnnxMemoryAccessCounter = 0;
@@ -26,7 +27,9 @@ unsigned long long OnnxMemoryAccessCounter = 0;
 const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
     (void)allocator;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    OrtMemoryInfo *mem_info;
+    if (mem_info != NULL) {
+        return mem_info;
+    }
     if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
         return NULL;
     }
@@ -369,6 +372,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
     ONNX_VALIDATE_STATUS(
         ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session))
+    ort->ReleaseSessionOptions(session_options);
 
     size_t n_input_nodes;
     ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
@@ -550,7 +554,14 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         OrtRunOptions *run_options = NULL;
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
-                                      n_output_nodes, outputs))
+                                      n_output_nodes, outputs));
+
+        for (uint32_t i = 0; i < ninputs; i++) {
+            status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
+        }
+        for (uint32_t i = 0; i < noutputs; i++) {
+            status = ort->AllocatorFree(global_allocator, (void *)output_names[i]);
+        }
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             if (nbatches > 1) {
