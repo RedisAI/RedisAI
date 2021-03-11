@@ -6,7 +6,7 @@ ARG OS=debian:buster
 FROM ${OS}
 
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
-ARG ONNXRUNTIME_VER=1.6.0
+ARG ONNXRUNTIME_VER=1.7.1
 ARG ARCH=x64
 
 RUN apt-get -qq update
@@ -24,7 +24,7 @@ RUN apt-get install -y locales && \
 
 WORKDIR /build
 
-ARG BUILDTYPE=RelWithDebInfo
+ARG BUILDTYPE=MinSizeRel
 
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 

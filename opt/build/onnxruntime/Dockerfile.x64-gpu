@@ -4,7 +4,7 @@ ARG CUDA_VER=11.0-cudnn8
 FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
 
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
-ARG ONNXRUNTIME_VER=1.6.0
+ARG ONNXRUNTIME_VER=1.7.1
 ARG ARCH=x64-gpu
 
 RUN apt-get -qq update
@@ -40,4 +40,4 @@ RUN ./build.sh ${BUILDARGS} --update --build --use_cuda --cudnn_home /usr/local/
 
 ADD ./pack.sh /build/
 WORKDIR /build
-RUN /pack.sh ${ONNXRUNTIME_VER} ${ARCH}
+RUN ./pack.sh ${ONNXRUNTIME_VER} ${ARCH}
