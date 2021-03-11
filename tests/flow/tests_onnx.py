@@ -554,15 +554,11 @@ def test_onnx_use_custom_allocator_with_GPU(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 5)
 
     # Make sure that allocator is not used for running and freeing the GPU model.
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
     con.execute_command('AI.MODELRUN', 'm_gpu{1}', 'INPUTS', 'a{1}', 'OUTPUTS', 'b{1}')
     values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
-    argmax = max(range(len(values)), key=lambda i: values[i])
-    env.assertEqual(argmax, 1)
-    con.execute_command('AI.MODELDEL', 'm{1}')
+    env.assertEqual(values, [b'1', b'4', b'9', b'16', b'25', b'36'])
+    con.execute_command('AI.MODELDEL', 'm_gpu{1}')
     env.assertFalse(con.execute_command('EXISTS', 'm_gpu{1}'))
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
