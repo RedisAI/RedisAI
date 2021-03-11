@@ -6,6 +6,17 @@
 #include "model.h"
 
 #include "tensorflow/c/c_api.h"
+#include "tensorflow/c/eager/c_api.h"
+#include "tensorflow/c/eager/c_api_experimental.h"
+
+#define RAI_TF_FN_NAME "rai_tf_forward"
+
+TF_CAPI_EXPORT extern void *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status);
+
+TF_CAPI_EXPORT extern TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status,
+                                                             TFE_Context *ctx);
+
+TF_CAPI_EXPORT extern void TFE_CallDLManagedTensorDeleter(void *dlm_ptr);
 
 int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
@@ -17,199 +28,277 @@ int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *)) {
     return REDISMODULE_OK;
 }
 
-TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
+struct TFDLManagedTensorCtx {
+    TFE_TensorHandle *reference;
+    int64_t ndim;
+    int64_t *shape;
+    int64_t *strides;
+    DLManagedTensor tensor;
+};
+typedef struct TFDLManagedTensorCtx TFDLManagedTensorCtx;
 
-    if (dtype.code == kDLFloat) {
-        switch (dtype.bits) {
-        case 32:
-            return TF_FLOAT;
-            break;
-        case 64:
-            return TF_DOUBLE;
-            break;
-        default:
-            return 0;
-        }
-    } else if (dtype.code == kDLInt) {
-        switch (dtype.bits) {
-        case 8:
-            return TF_INT8;
-            break;
-        case 16:
-            return TF_INT16;
-            break;
-        case 32:
-            return TF_INT32;
-            break;
-        case 64:
-            return TF_INT64;
-            break;
-        default:
-            return 0;
-        }
-    } else if (dtype.code == kDLUInt) {
-        switch (dtype.bits) {
-        case 8:
-            return TF_UINT8;
-            break;
-        case 16:
-            return TF_UINT16;
-            break;
-        default:
-            return 0;
-        }
+TFDLManagedTensorCtx *TFDLManagedTensorCtx_Create(TFE_TensorHandle *h, TF_Status *status) {
+    TFDLManagedTensorCtx *ctx = RedisModule_Alloc(sizeof(TFDLManagedTensorCtx));
+    ctx->reference = h;
+    ctx->ndim = TFE_TensorHandleNumDims(h, status);
+    ctx->shape = RedisModule_Calloc(ctx->ndim, sizeof(int64_t));
+    ctx->strides = RedisModule_Calloc(ctx->ndim, sizeof(int64_t));
+    for (int i = 0; i < ctx->ndim; i++) {
+        ctx->shape[i] = TFE_TensorHandleDim(h, i, status);
+        ctx->strides[i] = 1;
     }
-    return 0;
+    for (int i = ctx->ndim - 2; i >= 0; i--) {
+        ctx->strides[i] = ctx->shape[i + 1] * ctx->strides[i + 1];
+    }
+    return ctx;
 }
 
-DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
-    switch (dtype) {
+void TFDLManagedTensorCtx_Free(TFDLManagedTensorCtx *ctx) {
+    RedisModule_Free(ctx->shape);
+    RedisModule_Free(ctx->strides);
+    RedisModule_Free(ctx);
+}
+
+void DLManagedTensorDeleter(DLManagedTensor *arg) {
+    TFDLManagedTensorCtx *owner = (TFDLManagedTensorCtx *)(arg->manager_ctx);
+    TFE_DeleteTensorHandle(owner->reference);
+    TFDLManagedTensorCtx_Free(owner);
+}
+
+DLDataType GetDLDataType(TF_DataType data_type, TF_Status *status) {
+    DLDataType dtype;
+    dtype.lanes = 1;
+    dtype.bits = TF_DataTypeSize(data_type) * 8;
+    switch (data_type) {
+    case TF_HALF:
     case TF_FLOAT:
-        return (DLDataType){.code = kDLFloat, .bits = 32, .lanes = 1};
     case TF_DOUBLE:
-        return (DLDataType){.code = kDLFloat, .bits = 64, .lanes = 1};
+        dtype.code = kDLFloat;
+        break;
     case TF_INT8:
-        return (DLDataType){.code = kDLInt, .bits = 8, .lanes = 1};
     case TF_INT16:
-        return (DLDataType){.code = kDLInt, .bits = 16, .lanes = 1};
     case TF_INT32:
-        return (DLDataType){.code = kDLInt, .bits = 32, .lanes = 1};
     case TF_INT64:
-        return (DLDataType){.code = kDLInt, .bits = 64, .lanes = 1};
+        dtype.code = kDLInt;
+        break;
+    case TF_BOOL:
     case TF_UINT8:
-        return (DLDataType){.code = kDLUInt, .bits = 8, .lanes = 1};
     case TF_UINT16:
-        return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
+    case TF_UINT32:
+    case TF_UINT64:
+        dtype.code = kDLUInt;
+        break;
+    case TF_BFLOAT16:
+        dtype.code = kDLBfloat;
+        break;
     default:
-        return (DLDataType){.bits = 0};
+        //     err data_type  " is not supported by dlpack");
+        break;
     }
-    return (DLDataType){.bits = 0};
+    return dtype;
 }
 
-RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
-                                         long long batch_size) {
-    RAI_Tensor *ret = RAI_TensorNew();
+DLDevice GetDLDevice(TFE_TensorHandle *h, TF_Status *status) {
+    DLDevice device;
+    const char *device_name = TFE_TensorHandleBackingDeviceName(h, status);
 
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
-
-    const size_t ndims = TF_NumDims(tensor);
-
-    int64_t total_batch_size = TF_Dim(tensor, 0);
-    total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
-
-    int64_t *shape = RedisModule_Calloc(ndims, sizeof(*shape));
-    int64_t *strides = RedisModule_Calloc(ndims, sizeof(*strides));
-    for (int64_t i = 0; i < ndims; ++i) {
-        shape[i] = TF_Dim(tensor, i);
-        strides[i] = 1;
-    }
-    if (batch_size != -1) {
-        shape[0] = batch_size;
+    char device_type[64];
+    int device_id = 0;
+    if (strncasecmp(device_name, "/device:", 8) == 0) {
+        strncpy(device_type, device_name + 8, 3);
+        if (strlen(device_name) > 8 + 4) {
+            device_id = atoi(device_name + 8 + 4);
+        }
     } else {
-        batch_size = total_batch_size;
+        strncpy(device_type, device_name, 3);
+        if (strlen(device_name) > 4) {
+            device_id = atoi(device_name + 4);
+        }
     }
-    for (int64_t i = ndims - 2; i >= 0; --i) {
-        strides[i] *= strides[i + 1] * shape[i + 1];
+
+    device.device_id = device_id;
+    if (strcasecmp(device_type, "CPU") == 0) {
+        device.device_type = kDLCPU;
+    } else if (strcasecmp(device_type, "GPU") == 0) {
+        device.device_type = kDLGPU;
+    } else {
+        // TODO err "Unsupported Device Type for dlpack"
     }
 
-    const size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
-
-    // FIXME: In TF, RunSession allocates memory for output tensors
-    // This means that we either memcpy the tensor data and let
-    // Redis be responsible for the memory, or we reuse the TF
-    // allocated memory, which might not be optimal down the road
-    // Note: on YOLO this has no impact on perf
-#ifdef RAI_COPY_RUN_OUTPUT
-    const size_t len = sample_bytesize * batch_size;
-    char *data = RedisModule_Calloc(len, sizeof(*data));
-    memcpy(data, TF_TensorData(tensor) + sample_bytesize * batch_offset, len);
-#endif
-
-    // TODO: use manager_ctx to ensure TF tensor doesn't get deallocated
-    // This applies to outputs
-
-    ret->tensor = (DLManagedTensor){
-        .dl_tensor = (DLTensor){.device = device,
-#ifdef RAI_COPY_RUN_OUTPUT
-                                .data = data,
-#else
-                                .data = TF_TensorData(tensor),
-#endif
-                                .ndim = ndims,
-                                .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
-                                .shape = shape,
-                                .strides = strides,
-                                .byte_offset = 0},
-        .manager_ctx = NULL,
-        .deleter = NULL};
-
-    return ret;
+    return device;
 }
 
-void RAI_TFDeallocator(void *data, size_t len, void *arg) {
-    // printf("DEALLOCATOR CALLED\n");
-    // do nothing, memory is managed by Redis
+int DeviceNameFromDLContext(const DLDevice *device, char device_name[64]) {
+    switch (device->device_type) {
+    case kDLCPU:
+        strcpy(device_name, "CPU:0");
+        return 0;
+    case kDLGPU:
+        sprintf(device_name, "GPU:%d", device->device_id);
+        return 0;
+    }
+    return 1;
 }
 
-TF_Tensor *RAI_TFTensorFromTensor(RAI_Tensor *t) {
-#ifdef RAI_COPY_RUN_INPUT
-    TF_Tensor *out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-                                       t->tensor.dl_tensor.shape, t->tensor.dl_tensor.ndim,
-                                       RAI_TensorByteSize(t));
-    memcpy(TF_TensorData(out), t->tensor.dl_tensor.data, TF_TensorByteSize(out));
-    return out;
-#else
-    return TF_NewTensor(RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-                        t->tensor.dl_tensor.shape, t->tensor.dl_tensor.ndim,
-                        t->tensor.dl_tensor.data, RAI_TensorByteSize(t), &RAI_TFDeallocator, NULL);
-#endif /* RAI_COPY_RUN_INPUT */
+int TFDataTypeFromDLDataType(const DLDataType *dtype, TF_DataType *tf_dtype) {
+    switch (dtype->code) {
+    case kDLUInt:
+        switch (dtype->bits) {
+        case 8:
+            *tf_dtype = TF_UINT8;
+            return 0;
+        case 16:
+            *tf_dtype = TF_UINT16;
+            return 0;
+        case 32:
+            *tf_dtype = TF_UINT32;
+            return 0;
+        case 64:
+            *tf_dtype = TF_UINT64;
+            return 0;
+        default:
+            return 1;
+        }
+        return 0;
+    case kDLInt:
+        switch (dtype->bits) {
+        case 8:
+            *tf_dtype = TF_INT8;
+            return 0;
+        case 16:
+            *tf_dtype = TF_INT16;
+            return 0;
+        case 32:
+            *tf_dtype = TF_INT32;
+            return 0;
+        case 64:
+            *tf_dtype = TF_INT64;
+            return 0;
+        default:
+            return 1;
+        }
+        return 1;
+    case kDLFloat:
+        switch (dtype->bits) {
+        case 16:
+            *tf_dtype = TF_HALF;
+            return 0;
+        case 32:
+            *tf_dtype = TF_FLOAT;
+            return 0;
+        case 64:
+            *tf_dtype = TF_DOUBLE;
+            return 0;
+        default:
+            return 1;
+        }
+        break;
+    case kDLBfloat:
+        switch (dtype->bits) {
+        case 16:
+            *tf_dtype = TF_BFLOAT16;
+            return 0;
+        default:
+            return 1;
+        }
+        break;
+    default:
+        return 1;
+    }
 }
 
-TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **ts, size_t count) {
+void DeallocatorWrapperFunc(void *data, size_t len, void *dlmt_vptr) {
+    TFE_CallDLManagedTensorDeleter(dlmt_vptr);
+}
 
-    if (count == 0) {
+bool IsValidStrideCompactRowMajorData(int64_t *shape_arr, int64_t *stride_arr, int ndim) {
+    if (ndim >= 1 && stride_arr[ndim - 1] != 1) {
+        return false;
+    }
+    for (int i = ndim - 2; i >= 0; --i) {
+        if (stride_arr[i] != shape_arr[i + 1] * stride_arr[i + 1]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void TFE_CallDLManagedTensorDeleter(void *dlm_ptr) {
+    DLManagedTensor *dlMTensor = (DLManagedTensor *)dlm_ptr;
+    if (dlMTensor->deleter != NULL) {
+        dlMTensor->deleter(dlMTensor);
+    }
+}
+
+void *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status) {
+    DLDevice tf_dlm_device = GetDLDevice(h, status);
+    if (TF_GetCode(status) != TF_OK) {
         return NULL;
     }
 
-    size_t batch_size = 0;
-    size_t batch_byte_size = 0;
-
-    for (size_t i = 0; i < count; i++) {
-        batch_size += ts[i]->tensor.dl_tensor.shape[0];
-        batch_byte_size += RAI_TensorByteSize(ts[i]);
+    void *tf_dlm_data = TFE_TensorHandleDevicePointer(h, status);
+    if (TF_GetCode(status) != TF_OK) {
+        return NULL;
     }
 
-    RAI_Tensor *t0 = ts[0];
+    TF_DataType data_type = TFE_TensorHandleDataType(h);
 
-    const int ndim = t0->tensor.dl_tensor.ndim;
-    int64_t batched_shape[ndim];
-
-    for (size_t i = 0; i < ndim; i++) {
-        batched_shape[i] = t0->tensor.dl_tensor.shape[i];
+    DLDataType tf_dlm_type = GetDLDataType(data_type, status);
+    if (TF_GetCode(status) != TF_OK) {
+        return NULL;
     }
 
-    batched_shape[0] = batch_size;
+    TFDLManagedTensorCtx *tf_dlm_tensor_ctx = TFDLManagedTensorCtx_Create(h, status);
 
-    TF_Tensor *out = NULL;
+    DLManagedTensor *dlm_tensor = &tf_dlm_tensor_ctx->tensor;
+    dlm_tensor->manager_ctx = tf_dlm_tensor_ctx;
+    dlm_tensor->deleter = &DLManagedTensorDeleter;
+    dlm_tensor->dl_tensor.device = tf_dlm_device;
+    dlm_tensor->dl_tensor.ndim = tf_dlm_tensor_ctx->ndim;
+    dlm_tensor->dl_tensor.data = tf_dlm_data;
+    dlm_tensor->dl_tensor.dtype = tf_dlm_type;
+    dlm_tensor->dl_tensor.shape = tf_dlm_tensor_ctx->shape;
+    dlm_tensor->dl_tensor.strides = tf_dlm_tensor_ctx->strides;
+    dlm_tensor->dl_tensor.byte_offset = 0;
 
-    if (count > 1) {
-        out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(t0->tensor.dl_tensor.dtype), batched_shape,
-                                t0->tensor.dl_tensor.ndim, batch_byte_size);
+    return (void *)dlm_tensor;
+}
 
-        size_t offset = 0;
-        for (size_t i = 0; i < count; i++) {
-            size_t tbytesize = RAI_TensorByteSize(ts[i]);
-            memcpy(TF_TensorData(out) + offset, ts[i]->tensor.dl_tensor.data, tbytesize);
-            offset += tbytesize;
-        }
-    } else {
-        out = TF_NewTensor(RAI_GetTFDataTypeFromDL(t0->tensor.dl_tensor.dtype),
-                           t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
-                           t0->tensor.dl_tensor.data, RAI_TensorByteSize(t0), &RAI_TFDeallocator,
-                           NULL);
+TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context *ctx) {
+    DLManagedTensor *dlmt = (DLManagedTensor *)dlm;
+    DLTensor *dl_tensor = &dlmt->dl_tensor;
+    char device_name[64];
+    int ret = DeviceNameFromDLContext(&dl_tensor->device, device_name);
+    if (ret != 0) {
+        // TODO Unsupported device type
+        return NULL;
+    }
+    TF_DataType dtype;
+    ret = TFDataTypeFromDLDataType(&dl_tensor->dtype, &dtype);
+    if (ret != 0) {
+        // TODO Unsupported data type
+        return NULL;
+    }
+    int num_dims = dl_tensor->ndim;
+    const int64_t *dims = dl_tensor->shape;
+    void *data = dl_tensor->data;
+
+    size_t total_bytes = dl_tensor->dtype.bits / 8;
+    for (int i = 0; i < num_dims; i++) {
+        total_bytes *= dims[i];
     }
 
-    return out;
+    if (dl_tensor->strides != NULL &&
+        !IsValidStrideCompactRowMajorData(dl_tensor->shape, dl_tensor->strides, num_dims)) {
+        // TODO err "Invalid strides array from DLPack"
+        return NULL;
+    }
+
+    TFE_TensorHandle *handle =
+        TFE_NewTensorHandleFromDeviceMemory(ctx, device_name, dtype, dims, num_dims, data,
+                                            total_bytes, &DeallocatorWrapperFunc, dlmt, status);
+
+    return handle;
 }
 
 RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
@@ -223,19 +312,15 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
         RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
     }
 
-    TF_Graph *model = TF_NewGraph();
+    TF_Graph *graph = TF_NewGraph();
+    TF_ImportGraphDefOptions *options = TF_NewImportGraphDefOptions();
     TF_Status *status = TF_NewStatus();
     TF_Buffer *tfbuffer = TF_NewBuffer();
-    TF_ImportGraphDefOptions *options = TF_NewImportGraphDefOptions();
-    TF_Status *optionsStatus = NULL;
-    TF_SessionOptions *sessionOptions = NULL;
-    TF_Status *sessionStatus = NULL;
-    TF_Session *session = NULL;
 
     tfbuffer->length = modellen;
     tfbuffer->data = modeldef;
 
-    TF_GraphImportGraphDef(model, tfbuffer, options, status);
+    TF_GraphImportGraphDef(graph, tfbuffer, options, status);
 
     if (TF_GetCode(status) != TF_OK) {
         char *errorMessage = RedisModule_Strdup(TF_Message(status));
@@ -245,26 +330,26 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     }
 
     for (size_t i = 0; i < ninputs; ++i) {
-        TF_Operation *oper = TF_GraphOperationByName(model, inputs[i]);
+        TF_Operation *oper = TF_GraphOperationByName(graph, inputs[i]);
         if (oper == NULL || strcmp(TF_OperationOpType(oper), "Placeholder") != 0) {
             size_t len = strlen(inputs[i]);
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Input node named \"%s\" not found in TF graph.", inputs[i]);
             RAI_SetError(error, RAI_EMODELIMPORT, msg);
             RedisModule_Free(msg);
-            goto cleanup;
+            return NULL;
         }
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
-        TF_Operation *oper = TF_GraphOperationByName(model, outputs[i]);
+        TF_Operation *oper = TF_GraphOperationByName(graph, outputs[i]);
         if (oper == NULL) {
             size_t len = strlen(outputs[i]);
             char *msg = RedisModule_Calloc(60 + len, sizeof(*msg));
             sprintf(msg, "ERR Output node named \"%s\" not found in TF graph", outputs[i]);
             RAI_SetError(error, RAI_EMODELIMPORT, msg);
             RedisModule_Free(msg);
-            goto cleanup;
+            return NULL;
         }
     }
 
@@ -272,11 +357,46 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     options = NULL;
     TF_DeleteBuffer(tfbuffer);
     tfbuffer = NULL;
-    TF_DeleteStatus(status);
-    status = NULL;
 
-    optionsStatus = TF_NewStatus();
-    sessionOptions = TF_NewSessionOptions();
+    TF_Output tf_inputs[ninputs];
+    TF_Output tf_outputs[noutputs];
+
+    for (size_t i = 0; i < ninputs; ++i) {
+        TF_Output port;
+        port.oper = TF_GraphOperationByName(graph, inputs[i]);
+        port.index = 0;
+        if (port.oper == NULL) {
+            return NULL;
+        }
+        tf_inputs[i] = port;
+    }
+
+    for (size_t i = 0; i < noutputs; ++i) {
+        TF_Output port;
+        port.oper = TF_GraphOperationByName(graph, outputs[i]);
+        port.index = 0;
+        if (port.oper == NULL) {
+            return NULL;
+        }
+        tf_outputs[i] = port;
+    }
+
+    TF_Function *function =
+        TF_GraphToFunction(graph,                // fn_body
+                           RAI_TF_FN_NAME, 0,    // fn_name, append_hash_to_fn_name,
+                           -1, NULL,             // num_opers, opers
+                           ninputs, tf_inputs,   // ninputs, inputs,
+                           noutputs, tf_outputs, // noutputs, outputs
+                           outputs,              // output_names,
+                           NULL,                 // opts
+                           NULL,                 // description
+                           status                // status
+        );
+
+    if (TF_GetCode(status) != TF_OK) {
+        RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
+        goto cleanup;
+    }
 
     // For setting config options in session from the C API see:
     // https://github.com/tensorflow/tensorflow/issues/13853
@@ -286,33 +406,33 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     // result = list(map(hex, serialized))
     // print(result)
 
+    TFE_ContextOptions *context_opts = TFE_NewContextOptions();
+
     if (device == RAI_DEVICE_CPU) {
         // Set number of GPU to 0 with
         // config.device_count = {'GPU': 0}
         uint8_t config[] = {0x0a, 0x07, 0x0a, 0x03, 0x47, 0x50, 0x55, 0x10, 0x00};
-        TF_SetConfig(sessionOptions, (void *)config, sizeof(config), optionsStatus);
+        TFE_ContextOptionsSetConfig(context_opts, (void *)config, sizeof(config), status);
 
-        if (TF_GetCode(optionsStatus) != TF_OK) {
-            RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
+        if (TF_GetCode(status) != TF_OK) {
+            RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
             goto cleanup;
         }
 
         if (opts.backends_intra_op_parallelism > 0) {
             uint8_t proto[] = {0x10, (uint8_t)opts.backends_intra_op_parallelism};
-            TF_SetConfig(sessionOptions, proto, sizeof(proto), optionsStatus);
-            if (TF_GetCode(optionsStatus) != TF_OK) {
-                RAI_SetError(error, RAI_EMODELCONFIGURE,
-                             RedisModule_Strdup(TF_Message(optionsStatus)));
+            TFE_ContextOptionsSetConfig(context_opts, proto, sizeof(proto), status);
+            if (TF_GetCode(status) != TF_OK) {
+                RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
                 goto cleanup;
             }
         }
 
         if (opts.backends_inter_op_parallelism > 0) {
             uint8_t proto1[] = {0x28, (uint8_t)opts.backends_inter_op_parallelism};
-            TF_SetConfig(sessionOptions, proto1, sizeof(proto1), optionsStatus);
-            if (TF_GetCode(optionsStatus) != TF_OK) {
-                RAI_SetError(error, RAI_EMODELCONFIGURE,
-                             RedisModule_Strdup(TF_Message(optionsStatus)));
+            TFE_ContextOptionsSetConfig(context_opts, proto1, sizeof(proto1), status);
+            if (TF_GetCode(status) != TF_OK) {
+                RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
                 goto cleanup;
             }
         }
@@ -321,33 +441,39 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
             // Set
             // config.gpu_options.allow_growth = True
             uint8_t config[4] = {0x32, 0x02, 0x20, 0x01};
-            TF_SetConfig(sessionOptions, (void *)config, 4, optionsStatus);
+            TFE_ContextOptionsSetConfig(context_opts, (void *)config, 4, status);
         } else {
             // Set
             // config.gpu_options.allow_growth = True
             // config.gpu_options.visible_device_list = '<deviceid>'
             uint8_t config[7] = {0x32, 0x05, 0x20, 0x01, 0x2a, 0x01, 0x30};
             config[6] += (uint8_t)deviceid;
-            TF_SetConfig(sessionOptions, (void *)config, 7, optionsStatus);
+            TFE_ContextOptionsSetConfig(context_opts, (void *)config, 7, status);
         }
     }
 
-    if (TF_GetCode(optionsStatus) != TF_OK) {
-        RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(optionsStatus)));
+    TFE_ContextOptionsSetAsync(context_opts, 0);
+    TFE_ContextOptionsSetDevicePlacementPolicy(context_opts, TFE_DEVICE_PLACEMENT_EXPLICIT);
+
+    TFE_Context *context = TFE_NewContext(context_opts, status);
+    if (TF_GetCode(status) != TF_OK) {
+        RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
         goto cleanup;
     }
-    TF_DeleteStatus(optionsStatus);
-    optionsStatus = NULL;
 
-    sessionStatus = TF_NewStatus();
-    session = TF_NewSession(model, sessionOptions, sessionStatus);
+    TFE_ContextAddFunction(context, function, status);
+    if (TF_GetCode(status) != TF_OK) {
+        RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
+        goto cleanup;
+    }
 
-    TF_Status *deviceListStatus = TF_NewStatus();
-    TF_DeviceList *deviceList = TF_SessionListDevices(session, deviceListStatus);
+    TFE_DeleteContextOptions(context_opts);
+
+    TF_DeviceList *deviceList = TFE_ContextListDevices(context, status);
     const int num_devices = TF_DeviceListCount(deviceList);
     int foundNoGPU = 1;
     for (int i = 0; i < num_devices; ++i) {
-        const char *device_type = TF_DeviceListType(deviceList, i, deviceListStatus);
+        const char *device_type = TF_DeviceListType(deviceList, i, status);
         int cmp = strcmp(device_type, "GPU");
         if (cmp == 0) {
             foundNoGPU = 0;
@@ -357,19 +483,17 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     if (foundNoGPU == 1 && device == RAI_DEVICE_GPU) {
         RAI_SetError(error, RAI_EMODELCREATE, "ERR GPU requested but TF couldn't find CUDA");
         TF_DeleteDeviceList(deviceList);
-        TF_DeleteStatus(deviceListStatus);
+        TF_DeleteStatus(status);
         goto cleanup;
     }
     TF_DeleteDeviceList(deviceList);
-    TF_DeleteStatus(deviceListStatus);
 
-    if (TF_GetCode(sessionStatus) != TF_OK) {
+    if (TF_GetCode(status) != TF_OK) {
         RAI_SetError(error, RAI_EMODELCREATE, RedisModule_Strdup(TF_Message(status)));
         goto cleanup;
     }
 
-    TF_DeleteSessionOptions(sessionOptions);
-    TF_DeleteStatus(sessionStatus);
+    TF_DeleteStatus(status);
 
     char **inputs_ = array_new(char *, ninputs);
     for (long long i = 0; i < ninputs; i++) {
@@ -385,8 +509,8 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     memcpy(buffer, modeldef, modellen);
 
     RAI_Model *ret = RedisModule_Calloc(1, sizeof(*ret));
-    ret->model = model;
-    ret->session = session;
+    ret->model = graph;
+    ret->session = context;
     ret->backend = backend;
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->ninputs = ninputs;
@@ -401,36 +525,19 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
     return ret;
 
 cleanup:
-    TF_DeleteGraph(model);
+    TF_DeleteGraph(graph);
     if (options)
         TF_DeleteImportGraphDefOptions(options);
     if (tfbuffer)
         TF_DeleteBuffer(tfbuffer);
     if (status)
         TF_DeleteStatus(status);
-    if (sessionOptions)
-        TF_DeleteSessionOptions(sessionOptions);
-    if (sessionStatus)
-        TF_DeleteStatus(sessionStatus);
     return NULL;
 }
 
 void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error) {
-    TF_Status *status = TF_NewStatus();
-    TF_CloseSession(model->session, status);
-
-    if (TF_GetCode(status) != TF_OK) {
-        RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
-        return;
-    }
-
-    TF_DeleteSession(model->session, status);
+    TFE_DeleteContext(model->session);
     model->session = NULL;
-
-    if (TF_GetCode(status) != TF_OK) {
-        RAI_SetError(error, RAI_EMODELFREE, RedisModule_Strdup(TF_Message(status)));
-        return;
-    }
 
     TF_DeleteGraph(model->model);
     model->model = NULL;
@@ -456,8 +563,6 @@ void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error) {
     if (model->data) {
         RedisModule_Free(model->data);
     }
-
-    TF_DeleteStatus(status);
 }
 
 int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
@@ -471,10 +576,10 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     const size_t ninputs = array_len(mctxs[0]->inputs);
     const size_t noutputs = array_len(mctxs[0]->outputs);
-    TF_Tensor *inputTensorsValues[ninputs];
-    TF_Output inputs[ninputs];
-    TF_Tensor *outputTensorsValues[noutputs];
-    TF_Output outputs[noutputs];
+    TFE_TensorHandle *inputTensorsHandles[ninputs];
+    TFE_TensorHandle *outputTensorsHandles[noutputs];
+    TFE_TensorHandle *deviceInputTensorsHandles[ninputs];
+    TFE_TensorHandle *deviceOutputTensorsHandles[noutputs];
 
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
@@ -490,38 +595,84 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
     }
 
+    char tf_devicestr[256];
+    int devicestr_len = strlen(mctxs[0]->model->devicestr);
+    if (strncasecmp(mctxs[0]->model->devicestr, "CPU", 3) == 0) {
+        sprintf(tf_devicestr, "/device:CPU:0");
+    } else if (devicestr_len == 3) {
+        sprintf(tf_devicestr, "/device:%s:0", mctxs[0]->model->devicestr);
+    } else {
+        sprintf(tf_devicestr, "/device:%s", mctxs[0]->model->devicestr);
+    }
+
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_Tensor *batched_input_tensors[nbatches];
 
         for (size_t b = 0; b < nbatches; ++b) {
             batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
         }
-        inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
-        TF_Output port;
-        port.oper = TF_GraphOperationByName(mctxs[0]->model->model, mctxs[0]->inputs[i].name);
-        port.index = 0;
-        if (port.oper == NULL) {
+
+        if (nbatches > 1) {
+            RAI_Tensor *batched_tensor =
+                RAI_TensorCreateByConcatenatingTensors(batched_input_tensors, nbatches);
+            inputTensorsHandles[i] =
+                TFE_HandleFromDLPack(batched_tensor, status, mctxs[0]->model->session);
+        } else {
+            inputTensorsHandles[i] =
+                TFE_HandleFromDLPack(batched_input_tensors[0], status, mctxs[0]->model->session);
+        }
+
+        if (TF_GetCode(status) != TF_OK) {
+            char *errorMessage = RedisModule_Strdup(TF_Message(status));
+            RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+            TF_DeleteStatus(status);
+            RedisModule_Free(errorMessage);
             return 1;
         }
-        inputs[i] = port;
-    }
 
-    for (size_t i = 0; i < noutputs; ++i) {
-        TF_Output port;
-        port.oper = TF_GraphOperationByName(mctxs[0]->model->model, mctxs[0]->outputs[i].name);
-        port.index = 0;
-        if (port.oper == NULL) {
+        deviceInputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
+            inputTensorsHandles[i], mctxs[0]->model->session, tf_devicestr, status);
+
+        if (TF_GetCode(status) != TF_OK) {
+            char *errorMessage = RedisModule_Strdup(TF_Message(status));
+            RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+            TF_DeleteStatus(status);
+            RedisModule_Free(errorMessage);
             return 1;
         }
-        outputs[i] = port;
     }
 
-    TF_SessionRun(mctxs[0]->model->session, NULL /* run_options */, inputs, inputTensorsValues,
-                  ninputs, outputs, outputTensorsValues, noutputs, NULL /* target_opers */,
-                  0 /* ntargets */, NULL /* run_Metadata */, status);
+    TFE_Op *fn_op = TFE_NewOp(mctxs[0]->model->session, RAI_TF_FN_NAME, status);
+    if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        TF_DeleteStatus(status);
+        RedisModule_Free(errorMessage);
+        return 1;
+    }
+
+    TFE_OpAddInputList(fn_op, deviceInputTensorsHandles, ninputs, status);
+    if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        TF_DeleteStatus(status);
+        RedisModule_Free(errorMessage);
+        return 1;
+    }
+
+    int noutputs_ = noutputs;
+    TFE_Execute(fn_op, deviceOutputTensorsHandles, &noutputs_, status);
+    if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        TF_DeleteStatus(status);
+        RedisModule_Free(errorMessage);
+        return 1;
+    }
 
     for (size_t i = 0; i < ninputs; ++i) {
-        TF_DeleteTensor(inputTensorsValues[i]);
+        TFE_DeleteTensorHandle(inputTensorsHandles[i]);
+        TFE_DeleteTensorHandle(deviceInputTensorsHandles[i]);
     }
 
     if (TF_GetCode(status) != TF_OK) {
@@ -533,12 +684,26 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
+        outputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
+            deviceOutputTensorsHandles[i], mctxs[0]->model->session, "/device:CPU:0", status);
+
+        RAI_Tensor *outputTensor =
+            RAI_TensorCreateFromDLTensor(TFE_HandleToDLPack(outputTensorsHandles[i], status));
+
+        if (TF_GetCode(status) != TF_OK) {
+            char *errorMessage = RedisModule_Strdup(TF_Message(status));
+            RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+            TF_DeleteStatus(status);
+            RedisModule_Free(errorMessage);
+            return 1;
+        }
+
         if (nbatches > 1) {
-            if (TF_NumDims(outputTensorsValues[i]) == 0) {
+            if (RAI_TensorNumDims(outputTensor) == 0) {
                 continue;
             }
-            if (TF_Dim(outputTensorsValues[i], 0) != total_batch_size) {
-                TF_DeleteTensor(outputTensorsValues[i]);
+            if (RAI_TensorDim(outputTensor, 0) != total_batch_size) {
+                RAI_TensorFree(outputTensor);
                 TF_DeleteStatus(status);
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
@@ -546,14 +711,14 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             }
 
             for (size_t b = 0; b < nbatches; b++) {
-                mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(
-                    outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
+                mctxs[b]->outputs[i].tensor =
+                    RAI_TensorCreateBySlicingTensor(outputTensor, batch_offsets[b], batch_sizes[b]);
             }
         } else {
-            mctxs[0]->outputs[i].tensor =
-                RAI_TensorCreateFromTFTensor(outputTensorsValues[i], 0, -1);
+            mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(outputTensor);
         }
-        TF_DeleteTensor(outputTensorsValues[i]);
+        RAI_TensorFree(outputTensor);
+        TFE_DeleteTensorHandle(deviceOutputTensorsHandles[i]);
     }
 
     TF_DeleteStatus(status);
