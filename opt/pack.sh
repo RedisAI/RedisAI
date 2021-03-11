@@ -104,7 +104,7 @@ pack_ramp() {
 	if [[ -z $VARIANT ]]; then
 		local rampfile=ramp.yml
 	else
-		local rampfile=ramp$VARIANT.yml
+		local rampfile=ramp${VARIANT}.yml
 	fi
 
 	python3 $READIES/xtx \
