@@ -451,10 +451,27 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
+    backend.get_memory_info =
+        (unsigned long long (*)(void))(unsigned long)dlsym(handle, "RAI_GetMemoryInfoORT");
+    if (backend.get_memory_info == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetMemoryInfoORT. ONNX backend "
+                        "not loaded from %s",
+                        path);
+    }
+    backend.get_memory_access_num =
+        (unsigned long long (*)(void))(unsigned long)dlsym(handle, "RAI_GetMemoryAccessORT");
+    if (backend.get_memory_access_num == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export RAI_GetMemoryAccessORT. ONNX backend "
+                        "not loaded from %s",
+                        path);
+    }
+
     RAI_backends.onnx = backend;
-
     RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);
-
     return REDISMODULE_OK;
 }
 

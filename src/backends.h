@@ -77,6 +77,11 @@ typedef struct RAI_LoadedBackend {
     // Returns the backend version.
     const char *(*get_version)(void);
 
+    // Returns the backend's memory usage for INFO report
+    unsigned long long (*get_memory_info)(void);
+
+    // Returns the number of times that Redis accessed backend allocator.
+    unsigned long long (*get_memory_access_num)(void);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {
