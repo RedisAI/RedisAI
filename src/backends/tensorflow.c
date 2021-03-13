@@ -11,13 +11,6 @@
 
 #define RAI_TF_FN_NAME "rai_tf_forward"
 
-TF_CAPI_EXPORT extern void *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status);
-
-TF_CAPI_EXPORT extern TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status,
-                                                             TFE_Context *ctx);
-
-TF_CAPI_EXPORT extern void TFE_CallDLManagedTensorDeleter(void *dlm_ptr);
-
 int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
@@ -65,7 +58,7 @@ void DLManagedTensorDeleter(DLManagedTensor *arg) {
     TFDLManagedTensorCtx_Free(owner);
 }
 
-DLDataType GetDLDataType(TF_DataType data_type, TF_Status *status) {
+DLDataType GetDLDataType(TF_DataType data_type, TF_Status *status, RAI_Error *error) {
     DLDataType dtype;
     dtype.lanes = 1;
     dtype.bits = TF_DataTypeSize(data_type) * 8;
@@ -92,37 +85,52 @@ DLDataType GetDLDataType(TF_DataType data_type, TF_Status *status) {
         dtype.code = kDLBfloat;
         break;
     default:
-        //     err data_type  " is not supported by dlpack");
+        RAI_SetError(error, RAI_EMODELIMPORT, "Unsupported data type in DLPack");
         break;
     }
     return dtype;
 }
 
-DLDevice GetDLDevice(TFE_TensorHandle *h, TF_Status *status) {
+DLDevice GetDLDevice(TFE_TensorHandle *h, TF_Status *status, RAI_Error *error) {
     DLDevice device;
     const char *device_name = TFE_TensorHandleBackingDeviceName(h, status);
 
-    char device_type[64];
-    int device_id = 0;
-    if (strncasecmp(device_name, "/device:", 8) == 0) {
-        strncpy(device_type, device_name + 8, 3);
-        if (strlen(device_name) > 8 + 4) {
-            device_id = atoi(device_name + 8 + 4);
-        }
-    } else {
-        strncpy(device_type, device_name, 3);
-        if (strlen(device_name) > 4) {
-            device_id = atoi(device_name + 4);
-        }
+    if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        RedisModule_Free(errorMessage);
+        return device;
     }
 
-    device.device_id = device_id;
+    if (error->code != RAI_OK) {
+        return device;
+    }
+
+    char device_type[5];
+    int device_id = 0;
+    size_t device_len = strlen(device_name);
+    char* device_name_substr = strstr(device_name, "CPU");
+    if (device_name_substr == NULL) {
+        device_name_substr = strstr(device_name, "GPU");
+    }
+    if (device_name_substr == NULL) {
+        RAI_SetError(error, RAI_EMODELRUN, "Unsupported device type for DLPack");
+        return device;
+    }
+    strncpy(device_type, device_name_substr, 3);
+    if (strlen(device_name_substr) > 4) {
+        device_id = atoi(device_name_substr + 4);
+    }
+
     if (strcasecmp(device_type, "CPU") == 0) {
+        device.device_id = 0;
         device.device_type = kDLCPU;
     } else if (strcasecmp(device_type, "GPU") == 0) {
+        device.device_id = device_id;
         device.device_type = kDLGPU;
     } else {
-        // TODO err "Unsupported Device Type for dlpack"
+        RAI_SetError(error, RAI_EMODELRUN, "Unsupported device type for DLPack");
+        return device;
     }
 
     return device;
@@ -132,12 +140,12 @@ int DeviceNameFromDLContext(const DLDevice *device, char device_name[64]) {
     switch (device->device_type) {
     case kDLCPU:
         strcpy(device_name, "CPU:0");
-        return 0;
+        return REDISMODULE_OK;
     case kDLGPU:
         sprintf(device_name, "GPU:%d", device->device_id);
-        return 0;
+        return REDISMODULE_OK;
     }
-    return 1;
+    return REDISMODULE_ERR;
 }
 
 int TFDataTypeFromDLDataType(const DLDataType *dtype, TF_DataType *tf_dtype) {
@@ -146,64 +154,64 @@ int TFDataTypeFromDLDataType(const DLDataType *dtype, TF_DataType *tf_dtype) {
         switch (dtype->bits) {
         case 8:
             *tf_dtype = TF_UINT8;
-            return 0;
+            return REDISMODULE_OK;
         case 16:
             *tf_dtype = TF_UINT16;
-            return 0;
+            return REDISMODULE_OK;
         case 32:
             *tf_dtype = TF_UINT32;
-            return 0;
+            return REDISMODULE_OK;
         case 64:
             *tf_dtype = TF_UINT64;
-            return 0;
+            return REDISMODULE_OK;
         default:
-            return 1;
+            return REDISMODULE_ERR;
         }
-        return 0;
+        break;
     case kDLInt:
         switch (dtype->bits) {
         case 8:
             *tf_dtype = TF_INT8;
-            return 0;
+            return REDISMODULE_OK;
         case 16:
             *tf_dtype = TF_INT16;
-            return 0;
+            return REDISMODULE_OK;
         case 32:
             *tf_dtype = TF_INT32;
-            return 0;
+            return REDISMODULE_OK;
         case 64:
             *tf_dtype = TF_INT64;
-            return 0;
+            return REDISMODULE_OK;
         default:
-            return 1;
+            return REDISMODULE_ERR;
         }
-        return 1;
+        break;
     case kDLFloat:
         switch (dtype->bits) {
         case 16:
             *tf_dtype = TF_HALF;
-            return 0;
+            return REDISMODULE_OK;
         case 32:
             *tf_dtype = TF_FLOAT;
-            return 0;
+            return REDISMODULE_OK;
         case 64:
             *tf_dtype = TF_DOUBLE;
-            return 0;
+            return REDISMODULE_OK;
         default:
-            return 1;
+            return REDISMODULE_ERR;
         }
         break;
     case kDLBfloat:
         switch (dtype->bits) {
         case 16:
             *tf_dtype = TF_BFLOAT16;
-            return 0;
+            return REDISMODULE_OK;
         default:
-            return 1;
+            return REDISMODULE_ERR;
         }
         break;
     default:
-        return 1;
+        return REDISMODULE_ERR;
     }
 }
 
@@ -238,21 +246,37 @@ void TFE_CallDLManagedTensorDeleter(void *dlm_ptr) {
     }
 }
 
-void *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status) {
-    DLDevice tf_dlm_device = GetDLDevice(h, status);
+DLManagedTensor *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status, RAI_Error *error) {
+    DLDevice tf_dlm_device = GetDLDevice(h, status, error);
     if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        RedisModule_Free(errorMessage);
+        return NULL;
+    }
+
+    if (error->code != RAI_OK) {
         return NULL;
     }
 
     void *tf_dlm_data = TFE_TensorHandleDevicePointer(h, status);
     if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        RedisModule_Free(errorMessage);
         return NULL;
     }
 
     TF_DataType data_type = TFE_TensorHandleDataType(h);
 
-    DLDataType tf_dlm_type = GetDLDataType(data_type, status);
+    DLDataType tf_dlm_type = GetDLDataType(data_type, status, error);
     if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        RedisModule_Free(errorMessage);
+        return NULL;
+    }
+    if (error->code != RAI_OK) {
         return NULL;
     }
 
@@ -272,19 +296,19 @@ void *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status) {
     return (void *)dlm_tensor;
 }
 
-TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context *ctx) {
+TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context *ctx, RAI_Error *error) {
     DLManagedTensor *dlmt = (DLManagedTensor *)dlm;
     DLTensor *dl_tensor = &dlmt->dl_tensor;
     char device_name[64];
     int ret = DeviceNameFromDLContext(&dl_tensor->device, device_name);
     if (ret != 0) {
-        // TODO Unsupported device type
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Unsupported device type for TFE");
         return NULL;
     }
     TF_DataType dtype;
     ret = TFDataTypeFromDLDataType(&dl_tensor->dtype, &dtype);
     if (ret != 0) {
-        // TODO Unsupported data type
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Unsupported data type in DLPack conversion to TFE");
         return NULL;
     }
     int num_dims = dl_tensor->ndim;
@@ -298,13 +322,20 @@ TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context
 
     if (dl_tensor->strides != NULL &&
         !IsValidStrideCompactRowMajorData(dl_tensor->shape, dl_tensor->strides, num_dims)) {
-        // TODO err "Invalid strides array from DLPack"
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid strides array from DLPack");
         return NULL;
     }
 
     TFE_TensorHandle *handle =
         TFE_NewTensorHandleFromDeviceMemory(ctx, device_name, dtype, dims, num_dims, data,
                                             total_bytes, &DeallocatorWrapperFunc, dlmt, status);
+
+    if (TF_GetCode(status) != TF_OK) {
+        char *errorMessage = RedisModule_Strdup(TF_Message(status));
+        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
+        RedisModule_Free(errorMessage);
+        return NULL;
+    }
 
     return handle;
 }
@@ -318,6 +349,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     if (!parseDeviceStr(devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELIMPORT, "ERR unsupported device");
+        return NULL;
     }
 
     TF_Graph *graph = TF_NewGraph();
@@ -579,7 +611,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     const size_t nbatches = array_len(mctxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     const size_t ninputs = array_len(mctxs[0]->inputs);
@@ -629,10 +661,10 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             RAI_Tensor *batched_tensor =
                 RAI_TensorCreateByConcatenatingTensors(batched_input_tensors, nbatches);
             inputTensorsHandles[i] =
-                TFE_HandleFromDLPack(batched_tensor, status, mctxs[0]->model->session);
+                TFE_HandleFromDLPack(batched_tensor, status, mctxs[0]->model->session, error);
         } else {
             inputTensorsHandles[i] =
-                TFE_HandleFromDLPack(batched_input_tensors[0], status, mctxs[0]->model->session);
+                TFE_HandleFromDLPack(batched_input_tensors[0], status, mctxs[0]->model->session, error);
         }
 
         if (TF_GetCode(status) != TF_OK) {
@@ -640,7 +672,11 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             RAI_SetError(error, RAI_EMODELRUN, errorMessage);
             TF_DeleteStatus(status);
             RedisModule_Free(errorMessage);
-            return 1;
+            return REDISMODULE_ERR;
+        }
+
+        if (error->code != RAI_OK) {
+            return REDISMODULE_ERR;
         }
 
         if (on_cpu) {
@@ -656,7 +692,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             RAI_SetError(error, RAI_EMODELRUN, errorMessage);
             TF_DeleteStatus(status);
             RedisModule_Free(errorMessage);
-            return 1;
+            return REDISMODULE_ERR;
         }
     }
 
@@ -666,7 +702,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         RAI_SetError(error, RAI_EMODELRUN, errorMessage);
         TF_DeleteStatus(status);
         RedisModule_Free(errorMessage);
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     TFE_OpAddInputList(fn_op, deviceInputTensorsHandles, ninputs, status);
@@ -675,7 +711,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         RAI_SetError(error, RAI_EMODELRUN, errorMessage);
         TF_DeleteStatus(status);
         RedisModule_Free(errorMessage);
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     int noutputs_ = noutputs;
@@ -685,7 +721,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         RAI_SetError(error, RAI_EMODELRUN, errorMessage);
         TF_DeleteStatus(status);
         RedisModule_Free(errorMessage);
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     for (size_t i = 0; i < ninputs; ++i) {
@@ -700,7 +736,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         RAI_SetError(error, RAI_EMODELRUN, errorMessage);
         TF_DeleteStatus(status);
         RedisModule_Free(errorMessage);
-        return 1;
+        return REDISMODULE_ERR;
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
@@ -711,17 +747,22 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             outputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
                 deviceOutputTensorsHandles[i], mctxs[0]->model->session, "/device:CPU:0", status);
         }
-
-        RAI_Tensor *outputTensor =
-            RAI_TensorCreateFromDLTensor(TFE_HandleToDLPack(outputTensorsHandles[i], status));
+        
+        DLManagedTensor *outputDLTensor = TFE_HandleToDLPack(outputTensorsHandles[i], status, error);
 
         if (TF_GetCode(status) != TF_OK) {
             char *errorMessage = RedisModule_Strdup(TF_Message(status));
             RAI_SetError(error, RAI_EMODELRUN, errorMessage);
             TF_DeleteStatus(status);
             RedisModule_Free(errorMessage);
-            return 1;
+            break;
         }
+
+        if (error->code != RAI_OK) {
+            break;
+        }
+
+        RAI_Tensor *outputTensor = RAI_TensorCreateFromDLTensor(outputDLTensor);
 
         if (nbatches > 1) {
             if (RAI_TensorNumDims(outputTensor) == 0) {
@@ -732,7 +773,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                 TF_DeleteStatus(status);
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
-                return 1;
+                return REDISMODULE_ERR;
             }
 
             for (size_t b = 0; b < nbatches; b++) {
@@ -750,7 +791,11 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     TF_DeleteStatus(status);
 
-    return 0;
+    if (error->code != RAI_OK) {
+        return REDISMODULE_ERR;
+    }
+
+    return REDISMODULE_OK;
 }
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {
@@ -769,7 +814,7 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
             RAI_SetError(error, RAI_EMODELSERIALIZE, "ERR Error serializing TF model");
             TF_DeleteBuffer(tf_buffer);
             TF_DeleteStatus(status);
-            return 1;
+            return REDISMODULE_ERR;
         }
 
         *buffer = RedisModule_Alloc(tf_buffer->length);
@@ -780,7 +825,7 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
         TF_DeleteStatus(status);
     }
 
-    return 0;
+    return REDISMODULE_OK;
 }
 
 const char *RAI_GetBackendVersionTF(void) { return TF_Version(); }

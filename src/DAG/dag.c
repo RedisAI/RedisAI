@@ -560,7 +560,9 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         return REDISMODULE_OK;
     }
 
-    if (RAI_GetErrorCode(rinfo->err) == RAI_EDAGRUN) {
+    if (RAI_GetErrorCode(rinfo->err) == RAI_EDAGRUN ||
+        RAI_GetErrorCode(rinfo->err) == RAI_EMODELRUN ||
+        RAI_GetErrorCode(rinfo->err) == RAI_ESCRIPTRUN) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(rinfo->err));
         return REDISMODULE_OK;
     }
