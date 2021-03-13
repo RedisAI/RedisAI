@@ -228,8 +228,10 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
 
         // If all previous checks pass, then keep track of the item
         // in the list of evicted items
+        queueItem *tmp = queueNext(next_item);
         queueItem *evicted = queueEvict(run_queue_info->run_queue, next_item);
         RedisModule_Free(evicted);
+        next_item = tmp;
         batch_rinfo = array_append(batch_rinfo, next_rinfo);
 
         // Update the batchsize and go to the next item to see if
@@ -258,7 +260,6 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
                 break;
             }
         }
-        next_item = queueNext(next_item);
     }
     return batch_rinfo;
 }
