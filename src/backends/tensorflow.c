@@ -208,7 +208,15 @@ int TFDataTypeFromDLDataType(const DLDataType *dtype, TF_DataType *tf_dtype) {
 }
 
 void DeallocatorWrapperFunc(void *data, size_t len, void *dlmt_vptr) {
-    TFE_CallDLManagedTensorDeleter(dlmt_vptr);
+    // NOTE: in the original TF implementation, the TFE_NewTensorHandleFromDeviceMemory
+    // function takes ownership of the device memory. The following function call is
+    // performed in order to deallocate the underlying DLPack structure
+    // In our case we are making the call from TFE_HandleFromDLPack, so the memory
+    // is already managed by the DLPack managed tensor that originally created it,
+    // and it is regulated by reference counting from within RedisAI.
+    // Therefore the present function should do nothing, the comment is retained
+    // for clarity only.
+    // TFE_CallDLManagedTensorDeleter(dlmt_vptr);
 }
 
 bool IsValidStrideCompactRowMajorData(int64_t *shape_arr, int64_t *stride_arr, int ndim) {
@@ -581,6 +589,11 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     TFE_TensorHandle *deviceInputTensorsHandles[ninputs];
     TFE_TensorHandle *deviceOutputTensorsHandles[noutputs];
 
+    bool on_cpu = false;
+    if (strncasecmp(mctxs[0]->model->devicestr, "CPU", 3) == 0) {
+        on_cpu == true;
+    }
+
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
     size_t total_batch_size = 0;
@@ -597,7 +610,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     char tf_devicestr[256];
     int devicestr_len = strlen(mctxs[0]->model->devicestr);
-    if (strncasecmp(mctxs[0]->model->devicestr, "CPU", 3) == 0) {
+    if (on_cpu) {
         sprintf(tf_devicestr, "/device:CPU:0");
     } else if (devicestr_len == 3) {
         sprintf(tf_devicestr, "/device:%s:0", mctxs[0]->model->devicestr);
@@ -630,8 +643,13 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             return 1;
         }
 
-        deviceInputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
-            inputTensorsHandles[i], mctxs[0]->model->session, tf_devicestr, status);
+        if (on_cpu) {
+            deviceInputTensorsHandles[i] = inputTensorsHandles[i];
+        }
+        else {
+            deviceInputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
+                inputTensorsHandles[i], mctxs[0]->model->session, tf_devicestr, status);
+        }
 
         if (TF_GetCode(status) != TF_OK) {
             char *errorMessage = RedisModule_Strdup(TF_Message(status));
@@ -672,7 +690,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     for (size_t i = 0; i < ninputs; ++i) {
         TFE_DeleteTensorHandle(inputTensorsHandles[i]);
-        TFE_DeleteTensorHandle(deviceInputTensorsHandles[i]);
+        if (!on_cpu) {
+            TFE_DeleteTensorHandle(deviceInputTensorsHandles[i]);
+        }
     }
 
     if (TF_GetCode(status) != TF_OK) {
@@ -684,8 +704,13 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
-        outputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
-            deviceOutputTensorsHandles[i], mctxs[0]->model->session, "/device:CPU:0", status);
+        if (on_cpu) {
+            outputTensorsHandles[i] = deviceOutputTensorsHandles[i];
+        }
+        else {
+            outputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
+                deviceOutputTensorsHandles[i], mctxs[0]->model->session, "/device:CPU:0", status);
+        }
 
         RAI_Tensor *outputTensor =
             RAI_TensorCreateFromDLTensor(TFE_HandleToDLPack(outputTensorsHandles[i], status));
@@ -718,7 +743,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(outputTensor);
         }
         RAI_TensorFree(outputTensor);
-        TFE_DeleteTensorHandle(deviceOutputTensorsHandles[i]);
+        if (!on_cpu) {
+            TFE_DeleteTensorHandle(deviceOutputTensorsHandles[i]);
+        }
     }
 
     TF_DeleteStatus(status);
