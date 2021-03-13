@@ -468,12 +468,12 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val) {
             *val = ((double *)data)[i];
             break;
         default:
-            return REDISMODULE_ERR;
+            return 0;
         }
     } else {
-        return REDISMODULE_ERR;
+        return 0;
     }
-    return REDISMODULE_OK;
+    return 1;
 }
 
 int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
@@ -497,7 +497,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
             *val = ((int64_t *)data)[i];
             break;
         default:
-            return REDISMODULE_ERR;
+            return 0;
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
@@ -514,12 +514,12 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
             *val = ((uint64_t *)data)[i];
             break;
         default:
-            return REDISMODULE_ERR;
+            return 0;
         }
     } else {
-        return REDISMODULE_ERR;
+        return 0;
     }
-    return REDISMODULE_OK;
+    return 1;
 }
 
 RAI_Tensor *RAI_TensorGetShallowCopy(RAI_Tensor *t) {
@@ -736,7 +736,7 @@ int RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
         double val;
         for (i = 0; i < len; i++) {
             int ret = RAI_TensorGetValueAsDouble(t, i, &val);
-            if (ret == REDISMODULE_ERR) {
+            if (!ret) {
                 RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
                 return -1;
             }
@@ -746,7 +746,7 @@ int RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
         long long val;
         for (i = 0; i < len; i++) {
             int ret = RAI_TensorGetValueAsLongLong(t, i, &val);
-            if (ret == REDISMODULE_ERR) {
+            if (!ret) {
                 RedisModule_ReplyWithError(ctx, "ERR cannot get values for this datatype");
                 return -1;
             }

@@ -348,3 +348,34 @@ GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_Fr
 
     values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
     env.assertEqual(values, [5, 6, 7, 8])
+
+
+@skip_if_gears_not_loaded
+def test_flatten_tensor_via_gears(env):
+    script = '''
+
+import redisAI
+        
+def FlattenTensor(record):
+    
+    tensor = redisAI.createTensorFromValues('DOUBLE', [2,2], [1.0, 2.0, 3.0, 4.0])
+    tensor_as_list = redisAI.tensorToFlatList(tensor)
+    if tensor_as_list != [1.0, 2.0, 3.0, 4.0]:
+        return "ERROR failed to flatten tensor to list of doubles"
+        
+    tensor_blob = bytearray([5, 0, 6, 0, 7, 0, 8, 0])
+    tensor = redisAI.createTensorFromBlob('UINT16', [2,2], tensor_blob)
+    tensor_as_list = redisAI.tensorToFlatList(tensor)
+    if tensor_as_list != [5, 6, 7, 8]:
+        return "ERROR failed to flatten tensor to list of long long"
+    return "test_OK"
+
+        
+GB("CommandReader").map(FlattenTensor).register(trigger="FlattenTensor_test")
+    '''
+
+    con = env.getConnection()
+    ret = con.execute_command('rg.pyexecute', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('rg.trigger', 'FlattenTensor_test')
+    env.assertEqual(ret[0], b'test_OK')
