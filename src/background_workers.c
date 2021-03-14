@@ -189,11 +189,29 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
         return batch_rinfo;
     }
 
+    // Set the batch to be ready by default (optimistic), change it during run.
+    *batchReady = true;
+    bool timeout = false;
+    // If minbatchsize has been set and we are not past it, we check
+    // if the timeout for min batch has expired, in which case we proceed
+    // anyway
+    if (minbatchsize > 0 && minbatchtimeout > 0) {
+        struct timeval now, sub;
+        gettimeofday(&now, NULL);
+
+        timersub(&now, &rinfo->queuingTime, &sub);
+        size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+
+        if (time_msec > minbatchtimeout) {
+            timeout = true;
+        }
+    }
+
     // Get the next item in the queue
     queueItem *next_item = queueFront(run_queue_info->run_queue);
 
     // While we don't reach the end of the queue
-    while (next_item != NULL) {
+    while (next_item != NULL && !timeout) {
         // Get the next run info
         RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
 
@@ -257,12 +275,13 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
             size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
 
             if (time_msec > minbatchtimeout) {
-                break;
+                timeout = true;
             }
         }
     }
     if (minbatchsize != 0 && current_batchsize < minbatchsize) {
-        *batchReady = false;
+        // The batch is ready with respect to minbatch only if there was a timeout.
+        *batchReady = timeout;
     }
     return batch_rinfo;
 }
