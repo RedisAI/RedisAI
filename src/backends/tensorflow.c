@@ -6,6 +6,7 @@
 #include "model.h"
 
 #include "tensorflow/c/c_api.h"
+#include "tensorflow/c/c_api_experimental.h"
 #include "tensorflow/c/eager/c_api.h"
 #include "tensorflow/c/eager/c_api_experimental.h"
 
@@ -109,7 +110,7 @@ DLDevice GetDLDevice(TFE_TensorHandle *h, TF_Status *status, RAI_Error *error) {
     char device_type[5];
     int device_id = 0;
     size_t device_len = strlen(device_name);
-    char* device_name_substr = strstr(device_name, "CPU");
+    char *device_name_substr = strstr(device_name, "CPU");
     if (device_name_substr == NULL) {
         device_name_substr = strstr(device_name, "GPU");
     }
@@ -296,7 +297,8 @@ DLManagedTensor *TFE_HandleToDLPack(TFE_TensorHandle *h, TF_Status *status, RAI_
     return (void *)dlm_tensor;
 }
 
-TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context *ctx, RAI_Error *error) {
+TFE_TensorHandle *TFE_HandleFromDLPack(void *dlm, TF_Status *status, TFE_Context *ctx,
+                                       RAI_Error *error) {
     DLManagedTensor *dlmt = (DLManagedTensor *)dlm;
     DLTensor *dl_tensor = &dlmt->dl_tensor;
     char device_name[64];
@@ -438,7 +440,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
         goto cleanup;
     }
 
-    // For setting config options in session from the C API see:
+    // For setting additional config options in session from the C API see:
     // https://github.com/tensorflow/tensorflow/issues/13853
     // import tensorflow as tf
     // config = tf.ConfigProto(device_count = {'GPU': 0})
@@ -448,37 +450,26 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
     TFE_ContextOptions *context_opts = TFE_NewContextOptions();
 
-    if (device == RAI_DEVICE_CPU) {
-        if (opts.backends_intra_op_parallelism > 0) {
-            uint8_t proto[] = {0x10, (uint8_t)opts.backends_intra_op_parallelism};
-            TFE_ContextOptionsSetConfig(context_opts, proto, sizeof(proto), status);
-            if (TF_GetCode(status) != TF_OK) {
-                RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
-                goto cleanup;
-            }
-        }
+    TF_Buffer *config_proto = TF_CreateConfig(0 /*unsigned char enable_xla_compilation*/,
+                                              1 /*unsigned char gpu_memory_allow_growth*/,
+                                              1 /*unsigned int num_cpu_devices*/);
+    TFE_ContextOptionsSetConfig(context_opts, (void *)config_proto, sizeof(config_proto), status);
 
-        if (opts.backends_inter_op_parallelism > 0) {
-            uint8_t proto1[] = {0x28, (uint8_t)opts.backends_inter_op_parallelism};
-            TFE_ContextOptionsSetConfig(context_opts, proto1, sizeof(proto1), status);
-            if (TF_GetCode(status) != TF_OK) {
-                RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
-                goto cleanup;
-            }
+    if (opts.backends_intra_op_parallelism > 0) {
+        uint8_t proto[] = {0x10, (uint8_t)opts.backends_intra_op_parallelism};
+        TFE_ContextOptionsSetConfig(context_opts, proto, sizeof(proto), status);
+        if (TF_GetCode(status) != TF_OK) {
+            RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
+            goto cleanup;
         }
-    } else if (device == RAI_DEVICE_GPU) {
-        if (deviceid == -1) {
-            // Set
-            // config.gpu_options.allow_growth = True
-            uint8_t config[4] = {0x32, 0x02, 0x20, 0x01};
-            TFE_ContextOptionsSetConfig(context_opts, (void *)config, 4, status);
-        } else {
-            // Set
-            // config.gpu_options.allow_growth = True
-            // config.gpu_options.visible_device_list = '<deviceid>'
-            uint8_t config[7] = {0x32, 0x05, 0x20, 0x01, 0x2a, 0x01, 0x30};
-            config[6] += (uint8_t)deviceid;
-            TFE_ContextOptionsSetConfig(context_opts, (void *)config, 7, status);
+    }
+
+    if (opts.backends_inter_op_parallelism > 0) {
+        uint8_t proto1[] = {0x28, (uint8_t)opts.backends_inter_op_parallelism};
+        TFE_ContextOptionsSetConfig(context_opts, proto1, sizeof(proto1), status);
+        if (TF_GetCode(status) != TF_OK) {
+            RAI_SetError(error, RAI_EMODELCONFIGURE, RedisModule_Strdup(TF_Message(status)));
+            goto cleanup;
         }
     }
 
@@ -653,8 +644,8 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             inputTensorsHandles[i] =
                 TFE_HandleFromDLPack(batched_tensor, status, mctxs[0]->model->session, error);
         } else {
-            inputTensorsHandles[i] =
-                TFE_HandleFromDLPack(batched_input_tensors[0], status, mctxs[0]->model->session, error);
+            inputTensorsHandles[i] = TFE_HandleFromDLPack(batched_input_tensors[0], status,
+                                                          mctxs[0]->model->session, error);
         }
 
         if (TF_GetCode(status) != TF_OK) {
@@ -726,8 +717,9 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     for (size_t i = 0; i < noutputs; ++i) {
         outputTensorsHandles[i] = TFE_TensorHandleCopyToDevice(
             deviceOutputTensorsHandles[i], mctxs[0]->model->session, "/device:CPU:0", status);
-        
-        DLManagedTensor *outputDLTensor = TFE_HandleToDLPack(outputTensorsHandles[i], status, error);
+
+        DLManagedTensor *outputDLTensor =
+            TFE_HandleToDLPack(outputTensorsHandles[i], status, error);
 
         if (TF_GetCode(status) != TF_OK) {
             char *errorMessage = RedisModule_Strdup(TF_Message(status));
