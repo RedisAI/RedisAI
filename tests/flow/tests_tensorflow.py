@@ -169,6 +169,7 @@ def test_run_tf_model(env):
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
+    DEVICE = "CPU"
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
