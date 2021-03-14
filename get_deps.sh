@@ -134,7 +134,8 @@ if [[ $WITH_TF != 0 ]]; then
 		mkdir $LIBTENSORFLOW.x
 		tar xf $LIBTF_ARCHIVE --no-same-owner -C $LIBTENSORFLOW.x
 		mv $LIBTENSORFLOW.x $LIBTENSORFLOW
-
+    chmod u+w $LIBTENSORFLOW/include/tensorflow/c/eager/c_api_experimental.h
+    cp ../../opt/patches/c_api_experimental.h $LIBTENSORFLOW/include/tensorflow/c/eager
 		echo "Done."
 	else
 		echo "TensorFlow is in place."
