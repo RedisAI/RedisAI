@@ -623,7 +623,7 @@ int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     bool on_cpu = false;
     if (strncasecmp(mctxs[0]->model->devicestr, "CPU", 3) == 0) {
-        on_cpu == true;
+        on_cpu = true;
     }
 
     size_t batch_sizes[nbatches];
