@@ -53,7 +53,7 @@ static void _ScriptFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) 
 
 	// Verify that we received the expected tensor at the end of the run.
 	for (long long i = 0; i < 4; i++) {
-		if(RedisAI_TensorGetValueAsDouble(tensor, i, &val[i]) != 0) {
+		if(!RedisAI_TensorGetValueAsDouble(tensor, i, &val[i])) {
 			goto finish;
 		}
 		if (expceted[i] != val[i]) {
@@ -86,7 +86,7 @@ static void _ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 
 	// Verify that we received the expected tensor at the end of the run.
 	for (long long i = 0; i < 4; i++) {
-		if(RedisAI_TensorGetValueAsDouble(tensor, i, &val[i]) != 0) {
+		if(!RedisAI_TensorGetValueAsDouble(tensor, i, &val[i])) {
 			goto finish;
 		}
 		if (expceted[i] != val[i]) {

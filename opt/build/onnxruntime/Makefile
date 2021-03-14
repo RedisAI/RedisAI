@@ -1,7 +1,7 @@
 
 ROOT=.
 
-VERSION ?= 1.0.0
+VERSION ?= 1.7.1
 OSNICK ?= buster
 
 #----------------------------------------------------------------------------------------------
@@ -16,7 +16,7 @@ DOCKER_OS.bionic=ubuntu:bionic
 DOCKER_OS.stretch=debian:stretch-slim
 DOCKER_OS.buster=debian:buster-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
+
 #----------------------------------------------------------------------------------------------
 
 define targets # (1=OP, 2=op)
@@ -40,10 +40,23 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_x64:
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 \
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-x64:$(VERSION) -f Dockerfile.x64 \
 		--build-arg OS=$(DOCKER_OS) $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(2)-$(VERSION).tgz .
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-x64-$(VERSION).tgz .
+
+.PHONY: build_x64
+endef
+
+define build_x64-gpu # (1=arch, 2=tar-arch)
+IID_$(1)=$(1)_$(VERSION).iid
+CID_$(1)=$(1)_$(VERSION).cid
+
+build_x64-gpu:
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64-gpu \
+		--build-arg OS=$(DOCKER_OS) $(ROOT)
+	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
+	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(1)-$(VERSION).tgz .
 
 .PHONY: build_x64
 endef
@@ -68,9 +81,16 @@ endef
 
 define publish_x64 # (1=arch, 2=tar-arch)
 publish_x64:
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_x64
+endef
+
+define publish_x64-gpu # (1=arch, 2=tar-arch)
+publish_x64-gpu:
+	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
+
+.PHONY: publish_x64-gpu
 endef
 
 define publish_arm # (1=arch, 2=tar-arch)
@@ -90,6 +110,7 @@ all: build publish
 build: $(BUILD_TARGETS)
 
 $(eval $(call build_x64,x64,x86_64))
+$(eval $(call build_x64-gpu,x64-gpu,x86_64-gpu))
 $(eval $(call build_arm,arm64v8,arm64))
 $(eval $(call build_arm,arm32v7,arm))
 
@@ -101,7 +122,8 @@ endif
 
 publish: $(PUBLISH_TARGETS)
 
-$(eval $(call publish_x64,x64,x86_64))
+$(eval $(call publish_x64,x64,x64))
+$(eval $(call publish_x64-gpu,x64-gpu,x64-gpu))
 $(eval $(call publish_arm,arm64v8,arm64))
 $(eval $(call publish_arm,arm32v7,arm))
 
