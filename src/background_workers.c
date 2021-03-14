@@ -238,13 +238,6 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
             continue;
         }
 
-        // If the new batch size would exceed the prescribed batch
-        // size, then quit searching.
-        // Here we could consider searching further down the queue.
-        if (current_batchsize + next_batchsize > batchsize) {
-            break;
-        }
-
         // If all previous checks pass, then keep track of the item
         // in the list of evicted items
         queueItem *tmp = queueNext(next_item);
@@ -257,10 +250,10 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
         // there's anything else to batch
         current_batchsize += next_batchsize;
 
-        // If batch size exceeds the minimum batch size already, then we're done.
-        // Otherwise, if minbatchsize was set and the size wasn't reached,
-        // loop until there's something new on the queue
-        if (minbatchsize != 0 && current_batchsize >= minbatchsize) {
+        // If the new batch size would exceed the prescribed batch
+        // size, then quit searching.
+        // Here we could consider searching further down the queue.
+        if (current_batchsize >= batchsize) {
             break;
         }
 
