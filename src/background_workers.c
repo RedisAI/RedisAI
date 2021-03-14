@@ -167,7 +167,8 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
 
 static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
                                                    RedisAI_RunInfo *rinfo,
-                                                   RedisAI_RunInfo **batch_rinfo) {
+                                                   RedisAI_RunInfo **batch_rinfo,
+                                                   bool *batchReady) {
     // Since the current op can be batched, then we collect info on batching, namely
     // - batchsize
     // - minbatchsize
@@ -260,6 +261,9 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
             }
         }
     }
+    if (minbatchsize != 0 && current_batchsize < minbatchsize) {
+        *batchReady = false;
+    }
     return batch_rinfo;
 }
 
@@ -304,7 +308,18 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             }
 
             if (currentOpBatchable) {
-                batch_rinfo = _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo);
+                bool batchReady = true;
+                batch_rinfo =
+                    _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo, &batchReady);
+                if (!batchReady) {
+                    // Batch is not ready - batch size didn't match the expectations from
+                    // minbatchsize
+                    for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
+                        queuePush(run_queue_info->run_queue, batch_rinfo[i]);
+                    }
+                    // Exit the loop, give a chance to new tasks to submit.
+                    break;
+                }
             }
             // Run the computation step (batched or not)
             // We're done with the queue here, items have been evicted so we can
