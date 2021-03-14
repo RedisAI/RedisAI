@@ -238,11 +238,10 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
         // there's anything else to batch
         current_batchsize += next_batchsize;
 
-        // If minbatchsize hasn't been set, or if the current batch
-        // size exceeds the minimum batch size already, then we're done.
+        // If batch size exceeds the minimum batch size already, then we're done.
         // Otherwise, if minbatchsize was set and the size wasn't reached,
         // loop until there's something new on the queue
-        if (minbatchsize == 0 || current_batchsize >= minbatchsize) {
+        if (minbatchsize !=0 && current_batchsize >= minbatchsize) {
             break;
         }
 
