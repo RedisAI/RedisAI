@@ -1,6 +1,29 @@
 version: 2.1
 
 commands:
+  abort_for_docs:
+    steps:
+      - run:
+          name: Avoid tests for docs
+          command: |
+            if [[ $CIRCLE_BRANCH == *_docs ]]; then
+              echo "Identifies as documents PR, no testing required"
+              circleci step halt
+            fi
+
+  early_return_for_forked_pull_requests:
+    description: >-
+      If this build is from a fork, stop executing the current job and return success.
+      This is useful to avoid steps that will fail due to missing credentials.
+    steps:
+      - run:
+          name: Early return if this build is from a forked PR
+          command: |
+            if [[ -n "$CIRCLE_PR_NUMBER" ]]; then
+              echo "Nothing to do for forked PRs, so marking this step successful"
+              circleci step halt
+            fi
+
   setup-executor:
     steps:
       - run:
@@ -25,6 +48,7 @@ commands:
       platform:
         type: string
     steps:
+      - abort_for_docs
       - checkout
       - run:
           name: Submodule checkout
@@ -37,8 +61,6 @@ commands:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            BREW_NO_UPDATE=1 ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --force
             ./get_deps.sh cpu
       - save_cache:
@@ -48,6 +70,11 @@ commands:
       - run:
           name: Build
           command: make -C opt all SHOW=1
+      - run:
+          name: Unit Tests
+          command: |
+            make -C opt unit_tests SHOW=1
+          no_output_timeout: 5m
       - run:
           name: Test
           command: |
@@ -64,14 +91,12 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: tests/logs
 
   platforms-build-steps:
     steps:
-      - setup-executor
+      - abort_for_docs
       - checkout
       - run:
           name: Relocate docker overlay2 dir
@@ -109,8 +134,6 @@ commands:
             - artifacts/*.zip
             - artifacts/*.tgz
             - artifacts/*.tar
-            # - artifacts/shapshots/*.zip
-            # - artifacts/shapshots/*.tgz
       - store_artifacts:
           path: test/logs
 
@@ -119,6 +142,8 @@ commands:
       from:
         type: string
     steps:
+      - abort_for_docs
+      - early_return_for_forked_pull_requests
       - run:
           name: Deploy to S3
           command: |
@@ -146,6 +171,7 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
+      - abort_for_docs
       - checkout
       - run:
           name: Submodule checkout
@@ -158,8 +184,6 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
             ./opt/readies/bin/getredis -v 6 --valgrind --force
             ./get_deps.sh cpu
       - run:
@@ -181,6 +205,7 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
+      - abort_for_docs
       - checkout
       - run:
           name: Submodule checkout
@@ -209,18 +234,20 @@ jobs:
     macos:
       xcode: 11.3.0
     steps:
+      - abort_for_docs
       - run:
           name: Fix macOS Python installation
           command: |
             brew reinstall -f python2
       - build-steps:
-          platform: macosx
+          platform: macos
 
   build-multiarch-docker:
     machine:
       enabled: true
       image: cimg/base:2020.01
     steps:
+      - abort_for_docs
       - checkout
       - run:
           name: Submodule checkout
@@ -252,10 +279,20 @@ jobs:
       resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-11.1:202012-01
     steps:
+      - abort_for_docs
       - checkout
       - run:
           name: Submodule checkout
           command: git submodule update --init --recursive
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - run:
           name: Build
           command: |
@@ -276,6 +313,8 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
+      - abort_for_docs
+      - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
       - run:
@@ -290,6 +329,8 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
+      - abort_for_docs
+      - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
       - run:
@@ -309,6 +350,8 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.0.9-x64-buster
     steps:
+      - abort_for_docs
+      - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
       - run:
