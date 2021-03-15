@@ -71,11 +71,6 @@ commands:
           name: Build
           command: make -C opt all SHOW=1
       - run:
-          name: Unit Tests
-          command: |
-            make -C opt unit_tests SHOW=1
-          no_output_timeout: 5m
-      - run:
           name: Test
           command: |
             make -C opt test SHOW=1
