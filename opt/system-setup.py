@@ -28,7 +28,7 @@ class RedisAISetup(paella.Setup):
         self.install("build-essential")
         self.install("libssl-dev")
         self.install("python3-regex")
-        self.install("python3-psutil python3-networkx python3-numpy")
+        self.install("python3-psutil python3-networkx")
         if self.platform.is_arm():
             self.install("python3-dev") # python3-skimage
         self.install("libmpich-dev libopenblas-dev") # for libtorch
@@ -77,6 +77,7 @@ class RedisAISetup(paella.Setup):
 
         self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
 
+        self.pip_install("-r %s/test/test_requirements.txt" % ROOT)
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")
 
