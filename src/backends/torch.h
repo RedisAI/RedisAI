@@ -1,10 +1,10 @@
 #pragma once
 
-#include "config.h"
-#include "tensor_struct.h"
-#include "script_struct.h"
-#include "model_struct.h"
-#include "err.h"
+#include "config/config.h"
+#include "redis_ai_objects/err.h"
+#include "redis_ai_objects/model_struct.h"
+#include "redis_ai_objects/tensor_struct.h"
+#include "redis_ai_objects/script_struct.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *));
 

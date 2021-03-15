@@ -1,10 +1,10 @@
 #define REDISMODULE_MAIN
 #include <cuda_provider_factory.h>
-#include "backends/onnxruntime.h"
 #include "backends/util.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
 #include <stdatomic.h>
+#include "util/arr.h"
+#include "backends/onnxruntime.h"
+#include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
 
@@ -571,6 +571,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                 ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
                 int64_t dims[ndims];
                 ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, ndims))
+                ort->ReleaseTensorTypeAndShapeInfo(info);
                 if (dims[0] != total_batch_size) {
                     RAI_SetError(error, RAI_EMODELRUN,
                                  "ERR Model did not generate the expected batch size");

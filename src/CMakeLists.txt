@@ -3,19 +3,19 @@ if (CMAKE_BUILD_TYPE STREQUAL Debug)
 endif()
 
 file (GLOB_RECURSE SERIALIZATION_SRC 
-        tensor.c
-        model.c
-        script.c
-        backends.c
+        redis_ai_objects/tensor.c
+        redis_ai_objects/model.c
+        redis_ai_objects/script.c
+        backends/backends.c
         stats.c
         config.c
         serialization/*.c)
 
 file (GLOB BACKEND_COMMON_SRC
         backends/util.c
-        err.c
+        redis_ai_objects/err.c
         util/dict.c
-        tensor.c
+        redis_ai_objects/tensor.c
         util/string_utils.c
         serialization/ai_datatypes.c)
 
@@ -24,28 +24,26 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/queue.c
         util/string_utils.c
         redisai.c
-        command_parser.c
-        run_info.c
-        background_workers.c
-        config.c
-        DAG/dag.c
-        DAG/dag_parser.c
-        DAG/dag_builder.c
-        DAG/dag_execute.c
-        modelRun_ctx.c
-        backends.c
+        execution/command_parser.c
+        execution/run_info.c
+        execution/background_workers.c
+        config/config.c
+        execution/DAG/dag.c
+        execution/DAG/dag_parser.c
+        execution/DAG/dag_builder.c
+        execution/DAG/dag_execute.c
+        execution/modelRun_ctx.c
+        backends/backends.c
         backends/util.c
-        model.c
-        err.c
-        script.c
-        stats.c
-        tensor.c
+        redis_ai_objects/model.c
+        redis_ai_objects/err.c
+        redis_ai_objects/script.c
+        redis_ai_objects/stats.c
+        redis_ai_objects/tensor.c
         rmutil/alloc.c
         rmutil/sds.c
         rmutil/args.c
-        rmutil/heap.c
-        rmutil/priority_queue.c
-        rmutil/vector.c run_info.c
+        execution/run_info.c
         redis_ai_types/model_type.c
         redis_ai_types/tensor_type.c
         redis_ai_types/script_type.c

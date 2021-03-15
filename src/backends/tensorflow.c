@@ -1,9 +1,9 @@
 #define REDISMODULE_MAIN
-#include "backends/tensorflow.h"
 #include "backends/util.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
-#include "model.h"
+#include "backends/tensorflow.h"
+#include "util/arr.h"
+#include "redis_ai_objects/model.h"
+#include "redis_ai_objects/tensor.h"
 
 #include "tensorflow/c/c_api.h"
 
