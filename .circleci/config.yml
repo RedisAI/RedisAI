@@ -190,12 +190,12 @@ jobs:
           name: Build for coverage
           command: |
             make -C opt all COV=1 SHOW=1
-      - run:
-          name: Test with coverage
-          command: |
-            make -C opt test SHOW=1 COV=1 CLUSTER=1
-            make -C opt cov-upload
-          no_output_timeout: 30m
+#      - run:
+#          name: Test with coverage
+#          command: |
+#            make -C opt test SHOW=1 COV=1 CLUSTER=1
+#            make -C opt cov-upload
+#          no_output_timeout: 30m
 
   valgrind:
     parameters:
