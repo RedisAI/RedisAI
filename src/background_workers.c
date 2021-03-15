@@ -167,7 +167,8 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
 
 static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
                                                    RedisAI_RunInfo *rinfo,
-                                                   RedisAI_RunInfo **batch_rinfo) {
+                                                   RedisAI_RunInfo **batch_rinfo,
+                                                   bool *batchReady) {
     // Since the current op can be batched, then we collect info on batching, namely
     // - batchsize
     // - minbatchsize
@@ -188,11 +189,29 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
         return batch_rinfo;
     }
 
+    // Set the batch to be ready by default (optimistic), change it during run.
+    *batchReady = true;
+    bool timeout = false;
+    // If minbatchsize has been set and we are not past it, we check
+    // if the timeout for min batch has expired, in which case we proceed
+    // anyway
+    if (minbatchsize > 0 && minbatchtimeout > 0) {
+        struct timeval now, sub;
+        gettimeofday(&now, NULL);
+
+        timersub(&now, &rinfo->queuingTime, &sub);
+        size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+
+        if (time_msec > minbatchtimeout) {
+            timeout = true;
+        }
+    }
+
     // Get the next item in the queue
     queueItem *next_item = queueFront(run_queue_info->run_queue);
 
     // While we don't reach the end of the queue
-    while (next_item != NULL) {
+    while (next_item != NULL && !timeout) {
         // Get the next run info
         RedisAI_RunInfo *next_rinfo = (RedisAI_RunInfo *)next_item->value;
 
@@ -219,13 +238,6 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
             continue;
         }
 
-        // If the new batch size would exceed the prescribed batch
-        // size, then quit searching.
-        // Here we could consider searching further down the queue.
-        if (current_batchsize + next_batchsize > batchsize) {
-            break;
-        }
-
         // If all previous checks pass, then keep track of the item
         // in the list of evicted items
         queueItem *tmp = queueNext(next_item);
@@ -238,11 +250,10 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
         // there's anything else to batch
         current_batchsize += next_batchsize;
 
-        // If minbatchsize hasn't been set, or if the current batch
-        // size exceeds the minimum batch size already, then we're done.
-        // Otherwise, if minbatchsize was set and the size wasn't reached,
-        // loop until there's something new on the queue
-        if (minbatchsize == 0 || current_batchsize >= minbatchsize) {
+        // If the new batch size would exceed the prescribed batch
+        // size, then quit searching.
+        // Here we could consider searching further down the queue.
+        if (current_batchsize >= batchsize) {
             break;
         }
 
@@ -257,9 +268,13 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
             size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
 
             if (time_msec > minbatchtimeout) {
-                break;
+                timeout = true;
             }
         }
+    }
+    if (minbatchsize != 0 && current_batchsize < minbatchsize) {
+        // The batch is ready with respect to minbatch only if there was a timeout.
+        *batchReady = timeout;
     }
     return batch_rinfo;
 }
@@ -305,7 +320,18 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             }
 
             if (currentOpBatchable) {
-                batch_rinfo = _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo);
+                bool batchReady = true;
+                batch_rinfo =
+                    _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo, &batchReady);
+                if (!batchReady) {
+                    // Batch is not ready - batch size didn't match the expectations from
+                    // minbatchsize
+                    for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
+                        queuePush(run_queue_info->run_queue, batch_rinfo[i]);
+                    }
+                    // Exit the loop, give a chance to new tasks to submit.
+                    break;
+                }
             }
             // Run the computation step (batched or not)
             // We're done with the queue here, items have been evicted so we can
