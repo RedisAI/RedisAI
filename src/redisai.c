@@ -5,18 +5,18 @@
 
 #define REDISMODULE_MAIN
 #include "redismodule.h"
-#include "tensor.h"
-#include "command_parser.h"
-#include "backends.h"
+#include "redis_ai_objects/tensor.h"
+#include "execution/command_parser.h"
+#include "backends/backends.h"
 #include "backends/util.h"
-#include "background_workers.h"
-#include "DAG/dag.h"
-#include "DAG/dag_builder.h"
-#include "DAG/dag_execute.h"
-#include "model.h"
-#include "modelRun_ctx.h"
-#include "script.h"
-#include "stats.h"
+#include "execution/background_workers.h"
+#include "execution/DAG/dag.h"
+#include "execution/DAG/dag_builder.h"
+#include "execution/DAG/dag_execute.h"
+#include "redis_ai_objects/model.h"
+#include "execution/modelRun_ctx.h"
+#include "redis_ai_objects/script.h"
+#include "redis_ai_objects/stats.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <string.h>
@@ -26,8 +26,7 @@
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
-#include "run_info.h"
-#include "util/arr_rm_alloc.h"
+#include "util/arr.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
 #include "util/queue.h"

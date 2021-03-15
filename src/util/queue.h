@@ -1,13 +1,12 @@
 
+#pragma once
+
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../redisai_memory.h"
+#include "util/redisai_memory.h"
 #include "redismodule.h"
-
-#ifndef __QUEUE_H
-#define __QUEUE_H
 
 typedef struct queueItem {
     struct queueItem *next;
@@ -31,5 +30,3 @@ queueItem *queueNext(queueItem *item);
 queueItem *queueEvict(queue *queue, queueItem *item);
 long long queueLength(queue *queue);
 void queueRelease(queue *queue);
-
-#endif /* __QUEUE_H */
