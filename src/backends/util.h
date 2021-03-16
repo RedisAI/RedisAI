@@ -1,12 +1,9 @@
-#ifndef SRC_BACKENDS_UTIL_H_
-#define SRC_BACKENDS_UTIL_H_
+#pragma once
 
 #include <stdint.h>
 #include <stdio.h>
 #include <strings.h>
 
-#include "config.h"
+#include "config/config.h"
 
 int parseDeviceStr(const char *devicestr, RAI_Device *device, int64_t *deviceid);
-
-#endif /* SRC_BACKENDS_UTIL_H_ */

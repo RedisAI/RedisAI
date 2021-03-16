@@ -1,5 +1,4 @@
-#ifndef RMUTIL_ARGS_H
-#define RMUTIL_ARGS_H
+#pragma once
 
 #include <stdlib.h>
 #include <limits.h>
@@ -248,4 +247,3 @@ class ArgsCursorCXX : public ArgsCursor {
     void init(RedisModuleString **s, size_t n) { ArgsCursor_InitRString(this, s, n); }
 };
 #endif // __cplusplus
-#endif
