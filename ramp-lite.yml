@@ -17,11 +17,9 @@ capabilities:
     - persistence_aof
     - clustering
     - backup_restore
-exclude_commands:
-    - ai.modelset
-    - ai.modeldel
-    - ai.scriptset
-    - ai.scriptdel
+    - replica_of
+    - flash
+    - resharding
 dependencies:
     {{NAME_tensorflow}}:
         url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_tensorflow}}
