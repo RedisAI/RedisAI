@@ -1,13 +1,17 @@
-ARG OS=ubuntu18.04
+ARG OS=ubuntu16.04
 ARG CUDA_VER=11.0-cudnn8
 
-FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu16.04
 
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
 ARG ONNXRUNTIME_VER=1.7.1
 ARG ARCH=x64-gpu
 
 RUN apt-get -qq update
+RUN apt-get install -y software-properties-common
+RUN add-apt-repository ppa:deadsnakes/ppa
+
+RUN apt-get install -y python3.6
 RUN apt-get -qq install -y curl \
             wget tar git build-essential \
             libcurl4-openssl-dev libssl-dev \
@@ -35,7 +39,7 @@ ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 
 RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
 WORKDIR /build/onnxruntime
-RUN git fetch --recurse-submodules -j4
+RUN git fetch --recurse-submodules
 RUN ./build.sh ${BUILDARGS} --update --build --use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda --build_shared_lib --parallel
 
 ADD ./pack.sh /build/
