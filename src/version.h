@@ -2,7 +2,7 @@
 
 #define REDISAI_VERSION_MAJOR 1
 #define REDISAI_VERSION_MINOR 2
-#define REDISAI_VERSION_PATCH 1
+#define REDISAI_VERSION_PATCH 2
 
 #define REDISAI_MODULE_VERSION                                                                     \
     (REDISAI_VERSION_MAJOR * 10000 + REDISAI_VERSION_MINOR * 100 + REDISAI_VERSION_PATCH)
