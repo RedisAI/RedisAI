@@ -1,6 +1,6 @@
 # BUILD redisfab/onnxruntime-x64-${OS}:$(ONNXRUNTIME_VER)
 
-ARG OS=debian:buster
+ARG OS=ubuntu:16.04
 
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
