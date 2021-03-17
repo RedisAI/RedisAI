@@ -1,89 +1,90 @@
 # Performance
-To get an early sense of what RedisAI is capable of, you can test it with [`redis-benchmark`](https://redis.io/topics/benchmarks) or [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark) just like any other Redis command. However, in order to have more control over the tests, we'll use a tool written in Go called [_AIBench_](https://github.com/RedisAI/aibench).
+
+To get an early sense of what RedisAI is capable of, you can test it with:
+- [`redis-benchmark`](https://redis.io/topics/benchmarks): Redis includes the redis-benchmark utility that simulates running commands done by N clients at the same time sending M total queries (it is similar to the Apache's ab utility).
+
+- [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark): from [Redis Labs](https://redislabs.com/) is a NoSQL Redis and Memcache traffic generation and benchmarking tool.
+
+-  [`aibench`](https://github.com/RedisAI/aibench):  a collection of Go programs that are used to generate datasets and then benchmark the inference performance of various Model Servers.
+
 
 This page is intended to provide clarity on how to obtain the benchmark numbers and links to the most recent results. We encourage developers, data scientists, and architects to run these benchmarks for themselves on their particular hardware, datasets, and Model Servers and pull request this documentation with links for the actual numbers.
 
-## Inside the benchmark suite
-_AIBench_ is a collection of Go programs that are used to generate datasets and then benchmark the inference performance of various Model Servers. The intent is to make the AIBench extensible so that a variety of use cases and Model Servers can be included and benchmarked.
+## Blogs/White-papers that reference RedisAI performance
 
-Bellow, are the current DL solutions supported by the suite:
-
-- RedisAI
-- TFServing + Redis
-- Rest API + Redis
-
-### Transaction data dataset characteristics
-Presently, aibench supports a single use case -- [creditcard-fraud from Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud) -- with the extension of reference data. This use-case aims to detect a fraudulent transaction based on anonymized credit card transactions and reference data.
-
-We've decided to extend the initial dataset in the sense that for each Transaction data, we generate random deterministic Reference data, commonly used to enrich financial transaction information. In the financial service industry and regulatory agencies, the reference data that defines and describes such financial transaction, can cover all relevant particulars for highly complex transactions with multiple dependencies, entities, and contingencies, thus resulting in a larger numerical value input tensor of size 1 x 256.
-
-Following the previously described, the predictive model to be developed is a neural network implemented in TensorFlow with input tensors containing both transaction (1 x 30 tensor) and reference data (1 x 256 tensor) and with a single output tensor (1 x 2 tensor), presenting the fraudulent and genuine probabilities of each financial transaction.
-
-### Understanding the benchmark phases
-Benchmarking inference performance is made of four phases:
-
-1. **Model setup**: This step is specific for each DL solution being tested (see the benchmark GitHub repo for detailed deployment info for each supported DL solution).
-2. **Transaction data parsing and reference data generation**: To keep benchmarking results from being affected by generating data on the fly, the proposed benchmark suite can generate the data required for the inference benchmarks first, and we can then use it as input to the benchmarking and reference data-loading phases. All inference benchmarks use the same dataset, together with random deterministic reference data if using the same random seed.
-3. **Reference data loading**: The reference data that defines and describes the financial transactions already resides on a datastore common to all benchmarks. We use Redis as the primary data store for the inference benchmarks.
-4. **Inference query execution**: This phase looks at the achievable inference throughput of each Model Serving solution and performs a full percentile inference latency analysis. Model serving with and without reference data is supported across all solutions to enable a deeper insight into the overall weight of the reference data and the extra network hop to fetch it.
-
-### Inference query execution diagrams per Model Serving Solution
-The sequence of requests that each solution executes is described thoughtfully in the benchmark client GitHub diagrams, [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/redisai.md), [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/tfserving_and_redis.md), and [here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/restapi_and_redis.md#aibench-supplemental-guide-dl-rest-api-and-redis).
-
-Below you can find simplified versions of the diagrams, including both test cases (with and without reference data).
-
-#### RedisAI
-![RedisAI Model Serving Solution Diagram](images/redisai_modelserver.png "RedisAI Model Serving Solution Diagram")
+- [1] [Announcing RedisAI 1.0: AI Serving Engine for Real-Time Applications](https://redislabs.com/blog/redisai-ai-serving-engine-for-real-time-applications/), May 19, 2020
 
 
-#### TFServing + Redis
-![TFServing + Redis Model Serving Solution Diagram](images/tfs_modelserver.png "TFServing + Redis Model Serving Solution Diagram")
+---------------------------------------
 
-#### Rest API + Redis
-![Rest API + Redis Model Serving Solution Diagram](images/flask_modelserver.png "Rest API + Redis Model Serving Solution Diagram")
+## Methodology and Infrastructure checklist
+As stated previously we encourage the community to run and the benchmarks on their own infrastructure and specific use case. As part of a reproducible and stable metodology we recommend that for each tested version/variation:
 
+- Monitoring should be used to assert that the machines running the the benchmark client do not become the performance bottleneck.
 
-### Model Serving optimizations
-We follow best practices for high-performance Model Serving for each Model Server’s configuration, its protocol layer, and the most efficient serialization method. For protocols to serve models for inference, we leveraged gRPC for Google’s TensorFlow serving, HTTP for standard web APIs, and RESP2 for RedisAI.
+- A minimum of 3 distinct full repetitions, and reported as a result the median (q50), q95, q99, overall achievable inference throughput, and if possible ( and recommended ) the referral to the full spectrum of latencies. Furthermore, benchmarks should be run for a sufficiently long time.
 
-Across all Model Servers, we recommend retaining batching to its default value of false, meaning that each Model Server processes one inference at a time per available executor, so we can track the raw performance of the servers.
-
-Some Model Servers have components that are lazily initialized, which can increase latency for the first requests sent to a model after it is loaded. To reduce this “cold-start” effect on overall performance, you should add burn-in full-inference cycles that are not taken into account by the benchmark, .
-
-Specifically for TensorFlow serving, we’ve achieved a better configuration that enabled for higher inference throughput by setting the [`inter_op_parallelism_threads` configuration option](configuration.md#inter_op_parallelism_threads) to 4 (enabling us to parallelize operations that have sub-operations that are inherently independent up to a degree of 4 concurrent sub-operations). We improved TensorFlow serving intra_op_parallelism_threads results by allowing the tool to adjust with the default behavior.
-
-For RedisAI, we maximized inference throughput by limiting the inter-op and intra-op parallelism to 1 per shard, meaning that each added redis standalone instance/shard has an associated backend thread, in a shared-nothing architecture - a strategy that allows to maximize the hardware usage, and maintain linear scalability both on vertical and horizontal flavors.
-
-For the standard web API Model Server, setting Gunicorn worker processes number to 24 for handling concurrent requests resulted in the highest inference throughput.
-
-### How to install aibench
-The easiest way to get and install the aibench Go programs is to use
-`go get` and then `go install`:
-
-```bash
-# Fetch aibench and its dependencies
-go get github.com/RedisAI/aibench/...
-
-# Install desired binaries. At a minimum this includes aibench_load_data, and one aibench_run_inference_*
-# binary:
-cd $GOPATH/src/github.com/RedisAI/aibench/cmd
-cd aibench_generate_data && go install
-cd ../aibench_load_data && go install
-cd ../aibench_run_inference_redisai && go install
-cd ../aibench_run_inference_tensorflow_serving && go install
-cd ../aibench_run_inference_flask_tensorflow && go install
-```
-
-### Methodology and Infrastructure checklist
-As stated previously we encourage the community to run and request for PR with regards to showcasing the obtained results for any Model Server. Regarding the results methodology we expected that for each tested version/variation:
-
-- A minimum of 3 distinct full repetitions, and reported as a result the median (q50), q95, q99, overall achievable inference throughput, and if possible ( and recommended ) the referral to the full spectrum of latencies.
 - A full platform description. Ideally, you should run the benchmark and Model Serving instances in separate machines, placed in an optimal networking scenario.
+
 - Considering the weight of the network performance in the overall performance of the Model Serving solution we recommend that in addition to the aibench performance runs described above, to also run baseline netperf TCP_RR, in order to understand the underlying network characteristics.
 
-### What the benchmark suite does not account for
-As important as understanding the metrics and takeaways that this benchmark provides is to understand what is considered out of scope. This benchmark suite was not designed to test some key aspects of observability, operational and model-lifecycle management, fault tolerance, and high availability of the Model Server.
+## Using redis-benchmark
 
-**As important as performance**, these factors should be part of a prudent decision on which solution to adopt, and we hope to provide further guidance on them in other sections of the documentation.
+The redis-benchmark program is a quick and useful way to get some figures and evaluate the performance of a RedisAI setup on a given hardware.
 
-### Latest benchmark results
+By default, redis-benchmark is limited to 1 thread, which should be accounted for to ensure that the redis-benchmark client is not the first bottleneck.
+
+As a rule of thumb you should monitor for errors and the resource usage of any benchmark client tool to ensure that the results being collect are meaningful.
+
+The following example will:
+- Use 50 simultaneous clients performing a total of 100000 requests.
+- Run the test using the loopback interface.
+- Enable multi-threaded client and use 2 benchmark client threads, meaning the benchmark client maximum CPU usage will be 200%.
+- Be executed without pipelining (pipeline value of 1).
+- If server replies with errors, show them on stdout.
+- Benchmark [AI.MODELRUN](https://oss.redislabs.com/redisai/commands/#aimodelrun) command a model stored as a key's value using its specified backend and device.
+
+```
+redis-benchmark -e --threads 2 -c 50 -P 1 -n 100000 AI.MODELRUN <key> INPUTS <input> [input ...] OUTPUTS <output> [output ...]
+```
+
+## Using memtier-benchmark
+
+The [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark) utility from [Redis Labs](https://redislabs.com/) is a NoSQL Redis and Memcache traffic generation and benchmarking tool. When compared to redis-benchmark it provides advanced features like multi-command benchmarks, pseudo-random Data, gaussian access pattern, range manipulation, and extended results reporting.
+
+The following example will:
+- Use 200 simultaneous clients performing a total of 2000000 requests ( 10000 per client ).
+- Run the test using the loopback interface.
+- Use 4 benchmark client threads.
+- Store the benchmark result in `result.json`.
+- Be executed without pipelining (pipeline value of 1).
+- If server replies with errors, show them on stdout.
+- Benchmark both [AI.MODELRUN](https://oss.redislabs.com/redisai/commands/#aimodelrun) command a model stored as a key's value using its specified backend and device, and [AI.SCRIPTRUN](https://oss.redislabs.com/redisai/commands/#aiscriptrun) stored as a key's value on its specified device.
+
+```
+memtier_benchmark --clients 50 --threads 4 --requests 10000 --pipeline 1 --json-out-file results.json --command "AI.MODELRUN model_key INPUTS input1 OUTPUTS output1" --command "AI.SCRIPTRUN script_key INPUTS input2 OUTPUTS output2"
+```
+
+## Using aibench
+
+_AIBench_ is a collection of Go programs that are used to generate datasets and then benchmark the inference performance of various Model Servers. The intent is to make the AIBench extensible so that a variety of use cases and Model Servers can be included and benchmarked.
+
+
+We recommend that you follow the detailed install steps [here](https://github.com/RedisAI/aibench#installation) and refer to the per-use [documentation](https://github.com/RedisAI/aibench#current-use-cases).
+
+###  Current DL solutions supported:
+
+- [RedisAI](https://redisai.io): an AI serving engine for real-time applications built by Redis Labs and Tensorwerk, seamlessly plugged into ​Redis.
+- [Nvidia Triton Inference Server](https://docs.nvidia.com/deeplearning/triton-inference-server): An open source inference serving software that lets teams deploy trained AI models from any framework (TensorFlow, TensorRT, PyTorch, ONNX Runtime, or a custom framework), from local storage or Google Cloud Platform or AWS S3 on any GPU- or CPU-based infrastructure.
+- [TorchServe](https://pytorch.org/serve/): built and maintained by Amazon Web Services (AWS) in collaboration with Facebook, TorchServe is available as part of the PyTorch open-source project.
+- [Tensorflow Serving](https://www.tensorflow.org/tfx/guide/serving): a high-performance serving system, wrapping TensorFlow and maintained by Google.
+- [Common REST API serving](https://redisai.io): a common DL production grade setup with Gunicorn (a Python WSGI HTTP server) communicating with Flask through a WSGI protocol, and using TensorFlow as the backend.
+
+### Current use cases
+
+Currently, aibench supports two use cases:
+- **creditcard-fraud [[details here](https://github.com/RedisAI/aibench/blob/master/docs/creditcard-fraud-benchmark/description.md)]**: from [Kaggle](https://www.kaggle.com/mlg-ulb/creditcardfraud) with the extension of reference data. This use-case aims to detect a fraudulent transaction based on anonymized credit card transactions and reference data.
+
+
+- **vision-image-classification[[details here](dhttps://github.com/RedisAI/aibench/blob/master/ocs/vision-image-classification-benchmark/description.md)]**: an image-focused use-case that uses one network “backbone”: MobileNet V1, which can be considered as one of the standards by the AI community. To assess inference performance we’re recurring to COCO 2017 validation dataset (a large-scale object detection, segmentation, and captioning dataset).
+
