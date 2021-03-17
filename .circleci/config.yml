@@ -192,39 +192,6 @@ jobs:
 #            make -C opt cov-upload
 #          no_output_timeout: 30m
 
-  valgrind:
-    parameters:
-      test_args:
-        type: string
-        default: "CLUSTER=0 AOF=0"
-    docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
-    steps:
-      - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-automation
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind
-          command: |
-            make -C opt test VALGRIND=1 <<parameters.test_args>>
-          no_output_timeout: 120m
-
   build-macos:
     macos:
       xcode: 11.3.0
@@ -430,17 +397,6 @@ workflows:
       - coverage:
           context: common
           <<: *on-any-branch
-      - valgrind:
-          test_args: CLUSTER=0 AOF=0
-          <<: *on-any-branch
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
       - build-and-test-gpu:
           <<: *on-any-branch
       - build-macos:
