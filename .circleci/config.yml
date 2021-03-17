@@ -489,7 +489,7 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-integ-branch
-      - eploy-release:
+      - deploy-release:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
