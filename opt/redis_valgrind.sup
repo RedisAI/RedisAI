@@ -16,13 +16,6 @@
    ignore_unversioned_libs
    Memcheck:Leak
    ...
-   obj:*/libonnxruntime.so.*
-}
-
-{
-   ignore_unversioned_libs
-   Memcheck:Leak
-   ...
    obj:*/libtorch.so.*
 }
 
@@ -68,3 +61,110 @@
    fun:RAI_LoadBackend
 }
 
+{
+   <ignore_py_error0>
+   Memcheck:Cond
+   fun:lzf_compress
+}
+{
+   <ignore_py_error0.1>
+   Memcheck:Cond
+   ...
+   fun:Py_InitializeEx
+   ...
+}
+{
+   <ignore_py_error0.2>
+   Memcheck:Cond
+   ...
+   fun:_PyEval_EvalFrameDefault
+   ...
+}
+{
+   <ignore_py_error0.3>
+   Memcheck:Leak
+   ...
+   fun:_imp_exec_builtin
+   ...
+}
+{
+   <ignore_py_error0.4>
+   Memcheck:Cond
+   ...
+   fun:PySys_SetArgvEx
+   ...
+}
+{
+   <ignore_py_error0.5>
+   Memcheck:Cond
+   ...
+   fun:_PyMethodDef_RawFastCallKeywords
+   ...
+}
+{
+   <ignore_py_error0>
+   Memcheck:Value8
+   fun:lzf_compress
+}
+{
+   <ignore_py_error1>
+   Memcheck:Addr4
+   obj:*libpython2.7*
+}
+{
+   <ignore_py_error1>
+   Memcheck:Addr8
+   obj:*libpython2.7*
+}
+{
+   <ignore_py_error2>
+   Memcheck:Value8
+   obj:*libpython2.7*
+}
+{
+   <ignore_py_error3>
+   Memcheck:Cond
+   obj:*libpython2.7*
+}
+{
+   <ignore_py_error4>
+   Memcheck:Leak
+   ...
+   obj:*libpython2.7*
+   ...
+}
+{
+   <ignore_libevent_issues>
+   Memcheck:Leak
+   ...
+   fun:redisLibeventAttach
+   ...
+}
+{
+   <ignore_compiler_visit_expr_for_now>
+   Memcheck:Leak
+   ...
+   fun:compiler_visit_expr
+   ...
+}
+{
+   <ignore_compiler_visit_expr_for_now>
+   Memcheck:Leak
+   ...
+   fun:redisConnectNonBlock
+   ...
+}
+{
+   <ignore_connection_leak_for_now>
+   Memcheck:Leak
+   ...
+   fun:_redisContextConnectTcp
+   ...
+}
+{
+   Libuv_epoll_ctl
+   Memcheck:Param
+   epoll_ctl(event)
+   fun:epoll_ctl
+   ...
+}

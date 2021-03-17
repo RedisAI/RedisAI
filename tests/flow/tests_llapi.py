@@ -8,18 +8,15 @@ from functools import wraps
 python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 '''
 
-
-def ensure_test_module_loaded(f):
+def with_test_module(f):
     @wraps(f)
     def wrapper(env, *args, **kwargs):
-        goal_dir = os.path.join(os.path.dirname(__file__), "../module/LLAPI.so")
-        TEST_MODULE_PATH = os.path.abspath(goal_dir)
         con = env.getConnection()
         modules = con.execute_command("MODULE", "LIST")
         if b'RAI_llapi' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
         try:
-            ret = con.execute_command('MODULE', 'LOAD', TEST_MODULE_PATH)
+            ret = con.execute_command('MODULE', 'LOAD', TESTMOD_PATH)
             env.assertEqual(ret, b'OK')
         except Exception as e:
             env.assertFalse(True)
@@ -29,7 +26,7 @@ def ensure_test_module_loaded(f):
     return wrapper
 
 
-@ensure_test_module_loaded
+@with_test_module
 def test_basic_check(env):
 
     con = env.getConnection()
@@ -37,7 +34,7 @@ def test_basic_check(env):
     env.assertEqual(ret, b'OK')
 
 
-@ensure_test_module_loaded
+@with_test_module
 def test_model_run_async(env):
 
     con = env.getConnection()
@@ -56,7 +53,7 @@ def test_model_run_async(env):
     env.assertEqual(ret, b'Async run success')
 
 
-@ensure_test_module_loaded
+@with_test_module
 def test_script_run_async(env):
 
     con = env.getConnection()
@@ -78,7 +75,7 @@ def test_script_run_async(env):
     env.assertEqual(ret, b'Async run success')
 
 
-@ensure_test_module_loaded
+@with_test_module
 def test_dag_build_and_run(env):
     con = env.getConnection()
 
@@ -105,7 +102,7 @@ def test_dag_build_and_run(env):
     env.assertEqual(ret, b'DAG run success')
 
 
-@ensure_test_module_loaded
+@with_test_module
 def test_dagrun_multidevice_resnet(env):
     con = env.getConnection()
 

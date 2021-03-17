@@ -215,14 +215,16 @@ lint-docker:
 
 #----------------------------------------------------------------------------------------------
 
+ifneq ($(PACK_DEPS),0)
+override PACK_DEPS:=1
+endif
+
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
-ifneq ($(PACK_DEPS),0)
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=1 ./pack.sh
-else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=0 ./pack.sh
-endif
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
 
 #----------------------------------------------------------------------------------------------
 
@@ -276,6 +278,7 @@ test: build
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
+		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
 		CLUSTER=$(CLUSTER) \
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
