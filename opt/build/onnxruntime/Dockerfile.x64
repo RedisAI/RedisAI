@@ -19,6 +19,7 @@ RUN wget -q https://github.com/Kitware/CMake/releases/download/v3.19.7/cmake-3.1
 WORKDIR /tmp
 RUN tar -zxpf /tmp/cmake.tgz
 RUN mv /tmp/cmake*/bin/* /usr/bin
+RUN mv /tmp/cmake-*/share/cmake* /usr/share/
 
 RUN rm /usr/bin/python3
 RUN ln -s /usr/bin/python3.6 /usr/bin/python3
