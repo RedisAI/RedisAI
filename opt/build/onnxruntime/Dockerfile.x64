@@ -32,7 +32,7 @@ RUN apt-get install -y locales && \
     dpkg-reconfigure --frontend=noninteractive locales && \
     update-locale LANG=$LANG
 WORKDIR /build
-ARG BUILDTYPE=MinSizeRel
+ARG BUILDTYPE=Release
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
 WORKDIR /build/onnxruntime
