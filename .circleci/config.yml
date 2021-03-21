@@ -442,7 +442,7 @@ after-platform-builds: &after-platform-builds
 
 platform-build-defs: &platform-build-defs
   <<: *after-build-and-test
-  <<: *on-any-branch
+  <<: *on-integ-and-version-tags
   # <<: *on-any-branch # debugging
 
 
@@ -488,7 +488,7 @@ workflows:
       - deploy-snapshot:
           context: common
           <<: *after-platform-builds
-          <<: *on-any-branch
+          <<: *on-integ-branch
       - deploy-release:
           context: common
           <<: *after-platform-builds
