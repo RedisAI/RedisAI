@@ -14,7 +14,7 @@ fi
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
 		pack.sh [cpu|gpu] [--help|help]
-		
+
 		Argument variables:
 		DEVICE=cpu|gpu    CPU or GPU variants
 		RAMP=1            Build RAMP file
@@ -81,7 +81,7 @@ pack_ramp() {
 		local packdir=snapshots
 		local s3base=snapshots/
 	fi
-	
+
 	local fq_package=$stem.${verspec}.zip
 
 	[[ ! -d $BINDIR/$packdir ]] && mkdir -p $BINDIR/$packdir
@@ -104,7 +104,7 @@ pack_ramp() {
 	if [[ -z $VARIANT ]]; then
 		local rampfile=ramp.yml
 	else
-		local rampfile=ramp-${VARIANT}.yml
+		local rampfile=ramp${VARIANT}.yml
 	fi
 
 	python3 $READIES/xtx \
@@ -124,7 +124,7 @@ pack_ramp() {
 
 pack_deps() {
 	local depname="$1"
-	
+
 	cd $ROOT
 
 	local platform="$OS-$OSNICK-$ARCH"
@@ -132,13 +132,13 @@ pack_deps() {
 	local fq_package=$stem.${SEMVER}${VARIANT}.tgz
 	local tar_path=$BINDIR/$fq_package
 	local backends_prefix_dir=""
-	
+
 	if [[ $depname == all ]]; then
 		local backends_dir=.
 	else
 		local backends_dir=${PRODUCT}_$depname
 	fi
-	
+
 	cd $INSTALL_DIR/backends
 	{ find $backends_dir -name "*.so*" | \
 	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir," 2>> /tmp/pack.err | \
