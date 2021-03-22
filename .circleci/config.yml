@@ -304,7 +304,7 @@ jobs:
                 tar xf $f
             done
             cd snapshots
-            for f in *.zip *.tgz; do
+            for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
             done
 
@@ -320,7 +320,7 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
-            for f in *.zip *.tgz; do
+            for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
 
