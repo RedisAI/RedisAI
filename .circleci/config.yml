@@ -71,11 +71,6 @@ commands:
           name: Build
           command: make -C opt all SHOW=1
       - run:
-          name: Test
-          command: |
-            make -C opt test SHOW=1
-          no_output_timeout: 20m
-      - run:
           name: Package
           command: |
             make -C opt pack SHOW=1
@@ -259,12 +254,6 @@ jobs:
           name: Build
           command: |
             docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
-      - run:
-          name: Test
-          command: |
-            mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 40m
       - store_artifacts:
           path: tests/logs
 
@@ -304,7 +293,7 @@ jobs:
                 tar xf $f
             done
             cd snapshots
-            for f in *.zip *.tgz; do
+            for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
             done
 
@@ -320,7 +309,7 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
-            for f in *.zip *.tgz; do
+            for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
 
