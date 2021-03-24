@@ -8,13 +8,13 @@ The quickest way to try RedisAI is by launching its official Docker container im
 
 ### On a CPU only machine
 ```
-docker run -p 6379:6379 redisai/redisai:latest
+docker run -p 6379:6379 redislabs/redisai:latest
 ```
 
 ### On a GPU machine
 
 ```
-docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu
 ```
 
 ## Download

@@ -5,18 +5,18 @@
 
 #define REDISMODULE_MAIN
 #include "redismodule.h"
-#include "tensor.h"
-#include "command_parser.h"
-#include "backends.h"
+#include "redis_ai_objects/tensor.h"
+#include "execution/command_parser.h"
+#include "backends/backends.h"
 #include "backends/util.h"
-#include "background_workers.h"
-#include "DAG/dag.h"
-#include "DAG/dag_builder.h"
-#include "DAG/dag_execute.h"
-#include "model.h"
-#include "modelRun_ctx.h"
-#include "script.h"
-#include "stats.h"
+#include "execution/background_workers.h"
+#include "execution/DAG/dag.h"
+#include "execution/DAG/dag_builder.h"
+#include "execution/DAG/dag_execute.h"
+#include "redis_ai_objects/model.h"
+#include "execution/modelRun_ctx.h"
+#include "redis_ai_objects/script.h"
+#include "redis_ai_objects/stats.h"
 #include <pthread.h>
 #include <stdbool.h>
 #include <string.h>
@@ -26,8 +26,7 @@
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
-#include "run_info.h"
-#include "util/arr_rm_alloc.h"
+#include "util/arr.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
 #include "util/queue.h"
@@ -1102,8 +1101,18 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", perqueueThreadPoolSize);
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
-    struct rusage self_ru, c_ru;
+    RedisModule_InfoAddSection(ctx, "memory_usage");
+    if (RAI_backends.onnx.get_memory_info) {
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
+                                          RAI_backends.onnx.get_memory_info());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
+                                          RAI_backends.onnx.get_memory_access_num());
+    } else {
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory", 0);
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num", 0);
+    }
 
+    struct rusage self_ru, c_ru;
     // Return resource usage statistics for the calling process,
     // which is the sum of resources used by all threads in the
     // process

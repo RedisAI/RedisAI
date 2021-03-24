@@ -5,15 +5,15 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
     int64_t *shape = NULL;
     int64_t *strides = NULL;
 
-    DLContext ctx;
-    ctx.device_type = RedisModule_LoadUnsigned(io);
-    ctx.device_id = RedisModule_LoadUnsigned(io);
+    DLDevice device;
+    device.device_type = RedisModule_LoadUnsigned(io);
+    device.device_id = RedisModule_LoadUnsigned(io);
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
     // For now we only support CPU tensors (except during model and script run)
-    assert(ctx.device_type == kDLCPU);
-    assert(ctx.device_id == 0);
+    assert(device.device_type == kDLCPU);
+    assert(device.device_id == 0);
 
     DLDataType dtype;
     dtype.bits = RedisModule_LoadUnsigned(io);
@@ -42,7 +42,7 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
         goto cleanup;
 
     RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.ctx = ctx,
+    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
                                                             .ndim = ndims,
                                                             .dtype = dtype,

@@ -3,7 +3,7 @@
 
 extern "C" {
 #include "rmalloc.h"
-#include "src/err.h"
+#include "src/redis_ai_objects/err.h"
 }
 
 class ErrorStructTest : public ::testing::Test {
