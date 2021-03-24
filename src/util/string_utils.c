@@ -1,7 +1,7 @@
 #include "string_utils.h"
 #include "dict.h"
 #include <string.h>
-#include "../redisai_memory.h"
+#include "util/redisai_memory.h"
 
 RedisModuleString *RAI_HoldString(RedisModuleCtx *ctx, RedisModuleString *str) {
     if (str == NULL) {

@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}-test
 
-ARG REDIS_VER=6.0.5
+ARG REDIS_VER=6.0.9
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -11,12 +11,13 @@ ARG ARCH=x64
 # OS=ubuntu18.04|ubuntu16.04|centos7
 ARG OS=ubuntu18.04
 
-ARG CUDA_VER=10.1-cudnn7
+ARG CUDA_VER=11.0-cudnn8
 
 ARG PACK=1
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
+FROM nvidia/cuda:10.2-cudnn8-devel-${OS} AS cuda_10.2
 FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
 SHELL ["/bin/bash", "-c"]
@@ -27,15 +28,19 @@ ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
+COPY --from=cuda_10.2 /usr/local/cuda-10.2 /usr/local/cuda-10.2
+COPY --from=cuda_10.2 /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu/
+
+RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
+
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
+COPY ./tests/flow/Install_RedisGears.sh tests/flow/
 
-RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
+RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 
 RUN set -e ;\
-	python3 -m virtualenv venv --system-site-packages ;\
 	. venv/bin/activate ;\
-	python -m pip install pip==19.3.1 ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
@@ -43,24 +48,24 @@ COPY ./get_deps.sh .
 RUN set -e ;\
 	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
-		VERBOSE=1 ./get_deps.sh gpu ;\
+	VERBOSE=1 ./get_deps.sh gpu ;\
 	else \
-		env $DEPS_ARGS ./get_deps.sh gpu ;\
+	env $DEPS_ARGS ./get_deps.sh gpu ;\
 	fi
 
 ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
-    . venv/bin/activate ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+	. venv/bin/activate ;\
+	. ./opt/readies/bin/sourced ./profile.d ;\
+	make -C opt build GPU=1 $BUILD_ARGS SHOW=1
 
 ARG PACK
 
 RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \
-		. venv/bin/activate ;\
-		make -C opt pack GPU=1 VERBOSE=1 ;\
+	. venv/bin/activate ;\
+	make -C opt pack GPU=1 VERBOSE=1 ;\
 	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI

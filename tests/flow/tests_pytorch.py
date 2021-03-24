@@ -269,7 +269,8 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     def run():
         con = env.getConnection()
         try:
-            con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'd{1}', 'e{1}', 'OUTPUTS', 'f1{1}', 'f2{1}')
+            ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'd{1}', 'e{1}', 'OUTPUTS', 'f1{1}', 'f2{1}')
+            env.assertEqual(ret, b'OK')
         except Exception as e:
             exception = e
             env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -279,11 +280,13 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     t.start()
 
     try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c1{1}', 'c2{1}')
+        ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c1{1}', 'c2{1}')
+        env.assertEqual(ret, b'OK')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+    t.join()
 
 
 
@@ -984,3 +987,22 @@ def test_modelget_for_tuple_output(env):
     env.assertEqual(ret[9], 0)
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 2)
+
+def test_torch_info(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
+        return
+    con = env.getConnection()
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(6, len(ret))
+
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
+
+    ret = con.execute_command('AI.INFO')
+    env.assertEqual(8, len(ret))
+    env.assertEqual(b'Torch version', ret[6])

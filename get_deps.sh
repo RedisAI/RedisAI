@@ -12,7 +12,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
 		[ARGVARS...] get_deps.sh [cpu|gpu] [--help|help]
-		
+
 		Argument variables:
 		CPU=1              Get CPU dependencies
 		GPU=1              Get GPU dependencies
@@ -70,13 +70,13 @@ MKL=mkl
 ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
-
+DLPACK_VERSION="v0.4"
 if [[ $WITH_DLPACK != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
 	if [[ ! -d $DLPACK ]]; then
 		echo "Cloning dlpack ..."
-		git clone --depth 1 https://github.com/dmlc/dlpack.git $DLPACK
+		git clone --depth 1 --branch $DLPACK_VERSION https://github.com/dmlc/dlpack.git $DLPACK
 		echo "Done."
 	else
 		echo "dlpack is in place."
@@ -87,7 +87,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.3.1"
+TF_VERSION="2.4.0"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -103,7 +103,7 @@ if [[ $WITH_TF != 0 ]]; then
 			fi
 			if [[ $ARCH == x64 ]]; then
 				TF_ARCH=x86_64
-				
+
 				LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
 			elif [[ $ARCH == arm64v8 ]]; then
 				TF_ARCH=arm64
@@ -134,7 +134,7 @@ if [[ $WITH_TF != 0 ]]; then
 		mkdir $LIBTENSORFLOW.x
 		tar xf $LIBTF_ARCHIVE --no-same-owner -C $LIBTENSORFLOW.x
 		mv $LIBTENSORFLOW.x $LIBTENSORFLOW
-		
+
 		echo "Done."
 	else
 		echo "TensorFlow is in place."
@@ -152,7 +152,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 
 	if [[ ! -d $LIBTFLITE ]]; then
 		echo "Installing TensorFlow Lite ..."
-		
+
 		LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 		if [[ $OS == linux ]]; then
 			TFLITE_OS="linux"
@@ -183,7 +183,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 		mkdir $LIBTFLITE.x
 		tar xf $LIBTFLITE_ARCHIVE --no-same-owner -C $LIBTFLITE.x
 		mv $LIBTFLITE.x $LIBTFLITE
-		
+
 		echo "Done."
 	else
 		echo "TensorFlow Lite is in place."
@@ -194,7 +194,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.7.0"
+PT_VERSION="1.7.1"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
@@ -212,7 +212,7 @@ if [[ $WITH_PT != 0 ]]; then
 				if [[ $JETSON == 1 ]]; then
 					PT_BUILD=cu102-jetson
 				else
-					PT_BUILD=cu101
+					PT_BUILD=cu110
 				fi
 			fi
 			if [[ $ARCH == x64 ]]; then
@@ -241,14 +241,14 @@ if [[ $WITH_PT != 0 ]]; then
 
 			[[ ! -f $LIBTORCH_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTORCH_URL
 		fi
-		
+
 		rm -rf $LIBTORCH.x
 		mkdir $LIBTORCH.x
 
 		tar xf $LIBTORCH_ARCHIVE --no-same-owner -C $LIBTORCH.x
 		mv $LIBTORCH.x/libtorch $LIBTORCH
 		rmdir $LIBTORCH.x
-		
+
 		echo "Done."
 	else
 		echo "libtorch is in place."
@@ -282,7 +282,7 @@ fi
 
 ################################################################################### ONNXRUNTIME
 
-ORT_VERSION="1.2.0"
+ORT_VERSION="1.7.1"
 
 if [[ $WITH_ORT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
@@ -297,15 +297,13 @@ if [[ $WITH_ORT != 0 ]]; then
 			else
 				ORT_BUILD="-gpu"
 			fi
+			ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			if [[ $ARCH == x64 ]]; then
 				ORT_ARCH=x64
-				ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 			elif [[ $ARCH == arm64v8 ]]; then
 				ORT_ARCH=arm64
-				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			elif [[ $ARCH == arm32v7 ]]; then
 				ORT_ARCH=arm
-				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			fi
 		elif [[ $OS == macos ]]; then
 			ORT_OS=osx
@@ -322,7 +320,7 @@ if [[ $WITH_ORT != 0 ]]; then
 		mkdir $ONNXRUNTIME.x
 		tar xzf ${ORT_ARCHIVE} --no-same-owner --strip-components=1 -C $ONNXRUNTIME.x
 		mv $ONNXRUNTIME.x $ONNXRUNTIME
-		
+
 		echo "Done."
 	else
 		echo "ONNXRuntime is in place."

@@ -1,9 +1,9 @@
 #define REDISMODULE_MAIN
-#include "backends/torch.h"
 #include "backends/util.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
+#include "backends/torch.h"
+#include "util/arr.h"
 #include "libtorch_c/torch_c.h"
+#include "redis_ai_objects/tensor.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
@@ -367,3 +367,5 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTorch(void) { return "NA"; }

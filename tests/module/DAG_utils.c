@@ -61,15 +61,35 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     }
     size_t n_outputs = RedisAI_DAGNumOutputs(onFinishCtx);
     for (size_t i = 0; i < n_outputs; i++) {
-        RAI_Tensor *t = RedisAI_DAGOutputTensor(onFinishCtx, i);
+        RAI_Tensor *t = (RAI_Tensor *)RedisAI_DAGOutputTensor(onFinishCtx, i);
         RedisModule_Assert(t != NULL);
         results->outputs = array_append(results->outputs, RedisAI_TensorGetShallowCopy(t));
     }
 
     // Verify that we return NULL as output for an index out of range.
-    RAI_Tensor *t = RedisAI_DAGOutputTensor(onFinishCtx, n_outputs);
+    RAI_Tensor *t = (RAI_Tensor *)RedisAI_DAGOutputTensor(onFinishCtx, n_outputs);
     RedisModule_Assert(t == NULL);
     pthread_cond_signal(&global_cond);
+}
+
+int testLoadTensor(RedisModuleCtx *ctx) {
+    RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
+    int res = LLAPIMODULE_ERR;
+    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    t = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
+
+    // cannot load more than one tensor under the same name.
+    if (RedisAI_DAGLoadTensor(run_info, "input", t) != REDISMODULE_ERR) {
+        goto cleanup;
+    }
+    res = LLAPIMODULE_OK;
+
+    cleanup:
+    RedisAI_DAGFree(run_info);
+    return res;
 }
 
 int testModelRunOpError(RedisModuleCtx *ctx) {
@@ -243,7 +263,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 9, 4, 9};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val) != 0) {
+        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -296,7 +316,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 6, 4, 6};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(RedisAI_TensorGetValueAsDouble(out_tensor, i, &val) != 0) {
+        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -407,7 +427,7 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     RedisModule_Assert(_ResultsNumOutputs(results) == 1);
     RAI_Tensor *out_tensor = results.outputs[0];
     long long val;
-    if(RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val) != 0) goto cleanup;
+    if(!RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val)) goto cleanup;
     if (0 <= val && val <= 1000) {
         res = LLAPIMODULE_OK;
     }

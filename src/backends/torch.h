@@ -1,11 +1,10 @@
-#ifndef SRC_BACKENDS_TORCH_H_
-#define SRC_BACKENDS_TORCH_H_
+#pragma once
 
-#include "config.h"
-#include "tensor_struct.h"
-#include "script_struct.h"
-#include "model_struct.h"
-#include "err.h"
+#include "config/config.h"
+#include "redis_ai_objects/err.h"
+#include "redis_ai_objects/model_struct.h"
+#include "redis_ai_objects/tensor_struct.h"
+#include "redis_ai_objects/script_struct.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *));
 
@@ -24,4 +23,4 @@ void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 
 int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error);
 
-#endif /* SRC_BACKENDS_TORCH_H_ */
+const char *RAI_GetBackendVersionTorch(void);

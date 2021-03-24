@@ -1,9 +1,9 @@
 #define REDISMODULE_MAIN
-#include "backends/tensorflow.h"
 #include "backends/util.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
-#include "model.h"
+#include "backends/tensorflow.h"
+#include "util/arr.h"
+#include "redis_ai_objects/model.h"
+#include "redis_ai_objects/tensor.h"
 
 #include "tensorflow/c/c_api.h"
 
@@ -88,9 +88,9 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
+    RAI_Tensor *ret = RAI_TensorNew();
 
-    DLContext ctx = (DLContext){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
 
     const size_t ndims = TF_NumDims(tensor);
 
@@ -129,7 +129,7 @@ RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
     // This applies to outputs
 
     ret->tensor = (DLManagedTensor){
-        .dl_tensor = (DLTensor){.ctx = ctx,
+        .dl_tensor = (DLTensor){.device = device,
 #ifdef RAI_COPY_RUN_OUTPUT
                                 .data = data,
 #else
@@ -143,7 +143,6 @@ RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
         .manager_ctx = NULL,
         .deleter = NULL};
 
-    ret->refCount = 1;
     return ret;
 }
 
@@ -591,3 +590,5 @@ int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTF(void) { return TF_Version(); }

@@ -1,9 +1,9 @@
 #define REDISMODULE_MAIN
-#include "backends/tflite.h"
 #include "backends/util.h"
-#include "tensor.h"
-#include "util/arr_rm_alloc.h"
+#include "backends/tflite.h"
+#include "util/arr.h"
 #include "libtflite_c/tflite_c.h"
+#include "redis_ai_objects/tensor.h"
 
 int RAI_InitBackendTFLite(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
@@ -237,3 +237,5 @@ int RAI_ModelSerializeTFLite(RAI_Model *model, char **buffer, size_t *len, RAI_E
 
     return 0;
 }
+
+const char *RAI_GetBackendVersionTFLite(void) { return "NA"; }

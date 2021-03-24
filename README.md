@@ -1,6 +1,6 @@
 [![GitHub issues](https://img.shields.io/github/release/RedisAI/RedisAI.svg?sort=semver)](https://github.com/RedisAI/RedisAI/releases/latest)
 [![CircleCI](https://circleci.com/gh/RedisAI/RedisAI/tree/master.svg?style=svg)](https://circleci.com/gh/RedisAI/RedisAI/tree/master)
-[![Docker Cloud Build Status](https://img.shields.io/docker/cloud/build/redisai/redisai.svg)](https://hub.docker.com/r/redisai/redisai/builds/)
+[![Dockerhub](https://img.shields.io/badge/dockerhub-redislabs%2Fredisai-blue)](https://hub.docker.com/r/redislabs/redisai/tags/) 
 [![codecov](https://codecov.io/gh/RedisAI/RedisAI/branch/master/graph/badge.svg)](https://codecov.io/gh/RedisAI/RedisAI)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/RedisAI/RedisAI.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/RedisAI/RedisAI/alerts/)
 
@@ -23,13 +23,13 @@ If you want to run examples, make sure you have [git-lfs](https://git-lfs.github
 To quickly tryout RedisAI, launch an instance using docker:
 
 ```sh
-docker run -p 6379:6379 -it --rm redisai/redisai
+docker run -p 6379:6379 -it --rm redislabs/redisai
 ```
 
 For docker instance with GPU support, you can launch it from `tensorwerk/redisai-gpu`
 
 ```sh
-docker run -p 6379:6379 --gpus all -it --rm redisai/redisai:latest-gpu
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu
 ```
 
 But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)

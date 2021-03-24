@@ -661,14 +661,14 @@ Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' com
     Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
 
 ## AI.INFO
-The **`AI.INFO`** command returns information about the execution a model or a script.
+The **`AI.INFO`** command returns general module information or information about the execution a model or a script.
 
 Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
 
 **Redis API**
 
 ```
-AI.INFO <key> [RESETSTAT]
+AI.INFO [<key>] [RESETSTAT]
 ```
 
 _Arguments_
@@ -678,7 +678,15 @@ _Arguments_
 
 _Return_
 
-An array with alternating entries that represent the following key-value pairs:
+For a module genernal information: An array with alternating entries that represent the following key-value pairs:
+
+* **Version**: a string showing the current module version.
+* **Low level API Version**:  a string showing the current module's low level api version.
+* **RDB Encoding version**: a string showing the current module's RDB encoding version.
+* **TensorFlow version**: a string showing the current loaded TesnorFlow backend version.
+* **ONNX version**: a string showing the current loaded ONNX Runtime backend version.
+
+For model or script runtime information: An array with alternating entries that represent the following key-value pairs:
 
 * **KEY**: a String of the name of the key storing the model or script value
 * **TYPE**: a String of the type of value (i.e. 'MODEL' or 'SCRIPT')

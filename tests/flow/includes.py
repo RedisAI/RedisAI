@@ -10,12 +10,12 @@ import numpy as np
 from skimage.io import imread
 from skimage.transform import resize
 
-try:
-    sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../deps/readies"))
-    import paella
-except:
-    pass
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../opt/readies"))
+import paella
+
+ROOT = os.environ.get("ROOT", None)
+TESTMOD_PATH = os.environ.get("TESTMOD", None)
 MAX_ITERATIONS = 2 if os.environ.get("MAX_ITERATIONS") == None else os.environ.get("MAX_ITERATIONS")
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
 TEST_TFLITE = os.environ.get("TEST_TFLITE") != "0" and os.environ.get("WITH_TFLITE") != "0"
@@ -56,6 +56,8 @@ def send_and_disconnect(cmd, red):
     con = pool.get_connection(cmd[0])
     ret = con.send_command(*cmd)
     con.disconnect()
+    # For making sure that Redis will have the time to exit cleanly.
+    time.sleep(1)
     return ret
 
 
