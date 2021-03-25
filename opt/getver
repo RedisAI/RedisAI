@@ -22,7 +22,7 @@ else
 		#include "src/version.h"
 
 		int main(int argc, char *argv[]) {
-				printf("%d%d%d\n", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
+				printf("%d\n", REDISAI_MODULE_VERSION);
 				return 0;
 		}
 		EOF
