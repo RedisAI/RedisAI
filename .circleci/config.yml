@@ -495,8 +495,7 @@ workflows:
           <<: *after-linter
       - valgrind:
           test_args: CLUSTER=0 AOF=0
-          #@@ <<: *on-any-branch
-          <<: *never
+          <<: *on-any-branch
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
