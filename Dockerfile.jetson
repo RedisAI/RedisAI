@@ -40,7 +40,7 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
 
-RUN PIP=1 FORCE=1 ./opt/readies/bin/getpy3
+RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS="GPU=1 JETSON=1 WITH_PT=1 WITH_TF=1 WITH_TFLITE=0 WITH_ORT=0"
@@ -81,7 +81,7 @@ ARG OS
 ARG L4T_VER
 
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
-RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi 
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
 
 ENV REDIS_MODULES /usr/lib/redis/modules
 RUN mkdir -p $REDIS_MODULES/
@@ -96,4 +96,5 @@ COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
 WORKDIR /data
 EXPOSE 6379
 # CMD ["/usr/local/bin/redis-server", "/usr/local/etc/redis/redis.conf", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+RUN rm -rf /root/.cache /usr/local/cuda/lib64/*.a /usr/local/cuda/doc /usr/local/cuda/samples
 CMD ["/usr/local/bin/redis-server", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]

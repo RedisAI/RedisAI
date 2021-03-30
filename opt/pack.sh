@@ -14,7 +14,7 @@ fi
 if [[ $1 == --help || $1 == help ]]; then
 	cat <<-END
 		pack.sh [cpu|gpu] [--help|help]
-		
+
 		Argument variables:
 		DEVICE=cpu|gpu    CPU or GPU variants
 		RAMP=1            Build RAMP file
@@ -50,7 +50,8 @@ RAMP_PROG="python3 -m RAMP.ramp"
 BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
-. $READIES/enable-utf8
+$READIES/enable-utf8
+source /etc/profile.d/utf8.sh
 
 export ARCH=$($READIES/platform --arch)
 export OS=$($READIES/platform --os)
@@ -81,7 +82,7 @@ pack_ramp() {
 		local packdir=snapshots
 		local s3base=snapshots/
 	fi
-	
+
 	local fq_package=$stem.${verspec}.zip
 
 	[[ ! -d $BINDIR/$packdir ]] && mkdir -p $BINDIR/$packdir
@@ -100,11 +101,17 @@ pack_ramp() {
 
 		xtx_vars+=" -e NAME_$dep -e PATH_$dep -e SHA256_$dep"
 	done
-	
+
+	if [[ -z $VARIANT ]]; then
+		local rampfile=ramp.yml
+	else
+		local rampfile=ramp${VARIANT}.yml
+	fi
+
 	python3 $READIES/xtx \
 		$xtx_vars \
 		-e DEVICE -e NUMVER -e SEMVER \
-		$ROOT/ramp.yml > /tmp/ramp.yml
+		$ROOT/$rampfile > /tmp/ramp.yml
 	rm -f /tmp/ramp.fname $packfile
 	$RAMP_PROG pack -m /tmp/ramp.yml --packname-file /tmp/ramp.fname --verbose --debug -o $packfile $product_so >/tmp/ramp.err 2>&1 || true
 	if [[ ! -e $packfile ]]; then
@@ -118,7 +125,7 @@ pack_ramp() {
 
 pack_deps() {
 	local depname="$1"
-	
+
 	cd $ROOT
 
 	local platform="$OS-$OSNICK-$ARCH"
@@ -126,13 +133,13 @@ pack_deps() {
 	local fq_package=$stem.${SEMVER}${VARIANT}.tgz
 	local tar_path=$BINDIR/$fq_package
 	local backends_prefix_dir=""
-	
+
 	if [[ $depname == all ]]; then
 		local backends_dir=.
 	else
 		local backends_dir=${PRODUCT}_$depname
 	fi
-	
+
 	cd $INSTALL_DIR/backends
 	{ find $backends_dir -name "*.so*" | \
 	  xargs tar -c --sort=name --owner=root:0 --group=root:0 --mtime='UTC 1970-01-01' --transform "s,^,$backends_prefix_dir," 2>> /tmp/pack.err | \
@@ -179,7 +186,7 @@ if [[ $RAMP == 1 ]]; then
 		exit 1
 	fi
 
-	echo "Building RAMP files ..."
+	echo "Building RAMP $VARIANT files ..."
 	SNAPSHOT=0 pack_ramp
 	SNAPSHOT=1 pack_ramp
 	echo "Done."

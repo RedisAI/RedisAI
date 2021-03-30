@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}-test
 
-ARG REDIS_VER=6.0.5
+ARG REDIS_VER=6.2.1
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -30,12 +30,10 @@ COPY --from=redis /usr/local/ /usr/local/
 COPY ./opt/ opt/
 COPY ./tests/flow/test_requirements.txt tests/flow/
 
-RUN PIP=1 VENV=1 FORCE=1 ./opt/readies/bin/getpy3
+RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 
 RUN set -e ;\
-	python3 -m virtualenv venv --system-site-packages ;\
 	. venv/bin/activate ;\
-	python -m pip install pip==19.3.1 ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
@@ -51,16 +49,15 @@ RUN set -e ;\
 ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
-    . venv/bin/activate ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+	. venv/bin/activate ;\
+	bash -l -c "make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
 
 ARG PACK
 
 RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \
 		. venv/bin/activate ;\
-		make -C opt pack GPU=1 VERBOSE=1 ;\
+		bash -l -c "make -C opt pack GPU=1 VERBOSE=1" ;\
 	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI
