@@ -69,4 +69,4 @@ RUN set -e ;\
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI
 
-CMD ["bash", "-c", ". ./venv/bin/activate; bash -c make -C opt test GPU=1 SHOW=1"]
+CMD ["bash", "-c", ". ./venv/bin/activate; make -C opt test GPU=1 SHOW=1"]
