@@ -6,7 +6,7 @@ import argparse
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
-READIES = os.path.join(ROOT, "deps/readies")
+READIES = os.path.join(ROOT, "opt/readies")
 sys.path.insert(0, READIES)
 import paella
 
@@ -21,7 +21,8 @@ class RedisAISetup(paella.Setup):
         self.pip_install("wheel")
 
         self.install("git unzip patchelf")
-        self.install("coreutils") # for realpath
+        if self.osnick != 'centos8':
+            self.install("coreutils") # for realpath
 
     def debian_compat(self):
         self.run("%s/bin/enable-utf8" % READIES)
@@ -36,9 +37,9 @@ class RedisAISetup(paella.Setup):
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
+        self.run("%s/bin/enable-utf8" % READIES)
         self.run("%s/bin/getepel" % READIES)
         self.install("redhat-lsb-core")
-        self.run("%s/bin/enable-utf8" % READIES)
 
         self.run("%s/bin/getgcc --modern" % READIES)
 
