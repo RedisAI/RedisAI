@@ -40,20 +40,18 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN bash -c "set -e ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build $BUILD_ARGS SHOW=1"
+RUN bash -l -c "make -C opt build $BUILD_ARGS SHOW=1"
 
 ARG PACK
 ARG TEST
 
 RUN mkdir -p bin/artifacts
 RUN set -e ;\
-    if [ "$PACK" = "1" ]; then make -C opt pack; fi
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack"; fi
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
-        TEST= make -C opt test $BUILD_ARGS NO_LFS=1 ;\
+        bash -l -c "TEST= make -C opt test $BUILD_ARGS NO_LFS=1" ;\
         if [[ -d test/logs ]]; then \
             tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
         fi ;\
