@@ -121,7 +121,7 @@ commands:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -306,6 +306,12 @@ jobs:
           name: Build
           command: |
             docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
+      - run:
+          name: Test
+          command: |
+            mkdir -p $HOME/tests
+            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
+          no_output_timeout: 40m
       - store_artifacts:
           path: tests/logs
 
@@ -324,6 +330,7 @@ jobs:
           name: Deploy to S3
           command: |
             cd "workspace/artifacts/<<parameters.location>>"
+            du -ah --apparent-size *
             for f in *.zip snapshot/*.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
             done
@@ -344,6 +351,8 @@ jobs:
                 echo "Extracting $f ..."
                 tar xf $f
             done
+            echo "... done."
+            du -ah --apparent-size *
             cd snapshots
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
@@ -361,6 +370,7 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
+            du -ah --apparent-size *
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
@@ -445,6 +455,10 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only: /^v[0-9].*/
 
 
+after-linter: &after-linter
+  requires:
+    - lint
+
 after-build-and-test: &after-build-and-test
   requires:
     - build-and-test
@@ -463,15 +477,34 @@ workflows:
   version: 2
   build_and_package:
     jobs:
+      - lint:
+          <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch
+          <<: *after-linter
       - platforms-build:
           <<: *platform-build-defs
       - coverage:
           context: common
           <<: *on-any-branch
+          <<: *after-linter
+#      - valgrind:
+#          test_args: CLUSTER=0 AOF=0
+#          <<: *on-any-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0 AOF=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-aof
+#          test_args: GEN=0 CLUSTER=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
+          <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
