@@ -22,12 +22,6 @@
         "name": "bionic-amd64-aws",
         "concurrency": 1,
 		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_FILE_PREFIX}}/{{RS_MODULE_FILE_PREFIX}}-cpu.linux-bionic-x64.{{MODULE_VERSION}}.zip"
-      },
-      {
-        "teardown": true,
-        "name": "rhel7.7-x86_64-aws",
-        "concurrency": 1,
-		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_FILE_PREFIX}}/{{RS_MODULE_FILE_PREFIX}}-cpu.linux-centos7-x64.{{MODULE_VERSION}}.zip"
       }
     ]
   }
