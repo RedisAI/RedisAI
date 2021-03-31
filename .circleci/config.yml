@@ -167,7 +167,7 @@ jobs:
 
   build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - build-steps:
           platform: debian
@@ -183,7 +183,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - checkout
@@ -217,7 +217,7 @@ jobs:
         type: string
         default: "CLUSTER=0 AOF=0"
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - checkout
@@ -325,7 +325,7 @@ jobs:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -342,7 +342,7 @@ jobs:
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -365,7 +365,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -379,6 +379,26 @@ jobs:
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
+
+  release-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
+
+  nightly-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
 
 
 on-any-branch: &on-any-branch
@@ -408,6 +428,17 @@ on-integ-branch: &on-integ-branch
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
+    tags:
+      ignore: /.*/
+
+not-on-integ-branch: &not-on-integ-branch
+  filters:
+    branches:
+      ignore:
+        - master
+        - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       ignore: /.*/
 
@@ -424,6 +455,7 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       only: /^v[0-9].*/
 
@@ -493,6 +525,11 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
 
   nightly:
     triggers:
@@ -504,3 +541,5 @@ workflows:
     jobs:
       - build-macos:
           <<: *never # temporarily disabled
+      - nightly-automation:
+          context: common
