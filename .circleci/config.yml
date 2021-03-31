@@ -71,6 +71,11 @@ commands:
           name: Build
           command: make -C opt all SHOW=1
       - run:
+          name: Test
+          command: |
+            make -C opt test SHOW=1
+          no_output_timeout: 20m
+      - run:
           name: Package
           command: |
             make -C opt pack SHOW=1
@@ -82,7 +87,7 @@ commands:
             - artifacts/*.tgz
             - artifacts/*.tar
       - store_artifacts:
-          path: tests/logs
+          path: test/logs
 
   platforms-build-steps:
     steps:
@@ -116,7 +121,7 @@ commands:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+            (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -137,9 +142,23 @@ commands:
       - run:
           name: Deploy to S3
           command: |
+            du -ah --apparent-size artifacts/*
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
+  lint:
+    docker:
+      - image: redislabsmodules/llvm-toolset:latest
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - setup-automation
+      - run:
+          name: lint
+          command: |
+            make -C opt lint
 
   build-and-test:
     docker:
