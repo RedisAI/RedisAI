@@ -198,8 +198,8 @@ format:
 format-docker:
 	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt format"
 
-lint:
-	./clang-check-all.sh
+lint: ;
+#	./clang-check-all.sh
 
 lint-docker:
 	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt lint"
