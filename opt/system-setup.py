@@ -7,6 +7,8 @@ import argparse
 HERE = os.path.abspath(os.path.dirname(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
 sys.path.insert(0, os.path.join(HERE, "readies"))
+READIES = os.path.join(ROOT, "opt/readies")
+sys.path.insert(0, READIES)
 import paella
 
 #----------------------------------------------------------------------------------------------
@@ -17,37 +19,30 @@ class RedisAISetup(paella.Setup):
 
     def common_first(self):
         self.install_downloaders()
-        self.setup_pip()
-        self.pip_install("wheel virtualenv")
-        # if self.osnick == 'xenial': 
-        #     self.pip_install("setuptools --upgrade")
-        #     self.pip_install("-IU --force-reinstall setuptools")
+        self.pip_install("wheel")
 
-        if self.os == 'linux':
-            self.install("ca-certificates")
-        self.install("git unzip wget patchelf")
-        self.install("coreutils") # for realpath
+        self.install("git unzip patchelf")
+        if self.osnick != 'centos8':
+            self.install("coreutils") # for realpath
 
     def debian_compat(self):
+        self.run("%s/bin/enable-utf8" % READIES)
+        self.run("%s/bin/getgcc" % READIES)
         self.install("gawk")
-        self.install("build-essential cmake")
+        self.install("libssl-dev")
         self.install("python3-regex")
-        self.install("python3-psutil python3-networkx python3-numpy") # python3-skimage
+        self.install("python3-networkx python3-numpy")
+        if self.platform.is_arm():
+            self.install("python3-dev") # python3-skimage
+        self.install("libmpich-dev libopenblas-dev") # for libtorch
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
+        self.run("%s/bin/enable-utf8" % READIES)
+        self.run("%s/bin/getepel" % READIES)
         self.install("redhat-lsb-core")
-        self.run("%s/readies/bin/enable-utf8" % HERE)
 
-        self.group_install("'Development Tools'")
-        self.install("cmake3")
-        self.run("ln -sf `command -v cmake3` /usr/local/bin/cmake")
-
-        self.install("centos-release-scl")
-        self.install("devtoolset-8")
-        self.run("cp /opt/rh/devtoolset-8/enable /etc/profile.d/scl-devtoolset-8.sh")
-        paella.mkdir_p("%s/profile.d" % ROOT)
-        self.run("cp /opt/rh/devtoolset-8/enable %s/profile.d/scl-devtoolset-8.sh" % ROOT)
+        self.run("%s/bin/getgcc --modern" % READIES)
 
         self.run("""
             dir=$(mktemp -d /tmp/tar.XXXXXX)
@@ -58,19 +53,15 @@ class RedisAISetup(paella.Setup):
         if not self.dist == "amzn":
             self.install("epel-release")
             self.install("python3-devel libaec-devel")
-            self.install("python36-psutil")
         else:
             self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3-devel")
-            self.pip_install("psutil")
 
         self.install_git_lfs_on_linux()
 
     def fedora(self):
-        self.group_install("'Development Tools'")
-        self.install("cmake")
-        self.run("ln -sf `command -v cmake3` /usr/local/bin/cmake")
-        self.install("python3 python3-psutil python3-networkx")
+        self.run("%s/bin/getepel" % READIES)
+        self.install("python3-networkx")
         self.install_git_lfs_on_linux()
 
     def macosx(self):

@@ -50,7 +50,8 @@ RAMP_PROG="python3 -m RAMP.ramp"
 BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
-. $READIES/enable-utf8
+$READIES/enable-utf8
+source /etc/profile.d/utf8.sh
 
 export ARCH=$($READIES/platform --arch)
 export OS=$($READIES/platform --os)
