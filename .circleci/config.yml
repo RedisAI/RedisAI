@@ -35,12 +35,33 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
+  relocate-docker-storage:
+    steps:
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
+
   setup-automation:
     steps:
       - run:
           name: Setup automation
           command: |
+            git submodule update --init deps/readies 
             ./opt/readies/bin/getpy3
+            ./opt/system-setup.py
+
+  setup-build-system:
+    steps:
+      - setup-automation
+      - run:
+          name: Setup build system
+          command: |
             ./opt/system-setup.py
 
   build-steps:
@@ -57,7 +78,7 @@ commands:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
@@ -98,28 +119,18 @@ commands:
     steps:
       - abort_for_docs
       - checkout
+      - relocate-docker-storage
       - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-      - run:
-          name: Setup
-          command: |
-            git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - setup-automation
       - run:
           name: Build for platform
           command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -128,6 +139,16 @@ commands:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
+      - early_return_for_forked_pull_requests
+      - run:
+          name: Build for platform (publish)
+          command: |
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            cd opt/build/docker
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick VERBOSE=1 publish
+                make GPU=1 OSNICK=$osnick VERBOSE=1 publish
+            done
       - persist_to_workspace:
           root: bin/
           paths:
@@ -159,7 +180,7 @@ jobs:
       - run:
           name: Submodule checkout
           command: git submodule update --init --recursive
-      - setup-automation
+      - setup-build-system
       - run:
           name: lint
           command: |
@@ -194,7 +215,7 @@ jobs:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
@@ -228,7 +249,7 @@ jobs:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
