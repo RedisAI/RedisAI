@@ -538,3 +538,5 @@ workflows:
           <<: *never # temporarily disabled
       - nightly-automation:
           context: common
+          <<: *never
+
