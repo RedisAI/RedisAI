@@ -52,7 +52,7 @@ commands:
       - run:
           name: Setup automation
           command: |
-            git submodule update --init deps/readies 
+            git submodule update --init opt/readies 
             ./opt/readies/bin/getpy3
             ./opt/system-setup.py
 
