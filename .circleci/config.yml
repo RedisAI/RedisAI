@@ -64,6 +64,7 @@ commands:
             ./opt/system-setup.py
 
   checkout-all:
+    steps:
       - checkout
       - run:
           name: Checkout submodules
