@@ -54,7 +54,6 @@ commands:
           command: |
             git submodule update --init opt/readies 
             ./opt/readies/bin/getpy3
-            ./opt/system-setup.py
 
   setup-build-system:
     steps:
@@ -64,16 +63,19 @@ commands:
           command: |
             ./opt/system-setup.py
 
+  checkout-all:
+      - checkout
+      - run:
+          name: Checkout submodules
+          command: git submodule update --init --recursive
+
   build-steps:
     parameters:
       platform:
         type: string
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
@@ -118,11 +120,8 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
-      - checkout
+      - checkout-all
       - relocate-docker-storage
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
       - setup-automation
       - run:
           name: Build for platform
@@ -176,10 +175,7 @@ jobs:
     docker:
       - image: redislabsmodules/llvm-toolset:latest
     steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - setup-build-system
       - run:
           name: lint
@@ -207,10 +203,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -241,10 +234,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -283,10 +273,7 @@ jobs:
       image: cimg/base:2020.01
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - run:
           name: Checkout LFS
           command: |
@@ -315,10 +302,7 @@ jobs:
       image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - run:
           name: Relocate docker overlay2 dir
           command: |
