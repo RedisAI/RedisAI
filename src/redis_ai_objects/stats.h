@@ -13,7 +13,7 @@
 #include "redismodule.h"
 #include "util/dict.h"
 
-struct RedisAI_RunStats {
+typedef struct RedisAI_RunStats {
     RedisModuleString *key;
     RAI_RunType type;
     RAI_Backend backend;
@@ -23,7 +23,7 @@ struct RedisAI_RunStats {
     long long samples;
     long long calls;
     long long nerrors;
-};
+} RedisAI_RunStats;
 
 AI_dict *run_stats;
 

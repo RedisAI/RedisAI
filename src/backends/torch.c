@@ -29,19 +29,19 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     return REDISMODULE_OK;
 }
 
-RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
-                                const char *modeldef, size_t modellen, RAI_Error *error) {
-    DLDeviceType dl_device;
+int RAI_ModelCreateTorch(RAI_Model *model, RAI_Error *error) {
 
+    DLDeviceType dl_device;
     RAI_Device device = RAI_DEVICE_CPU;
     int64_t deviceid = 0;
-
+    size_t ninputs;
+    size_t noutputs;
     char **inputs_ = NULL;
     char **outputs_ = NULL;
 
-    if (!parseDeviceStr(devicestr, &device, &deviceid)) {
+    if (!parseDeviceStr(model->devicestr, &device, &deviceid)) {
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR unsupported device");
-        return NULL;
+        return REDISMODULE_ERR;
     }
 
     switch (device) {
@@ -51,44 +51,40 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     case RAI_DEVICE_GPU:
         dl_device = kDLGPU;
         break;
-    default:
-        RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
-        return NULL;
     }
 
     char *error_descr = NULL;
-    if (opts.backends_inter_op_parallelism > 0) {
-        torchSetInterOpThreads(opts.backends_inter_op_parallelism, &error_descr, RedisModule_Alloc);
+    void *torch_model = torchLoadModel(model->data, model->datalen, dl_device, deviceid,
+                                       &error_descr, RedisModule_Alloc);
+    if (error_descr) {
+        goto cleanup;
     }
+    model->model = torch_model;
 
-    if (error_descr != NULL) {
-        RAI_SetError(error, RAI_EMODELCREATE, error_descr);
-        RedisModule_Free(error_descr);
-        return NULL;
-    }
-
-    if (opts.backends_intra_op_parallelism > 0) {
-        torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr, RedisModule_Alloc);
+    if (model->opts.backends_inter_op_parallelism > 0) {
+        torchSetInterOpThreads((int)model->opts.backends_inter_op_parallelism, &error_descr,
+                               RedisModule_Alloc);
     }
     if (error_descr) {
-        RAI_SetError(error, RAI_EMODELCREATE, error_descr);
-        RedisModule_Free(error_descr);
-        return NULL;
+        goto cleanup;
     }
-
-    void *model =
-        torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
-
+    if (model->opts.backends_intra_op_parallelism > 0) {
+        torchSetIntraOpThreads((int)model->opts.backends_intra_op_parallelism, &error_descr,
+                               RedisModule_Alloc);
+    }
     if (error_descr) {
         goto cleanup;
     }
 
-    size_t ninputs = torchModelNumInputs(model, &error_descr);
+    // We save the model's inputs and outputs only in the first time that we create the model.
+    // We might create the model again when loading from RDB, in this case the inputs and outputs
+    // are already loaded from RDB.
+    // if (!model->inputs) {
+    ninputs = torchModelNumInputs(torch_model, &error_descr);
     if (error_descr) {
         goto cleanup;
     }
-
-    size_t noutputs = torchModelNumOutputs(model, &error_descr);
+    noutputs = torchModelNumOutputs(torch_model, &error_descr);
     if (error_descr) {
         goto cleanup;
     }
@@ -97,13 +93,12 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     outputs_ = array_new(char *, noutputs);
 
     for (size_t i = 0; i < ninputs; i++) {
-        const char *input = torchModelInputNameAtIndex(model, i, &error_descr);
+        const char *input = torchModelInputNameAtIndex(torch_model, i, &error_descr);
         if (error_descr) {
             goto cleanup;
         }
         inputs_ = array_append(inputs_, RedisModule_Strdup(input));
     }
-
     for (size_t i = 0; i < noutputs; i++) {
         const char *output = "";
         if (error_descr) {
@@ -112,26 +107,19 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
         outputs_ = array_append(outputs_, RedisModule_Strdup(output));
     }
 
-    char *buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
-    memcpy(buffer, modeldef, modellen);
+    model->ninputs = ninputs;
+    model->noutputs = noutputs;
+    model->inputs = inputs_;
+    model->outputs = outputs_;
+    //}
 
-    RAI_Model *ret = RedisModule_Calloc(1, sizeof(*ret));
-    ret->model = model;
-    ret->session = NULL;
-    ret->backend = backend;
-    ret->devicestr = RedisModule_Strdup(devicestr);
-    ret->ninputs = ninputs;
-    ret->inputs = inputs_;
-    ret->noutputs = noutputs;
-    ret->outputs = outputs_;
-    ret->opts = opts;
-    ret->refCount = 1;
-    ret->data = buffer;
-    ret->datalen = modellen;
-    return ret;
+    return REDISMODULE_OK;
 
 cleanup:
     RAI_SetError(error, RAI_EMODELCREATE, error_descr);
+    if (torch_model) {
+        torchDeallocContext(torch_model);
+    }
     RedisModule_Free(error_descr);
     if (inputs_) {
         ninputs = array_len(inputs_);
@@ -147,29 +135,13 @@ cleanup:
         }
         array_free(outputs_);
     }
-    return NULL;
+    return REDISMODULE_ERR;
 }
 
 void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error) {
-    if (model->devicestr) {
-        RedisModule_Free(model->devicestr);
+    if (model->model) {
+        torchDeallocContext(model->model);
     }
-    if (model->data) {
-        RedisModule_Free(model->data);
-    }
-    size_t ninputs = model->ninputs;
-    for (size_t i = 0; i < ninputs; i++) {
-        RedisModule_Free(model->inputs[i]);
-    }
-    array_free(model->inputs);
-
-    size_t noutputs = model->noutputs;
-    for (size_t i = 0; i < noutputs; i++) {
-        RedisModule_Free(model->outputs[i]);
-    }
-    array_free(model->outputs);
-
-    torchDeallocContext(model->model);
 }
 
 int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {

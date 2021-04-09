@@ -924,8 +924,9 @@ def test_pytorch_model_rdb_save_load(env):
     env.start()
     con = env.getConnection()
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
-    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
-    _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
+
+    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'd{1}')
+    _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'd{1}', 'META', 'VALUES')
 
     # Assert in memory model metadata is equal to loaded model metadata
     env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
@@ -966,6 +967,7 @@ def test_parallelism():
                         for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
     env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
+
 
 def test_modelget_for_tuple_output(env):
     if not TEST_PT:

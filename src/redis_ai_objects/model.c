@@ -43,49 +43,96 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     return REDISMODULE_OK;
 }
 
+int ModelCreateBE(RAI_Model *model, RAI_Error *err) {
+
+    int backend = model->backend;
+
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        if (!RAI_backends.tf.model_create_with_nodes) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
+            return REDISMODULE_ERR;
+        }
+        return RAI_backends.tf.model_create_with_nodes(model, err);
+
+    } else if (backend == RAI_BACKEND_TFLITE) {
+        if (!RAI_backends.tflite.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
+            return REDISMODULE_ERR;
+        }
+        return RAI_backends.tflite.model_create(model, err);
+
+    } else if (backend == RAI_BACKEND_TORCH) {
+        if (!RAI_backends.torch.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
+            return REDISMODULE_ERR;
+        }
+        return RAI_backends.torch.model_create(model, err);
+
+    } else if (backend == RAI_BACKEND_ONNXRUNTIME) {
+        if (!RAI_backends.onnx.model_create) {
+            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
+            return REDISMODULE_ERR;
+        }
+        return RAI_backends.onnx.model_create(model, err);
+    } else {
+        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
+        return REDISMODULE_ERR;
+    }
+}
+
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
                            const char **outputs, const char *modeldef, size_t modellen,
                            RAI_Error *err) {
-    RAI_Model *model;
-    if (backend == RAI_BACKEND_TENSORFLOW) {
-        if (!RAI_backends.tf.model_create_with_nodes) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
-            return NULL;
-        }
-        model = RAI_backends.tf.model_create_with_nodes(backend, devicestr, opts, ninputs, inputs,
-                                                        noutputs, outputs, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_TFLITE) {
-        if (!RAI_backends.tflite.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
-            return NULL;
-        }
-        model = RAI_backends.tflite.model_create(backend, devicestr, opts, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_TORCH) {
-        if (!RAI_backends.torch.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
-            return NULL;
-        }
-        model = RAI_backends.torch.model_create(backend, devicestr, opts, modeldef, modellen, err);
-    } else if (backend == RAI_BACKEND_ONNXRUNTIME) {
-        if (!RAI_backends.onnx.model_create) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
-            return NULL;
-        }
-        model = RAI_backends.onnx.model_create(backend, devicestr, opts, modeldef, modellen, err);
+
+    RAI_Model *model = RedisModule_Calloc(1, sizeof(*model));
+    model->backend = backend;
+    model->devicestr = RedisModule_Strdup(devicestr);
+    if (tag) {
+        model->tag = RAI_HoldString(NULL, tag);
     } else {
-        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
-        return NULL;
+        model->tag = RedisModule_CreateString(NULL, "", 0);
     }
+    model->opts = opts;
+    model->datalen = modellen;
+    model->data = RedisModule_Alloc(modellen);
+    memcpy(model->data, modeldef, modellen);
 
-    if (model) {
-        if (tag) {
-            model->tag = RAI_HoldString(NULL, tag);
-        } else {
-            model->tag = RedisModule_CreateString(NULL, "", 0);
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        model->ninputs = ninputs;
+        model->noutputs = noutputs;
+        model->inputs = array_new(char *, ninputs);
+        model->outputs = array_new(char *, noutputs);
+        for (size_t i = 0; i < ninputs; i++) {
+            model->inputs = array_append(model->inputs, RedisModule_Strdup(inputs[i]));
+        }
+        for (size_t i = 0; i < noutputs; i++) {
+            model->outputs = array_append(model->outputs, RedisModule_Strdup(outputs[i]));
         }
     }
+    const char *backend_str = RAI_BackendName(model->backend);
 
+    if (ModelCreateBE(model, err) != REDISMODULE_OK) {
+        // If we got an error *not* because of lazy loading, we fail and unblock.
+        if (RAI_GetErrorCode(err) != RAI_EBACKENDNOTLOADED) {
+            RAI_ModelFree(model, err);
+            return NULL;
+        }
+        RedisModule_Log(NULL, "warning", "backend %s not loaded, will try loading default backend",
+                        backend_str);
+        int ret = RAI_LoadDefaultBackend(NULL, model->backend);
+        if (ret != REDISMODULE_OK) {
+            RedisModule_Log(NULL, "error", "could not load %s default backend", backend_str);
+            RAI_ModelFree(model, err);
+            return NULL;
+        }
+        // Try creating model for backend again.
+        RAI_ClearError(err);
+        if (ModelCreateBE(model, err) != REDISMODULE_OK) {
+            RAI_ModelFree(model, err);
+            return NULL;
+        }
+    }
     return model;
 }
 
@@ -94,38 +141,40 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
         return;
     }
 
-    if (model->backend == RAI_BACKEND_TENSORFLOW) {
-        if (!RAI_backends.tf.model_free) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
-            return;
-        }
-        RAI_backends.tf.model_free(model, err);
-    } else if (model->backend == RAI_BACKEND_TFLITE) {
-        if (!RAI_backends.tflite.model_free) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
-            return;
-        }
-        RAI_backends.tflite.model_free(model, err);
-    } else if (model->backend == RAI_BACKEND_TORCH) {
-        if (!RAI_backends.torch.model_free) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
-            return;
-        }
-        RAI_backends.torch.model_free(model, err);
-    } else if (model->backend == RAI_BACKEND_ONNXRUNTIME) {
-        if (!RAI_backends.onnx.model_free) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
-            return;
-        }
-        RAI_backends.onnx.model_free(model, err);
-    } else {
-        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "Unsupported backend");
-        return;
+    RedisModule_Free(model->devicestr);
+    if (model->tag) {
+        RedisModule_FreeString(NULL, model->tag);
+    }
+    if (model->data) {
+        RedisModule_Free(model->data);
     }
 
-    RedisModule_FreeString(NULL, model->tag);
-    RAI_RemoveStatsEntry(model->infokey);
+    if (model->backend == RAI_BACKEND_TENSORFLOW && RAI_backends.tf.model_free) {
+        RAI_backends.tf.model_free(model, err);
+    } else if (model->backend == RAI_BACKEND_TFLITE && RAI_backends.tflite.model_free) {
+        RAI_backends.tflite.model_free(model, err);
+    } else if (model->backend == RAI_BACKEND_TORCH && RAI_backends.torch.model_free) {
+        RAI_backends.torch.model_free(model, err);
+    } else if (model->backend == RAI_BACKEND_ONNXRUNTIME && RAI_backends.onnx.model_free) {
+        RAI_backends.onnx.model_free(model, err);
+    }
 
+    if (model->inputs) {
+        for (size_t i = 0; i < model->ninputs; i++) {
+            RedisModule_Free(model->inputs[i]);
+        }
+        array_free(model->inputs);
+    }
+    if (model->outputs) {
+        for (size_t i = 0; i < model->noutputs; i++) {
+            RedisModule_Free(model->outputs[i]);
+        }
+        array_free(model->outputs);
+    }
+
+    if (model->infokey) {
+        RedisModule_FreeString(NULL, model->infokey);
+    }
     RedisModule_Free(model);
 }
 

@@ -326,12 +326,13 @@ error:
     return NULL;
 }
 
-RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
-                              const char *modeldef, size_t modellen, RAI_Error *error) {
+int RAI_ModelCreateORT(RAI_Model *model, RAI_Error *error) {
 
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     char **inputs_ = NULL;
     char **outputs_ = NULL;
+    size_t ninputs;
+    size_t noutputs;
     OrtSessionOptions *session_options = NULL;
     OrtSession *session = NULL;
     OrtStatus *status = NULL;
@@ -348,7 +349,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
-    if (strcasecmp(devicestr, "CPU") == 0) {
+    if (strcasecmp(model->devicestr, "CPU") == 0) {
         // These are required to ensure that onnx will use the registered REDIS allocator (for
         // a model that defined to run on CPU).
         ONNX_VALIDATE_STATUS(
@@ -359,24 +360,31 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // TODO: these options could be configured at the AI.CONFIG level
     ONNX_VALIDATE_STATUS(ort->SetSessionGraphOptimizationLevel(session_options, ORT_ENABLE_BASIC))
     ONNX_VALIDATE_STATUS(
-        ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
+        ort->SetIntraOpNumThreads(session_options, (int)model->opts.backends_intra_op_parallelism))
     ONNX_VALIDATE_STATUS(
-        ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
+        ort->SetInterOpNumThreads(session_options, (int)model->opts.backends_inter_op_parallelism))
 
     // If the model is set for GPU, this will set CUDA provider for the session,
     // so that onnx will use its own allocator for CUDA (not Redis allocator)
-    if (!setDeviceId(devicestr, session_options, error)) {
+    if (!setDeviceId(model->devicestr, session_options, error)) {
         ort->ReleaseSessionOptions(session_options);
-        return NULL;
+        return REDISMODULE_ERR;
     }
 
     ONNX_VALIDATE_STATUS(
-        ort->CreateSessionFromArray(env, modeldef, modellen, session_options, &session))
+        ort->CreateSessionFromArray(env, model->data, model->datalen, session_options, &session))
     ort->ReleaseSessionOptions(session_options);
 
+    model->session = session;
+
     size_t n_input_nodes;
-    ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
     size_t n_output_nodes;
+
+    // We save the model's inputs and outputs only in the first time that we create the model.
+    // We might create the model again when loading from RDB, in this case the inputs and outputs
+    // are already loaded from RDB.
+    // if (!model->inputs) {
+    ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
     ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
 
     inputs_ = array_new(char *, n_input_nodes);
@@ -393,27 +401,13 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         outputs_ = array_append(outputs_, output_name);
     }
 
-    // Since ONNXRuntime doesn't have a re-serialization function,
-    // we cache the blob in order to re-serialize it.
-    // Not optimal for storage purposes, but again, it may be temporary
-    char *buffer = RedisModule_Calloc(modellen, sizeof(*buffer));
-    memcpy(buffer, modeldef, modellen);
+    model->ninputs = n_input_nodes;
+    model->noutputs = n_output_nodes;
+    model->inputs = inputs_;
+    model->outputs = outputs_;
+    //}
 
-    RAI_Model *ret = RedisModule_Calloc(1, sizeof(*ret));
-    ret->model = NULL;
-    ret->session = session;
-    ret->backend = backend;
-    ret->devicestr = RedisModule_Strdup(devicestr);
-    ret->refCount = 1;
-    ret->opts = opts;
-    ret->data = buffer;
-    ret->datalen = modellen;
-    ret->ninputs = n_input_nodes;
-    ret->noutputs = n_output_nodes;
-    ret->inputs = inputs_;
-    ret->outputs = outputs_;
-
-    return ret;
+    return REDISMODULE_OK;
 
 error:
     RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
@@ -438,28 +432,32 @@ error:
         ort->ReleaseSession(session);
     }
     ort->ReleaseStatus(status);
-    return NULL;
+    return REDISMODULE_ERR;
 }
 
 void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     OrtStatus *status = NULL;
 
-    for (uint32_t i = 0; i < model->ninputs; i++) {
-        ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->inputs[i]))
+    if (model->inputs) {
+        for (uint32_t i = 0; i < model->ninputs; i++) {
+            ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->inputs[i]))
+        }
+        array_free(model->inputs);
+        model->inputs = NULL;
     }
-    array_free(model->inputs);
 
-    for (uint32_t i = 0; i < model->noutputs; i++) {
-        ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->outputs[i]))
+    if (model->outputs) {
+        for (uint32_t i = 0; i < model->noutputs; i++) {
+            ONNX_VALIDATE_STATUS(ort->AllocatorFree(global_allocator, model->outputs[i]))
+        }
+        array_free(model->outputs);
+        model->outputs = NULL;
     }
-    array_free(model->outputs);
 
-    RedisModule_Free(model->devicestr);
-    RedisModule_Free(model->data);
-    ort->ReleaseSession(model->session);
-    model->model = NULL;
-    model->session = NULL;
+    if (model->session) {
+        ort->ReleaseSession(model->session);
+    }
     return;
 
 error:

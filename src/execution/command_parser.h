@@ -25,6 +25,8 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
 int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
                           int argc);
 
+int ParseModelSetCommand(RedisModuleString **argv, int argc, RAI_Model *model, RAI_Error *err);
+
 /**
  * @brief  Parse and execute RedisAI run command. After parsing and validation, the resulted
  * runInfo (DAG) is queued and the client is blocked until the execution is complete (async

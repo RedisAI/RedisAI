@@ -27,6 +27,7 @@ void queuePushFront(queue *queue, void *value);
 queueItem *queuePop(queue *queue);
 queueItem *queueFront(queue *queue);
 queueItem *queueNext(queueItem *item);
+void *queueItemGetValue(queueItem *item);
 queueItem *queueEvict(queue *queue, queueItem *item);
 long long queueLength(queue *queue);
 void queueRelease(queue *queue);

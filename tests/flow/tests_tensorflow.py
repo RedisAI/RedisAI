@@ -426,7 +426,7 @@ def test_run_tf_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified", exception.__str__())
+        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified for TF model", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,

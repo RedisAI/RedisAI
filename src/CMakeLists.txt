@@ -27,6 +27,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         execution/command_parser.c
         execution/run_info.c
         execution/background_workers.c
+        execution/background_modelset.c
         config/config.c
         execution/DAG/dag.c
         execution/DAG/dag_parser.c
