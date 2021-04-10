@@ -135,6 +135,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     }
 
     RAI_Model *model = RedisModule_Calloc(1, sizeof(*model));
+    model->refCount = 1;
     model->infokey = RAI_HoldString(NULL, key_str);
     model->backend = backend;
     model->devicestr = devicestr;

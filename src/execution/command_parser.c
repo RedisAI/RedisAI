@@ -500,14 +500,16 @@ int ParseModelSetCommand(RedisModuleString **argv, int argc, RAI_Model *model, R
     }
     model->backend = backend;
 
-    // Parse <backend> argument: check that the device string is "CPU", "GPU" or
-    // "GPU:<n>" where <n> is a number (contains digits only).
+    // Parse <backend> argument: check that the device string is "CPU", "GPU",
+    // "GPU:<n>" or "GPU:<n>, where <n> is a number (contains digits only).
     const char *device_str;
     AC_GetString(&ac, &device_str, NULL, 0);
     bool valid_device = false;
     if (strcasecmp(device_str, "CPU") == 0 || strcasecmp(device_str, "GPU") == 0) {
         valid_device = true;
-    } else if (strncasecmp(device_str, "GPU:", 4) == 0 && strlen(device_str) <= 10) {
+    } else if ((strncasecmp(device_str, "GPU:", 4) == 0 ||
+                strncasecmp(device_str, "CPU:", 4) == 0) &&
+               strlen(device_str) <= 10) {
         bool digits_only = true;
         for (size_t i = 5; i < strlen(device_str); i++) {
             if (device_str[i] < '0' || device_str[i] > '9') {
