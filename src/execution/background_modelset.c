@@ -102,6 +102,8 @@ int RedisAI_ModelSet_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     RAI_ModelGetShallowCopy(model_ctx->model);
 
     RedisModule_ReplyWithSimpleString(ctx, "OK");
+
+    // todo: this should be replaced with RedisModule_Replicate (currently not replicating properly)
     RedisModule_ReplicateVerbatim(ctx);
     return REDISMODULE_OK;
 }
