@@ -92,6 +92,8 @@ queueItem *queueEvict(queue *queue, queueItem *item) {
 
 long long queueLength(queue *queue) { return queue->len; }
 
+void *queueItemGetValue(queueItem *item) { return item->value; }
+
 void queueRelease(queue *queue) {
     unsigned long len;
     queueItem *current;

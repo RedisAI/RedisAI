@@ -28,7 +28,9 @@ static void RAI_Model_AofRewrite(RedisModuleIO *aof, RedisModuleString *key, voi
 
 static void RAI_Model_DTFree(void *value) {
     RAI_Error err = {0};
-    RAI_ModelFree(value, &err);
+    RAI_Model *model = (RAI_Model *)value;
+    RAI_RemoveStatsEntry(model->infokey);
+    RAI_ModelFree(model, &err);
     if (err.code != RAI_OK) {
         printf("ERR: %s\n", err.detail);
         RAI_ClearError(&err);

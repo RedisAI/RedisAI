@@ -25,8 +25,8 @@ mstime_t mstime(void) { return ustime() / 1000; }
 
 void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType runtype,
                         RAI_Backend backend, const char *devicestr, RedisModuleString *tag) {
-    struct RedisAI_RunStats *rstats = NULL;
-    rstats = RedisModule_Calloc(1, sizeof(struct RedisAI_RunStats));
+
+    RedisAI_RunStats *rstats = RedisModule_Calloc(1, sizeof(*rstats));
     rstats->key = RAI_HoldString(NULL, key);
     rstats->type = runtype;
     rstats->backend = backend;

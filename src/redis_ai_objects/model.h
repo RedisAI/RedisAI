@@ -150,6 +150,8 @@ size_t ModelGetNumInputs(RAI_Model *model);
  * @brief  Returns the number of outputs in the model definition.
  */
 size_t ModelGetNumOutputs(RAI_Model *model);
+
+int ModelCreateBE(RAI_Model *model, RAI_Error *err);
 /**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.
  *

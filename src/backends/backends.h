@@ -40,15 +40,12 @@
  */
 typedef struct RAI_LoadedBackend {
     // ** model_create_with_nodes **:  A callback function pointer that creates a
-    // model given the RAI_ModelOpts and input and output nodes
-    RAI_Model *(*model_create_with_nodes)(RAI_Backend, const char *, RAI_ModelOpts, size_t,
-                                          const char **, size_t, const char **, const char *,
-                                          size_t, RAI_Error *);
+    // model given the RAI_ModelOpts and input and output nodes (which are stored in the model).
+    int (*model_create_with_nodes)(RAI_Model *, RAI_Error *);
 
     // ** model_create **:  A callback function pointer that creates a model given
-    // the RAI_ModelOpts
-    RAI_Model *(*model_create)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,
-                               RAI_Error *);
+    // the RAI_ModelOpts (which are stored in the model).
+    int (*model_create)(RAI_Model *, RAI_Error *);
 
     // ** model_free **:  A callback function pointer that frees a model given the
     // RAI_Model pointer

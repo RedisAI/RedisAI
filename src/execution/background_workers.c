@@ -20,24 +20,6 @@
 #include "run_info.h"
 #include "background_workers.h"
 
-/* Define for RedisAI thread name setter */
-#ifdef __linux__
-#define RAI_PTHREAD_SETNAME(name) pthread_setname_np(pthread_self(), name)
-#else
-#if (defined __NetBSD__ || defined __FreeBSD__ || defined __OpenBSD__)
-#include <pthread_np.h>
-#define RAI_PTHREAD_SETNAME(name) pthread_set_name_np(pthread_self(), name)
-#else
-#if (defined __APPLE__ && defined(MAC_OS_X_VERSION_10_7))
-int pthread_setname_np(const char *name);
-#include <pthread.h>
-#define RAI_PTHREAD_SETNAME(name) pthread_setname_np(name)
-#else
-#define RAI_PTHREAD_SETNAME(name)
-#endif
-#endif
-#endif
-
 int freeRunQueueInfo(RunQueueInfo *info) {
     int result = REDISMODULE_OK;
     if (info->run_queue) {

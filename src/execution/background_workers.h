@@ -15,8 +15,6 @@
 #define _GNU_SOURCE
 #endif
 
-#include <pthread.h>
-
 #include "config/config.h"
 #include "DAG/dag.h"
 #include "redis_ai_objects/model.h"
@@ -29,6 +27,24 @@
 #include "util/arr.h"
 #include "util/dict.h"
 #include "util/queue.h"
+
+/* Define for RedisAI thread name setter */
+#ifdef __linux__
+#define RAI_PTHREAD_SETNAME(name) pthread_setname_np(pthread_self(), name)
+#else
+#if (defined __NetBSD__ || defined __FreeBSD__ || defined __OpenBSD__)
+#include <pthread_np.h>
+#define RAI_PTHREAD_SETNAME(name) pthread_set_name_np(pthread_self(), name)
+#else
+#if (defined __APPLE__ && defined(MAC_OS_X_VERSION_10_7))
+int pthread_setname_np(const char *name);
+#include <pthread.h>
+#define RAI_PTHREAD_SETNAME(name) pthread_setname_np(name)
+#else
+#define RAI_PTHREAD_SETNAME(name)
+#endif
+#endif
+#endif
 
 AI_dict *run_queues;
 long long perqueueThreadPoolSize;

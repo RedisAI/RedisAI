@@ -106,7 +106,7 @@ def test_run_tflite_model_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
+        env.assertEqual("Invalid DEVICE", exception.__str__())
 
     try:
         con.execute_command('AI.MODELSET', 'm_2{1}', 'BLOB', model_pb)

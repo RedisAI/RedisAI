@@ -88,9 +88,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
     init_backend(RedisModule_GetApi);
 
     backend.model_create_with_nodes =
-        (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, size_t, const char **, size_t,
-                         const char **, const char *, size_t,
-                         RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTF");
+        (int (*)(RAI_Model *, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTF");
     if (backend.model_create_with_nodes == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -180,8 +178,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
     init_backend(RedisModule_GetApi);
 
     backend.model_create =
-        (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,
-                         RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTFLite");
+        (int (*)(RAI_Model *, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTFLite");
     if (backend.model_create == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -272,8 +269,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     init_backend(RedisModule_GetApi);
 
     backend.model_create =
-        (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,
-                         RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTorch");
+        (int (*)(RAI_Model *, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateTorch");
     if (backend.model_create == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -396,8 +392,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     init_backend(RedisModule_GetApi);
 
     backend.model_create =
-        (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,
-                         RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateORT");
+        (int (*)(RAI_Model *, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelCreateORT");
     if (backend.model_create == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
