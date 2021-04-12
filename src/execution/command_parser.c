@@ -62,7 +62,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
         return REDISMODULE_ERR;
     }
 
-    long long ninputs, noutputs;
+    long long ninputs = 0, noutputs = 0;
     if (RedisModule_StringToLongLong(argv[arg_pos++], &ninputs) != REDISMODULE_OK) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid argument for input_count");
         return REDISMODULE_ERR;
