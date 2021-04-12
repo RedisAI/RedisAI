@@ -786,6 +786,10 @@ REDISMODULE_API RedisModuleString * (*RedisModule_GetClientCertificate)(RedisMod
 REDISMODULE_API int *(*RedisModule_GetCommandKeys)(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, int *num_keys) REDISMODULE_ATTR;
 #endif
 
+// enterprise api
+REDISMODULE_API int (*RedisModule_ShardingGetKeySlot)(RedisModuleString *keyname) REDISMODULE_ATTR;
+REDISMODULE_API void (*RedisModule_ShardingGetSlotRange)(int *first_slot, int *last_slot) REDISMODULE_ATTR;
+
 #define RedisModule_IsAOFClient(id) ((id) == CLIENT_ID_AOF)
 
 /* This is included inline inside each Redis module. */
@@ -1034,6 +1038,10 @@ static int RedisModule_Init(RedisModuleCtx *ctx, const char *name, int ver, int 
     REDISMODULE_GET_API(GetClientCertificate);
     REDISMODULE_GET_API(GetCommandKeys);
 #endif
+
+    // enterprise api
+    REDISMODULE_GET_API(ShardingGetKeySlot);
+    REDISMODULE_GET_API(ShardingGetSlotRange);
 
     if (RedisModule_IsModuleNameBusy && RedisModule_IsModuleNameBusy(name)) return REDISMODULE_ERR;
     RedisModule_SetModuleAttribs(ctx,name,ver,apiver);

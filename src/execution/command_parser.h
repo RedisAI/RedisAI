@@ -3,17 +3,23 @@
 #include "redismodule.h"
 #include "run_info.h"
 
-typedef enum RunCommand { CMD_MODELRUN = 0, CMD_SCRIPTRUN, CMD_DAGRUN } RunCommand;
+typedef enum RunCommand {
+    CMD_MODELRUN = 0,
+    CMD_SCRIPTRUN,
+    CMD_DAGRUN,
+    CMD_MODELEXECUTE
+} RunCommand;
 
 /**
- * @brief  Parse and validate MODELRUN command: create a modelRunCtx based on the model obtained
+ * @brief  Parse and validate MODELEXECUTE command: create a modelRunCtx based on the model obtained
  * from the key space and save it in the op. The keys of the input and output tensors are stored in
  * the op's inkeys and outkeys arrays, the model key is saved in op's runkey, and the given timeout
  * is saved as well (if given, otherwise it is zero).
+ * If deprecated is true, we are parsing MODELRUN command (former version of MODELEXECUTE)
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
-int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
-                         int argc);
+int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                             int argc, bool deprecated);
 
 /**
  * @brief  Parse and validate SCRIPTRUN command: create a scriptRunCtx based on the script obtained

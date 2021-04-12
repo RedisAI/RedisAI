@@ -187,8 +187,8 @@ int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-            if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
-                REDISMODULE_OK) {
+            if (ParseModelExecuteCommand(rinfo, currentOp, currentOp->argv, currentOp->argc,
+                                         true) != REDISMODULE_OK) {
                 goto cleanup;
             }
             continue;

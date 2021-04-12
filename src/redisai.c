@@ -578,10 +578,34 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * client blocks until the computation finishes.
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        return RedisModule_ReplyWithError(ctx, "ERR AI.MODELRUN command is deprecated in "
+                                               "enterprise cluster, use AI.MODELEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELRUN, false);
+}
+
+/**
+ * AI.MODELEXECUTE <key>
+ * INPUTS <input_count> <input> [input ...]
+ * OUTPUTS <output_count> <output> [output ...]
+ * [TIMEOUT <time>]
+ *
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_ModelExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+
+    // This is called only in cluster mode (not enterprise), to ensure that all
+    // keys are located at the same shard.
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return ModelExecute_ReportKeysPositions(ctx, argv, argc);
+    }
+
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELEXECUTE, false);
 }
 
 /**
@@ -1276,6 +1300,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand,
                                   "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.modelexecute", RedisAI_ModelExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly",

@@ -26,7 +26,8 @@ typedef enum {
     RAI_ETENSORGET,
     RAI_EDAGBUILDER,
     RAI_EDAGRUN,
-    RAI_EFINISHCTX
+    RAI_EFINISHCTX,
+    RAI_EKEYEMPTY
 } RAI_ErrorCode;
 
 typedef struct RAI_Error {

@@ -30,7 +30,7 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(key);
-        RAI_SetError(err, RAI_EMODELRUN, "ERR model key is empty");
+        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
@@ -247,6 +247,42 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
             continue;
         }
         RedisModule_KeyAtPos(ctx, argpos);
+    }
+    return REDISMODULE_OK;
+}
+
+int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+
+    if (argc < 2) {
+        return REDISMODULE_ERR;
+    }
+    RedisModule_KeyAtPos(ctx, 1); // model key
+
+    // Inputs num should be the fourth arg.
+    if (argc < 4) {
+        return REDISMODULE_ERR;
+    }
+    long long inputs_num;
+    if (RedisModule_StringToLongLong(argv[3], &inputs_num) != REDISMODULE_OK) {
+        return REDISMODULE_ERR;
+    }
+
+    // The outputs num should be at the (inputs_num+6) position.
+    if (argc < inputs_num + 6) {
+        return REDISMODULE_ERR;
+    }
+    long long outputs_num;
+    if (RedisModule_StringToLongLong(argv[inputs_num + 5], &outputs_num) != REDISMODULE_OK) {
+        return REDISMODULE_ERR;
+    }
+    if (argc < inputs_num + outputs_num + 6) {
+        return REDISMODULE_ERR;
+    }
+    for (size_t i = 4; i < 4 + inputs_num; i++) {
+        RedisModule_KeyAtPos(ctx, i);
+    }
+    for (size_t i = 6 + inputs_num; i < 6 + inputs_num + outputs_num; i++) {
+        RedisModule_KeyAtPos(ctx, i);
     }
     return REDISMODULE_OK;
 }

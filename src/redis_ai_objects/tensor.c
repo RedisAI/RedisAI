@@ -557,7 +557,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
-        RAI_SetError(err, RAI_ETENSORGET, "ERR tensor key is empty");
+        RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
