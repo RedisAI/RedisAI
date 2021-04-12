@@ -187,3 +187,12 @@ def test_modelexecute(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("CROSSSLOT Keys in request don't hash to the same slot", str(exception))
+
+    try:
+        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c')
+        if env.isCluster():
+            env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual("CROSSSLOT Keys in request don't hash to the same slot", str(exception))

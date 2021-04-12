@@ -6,6 +6,7 @@
 #include "DAG/dag_parser.h"
 #include "util/string_utils.h"
 #include "execution/modelRun_ctx.h"
+#include "deprecated.h"
 
 extern int rlecMajorVersion;
 
@@ -37,80 +38,11 @@ static int _parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long 
     return REDISMODULE_OK;
 }
 
-static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
-                                      RAI_Model **model, RAI_Error *error,
-                                      RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                      RedisModuleString **runkey, long long *timeout) {
-
-    if (argc < 6) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "ERR wrong number of arguments for 'AI.MODELRUN' command");
-        return REDISMODULE_ERR;
-    }
-    size_t argpos = 1;
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[argpos], model, REDISMODULE_READ, error);
-    if (status == REDISMODULE_ERR) {
-        return REDISMODULE_ERR;
-    }
-    RAI_HoldString(NULL, argv[argpos]);
-    *runkey = argv[argpos];
-    const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-
-    // Parse timeout arg if given and store it in timeout
-    if (!strcasecmp(arg_string, "TIMEOUT")) {
-        if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-        arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
-    }
-    if (strcasecmp(arg_string, "INPUTS") != 0) {
-        RAI_SetError(error, RAI_EMODELRUN, "ERR INPUTS not specified");
-        return REDISMODULE_ERR;
-    }
-
-    bool is_input = true, is_output = false;
-    size_t ninputs = 0, noutputs = 0;
-
-    while (++argpos < argc) {
-        arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if (!strcasecmp(arg_string, "OUTPUTS") && !is_output) {
-            is_input = false;
-            is_output = true;
-        } else {
-            RAI_HoldString(NULL, argv[argpos]);
-            if (is_input) {
-                ninputs++;
-                *inkeys = array_append(*inkeys, argv[argpos]);
-            } else {
-                noutputs++;
-                *outkeys = array_append(*outkeys, argv[argpos]);
-            }
-        }
-    }
-    if ((*model)->ninputs != ninputs) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of keys given as INPUTS here does not match model definition");
-        return REDISMODULE_ERR;
-    }
-
-    if ((*model)->noutputs != noutputs) {
-        RAI_SetError(error, RAI_EMODELRUN,
-                     "Number of keys given as OUTPUTS here does not match model definition");
-        return REDISMODULE_ERR;
-    }
-    return REDISMODULE_OK;
-}
-
 static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                           RAI_Model **model, RAI_Error *error,
                                           RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                          RedisModuleString **runkey, long long *timeout,
-                                          bool deprecated) {
+                                          RedisModuleString **runkey, long long *timeout) {
 
-    // AI.MODELRUN is the deprecated version of AI.MODELEXECUTE.
-    if (deprecated) {
-        return _ModelRunCommand_ParseArgs(ctx, argc, argv, model, error, inkeys, outkeys, runkey,
-                                          timeout);
-    }
     if (argc < 8) {
         RAI_SetError(error, RAI_EMODELRUN,
                      "ERR wrong number of arguments for 'AI.MODELEXECUTE' command");
@@ -223,7 +155,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
 }
 
 /**
- * Extract the params for the ModelCtxRun object from AI.MODELRUN arguments.
+ * Extract the params for the ModelCtxRun object from AI.MODELEXECUTE arguments.
  *
  * @param ctx Context in which Redis modules operate
  * @param inkeys Model input tensors keys, as an array of strings
@@ -268,7 +200,7 @@ static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkey
 }
 
 int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
-                             int argc, bool deprecated) {
+                             int argc) {
 
     int res = REDISMODULE_ERR;
     // Build a ModelRunCtx from command.
@@ -276,8 +208,8 @@ int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, Redis
     RAI_Model *model;
     long long timeout = 0;
     if (_ModelExecuteCommand_ParseArgs(ctx, argc, argv, &model, rinfo->err, &currentOp->inkeys,
-                                       &currentOp->outkeys, &currentOp->runkey, &timeout,
-                                       deprecated) == REDISMODULE_ERR) {
+                                       &currentOp->outkeys, &currentOp->runkey,
+                                       &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
 
@@ -507,7 +439,7 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RAI_DagOp *modelRunOp;
         RAI_InitDagOp(&modelRunOp);
         rinfo->dagOps = array_append(rinfo->dagOps, modelRunOp);
-        status = ParseModelExecuteCommand(rinfo, modelRunOp, argv, argc, true);
+        status = ParseModelRunCommand(rinfo, modelRunOp, argv, argc);
         break;
     case CMD_SCRIPTRUN:
         rinfo->single_op_dag = 1;
@@ -524,7 +456,7 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RAI_DagOp *modelExecuteOp;
         RAI_InitDagOp(&modelExecuteOp);
         rinfo->dagOps = array_append(rinfo->dagOps, modelExecuteOp);
-        status = ParseModelExecuteCommand(rinfo, modelExecuteOp, argv, argc, false);
+        status = ParseModelExecuteCommand(rinfo, modelExecuteOp, argv, argc);
         break;
     default:
         break;

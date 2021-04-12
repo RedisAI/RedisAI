@@ -15,11 +15,10 @@ typedef enum RunCommand {
  * from the key space and save it in the op. The keys of the input and output tensors are stored in
  * the op's inkeys and outkeys arrays, the model key is saved in op's runkey, and the given timeout
  * is saved as well (if given, otherwise it is zero).
- * If deprecated is true, we are parsing MODELRUN command (former version of MODELEXECUTE)
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
 int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
-                             int argc, bool deprecated);
+                             int argc);
 
 /**
  * @brief  Parse and validate SCRIPTRUN command: create a scriptRunCtx based on the script obtained

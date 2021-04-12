@@ -25,6 +25,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/string_utils.c
         redisai.c
         execution/command_parser.c
+        execution/deprecated.c
         execution/run_info.c
         execution/background_workers.c
         config/config.c

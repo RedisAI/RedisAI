@@ -8,6 +8,7 @@
 #include "dag.h"
 #include "dag_parser.h"
 #include "dag_execute.h"
+#include "execution/deprecated.h"
 
 /**
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
@@ -187,8 +188,8 @@ int ParseDAGOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELRUN")) {
-            if (ParseModelExecuteCommand(rinfo, currentOp, currentOp->argv, currentOp->argc,
-                                         true) != REDISMODULE_OK) {
+            if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
+                REDISMODULE_OK) {
                 goto cleanup;
             }
             continue;
