@@ -45,16 +45,17 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
                      "Number of keys given as INPUTS here does not match model definition");
         return REDISMODULE_ERR;
     }
-    // arg_pos = 4 at this point, as we always have 4 args before the input keys.
-    for (; arg_pos < ninputs + 4 && arg_pos < argc; arg_pos++) {
-        *inkeys = array_append(*inkeys, RAI_HoldString(NULL, argv[arg_pos]));
-    }
-    if (arg_pos != ninputs + 4) {
+    // arg_pos = 4
+    size_t first_input_pos = arg_pos;
+    if (first_input_pos + ninputs > argc) {
         RAI_SetError(
             error, RAI_EMODELRUN,
             "ERR number of input keys to AI.MODELEXECUTE command does not match the number of "
             "given arguments");
         return REDISMODULE_ERR;
+    }
+    for (; arg_pos < first_input_pos + ninputs; arg_pos++) {
+        *inkeys = array_append(*inkeys, RAI_HoldString(NULL, argv[arg_pos]));
     }
 
     if (argc == arg_pos ||
@@ -77,17 +78,17 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
     }
     // arg_pos = ninputs+6, the argument that we already parsed are:
     // AI.MODELEXECUTE <model_key> INPUTS <input_count> <input> ... OUTPUTS <output_count>
-    for (; arg_pos < noutputs + ninputs + 6 && arg_pos < argc; arg_pos++) {
-        *outkeys = array_append(*outkeys, RAI_HoldString(NULL, argv[arg_pos]));
-    }
-    if (arg_pos != noutputs + ninputs + 6) {
+    size_t first_output_pos = arg_pos;
+    if (first_output_pos + noutputs > argc) {
         RAI_SetError(
             error, RAI_EMODELRUN,
             "ERR number of output keys to AI.MODELEXECUTE command does not match the number of "
             "given arguments");
         return REDISMODULE_ERR;
     }
-
+    for (; arg_pos < first_output_pos + noutputs; arg_pos++) {
+        *outkeys = array_append(*outkeys, RAI_HoldString(NULL, argv[arg_pos]));
+    }
     if (arg_pos == argc) {
         return REDISMODULE_OK;
     }

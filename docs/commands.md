@@ -284,7 +284,7 @@ OK
 
 
 ## AI.MODELEXECUTE
-The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
+The **`AI.MODELEXECUTE`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 

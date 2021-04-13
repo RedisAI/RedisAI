@@ -336,6 +336,7 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
  */
 int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
                               RAI_Tensor **tensor, int mode, RAI_Error *err);
+
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the
  * replicas. This is used on MODELRUN, SCRIPTRUN, DAGRUN as a way to ensure that

@@ -40,10 +40,9 @@ void getRedisVersion() {
     RedisModule_FreeThreadSafeContext(ctx);
 }
 
-int IsEnterprise() { return rlecMajorVersion != -1; }
+bool IsEnterprise() { return rlecMajorVersion != -1; }
 
 bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
-
     if (IsEnterprise()) {
         int first_slot, last_slot;
         RedisModule_ShardingGetSlotRange(&first_slot, &last_slot);

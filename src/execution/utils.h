@@ -18,4 +18,4 @@ void getRedisVersion();
 /**
  * Returns true if Redis is running in enterprise mode.
  */
-int IsEnterprise();
+bool IsEnterprise();
