@@ -9,6 +9,7 @@
 #include "dag_parser.h"
 #include "dag_execute.h"
 #include "execution/deprecated.h"
+#include "execution/utils.h"
 
 /**
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]

@@ -22,27 +22,6 @@
 #include "execution/run_info.h"
 #include "execution/DAG/dag.h"
 
-/* Return REDISMODULE_ERR if there was an error getting the Model.
- * Return REDISMODULE_OK if the model value stored at key was correctly
- * returned and available at *model variable. */
-int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Model **model,
-                             int mode, RAI_Error *err) {
-    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(key);
-        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        return REDISMODULE_ERR;
-    }
-    if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
-        RedisModule_CloseKey(key);
-        RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
-        return REDISMODULE_ERR;
-    }
-    *model = RedisModule_ModuleTypeGetValue(key);
-    RedisModule_CloseKey(key);
-    return REDISMODULE_OK;
-}
-
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
                            const char **outputs, const char *modeldef, size_t modellen,
@@ -253,35 +232,35 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
 
 int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    if (argc < 2) {
+    if (argc < 4) {
         return REDISMODULE_ERR;
     }
     RedisModule_KeyAtPos(ctx, 1); // model key
 
-    // Inputs num should be the fourth arg.
-    if (argc < 4) {
-        return REDISMODULE_ERR;
-    }
+    // Inputs num should be at position 3, after AI.MODELEXECUTE, <model_key>, "INPUTS".
+    size_t arg_pos = 3;
     long long inputs_num;
-    if (RedisModule_StringToLongLong(argv[3], &inputs_num) != REDISMODULE_OK) {
+    if (RedisModule_StringToLongLong(argv[arg_pos], &inputs_num) != REDISMODULE_OK) {
         return REDISMODULE_ERR;
     }
 
-    // The outputs num should be at the (inputs_num+6) position.
-    if (argc < inputs_num + 6) {
+    // <output_count> is located two positions after the last input key (after "OUTPUTS")
+    arg_pos += inputs_num + 2;
+    if (argc <= arg_pos) {
         return REDISMODULE_ERR;
     }
     long long outputs_num;
-    if (RedisModule_StringToLongLong(argv[inputs_num + 5], &outputs_num) != REDISMODULE_OK) {
+    if (RedisModule_StringToLongLong(argv[arg_pos], &outputs_num) != REDISMODULE_OK) {
         return REDISMODULE_ERR;
     }
-    if (argc < inputs_num + outputs_num + 6) {
+    if (argc <= arg_pos + outputs_num) {
         return REDISMODULE_ERR;
     }
-    for (size_t i = 4; i < 4 + inputs_num; i++) {
+    size_t first_input_pos = 4, first_output_pos = first_input_pos + inputs_num + 2;
+    for (size_t i = first_input_pos; i < first_input_pos + inputs_num; i++) {
         RedisModule_KeyAtPos(ctx, i);
     }
-    for (size_t i = 6 + inputs_num; i < 6 + inputs_num + outputs_num; i++) {
+    for (size_t i = first_output_pos; i < first_output_pos + outputs_num; i++) {
         RedisModule_KeyAtPos(ctx, i);
     }
     return REDISMODULE_OK;

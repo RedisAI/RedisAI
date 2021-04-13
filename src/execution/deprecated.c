@@ -1,16 +1,8 @@
 #include "deprecated.h"
 #include "modelRun_ctx.h"
+#include "command_parser.h"
 #include "util/string_utils.h"
-
-static int _parseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *timeout) {
-
-    const int retval = RedisModule_StringToLongLong(timeout_arg, timeout);
-    if (retval != REDISMODULE_OK || *timeout <= 0) {
-        RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid value for TIMEOUT");
-        return REDISMODULE_ERR;
-    }
-    return REDISMODULE_OK;
-}
+#include "execution/utils.h"
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
@@ -33,7 +25,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
 
     // Parse timeout arg if given and store it in timeout
     if (!strcasecmp(arg_string, "TIMEOUT")) {
-        if (_parseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+        if (ParseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
             return REDISMODULE_ERR;
         arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
     }
@@ -75,46 +67,6 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
     return REDISMODULE_OK;
 }
 
-/**
- * Extract the params for the ModelCtxRun object from AI.MODELRUN arguments.
- *
- * @param ctx Context in which Redis modules operate
- * @param inkeys Model input tensors keys, as an array of strings
- * @param outkeys Model output tensors keys, as an array of strings
- * @param mctx Destination Model context to store the parsed data
- * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
- */
-
-static int _ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                  RedisModuleString **outkeys, RAI_ModelRunCtx *mctx,
-                                  RAI_Error *err) {
-
-    RAI_Model *model = mctx->model;
-    RAI_Tensor *t;
-    RedisModuleKey *key;
-    char *opname = NULL;
-    size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
-    for (size_t i = 0; i < ninputs; i++) {
-        const int status =
-            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
-        if (status == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning", "could not load input tensor %s from keyspace",
-                            RedisModule_StringPtrLen(inkeys[i], NULL));
-            return REDISMODULE_ERR;
-        }
-        if (model->inputs)
-            opname = model->inputs[i];
-        RAI_ModelRunCtxAddInput(mctx, opname, t);
-    }
-
-    for (size_t i = 0; i < noutputs; i++) {
-        if (model->outputs)
-            opname = model->outputs[i];
-        RAI_ModelRunCtxAddOutput(mctx, opname);
-    }
-    return REDISMODULE_OK;
-}
-
 int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
                          int argc) {
 
@@ -142,7 +94,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ModelRunCtx, bring inputs from key space.
-        if (_ModelRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, mctx, rinfo->err) ==
+        if (ModelRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, mctx, rinfo->err) ==
             REDISMODULE_ERR)
             goto cleanup;
     }

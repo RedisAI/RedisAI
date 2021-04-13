@@ -321,23 +321,6 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
                        int mode, RAI_Error *err);
 
 /**
- * Helper method to get Tensor from keyspace. In case of a failure an
- * error is documented.
- *
- * @param ctx Context in which Redis modules operate
- * @param keyName key name
- * @param key tensor's key handle. On success it contains an handle representing
- * a Redis key with the requested access mode
- * @param tensor destination tensor structure
- * @param mode key access mode
- * @return REDISMODULE_OK if the tensor value stored at key was correctly
- * returned and available at *tensor variable, or REDISMODULE_ERR if there was
- * an error getting the Tensor
- */
-int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Tensor **tensor, int mode, RAI_Error *err);
-
-/**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the
  * replicas. This is used on MODELRUN, SCRIPTRUN, DAGRUN as a way to ensure that
  * the results present on replicas match the results present on master ( since

@@ -552,24 +552,6 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
     return REDISMODULE_OK;
 }
 
-int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Tensor **tensor, int mode, RAI_Error *err) {
-    *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(*key);
-        RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
-        return REDISMODULE_ERR;
-    }
-    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
-        RedisModule_CloseKey(*key);
-        RAI_SetError(err, RAI_ETENSORGET, REDISMODULE_ERRORMSG_WRONGTYPE);
-        return REDISMODULE_ERR;
-    }
-    *tensor = RedisModule_ModuleTypeGetValue(*key);
-    RedisModule_CloseKey(*key);
-    return REDISMODULE_OK;
-}
-
 void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t) {
     long long ndims = RAI_TensorNumDims(t);
 

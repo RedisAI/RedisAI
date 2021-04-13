@@ -9,6 +9,7 @@
 #include "execution/command_parser.h"
 #include "backends/backends.h"
 #include "backends/util.h"
+#include "execution/utils.h"
 #include "execution/background_workers.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
