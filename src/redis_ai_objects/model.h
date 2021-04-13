@@ -105,6 +105,22 @@ RAI_Model *RAI_ModelGetShallowCopy(RAI_Model *model);
 int RAI_ModelSerialize(RAI_Model *model, char **buffer, size_t *len, RAI_Error *err);
 
 /**
+ * Helper method to get a Model from keyspace. In the case of failure the key is
+ * closed and the error is replied ( no cleaning actions required )
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param keyName key name
+ * @param model destination model structure
+ * @param mode key access mode
+ * @param error contains the error in case of problem with retrival
+ * @return REDISMODULE_OK if the model value stored at key was correctly
+ * returned and available at *model variable, or REDISMODULE_ERR if there was
+ * an error getting the Model
+ */
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Model **model,
+                             int mode, RAI_Error *err);
+
+/**
  * When a module command is called in order to obtain the position of
  * keys, since it was flagged as "getkeys-api" during the registration,
  * the command implementation checks for this special call using the

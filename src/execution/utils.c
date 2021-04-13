@@ -2,9 +2,45 @@
 #include "redis_ai_objects/tensor.h"
 #include "redis_ai_objects/model.h"
 
-extern int rlecMajorVersion;
+int redisMajorVersion;
+int redisMinorVersion;
+int redisPatchVersion;
 
-static inline int IsEnterprise() { return rlecMajorVersion != -1; }
+int rlecMajorVersion;
+int rlecMinorVersion;
+int rlecPatchVersion;
+int rlecBuild;
+
+void getRedisVersion() {
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModuleCallReply *reply = RedisModule_Call(ctx, "info", "c", "server");
+    assert(RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING);
+    size_t len;
+    const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
+
+    int n = sscanf(replyStr, "# Server\nredis_version:%d.%d.%d", &redisMajorVersion,
+                   &redisMinorVersion, &redisPatchVersion);
+
+    assert(n == 3);
+
+    rlecMajorVersion = -1;
+    rlecMinorVersion = -1;
+    rlecPatchVersion = -1;
+    rlecBuild = -1;
+    char *enterpriseStr = strstr(replyStr, "rlec_version:");
+    if (enterpriseStr) {
+        n = sscanf(enterpriseStr, "rlec_version:%d.%d.%d-%d", &rlecMajorVersion, &rlecMinorVersion,
+                   &rlecPatchVersion, &rlecBuild);
+        if (n != 4) {
+            RedisModule_Log(NULL, "warning", "Could not extract enterprise version");
+        }
+    }
+
+    RedisModule_FreeCallReply(reply);
+    RedisModule_FreeThreadSafeContext(ctx);
+}
+
+int IsEnterprise() { return rlecMajorVersion != -1; }
 
 bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
 
@@ -23,59 +59,4 @@ bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
     RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
                     RedisModule_StringPtrLen(key_str, NULL));
     return true;
-}
-
-int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
-                              RAI_Tensor **tensor, int mode, RAI_Error *err) {
-    *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(*key);
-        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
-            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
-        } else {
-            RAI_SetError(err, RAI_EKEYEMPTY,
-                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
-        }
-        return REDISMODULE_ERR;
-    }
-    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
-        RedisModule_CloseKey(*key);
-        RedisModule_Log(ctx, "error", "%s is not a tensor",
-                        RedisModule_StringPtrLen(keyName, NULL));
-        RAI_SetError(err, RAI_ETENSORGET, REDISMODULE_ERRORMSG_WRONGTYPE);
-        return REDISMODULE_ERR;
-    }
-    *tensor = RedisModule_ModuleTypeGetValue(*key);
-    RedisModule_CloseKey(*key);
-    return REDISMODULE_OK;
-}
-
-int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Model **model,
-                             int mode, RAI_Error *err) {
-    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
-    if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
-        RedisModule_CloseKey(key);
-        // #IFDEF LITE
-        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
-            RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        } else {
-            RAI_SetError(err, RAI_EKEYEMPTY,
-                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
-        }
-        // #ELSE
-        RedisModule_Log(ctx, "error", "could not load %s from keyspace, key doesn't exist",
-                        RedisModule_StringPtrLen(keyName, NULL));
-        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        // #ENDIF
-        return REDISMODULE_ERR;
-    }
-    if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
-        RedisModule_CloseKey(key);
-        RedisModule_Log(ctx, "error", "%s is not a model", RedisModule_StringPtrLen(keyName, NULL));
-        RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
-        return REDISMODULE_ERR;
-    }
-    *model = RedisModule_ModuleTypeGetValue(key);
-    RedisModule_CloseKey(key);
-    return REDISMODULE_OK;
 }

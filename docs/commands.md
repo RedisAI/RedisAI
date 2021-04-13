@@ -282,7 +282,49 @@ OK
 !!! note "The `AI.MODELDEL` vis a vis the `DEL` command"
     The `AI.MODELDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
+
+## AI.MODELEXECUTE
+The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
+
+The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model run is completed. When needed, tensors data is automatically copied to the device prior to execution.
+
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case).
+
+!!! warning "Intermediate memory overhead"
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+**Redis API**
+
+```
+AI.MODELEXECUTE <key> INPUTS <input_count> <input> [input ...] OUTPUTS <output_count> <output> [output ...] [TIMEOUT t]
+```
+
+_Arguments_
+
+* **key**: the model's key name
+* **INPUTS**: denotes the beginning of the input tensors keys' list, followed by the number of inputs and one or more key names
+* **input_count**: A positive number that indicates the number of following input keys. 
+* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by the number of outputs one or more key names
+* **output_count**: A positive number that indicates the number of output keys to follow.
+* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+
+_Return_
+
+A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
+
+**Examples**
+
+Assuming that running the model that's stored at 'mymodel' with the tensor 'mytensor' as input outputs two tensors - 'classes' and 'predictions', the following command does that:
+
+```
+redis> AI.MODELEXECUTE mymodel INPUTS 1 mytensor OUTPUTS 2 classes predictions
+OK
+```
+
 ## AI.MODELRUN
+
+_This command is deprecated and will not be available in future versions. consider using AI.MODELEXECUTE command instead._   
+
 The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the model run is completed. When needed, tensors data is automatically copied to the device prior to execution.

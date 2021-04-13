@@ -20,6 +20,7 @@
 #include "rmutil/alloc.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
+#include "execution/utils.h"
 
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
@@ -549,6 +550,31 @@ int RAI_OpenKey_Tensor(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisMod
         RAI_SetError(err, RAI_ETENSORSET, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
+    return REDISMODULE_OK;
+}
+
+int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
+                              RAI_Tensor **tensor, int mode, RAI_Error *err) {
+    *key = RedisModule_OpenKey(ctx, keyName, mode);
+    if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
+        RedisModule_CloseKey(*key);
+        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
+        } else {
+            RAI_SetError(err, RAI_EKEYEMPTY,
+                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+        }
+        return REDISMODULE_ERR;
+    }
+    if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
+        RedisModule_CloseKey(*key);
+        RedisModule_Log(ctx, "error", "%s is not a tensor",
+                        RedisModule_StringPtrLen(keyName, NULL));
+        RAI_SetError(err, RAI_ETENSORGET, REDISMODULE_ERRORMSG_WRONGTYPE);
+        return REDISMODULE_ERR;
+    }
+    *tensor = RedisModule_ModuleTypeGetValue(*key);
+    RedisModule_CloseKey(*key);
     return REDISMODULE_OK;
 }
 

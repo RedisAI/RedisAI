@@ -51,45 +51,14 @@
 #endif
 #endif
 
-int redisMajorVersion;
-int redisMinorVersion;
-int redisPatchVersion;
+extern int redisMajorVersion;
+extern int redisMinorVersion;
+extern int redisPatchVersion;
 
-int rlecMajorVersion;
-int rlecMinorVersion;
-int rlecPatchVersion;
-int rlecBuild;
-
-void getRedisVersion() {
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisModuleCallReply *reply = RedisModule_Call(ctx, "info", "c", "server");
-    assert(RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING);
-    size_t len;
-    const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
-
-    int n = sscanf(replyStr, "# Server\nredis_version:%d.%d.%d", &redisMajorVersion,
-                   &redisMinorVersion, &redisPatchVersion);
-
-    assert(n == 3);
-
-    rlecMajorVersion = -1;
-    rlecMinorVersion = -1;
-    rlecPatchVersion = -1;
-    rlecBuild = -1;
-    char *enterpriseStr = strstr(replyStr, "rlec_version:");
-    if (enterpriseStr) {
-        n = sscanf(enterpriseStr, "rlec_version:%d.%d.%d-%d", &rlecMajorVersion, &rlecMinorVersion,
-                   &rlecPatchVersion, &rlecBuild);
-        if (n != 4) {
-            RedisModule_Log(NULL, "warning", "Could not extract enterprise version");
-        }
-    }
-
-    RedisModule_FreeCallReply(reply);
-    RedisModule_FreeThreadSafeContext(ctx);
-}
-
-static inline int IsEnterprise() { return rlecMajorVersion != -1; }
+extern int rlecMajorVersion;
+extern int rlecMinorVersion;
+extern int rlecPatchVersion;
+extern int rlecBuild;
 
 /* ----------------------- RedisAI Module Commands ------------------------- */
 
@@ -580,8 +549,16 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        return RedisModule_ReplyWithError(ctx, "ERR AI.MODELRUN command is deprecated in "
-                                               "enterprise cluster, use AI.MODELEXECUTE instead");
+        RedisModule_Log(ctx, "error",
+                        "AI.MODELRUN command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.MODELEXECUTE instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.MODELRUN command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.MODELEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.MODELRUN command is deprecated and will"
+                        " not be available in future version, you can use AI.MODELEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);

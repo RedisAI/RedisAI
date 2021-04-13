@@ -21,6 +21,7 @@
 #include "util/string_utils.h"
 #include "execution/run_info.h"
 #include "execution/DAG/dag.h"
+#include "execution/utils.h"
 
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
@@ -263,6 +264,36 @@ int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **ar
     for (size_t i = first_output_pos; i < first_output_pos + outputs_num; i++) {
         RedisModule_KeyAtPos(ctx, i);
     }
+    return REDISMODULE_OK;
+}
+
+int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Model **model,
+                             int mode, RAI_Error *err) {
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
+    if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
+        RedisModule_CloseKey(key);
+        // #IFDEF LITE
+        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
+        } else {
+            RAI_SetError(err, RAI_EKEYEMPTY,
+                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+        }
+        // #ELSE
+        RedisModule_Log(ctx, "error", "could not load %s from keyspace, key doesn't exist",
+                        RedisModule_StringPtrLen(keyName, NULL));
+        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
+        // #ENDIF
+        return REDISMODULE_ERR;
+    }
+    if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
+        RedisModule_CloseKey(key);
+        RedisModule_Log(ctx, "error", "%s is not a model", RedisModule_StringPtrLen(keyName, NULL));
+        RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
+        return REDISMODULE_ERR;
+    }
+    *model = RedisModule_ModuleTypeGetValue(key);
+    RedisModule_CloseKey(key);
     return REDISMODULE_OK;
 }
 
