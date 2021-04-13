@@ -491,6 +491,22 @@ static int getArgumentTensorCount(const c10::Argument& arg){
     }
 }
 
+static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg){
+    switch (arg.type()->kind())
+    {
+    case c10::TypeKind::TensorType:
+        return TENSOR;
+    case c10::TypeKind::TupleType: {
+        return TUPLE;
+    }
+    case c10::TypeKind::ListType: {
+        return LIST;
+    } 
+    default:
+        return -1;
+    }
+}
+
 extern "C" size_t torchModelNumOutputs(void *modelCtx, char** error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     size_t noutputs = 0;
@@ -517,4 +533,27 @@ extern "C" const char* torchModelInputNameAtIndex(void* modelCtx, size_t index, 
        int printed = asprintf(error, "Erorr while trying to retrive model intput at index %ld: %s", index, ex.what());
     }
     return ret;
+}
+
+extern "C" size_t torchScript_FunctionCount(void* scriptCtx) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    return ctx->cu->get_functions().size();
+}
+
+extern "C" const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return functions[fn_index]->name().c_str();
+}
+
+extern "C" size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return functions[fn_index]->getSchema().arguments().size()-1;
+}
+
+extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void* scriptCtx, size_t fn_index, size_t arg_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index+1]);
 }

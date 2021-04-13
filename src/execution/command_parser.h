@@ -7,7 +7,8 @@ typedef enum RunCommand {
     CMD_MODELRUN = 0,
     CMD_SCRIPTRUN,
     CMD_DAGRUN,
-    CMD_MODELEXECUTE
+    CMD_MODELEXECUTE,
+    CMD_SCRIPTEXECUTE
 } RunCommand;
 
 /**

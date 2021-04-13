@@ -13,8 +13,3 @@ int RAI_RStringsKeyCompare(void *privdata, const void *key1, const void *key2);
 void RAI_RStringsKeyDestructor(void *privdata, void *key);
 void *RAI_RStringsKeyDup(void *privdata, const void *key);
 
-extern AI_dictType AI_dictTypeHeapStrings;
-extern AI_dictType AI_dictTypeHeapStringsVals;
-
-extern AI_dictType AI_dictTypeHeapRStrings;
-extern AI_dictType AI_dictTypeHeapRStringsVals;

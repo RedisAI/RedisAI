@@ -6,6 +6,8 @@
 extern "C" {
 #endif
 
+#include "redis_ai_objects/script_struct.h"
+
 void torchBasicTest();
 
 DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t *shape, int64_t *strides,
@@ -38,6 +40,14 @@ size_t torchModelNumInputs(void *modelCtx, char **error);
 const char *torchModelInputNameAtIndex(void *modelCtx, size_t index, char **error);
 
 size_t torchModelNumOutputs(void *modelCtx, char **error);
+
+size_t torchScript_FunctionCount(void* scriptCtx);
+
+const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index);
+
+size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index);
+
+TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void* scriptCtx, size_t fn_index, size_t arg_index);
 
 #ifdef __cplusplus
 }

@@ -387,6 +387,52 @@ cleanup:
     return res;
 }
 
+
+int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                          int argc) {
+
+    int res = REDISMODULE_ERR;
+    // Build a ScriptRunCtx from command.
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    // int lock_status = RedisModule_ThreadSafeContextTryLock(ctx);
+    RAI_Script *script;
+    const char *func_name = NULL;
+
+    long long timeout = 0;
+    int variadic = -1;
+    if (_ScriptExecuteCommand_ParseArgs(ctx, argv, argc, &script, rinfo->err, &currentOp->inkeys,
+                                    &currentOp->outkeys, &currentOp->runkey, &func_name, &timeout,
+                                    &variadic) == REDISMODULE_ERR) {
+        goto cleanup;
+    }
+    if (timeout > 0 && !rinfo->single_op_dag) {
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR TIMEOUT not allowed within a DAG command");
+        goto cleanup;
+    }
+
+    RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
+    sctx->variadic = variadic;
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
+
+    if (rinfo->single_op_dag) {
+        rinfo->timeout = timeout;
+        // Set params in ScriptRunCtx, bring inputs from key space.
+        if (_ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx, rinfo->err) ==
+            REDISMODULE_ERR)
+            goto cleanup;
+    }
+    res = REDISMODULE_OK;
+
+cleanup:
+    // if (lock_status == REDISMODULE_OK) {
+    // RedisModule_ThreadSafeContextUnlock(ctx);
+    //}
+    RedisModule_FreeThreadSafeContext(ctx);
+    return res;
+}
+
 int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                            RunCommand command, bool ro_dag) {
 
@@ -414,6 +460,13 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RAI_InitDagOp(&scriptRunOp);
         rinfo->dagOps = array_append(rinfo->dagOps, scriptRunOp);
         status = ParseScriptRunCommand(rinfo, scriptRunOp, argv, argc);
+        break;
+    case CMD_SCRIPTEXECUTE:
+        rinfo->single_op_dag = 1;
+        RAI_DagOp *scriptRunOp;
+        RAI_InitDagOp(&scriptRunOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, scriptRunOp);
+        status = ParseScriptExecuteCommand(rinfo, scriptRunOp, argv, argc);
         break;
     case CMD_DAGRUN:
         status = ParseDAGRunCommand(rinfo, ctx, argv, argc, ro_dag);

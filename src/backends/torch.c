@@ -2,6 +2,7 @@
 #include "backends/util.h"
 #include "backends/torch.h"
 #include "util/arr.h"
+#include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
 #include "redis_ai_objects/tensor.h"
 
@@ -323,6 +324,18 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
+    ret->functionData = AI_dictCreate(&AI_dictType_String_ArrSimple, NULL);
+
+    size_t functionCount = torchScript_FunctionCount(script);
+    for(size_t i = 0; i < functionCount; i++) {
+        const char* name = torchScript_FunctionName(script, i);
+        size_t argCount = torchScript_FunctionArgumentCount(script, i);
+        TorchScriptFunctionArgumentType* argTypes = array_new(TorchScriptFunctionArgumentType, argCount);
+        for(size_t j =0; j< argCount; j++) {
+            argTypes = array_append(argTypes, torchScript_FunctionArgumentype(script, i, j));
+        }
+        AI_dictAdd(ret->functionData, (void*)name, (void*)argTypes);
+    }
 
     return ret;
 }
@@ -330,6 +343,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
 
     torchDeallocContext(script->script);
+    AI_dictRelease(script->functionData);
     RedisModule_Free(script->scriptdef);
     RedisModule_Free(script->devicestr);
     RedisModule_Free(script);

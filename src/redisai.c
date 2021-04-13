@@ -623,6 +623,15 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }
 
+int RedisAI_ScriptExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+
+    // Convert The script run command into a DAG command that contains a single op.
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTEXECUTE, false);
+}
+
 /**
  * AI.SCRIPTGET script_key [META] [SOURCE]
  */
@@ -1330,6 +1339,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand,
                                   "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.scriptexecute", RedisAI_ScriptExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 5, 5, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand,

@@ -197,6 +197,55 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     return REDISMODULE_OK;
 }
 
+int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                       RedisModuleString **argv, int argc) {
+    RedisModule_KeyAtPos(ctx, 1);
+    size_t argpos = 3;
+    if (argpos >= argc) {
+        return REDISMODULE_ERR;
+    }
+    long long count;
+    while(argpos < argc) {
+        const char *str = RedisModule_StringPtrLen(argv[argpos++], NULL);
+
+        // Inputs, outpus, keys, lists.
+        if((!strcasecmp(str, "INPUTS")) || 
+            (!strcasecmp(str, "OUTPUTS")) ||
+            (!strcasecmp(str, "LIST_INPUT")) ||
+            (!strcasecmp(str, "KEYS"))) {
+            if(argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
+            if(RedisModule_StringToLongLong(argv[argpos++], &count) != REDISMODULE_OK) {
+                return REDISMODULE_ERR;
+            }
+            if(count < 0) {
+                return REDISMODULE_ERR;
+            }
+            if(argpos + count >= argc) {
+                return REDISMODULE_ERR;
+            }
+            for(long long i = 0; i < count; i++) {
+                RedisModule_KeyAtPos(ctx, argpos++);
+            }
+            continue;
+        }
+        // Timeout
+        if (!strcasecmp(str, "TIMEOUT")) {
+            argpos++;
+            break;
+        }
+        // Undefinded input.
+        return REDISMODULE_ERR;
+    }
+    if(argpos != argc) {
+        return REDISMODULE_ERR;
+    }
+    else {
+        return REDISMODULE_OK;
+    }
+}
+
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
 
 int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
