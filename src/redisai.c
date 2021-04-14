@@ -14,6 +14,7 @@
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
+#include "execution/deprecated.h"
 #include "redis_ai_objects/model.h"
 #include "execution/modelRun_ctx.h"
 #include "redis_ai_objects/script.h"
@@ -133,6 +134,18 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+
+    RedisModule_Log(ctx, "warning",
+                    "AI.MODELSET command is deprecated and will"
+                    " not be available in future version, you can use AI.MODELSTORE instead");
+    return ModelSetCommand(ctx, argv, argc);
+}
+
+/**
+ * AI.MODELSTORE model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
+ * [INPUTS input_count name1 name2 ... OUTPUTS output_count name1 name2 ...] BLOB model_blob
+ */
+int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (argc < 4)
         return RedisModule_WrongArity(ctx);
 
@@ -207,51 +220,6 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHTIMEOUT");
         }
     }
-
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
-    }
-
-    ArgsCursor optionsac;
-    const char *blob_matches[] = {"BLOB"};
-    AC_GetSliceUntilMatches(&ac, &optionsac, 1, blob_matches);
-
-    if (optionsac.argc == 0 && backend == RAI_BACKEND_TENSORFLOW) {
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Insufficient arguments, INPUTS and OUTPUTS not specified");
-    }
-
-    ArgsCursor inac = {0};
-    ArgsCursor outac = {0};
-    if (optionsac.argc > 0 && backend == RAI_BACKEND_TENSORFLOW) {
-        if (!AC_AdvanceIfMatch(&optionsac, "INPUTS")) {
-            return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
-        }
-
-        const char *matches[] = {"OUTPUTS"};
-        AC_GetSliceUntilMatches(&optionsac, &inac, 1, matches);
-
-        if (!AC_IsAtEnd(&optionsac)) {
-            if (!AC_AdvanceIfMatch(&optionsac, "OUTPUTS")) {
-                return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified");
-            }
-
-            AC_GetSliceToEnd(&optionsac, &outac);
-        }
-    }
-
-    size_t ninputs = inac.argc;
-    const char *inputs[ninputs];
-    for (size_t i = 0; i < ninputs; i++) {
-        AC_GetString(&inac, inputs + i, NULL, 0);
-    }
-
-    size_t noutputs = outac.argc;
-    const char *outputs[noutputs];
-    for (size_t i = 0; i < noutputs; i++) {
-        AC_GetString(&outac, outputs + i, NULL, 0);
-    }
-
     RAI_ModelOpts opts = {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
@@ -260,15 +228,59 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
     };
 
-    RAI_Model *model = NULL;
+    if (AC_IsAtEnd(&ac)) {
+        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
+    }
+    const char *arg_string;
+    AC_GetString(&ac, &arg_string, NULL, 0);
+    unsigned long long ninputs = 0, noutputs = 0;
+    const char *inputs[ninputs], *outputs[noutputs];
 
-    AC_AdvanceUntilMatches(&ac, 1, blob_matches);
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        if (strcasecmp(arg_string, "INPUTS") != 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified for TF");
+        }
+        if (AC_GetUnsignedLongLong(&ac, &ninputs, 0) != AC_OK || ninputs == 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for input_count");
+        }
+        if (AC_NumRemaining(&ac) < ninputs) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR number of model inputs does not match the number of "
+                     "given arguments");
+        }
+        for (size_t i = 0; i < ninputs; i++) {
+            AC_GetString(&ac, inputs + i, NULL, 0);
+        }
+
+        if (AC_GetString(&ac, &arg_string, NULL, 0) != AC_OK ||
+            strcasecmp(arg_string, "OUTPUTS") != 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified for TF");
+        }
+        if (AC_GetUnsignedLongLong(&ac, &noutputs, 0) != AC_OK || noutputs == 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for output_count");
+        }
+        if (AC_NumRemaining(&ac) < noutputs) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR number of model outputs does not match the number of "
+                     "given arguments");
+        }
+        for (size_t i = 0; i < noutputs; i++) {
+            AC_GetString(&ac, outputs + i, NULL, 0);
+        }
+        AC_GetString(&ac, &arg_string, NULL, 0);
+    }
+
+    if (strcasecmp(arg_string, "INPUTS") == 0 && backend != RAI_BACKEND_TENSORFLOW) {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR INPUTS argument should not be specified for this backend");
+    }
+    if (strcasecmp(arg_string, "BLOB") != 0) {
+        return RedisModule_ReplyWithError(ctx, "ERR Invalid argument, expected BLOB");
+    }
 
     if (AC_IsAtEnd(&ac)) {
         return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
     }
-
-    AC_Advance(&ac);
 
     ArgsCursor blobsac;
     AC_GetSliceToEnd(&ac, &blobsac);
@@ -296,7 +308,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     RAI_Error err = {0};
-
+    RAI_Model *model = NULL;
     model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs,
                             modeldef, modellen, &err);
 
@@ -1265,6 +1277,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.modelset", RedisAI_ModelSet_RedisCommand,
+                                  "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.modelstore", RedisAI_ModelStore_RedisCommand,
                                   "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 

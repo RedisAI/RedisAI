@@ -272,20 +272,19 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(key);
-        // #IFDEF LITE
+#ifndef LITE
+        RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
+                        RedisModule_StringPtrLen(keyName, NULL));
+        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
+        return REDISMODULE_ERR;
+#else
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
         } else {
             RAI_SetError(err, RAI_EKEYEMPTY,
                          "ERR CROSSSLOT Keys in request don't hash to the same slot");
         }
-        return REDISMODULE_ERR;
-        // #ELSE
-        RedisModule_Log(ctx, "error", "could not load %s from keyspace, key doesn't exist",
-                        RedisModule_StringPtrLen(keyName, NULL));
-        RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        return REDISMODULE_ERR;
-        // #ENDIF
+#endif
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
         RedisModule_CloseKey(key);

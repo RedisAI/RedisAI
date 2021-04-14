@@ -12,3 +12,5 @@
  */
 int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
                          int argc);
+
+int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
