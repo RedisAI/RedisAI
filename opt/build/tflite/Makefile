@@ -60,7 +60,7 @@ build_x64:
 	-@rm *.iid *.cid
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-x64-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-x86_x64-$(VERSION).tar.gz .
 
 .PHONY: build_x64
 endef
