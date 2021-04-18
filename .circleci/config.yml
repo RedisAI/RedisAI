@@ -52,7 +52,7 @@ commands:
       - run:
           name: Setup automation
           command: |
-            git submodule update --init opt/readies 
+            git submodule update --init opt/readies
             ./opt/readies/bin/getpy3
 
   setup-build-system:
@@ -465,6 +465,13 @@ on-integ-and-version-tags: &on-integ-and-version-tags
     tags:
       only: /^v[0-9].*/
 
+on-master-and-version-tags: &on-master-and-version-tags
+  filters:
+    branches:
+      only:
+        - master
+    tags:
+      only: /^v[0-9].*/
 
 after-linter: &after-linter
   requires:
@@ -500,18 +507,14 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - valgrind:
-          test_args: CLUSTER=0 AOF=0
-          <<: *on-any-branch
-          <<: *after-linter
-      - valgrind:
           name: valgrind-cluster
           test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
+          <<: *on-master-and-version-tags
           <<: *after-linter
       - valgrind:
           name: valgrind-aof
           test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
+          <<: *on-master-and-version-tags
           <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
