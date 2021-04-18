@@ -159,7 +159,7 @@ The **`AI.MODELSET`** commands stores a model as the value of a key.
 
 ```
 AI.MODELSET <key> <backend> <device>
-    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
+    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m] [MINBATCHTIMEOUT t]]
     [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
 ```
 
