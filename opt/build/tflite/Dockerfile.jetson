@@ -1,0 +1,31 @@
+ARG OS=nvcr.io/nvidia/l4t-ml:r32.5.0-py3
+
+ARG TFLITE_VERSION=2.4.0
+ARG TFLITE_ARCH=aarch64
+
+#----------------------------------------------------------------------------------------------
+FROM ${OS}
+
+ARG BAZEL_VERSION=3.1.0
+ARG FTLITE_VER
+ARG TFLITE_VERSION
+ARG TFLITE_ARCH
+
+ADD ./opt/build/tflite /tflite
+ADD ./opt/readies /build
+
+RUN apt-get -qq update && apt-get install -yqq python3
+RUN apt-get install -qqy git \
+            unzip \
+            wget \
+            curl \
+            build-essential \
+            zlib1g-dev \
+            libegl1-mesa-dev \
+            libgles2-mesa-dev \
+            python3-distutils \
+            python3-numpy
+RUN /build/bin/getbazel
+#RUN ln -s /usr/bin/python3 /usr/bin/python
+WORKDIR /tflite
+RUN bash build.sh ${TFLITE_VERSION} ${TFLITE_ARCH}
