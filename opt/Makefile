@@ -41,12 +41,8 @@ make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
 
-make test        # run test suites (flow an unit)
-				 # same as running make unit_tests flow_tests
+make test        # run test suite
 
-make unit_tests  # run unit test
-
-make flow_tests  # run flow test
   TEST=test        # run only test `test` with Redis output
   TEST_ARGS=args   # add extra RLTest `args`
   VERBOSE=1        # verbose tests output
@@ -70,7 +66,6 @@ fetch and build options:
   WITH_TFLITE=0       # SKip TensofFlowLite
   WITH_PT=0           # Skip PyTorch
   WITH_ORT=0          # SKip ONNXRuntime
-  WITH_UNIT_TESTS=0   # SKip unit tests
 
 device selection options (fetch, build, and test):
   CPU=1         # build for CPU
@@ -153,10 +148,6 @@ ifeq ($(WITH_ORT),0)
 CMAKE_FLAGS += -DBUILD_ORT=off
 endif
 
-ifeq ($(WITH_UNIT_TESTS),0)
-CMAKE_FLAGS += -DPACKAGE_UNIT_TESTS=off
-endif
-
 include $(MK)/defs
 
 #----------------------------------------------------------------------------------------------
@@ -207,8 +198,8 @@ format:
 format-docker:
 	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt format"
 
-lint:
-	./clang-check-all.sh
+lint: ;
+#	./clang-check-all.sh
 
 lint-docker:
 	docker run --rm -v $(abspath $(ROOT))/:/RedisAI/ --user "$(username):$(usergroup)" redislabsmodules/llvm-toolset:latest bash -c "cd RedisAI && make -C opt lint"
@@ -231,30 +222,7 @@ export SLAVES ?= 1
 export AOF ?= 1
 export CLUSTER ?= 1
 
-define UNIT_TESTS
-$(SHOW)echo Running unit tests ...
-$(SHOW)\
-BINDIR=$(realpath $(BINDIR)) \
-$(ROOT)/tests/unit/tests.sh
-endef
-
-define FLOW_TESTS
-$(SHOW)echo Running flow tests ...
-$(SHOW)\
-DEVICE=$(DEVICE) \
-MODULE=$(realpath $(INSTALLED_TARGET)) \
-CLUSTER=$(CLUSTER) \
-GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
-VALGRIND=$(VALGRIND) \
-$(ROOT)/tests/flow/tests.sh
-endef
-
-unit_tests: build
-	$(COVERAGE_RESET)
-	$(UNIT_TESTS)
-	$(COVERAGE_COLLECT_REPORT)
-
-flow_tests: build
+test:
 	$(COVERAGE_RESET)
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
@@ -263,34 +231,16 @@ flow_tests: build
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
-
-	$(COVERAGE_COLLECT_REPORT)
-
-test: build
-	$(COVERAGE_RESET)
-	$(UNIT_TESTS)
-	$(SHOW)\
-		BINDIR=$(realpath $(BINDIR)) \
-		$(ROOT)/tests/unit/tests.sh
-	$(SHOW)\
-		DEVICE=$(DEVICE) \
-		MODULE=$(realpath $(INSTALLED_TARGET)) \
-		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
-		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
-		VALGRIND=$(VALGRIND) \
-		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/test/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 #----------------------------------------------------------------------------------------------
 
 valgrind:
-	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/test/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 

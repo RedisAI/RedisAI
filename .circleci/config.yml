@@ -71,6 +71,11 @@ commands:
           name: Build
           command: make -C opt all SHOW=1
       - run:
+          name: Test
+          command: |
+            make -C opt test SHOW=1
+          no_output_timeout: 20m
+      - run:
           name: Package
           command: |
             make -C opt pack SHOW=1
@@ -82,7 +87,7 @@ commands:
             - artifacts/*.tgz
             - artifacts/*.tar
       - store_artifacts:
-          path: tests/logs
+          path: test/logs
 
   platforms-build-steps:
     steps:
@@ -137,13 +142,27 @@ commands:
       - run:
           name: Deploy to S3
           command: |
+            du -ah --apparent-size artifacts/*
             aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
 
 jobs:
+  lint:
+    docker:
+      - image: redislabsmodules/llvm-toolset:latest
+    steps:
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - setup-automation
+      - run:
+          name: lint
+          command: |
+            make -C opt lint
 
   build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - build-steps:
           platform: debian
@@ -159,7 +178,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - checkout
@@ -180,12 +199,45 @@ jobs:
           name: Build for coverage
           command: |
             make -C opt all COV=1 SHOW=1
-#      - run:
-#          name: Test with coverage
-#          command: |
-#            make -C opt test SHOW=1 COV=1 CLUSTER=1
-#            make -C opt cov-upload
-#          no_output_timeout: 30m
+      - run:
+          name: Test with coverage
+          command: |
+            make -C opt test SHOW=1 COV=1 CLUSTER=1
+            make -C opt cov-upload
+          no_output_timeout: 30m
+
+  valgrind:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - abort_for_docs
+      - checkout
+      - run:
+          name: Submodule checkout
+          command: git submodule update --init --recursive
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-automation
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
+          no_output_timeout: 120m
 
   build-macos:
     macos:
@@ -254,6 +306,12 @@ jobs:
           name: Build
           command: |
             docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
+      - run:
+          name: Test
+          command: |
+            mkdir -p $HOME/tests
+            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
+          no_output_timeout: 40m
       - store_artifacts:
           path: tests/logs
 
@@ -262,7 +320,7 @@ jobs:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -272,13 +330,14 @@ jobs:
           name: Deploy to S3
           command: |
             cd "workspace/artifacts/<<parameters.location>>"
+            du -ah --apparent-size *
             for f in *.zip snapshot/*.tgz; do
               aws s3 cp $f s3://redismodules/$PACKAGE_NAME/<<parameters.location>>/ --acl public-read
             done
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -292,6 +351,8 @@ jobs:
                 echo "Extracting $f ..."
                 tar xf $f
             done
+            echo "... done."
+            du -ah --apparent-size *
             cd snapshots
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
@@ -299,7 +360,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -309,9 +370,30 @@ jobs:
           name: Deploy Releases to S3
           command: |
             cd workspace/artifacts
+            du -ah --apparent-size *
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
+
+  release-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
+
+  nightly-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
 
 
 on-any-branch: &on-any-branch
@@ -341,6 +423,17 @@ on-integ-branch: &on-integ-branch
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
+    tags:
+      ignore: /.*/
+
+not-on-integ-branch: &not-on-integ-branch
+  filters:
+    branches:
+      ignore:
+        - master
+        - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       ignore: /.*/
 
@@ -357,9 +450,14 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       only: /^v[0-9].*/
 
+
+after-linter: &after-linter
+  requires:
+    - lint
 
 after-build-and-test: &after-build-and-test
   requires:
@@ -379,15 +477,34 @@ workflows:
   version: 2
   build_and_package:
     jobs:
+      - lint:
+          <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch
+          <<: *after-linter
       - platforms-build:
           <<: *platform-build-defs
       - coverage:
           context: common
           <<: *on-any-branch
+          <<: *after-linter
+#      - valgrind:
+#          test_args: CLUSTER=0 AOF=0
+#          <<: *on-any-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0 AOF=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-aof
+#          test_args: GEN=0 CLUSTER=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
+          <<: *after-linter
       - build-macos:
           <<: *never # temporarily disabled
           # <<: *on-version-tags
@@ -403,6 +520,11 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
 
   nightly:
     triggers:
@@ -414,3 +536,7 @@ workflows:
     jobs:
       - build-macos:
           <<: *never # temporarily disabled
+      - nightly-automation:
+          context: common
+          <<: *never
+

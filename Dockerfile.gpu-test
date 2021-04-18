@@ -51,8 +51,7 @@ ARG BUILD_ARGS=""
 ADD ./ /build
 RUN set -e ;\
     . venv/bin/activate ;\
-    . ./opt/readies/bin/sourced ./profile.d ;\
-    make -C opt build GPU=1 $BUILD_ARGS SHOW=1
+    bash -l -c "make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
 
 ARG PACK
 
@@ -60,6 +59,7 @@ RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \
 		. venv/bin/activate ;\
 		make -C opt pack GPU=1 VERBOSE=1 ;\
+        bash -l -c "make -C opt pack GPU=1 VERBOSE=1" ;\
 	fi
 
 RUN git remote set-url origin https://github.com/RedisAI/RedisAI
