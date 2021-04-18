@@ -35,13 +35,40 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
+  relocate-docker-storage:
+    steps:
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
+
   setup-automation:
     steps:
       - run:
           name: Setup automation
           command: |
+            git submodule update --init opt/readies 
             ./opt/readies/bin/getpy3
+
+  setup-build-system:
+    steps:
+      - setup-automation
+      - run:
+          name: Setup build system
+          command: |
             ./opt/system-setup.py
+
+  checkout-all:
+    steps:
+      - checkout
+      - run:
+          name: Checkout submodules
+          command: git submodule update --init --recursive
 
   build-steps:
     parameters:
@@ -49,15 +76,12 @@ commands:
         type: string
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
@@ -97,29 +121,16 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-      - run:
-          name: Setup
-          command: |
-            git submodule update --init --recursive
-            ./opt/readies/bin/getpy3
+      - checkout-all
+      - relocate-docker-storage
+      - setup-automation
       - run:
           name: Build for platform
           command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             pushd opt/build/docker
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -128,6 +139,16 @@ commands:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
+      - early_return_for_forked_pull_requests
+      - run:
+          name: Build for platform (publish)
+          command: |
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            cd opt/build/docker
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick VERBOSE=1 publish
+                make GPU=1 OSNICK=$osnick VERBOSE=1 publish
+            done
       - persist_to_workspace:
           root: bin/
           paths:
@@ -155,11 +176,8 @@ jobs:
     docker:
       - image: redislabsmodules/llvm-toolset:latest
     steps:
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
-      - setup-automation
+      - checkout-all
+      - setup-build-system
       - run:
           name: lint
           command: |
@@ -167,7 +185,7 @@ jobs:
 
   build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - build-steps:
           platform: debian
@@ -183,18 +201,15 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
@@ -217,22 +232,19 @@ jobs:
         type: string
         default: "CLUSTER=0 AOF=0"
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
-      - setup-automation
+      - setup-build-system
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getredis -v 6 --valgrind --force
+            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
             ./get_deps.sh cpu
       - run:
           name: Build for valgrind
@@ -262,10 +274,7 @@ jobs:
       image: cimg/base:2020.01
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - run:
           name: Checkout LFS
           command: |
@@ -294,10 +303,7 @@ jobs:
       image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - abort_for_docs
-      - checkout
-      - run:
-          name: Submodule checkout
-          command: git submodule update --init --recursive
+      - checkout-all
       - run:
           name: Relocate docker overlay2 dir
           command: |
@@ -325,7 +331,7 @@ jobs:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -342,7 +348,7 @@ jobs:
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -365,7 +371,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
       - early_return_for_forked_pull_requests
@@ -379,6 +385,26 @@ jobs:
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/ --acl public-read
             done
+
+  release-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
+
+  nightly-automation:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - checkout
+      - setup-automation
+      - run:
+          name: Run QA Automation
+          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
 
 
 on-any-branch: &on-any-branch
@@ -408,6 +434,17 @@ on-integ-branch: &on-integ-branch
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
+    tags:
+      ignore: /.*/
+
+not-on-integ-branch: &not-on-integ-branch
+  filters:
+    branches:
+      ignore:
+        - master
+        - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       ignore: /.*/
 
@@ -424,6 +461,7 @@ on-integ-and-version-tags: &on-integ-and-version-tags
       only:
         - master
         - /^\d+\.\d+.*$/
+        - /^feature-.*$/
     tags:
       only: /^v[0-9].*/
 
@@ -493,6 +531,11 @@ workflows:
           context: common
           <<: *after-platform-builds
           <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
 
   nightly:
     triggers:
@@ -504,3 +547,5 @@ workflows:
     jobs:
       - build-macos:
           <<: *never # temporarily disabled
+      - nightly-automation:
+          context: common
