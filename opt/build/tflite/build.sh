@@ -2,9 +2,20 @@
 set -e
 set -x
 VERSION=$1
+if [ "X$VERSION" == "X" ]; then
+    VERSION=2.4.0
+fi
 ARCH=$2
-wget https://github.com/tensorflow/tensorflow/archive/v$VERSION.tar.gz
-tar -xzf v$VERSION.tar.gz
+
+BAZEL_VERSION=$3
+if [ "X$BAZEL_VERSION" == "X" ]; then
+    BAZEL_VERSION=3.5.1
+fi
+
+if [ ! -f v$VERSION.tar.gz ]; then
+    wget -q https://github.com/tensorflow/tensorflow/archive/v$VERSION.tar.gz
+    tar -xzf v$VERSION.tar.gz
+fi
 cd tensorflow-$VERSION
 # build tensorflow lite library
 bazel build --config=monolithic --config=cuda //tensorflow/lite:libtensorflowlite.so
@@ -35,11 +46,8 @@ do
 done
 mkdir -p $TMP_LIB/lib
 cp bazel-bin/tensorflow/lite/libtensorflowlite.so $TMP_LIB/lib
-# build tensorflow lite GPU delegate library
-apt-get install libegl1-mesa-dev -y
-apt-get install libgles2-mesa-dev -y
 bazel build -c opt --copt -DMESA_EGL_NO_X11_HEADERS --copt -DEGL_NO_X11 tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so $TMP_LIB/lib
 # create .tar.gz file
 cd $TMP_LIB
-tar -cvzf libtensorflowlite-linux-$ARCH-$VERSION.tar.gz .
+tar -cvzf libtensorflowlite-linux-$ARCH-$VERSION.tar.gz include lib

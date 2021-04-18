@@ -1,7 +1,7 @@
 
 ROOT=../../..
 
-export VERSION ?= 2.0.0
+export VERSION ?= 2.4.0
 OSNICK ?= buster
 
 #----------------------------------------------------------------------------------------------
@@ -25,7 +25,7 @@ DOCKER_OS.bionic=ubuntu:bionic
 DOCKER_OS.stretch=debian:stretch-slim
 DOCKER_OS.buster=debian:buster-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
+
 #----------------------------------------------------------------------------------------------
 
 ifeq ($(OS),linux)
@@ -57,10 +57,10 @@ IID_$(1)=$(1)_$(VERSION).iid
 CID_$(1)=$(1)_$(VERSION).cid
 
 build_x64:
-	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 \
-		--build-arg OS=$(DOCKER_OS) $(ROOT)
+	-@rm *.iid *.cid
+	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM)-$(1):$(VERSION) -f Dockerfile.x64 $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-x64-$(VERSION).tar.gz .
 
 .PHONY: build_x64
 endef

@@ -1,29 +1,31 @@
+ARG OS=nvidia/cuda:11.0.3-cudnn8-devel-ubuntu18.04
 
-ARG OS=debian:buster
-
-ARG FTLITE_VER=2.0.0
+ARG TFLITE_VERSION=2.4.0
+ARG TFLITE_ARCH=x86_64
 
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 
+ARG BAZEL_VERSION=3.1.0
 ARG FTLITE_VER
+ARG TFLITE_VERSION
+ARG TFLITE_ARCH
 
-WORKDIR /build
+ADD ./opt/build/tflite /tflite
 
-RUN set -e ;\
-	apt-get -qq update ;\
-	apt-get -q install -y git ca-certificates curl wget unzip python3 ;\
-	apt-get -q install -y git build-essential zlib1g-dev
-
-RUN git clone --single-branch --branch v${FTLITE_VER} --depth 1 https://github.com/tensorflow/tensorflow.git
-
-ADD ./opt/build/tflite/build /build/
-ADD ./opt/readies/ /build/readies/
-ADD ./opt/build/tflite/collect.py /build/
-
-RUN set -e ;\
-	cd tensorflow/tensorflow/lite/tools/make ;\
-	./download_dependencies.sh ;\
-	./build_lib.sh
-
-RUN ./collect.py --version ${FTLITE_VER} --dest /build/dest
+RUN apt-get -qq update && apt-get install -yqq python3
+RUN apt-get install -qqy git \
+            unzip \
+            wget \
+            curl \
+            build-essential \
+            zlib1g-dev \
+            libegl1-mesa-dev \
+            libgles2-mesa-dev \
+            python3-distutils \
+            python3-numpy
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN wget -q https://github.com/bazelbuild/bazel/releases/download/3.1.0/bazel_3.1.0-linux-x86_64.deb -O /tmp/bazel.deb
+RUN dpkg -i /tmp/bazel.deb
+WORKDIR /tflite
+RUN bash build.sh ${TFLITE_VERSION} ${TFLITE_ARCH}

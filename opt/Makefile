@@ -36,7 +36,7 @@ make build      # compile and link
   PROFILE=1       # enable profiling compile flags (and debug symbols) for release type.
                   # You can consider this as build type release with debug symbols and -fno-omit-frame-pointer
   VARIANT=name    # build variant `name`
-  WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
+  WHY=1           # explain CMake decisions (into /tmp/cmake.why)
 make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
@@ -79,7 +79,7 @@ device selection options (fetch, build, and test):
   JETSON=1      # build for Nvidia Jetson
 endef
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
 
@@ -97,7 +97,7 @@ DEPS_FLAGS += CPU=1
 DEVICE=cpu
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 SRCDIR=..
 BINDIR=$(BINROOT)/src
@@ -110,7 +110,7 @@ INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 CMAKE_FILES += \
 	$(SRCDIR)/CMakeLists.txt \
@@ -135,7 +135,8 @@ CMAKE_FLAGS += \
 	-DUSE_COVERAGE=$(USE_COVERAGE) \
 	-DUSE_PROFILE=$(USE_PROFILE) \
 	-DREDISAI_GIT_SHA=\"$(GIT_SHA)\" \
-	-DDEVICE=$(DEVICE)
+	-DDEVICE=$(DEVICE) \
+	-DMACH=$(shell uname -m)
 
 ifeq ($(WITH_TF),0)
 CMAKE_FLAGS += -DBUILD_TF=off
@@ -165,7 +166,7 @@ include $(MK)/defs
 
 include $(MK)/rules
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 #prebuild:
 #	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
@@ -190,7 +191,7 @@ else
 	-$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 setup:
 	@echo Setting up system...
