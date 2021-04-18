@@ -201,15 +201,8 @@ static void array_free(array_t arr) {
     })
 
 /* Duplicate the array to the pointer dest. */
-#define array_clone(dest, arr)                            \
-  ({                                                      \
-   dest = array_newlen(typeof(*arr), array_len(arr));     \
-   memcpy(dest, arr, sizeof(*arr) * (array_len(arr)));    \
-  })
-
-  array_t array_clone_fn(array_t arr) {
-      array_t dest;
-      array_clone(dest, arr);
-      return dest;
-  }
-
+#define array_clone(dest, arr)                                                                     \
+    ({                                                                                             \
+        dest = array_newlen(typeof(*arr), array_len(arr));                                         \
+        memcpy(dest, arr, sizeof(*arr) * (array_len(arr)));                                        \
+    })

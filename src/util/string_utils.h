@@ -12,4 +12,3 @@ uint64_t RAI_RStringsHashFunction(const void *key);
 int RAI_RStringsKeyCompare(void *privdata, const void *key1, const void *key2);
 void RAI_RStringsKeyDestructor(void *privdata, void *key);
 void *RAI_RStringsKeyDup(void *privdata, const void *key);
-

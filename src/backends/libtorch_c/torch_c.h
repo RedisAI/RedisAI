@@ -19,9 +19,14 @@ void *torchCompileScript(const char *script, DLDeviceType device, int64_t device
 void *torchLoadModel(const char *model, size_t modellen, DLDeviceType device, int64_t device_id,
                      char **error, void *(*alloc)(size_t));
 
-void torchRunScript(void *scriptCtx, const char *fnName, int variadic, long nInputs,
-                    DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs,
-                    char **error, void *(*alloc)(size_t));
+bool torchMatchScriptSchema(size_t nArguments, long nInputs,
+                            TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes,
+                            size_t nlists, char **error);
+
+void torchRunScript(void *scriptCtx, const char *fnName, long nInputs, DLManagedTensor **inputs,
+                    long nOutputs, DLManagedTensor **outputs, size_t nArguments,
+                    TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes, char **error,
+                    void *(*alloc)(size_t));
 
 void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **inputs, long nOutputs,
                    DLManagedTensor **outputs, char **error, void *(*alloc)(size_t));
@@ -41,13 +46,14 @@ const char *torchModelInputNameAtIndex(void *modelCtx, size_t index, char **erro
 
 size_t torchModelNumOutputs(void *modelCtx, char **error);
 
-size_t torchScript_FunctionCount(void* scriptCtx);
+size_t torchScript_FunctionCount(void *scriptCtx);
 
-const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index);
+const char *torchScript_FunctionName(void *scriptCtx, size_t fn_index);
 
-size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index);
+size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 
-TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void* scriptCtx, size_t fn_index, size_t arg_index);
+TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void *scriptCtx, size_t fn_index,
+                                                                size_t arg_index);
 
 #ifdef __cplusplus
 }

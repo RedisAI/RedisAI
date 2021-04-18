@@ -61,7 +61,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
-    sctx->variadic = -1;
+    sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
     return sctx;
 }
 
@@ -75,25 +75,17 @@ static int _Script_RunCtxAddParam(RAI_ScriptCtxParam **paramArr, RAI_Tensor *ten
 
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
     // Even if variadic is set, we still allow to add inputs in the LLAPI
-    return _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
+    _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
+    return 1;
 }
 
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors, size_t len,
                                  RAI_Error *err) {
-    if (sctx->variadic == -1) {
-        sctx->variadic = array_len(sctx->inputs);
-    } else {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED,
-                     "ERR Already encountered a variable size list of tensors");
-        return 0;
-    }
-
     int res;
     for (size_t i = 0; i < len; i++) {
         res = _Script_RunCtxAddParam(&sctx->inputs, inputTensors[i]);
-        if (res != 1)
-            return res;
     }
+    sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
@@ -122,6 +114,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
 
     array_free(sctx->inputs);
     array_free(sctx->outputs);
+    array_free(sctx->listSizes);
 
     RedisModule_Free(sctx->fnname);
 
@@ -198,34 +191,32 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 }
 
 int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
-                                                       RedisModuleString **argv, int argc) {
+                                                           RedisModuleString **argv, int argc) {
     RedisModule_KeyAtPos(ctx, 1);
     size_t argpos = 3;
     if (argpos >= argc) {
         return REDISMODULE_ERR;
     }
     long long count;
-    while(argpos < argc) {
+    while (argpos < argc) {
         const char *str = RedisModule_StringPtrLen(argv[argpos++], NULL);
 
         // Inputs, outpus, keys, lists.
-        if((!strcasecmp(str, "INPUTS")) || 
-            (!strcasecmp(str, "OUTPUTS")) ||
-            (!strcasecmp(str, "LIST_INPUT")) ||
-            (!strcasecmp(str, "KEYS"))) {
-            if(argpos >= argc) {
+        if ((!strcasecmp(str, "INPUTS")) || (!strcasecmp(str, "OUTPUTS")) ||
+            (!strcasecmp(str, "LIST_INPUT")) || (!strcasecmp(str, "KEYS"))) {
+            if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
-            if(RedisModule_StringToLongLong(argv[argpos++], &count) != REDISMODULE_OK) {
+            if (RedisModule_StringToLongLong(argv[argpos++], &count) != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
-            if(count < 0) {
+            if (count < 0) {
                 return REDISMODULE_ERR;
             }
-            if(argpos + count >= argc) {
+            if (argpos + count >= argc) {
                 return REDISMODULE_ERR;
             }
-            for(long long i = 0; i < count; i++) {
+            for (long long i = 0; i < count; i++) {
                 RedisModule_KeyAtPos(ctx, argpos++);
             }
             continue;
@@ -238,10 +229,9 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
         // Undefinded input.
         return REDISMODULE_ERR;
     }
-    if(argpos != argc) {
+    if (argpos != argc) {
         return REDISMODULE_ERR;
-    }
-    else {
+    } else {
         return REDISMODULE_OK;
     }
 }

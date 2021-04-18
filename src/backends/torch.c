@@ -327,14 +327,15 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
     ret->functionData = AI_dictCreate(&AI_dictType_String_ArrSimple, NULL);
 
     size_t functionCount = torchScript_FunctionCount(script);
-    for(size_t i = 0; i < functionCount; i++) {
-        const char* name = torchScript_FunctionName(script, i);
+    for (size_t i = 0; i < functionCount; i++) {
+        const char *name = torchScript_FunctionName(script, i);
         size_t argCount = torchScript_FunctionArgumentCount(script, i);
-        TorchScriptFunctionArgumentType* argTypes = array_new(TorchScriptFunctionArgumentType, argCount);
-        for(size_t j =0; j< argCount; j++) {
+        TorchScriptFunctionArgumentType *argTypes =
+            array_new(TorchScriptFunctionArgumentType, argCount);
+        for (size_t j = 0; j < argCount; j++) {
             argTypes = array_append(argTypes, torchScript_FunctionArgumentype(script, i, j));
         }
-        AI_dictAdd(ret->functionData, (void*)name, (void*)argTypes);
+        AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
     }
 
     return ret;
@@ -366,8 +367,25 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    torchRunScript(sctx->script->script, sctx->fnname, sctx->variadic, nInputs, inputs, nOutputs,
-                   outputs, &error_descr, RedisModule_Alloc);
+
+    TorchScriptFunctionArgumentType *arguments =
+        AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
+    if (!arguments) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "Cannot find function schema");
+        RedisModule_Free(error_descr);
+        return 1;
+    }
+
+    if (!torchMatchScriptSchema(array_len(arguments), nInputs, arguments, sctx->listSizes,
+                                array_len(sctx->listSizes), &error_descr)) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
+        RedisModule_Free(error_descr);
+        return 1;
+    }
+
+    torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs,
+                   array_len(arguments), arguments, sctx->listSizes, &error_descr,
+                   RedisModule_Alloc);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);

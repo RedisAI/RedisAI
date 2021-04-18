@@ -13,7 +13,6 @@
 #include "script_struct.h"
 #include "tensor.h"
 #include "config/config.h"
-#include "execution/run_info.h"
 
 extern RedisModuleType *RedisAI_ScriptType;
 
@@ -176,16 +175,20 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
 int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                                                        RedisModuleString **argv, int argc);
 
-#if 0
 /**
- * Helper method to reply if the ctx is not NULL or fallback and set the error in the RAI_Error structure
+ * When a module command is called in order to obtain the position of
+ * keys, since it was flagged as "getkeys-api" during the registration,
+ * the command implementation checks for this special call using the
+ * RedisModule_IsKeysPositionRequest() API and uses this function in
+ * order to report keys.
+ * No real execution is done on this special call.
  * @param ctx Context in which Redis modules operate
- * @param error the RAI_Error data structure to be populated with the error details in case ctx is NULL
- * @param code the error code
- * @param errorMessage the error detail
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @return
  */
-void RedisAI_ReplyOrSetError(RedisModuleCtx *ctx, RAI_Error *error, RAI_ErrorCode code, const char* errorMessage );
-#endif
+int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                           RedisModuleString **argv, int argc);
 
 /**
  * @brief  Returns the redis module type representing a script.

@@ -22,6 +22,7 @@ file (GLOB BACKEND_COMMON_SRC
 
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
+        util/dictionaries.c
         util/queue.c
         util/string_utils.c
         redisai.c
@@ -35,6 +36,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         execution/DAG/dag_parser.c
         execution/DAG/dag_builder.c
         execution/DAG/dag_execute.c
+        execution/DAG/dag_op.c
         execution/modelRun_ctx.c
         backends/backends.c
         backends/util.c

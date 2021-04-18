@@ -192,58 +192,7 @@ struct ModuleContext {
     int64_t device_id;
 };
 
-void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long nInputs,
-                    DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs) {
-    // Checks device, if GPU then move input to GPU before running
-    // TODO: This will need to change at some point, as individual tensors will have their placement
-    // and script will only make sure that placement is correct
-
-    torch::DeviceType device_type;
-    switch (ctx->device) {
-    case kDLCPU:
-        device_type = torch::kCPU;
-        break;
-    case kDLGPU:
-        device_type = torch::kCUDA;
-        break;
-    default:
-        throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
-    }
-
-    torch::Device device(device_type, ctx->device_id);
-
-    torch::jit::Stack stack;
-
-    for (int i = 0; i < nInputs; i++) {
-        if (i == variadic) {
-            break;
-        }
-        DLTensor *input = &(inputs[i]->dl_tensor);
-        torch::Tensor tensor = fromDLPack(input);
-        stack.push_back(tensor.to(device));
-    }
-
-    if (variadic != -1) {
-        std::vector<torch::Tensor> args;
-        for (int i = variadic; i < nInputs; i++) {
-            DLTensor *input = &(inputs[i]->dl_tensor);
-            torch::Tensor tensor = fromDLPack(input);
-            tensor.to(device);
-            args.emplace_back(tensor);
-        }
-        stack.push_back(args);
-    }
-
-    if (ctx->module) {
-        torch::NoGradGuard guard;
-        torch::jit::script::Method method = ctx->module->get_method(fnName);
-        method.run(stack);
-    } else {
-        torch::NoGradGuard guard;
-        torch::jit::Function &fn = ctx->cu->get_function(fnName);
-        fn.run(stack);
-    }
-
+static void torchHandlOutputs(torch::jit::Stack& stack, const char* fnName, long nOutputs, DLManagedTensor **outputs) {
     torch::DeviceType output_device_type = torch::kCPU;
     torch::Device output_device(output_device_type, -1);
 
@@ -282,6 +231,21 @@ void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long n
         throw std::runtime_error(std::string("Function returned unexpected number of outputs - ") +
                                  fnName);
     }
+}
+
+void torchRunModule(ModuleContext *ctx, const char *fnName, torch::jit::Stack& stack, long nOutputs, DLManagedTensor **outputs){
+
+    if (ctx->module) {
+        torch::NoGradGuard guard;
+        torch::jit::script::Method method = ctx->module->get_method(fnName);
+        method.run(stack);
+    } else {
+        torch::NoGradGuard guard;
+        torch::jit::Function &fn = ctx->cu->get_function(fnName);
+        fn.run(stack);
+    }
+
+    torchHandlOutputs(stack, fnName, nOutputs, outputs);
 }
 
 } // namespace
@@ -368,12 +332,77 @@ extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType
     return ctx;
 }
 
-extern "C" void torchRunScript(void *scriptCtx, const char *fnName, int variadic, long nInputs,
+static torch::DeviceType getDeviceType(ModuleContext *ctx) {
+    switch (ctx->device) {
+        case kDLCPU:
+            return torch::kCPU;
+        case kDLGPU:
+            return torch::kCUDA;
+        default:
+            throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
+    }
+}
+
+extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, size_t* listSizes, size_t nlists, char **error) {
+    char* buf; 
+    int schemaListCount = 0;
+    if(nInputs < nArguments) {
+        asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
+        goto cleanup;
+    }
+    for (size_t i = 0; i < nArguments; i++) {
+        if(argumentTypes[i] == LIST) {
+            schemaListCount++;
+        }
+    } 
+    if(schemaListCount != nlists) {
+        asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, nlists);
+        goto cleanup;
+    }
+    return true;
+
+    cleanup:
+    *error = RedisModule_Strdup(buf);
+    free(buf);
+    return false;
+}
+
+extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs,
                                DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs,
+                                size_t nArguments,
+                                TorchScriptFunctionArgumentType* argumentTypes,
+                                size_t* listSizes,
                                char **error, void *(*alloc)(size_t)) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
-        torchRunModule(ctx, fnName, variadic, nInputs, inputs, nOutputs, outputs);
+        torch::DeviceType device_type = getDeviceType(ctx);
+        torch::Device device(device_type, ctx->device_id);
+
+        torch::jit::Stack stack;
+
+        size_t listsIdx = 0;
+        size_t inputsIdx = 0;
+        for(size_t i= 0; i < nArguments; i++) {
+            // In case of tensor.
+            if(argumentTypes[i] == TENSOR) {
+                DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
+                torch::Tensor tensor = fromDLPack(input);
+                stack.push_back(tensor.to(device));
+            }
+            else {
+                std::vector<torch::Tensor> args;
+                size_t argumentSize = listSizes[listsIdx++];
+                for (size_t j = 0; i < argumentSize; j++) {
+                    DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
+                    torch::Tensor tensor = fromDLPack(input);
+                    tensor.to(device);
+                    args.emplace_back(tensor);
+                }
+                stack.push_back(args);
+            }
+        }
+
+        torchRunModule(ctx, fnName, stack, nOutputs, outputs);
     } catch (std::exception &e) {
         size_t len = strlen(e.what()) + 1;
         *error = (char *)alloc(len * sizeof(char));
@@ -386,7 +415,16 @@ extern "C" void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **in
                               DLManagedTensor **outputs, char **error, void *(*alloc)(size_t)) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     try {
-        torchRunModule(ctx, "forward", -1, nInputs, inputs, nOutputs, outputs);
+        torch::DeviceType device_type = getDeviceType(ctx);
+        torch::Device device(device_type, ctx->device_id);
+
+        torch::jit::Stack stack;
+        for (int i = 0; i < nInputs; i++) {
+            DLTensor *input = &(inputs[i]->dl_tensor);
+            torch::Tensor tensor = fromDLPack(input);
+            stack.push_back(tensor.to(device));
+        }
+        torchRunModule(ctx, "forward", stack, nOutputs, outputs);
     } catch (std::exception &e) {
         size_t len = strlen(e.what()) + 1;
         *error = (char *)alloc(len * sizeof(char));
@@ -503,7 +541,7 @@ static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg
         return LIST;
     } 
     default:
-        return -1;
+        return UNKOWN;
     }
 }
 

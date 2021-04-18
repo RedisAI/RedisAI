@@ -29,7 +29,7 @@
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
 #include "util/arr.h"
-#include "util/dict.h"
+#include "util/dictionaries.h"
 #include "util/string_utils.h"
 #include "util/queue.h"
 #include "version.h"
