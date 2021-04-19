@@ -52,7 +52,7 @@ commands:
       - run:
           name: Setup automation
           command: |
-            git submodule update --init opt/readies 
+            git submodule update --init opt/readies
             ./opt/readies/bin/getpy3
 
   setup-build-system:
@@ -124,13 +124,14 @@ commands:
       - checkout-all
       - relocate-docker-storage
       - setup-automation
+      - early_return_for_forked_pull_requests
       - run:
           name: Build for platform
           command: |
             pushd opt/build/docker
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -139,16 +140,6 @@ commands:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
-      - early_return_for_forked_pull_requests
-      - run:
-          name: Build for platform (publish)
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick VERBOSE=1 publish
-                make GPU=1 OSNICK=$osnick VERBOSE=1 publish
-            done
       - persist_to_workspace:
           root: bin/
           paths:
@@ -194,7 +185,6 @@ jobs:
     machine:
       enabled: true
       docker_layer_caching: true
-      resource_class: gpu.nvidia.small
       image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - platforms-build-steps
@@ -503,16 +493,17 @@ workflows:
           test_args: CLUSTER=0 AOF=0
           <<: *on-any-branch
           <<: *after-linter
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
-          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0 AOF=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#
+#      - valgrind:
+#          name: valgrind-aof
+#          test_args: GEN=0 CLUSTER=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
       - build-and-test-gpu:
           <<: *on-any-branch
           <<: *after-linter
