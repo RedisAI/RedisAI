@@ -121,10 +121,10 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
+      - early_return_for_forked_pull_requests
       - checkout-all
       - relocate-docker-storage
       - setup-automation
-      - early_return_for_forked_pull_requests
       - run:
           name: Build for platform
           command: |
