@@ -356,7 +356,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     int res = REDISMODULE_ERR;
     // Build a ScriptRunCtx from command.
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-
+    RAI_ScriptRunCtx *sctx = NULL;
     RAI_Script *script = _ScriptCommand_GetScript(ctx, argv[1], rinfo->err);
     if (!script) {
         goto cleanup;
@@ -370,7 +370,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
         goto cleanup;
     }
 
-    RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
+    sctx = RAI_ScriptRunCtxCreate(script, func_name);
     long long timeout = 0;
     if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
                                     &currentOp->outkeys, &timeout,
@@ -381,9 +381,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR TIMEOUT not allowed within a DAG command");
         goto cleanup;
     }
-    currentOp->sctx = sctx;
-    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    currentOp->devicestr = sctx->script->devicestr;
 
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
@@ -392,10 +389,18 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
     res = REDISMODULE_OK;
+    RedisModule_FreeThreadSafeContext(ctx);
+    return res;
 
 cleanup:
     RedisModule_FreeThreadSafeContext(ctx);
+    if(sctx) {
+        RAI_ScriptRunCtxFree(sctx);
+    }
     return res;
 }
 
