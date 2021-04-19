@@ -392,7 +392,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
             else {
                 std::vector<torch::Tensor> args;
                 size_t argumentSize = listSizes[listsIdx++];
-                for (size_t j = 0; i < argumentSize; j++) {
+                for (size_t j = 0; j < argumentSize; j++) {
                     DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
                     torch::Tensor tensor = fromDLPack(input);
                     tensor.to(device);
@@ -587,11 +587,11 @@ extern "C" const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index
 extern "C" size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
-    return functions[fn_index]->getSchema().arguments().size()-1;
+    return functions[fn_index]->getSchema().arguments().size();
 }
 
 extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void* scriptCtx, size_t fn_index, size_t arg_index) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
-    return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index+1]);
+    return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index]);
 }

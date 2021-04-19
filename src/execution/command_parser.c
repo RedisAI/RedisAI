@@ -372,7 +372,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
     RAI_ScriptRunCtx *sctx = RAI_ScriptRunCtxCreate(script, func_name);
     long long timeout = 0;
-    size_t *listSizes = array_new(size_t, 1);
     if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
                                     &currentOp->outkeys, &timeout,
                                     &sctx->listSizes) == REDISMODULE_ERR) {

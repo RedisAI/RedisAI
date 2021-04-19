@@ -15,6 +15,7 @@ file (GLOB BACKEND_COMMON_SRC
         backends/util.c
         redis_ai_objects/err.c
         util/dict.c
+        util/dictionaries.c
         redis_ai_objects/tensor.c
         util/string_utils.c
         execution/utils.c

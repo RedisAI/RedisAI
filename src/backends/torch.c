@@ -333,9 +333,11 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         TorchScriptFunctionArgumentType *argTypes =
             array_new(TorchScriptFunctionArgumentType, argCount);
         for (size_t j = 0; j < argCount; j++) {
-            argTypes = array_append(argTypes, torchScript_FunctionArgumentype(script, i, j));
+            TorchScriptFunctionArgumentType argType= torchScript_FunctionArgumentype(script, i, j);
+            argTypes = array_append(argTypes, argType);
         }
         AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
+        array_free(argTypes);
     }
 
     return ret;
@@ -371,7 +373,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     TorchScriptFunctionArgumentType *arguments =
         AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
     if (!arguments) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "Cannot find function schema");
+        RAI_SetError(error, RAI_ESCRIPTRUN, "attempted to get undefined function");
         RedisModule_Free(error_descr);
         return 1;
     }

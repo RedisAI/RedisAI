@@ -1,5 +1,6 @@
 #include "dag_op.h"
 #include "util/arr.h"
+#include "execution/modelRun_ctx.h"
 
 /**
  * Allocate the memory and initialise the RAI_DagOp.
@@ -43,7 +44,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
         RAI_TensorFree(dagOp->outTensor);
 
     if (dagOp->mctx) {
-        RedisAI_ModelRunCtxFree(dagOp->mctx);
+        RAI_ModelRunCtxFree(dagOp->mctx);
     }
     if (dagOp->sctx) {
         RAI_ScriptRunCtxFree(dagOp->sctx);
