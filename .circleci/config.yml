@@ -30,7 +30,7 @@ commands:
           name: Setup executor
           command: |
             apt-get -qq update
-            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip sudo
+            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
             bash <(curl -fsSL https://get.docker.com)
       - setup_remote_docker:
           docker_layer_caching: true
@@ -183,7 +183,7 @@ jobs:
 
   platforms-build:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - platforms-build-steps
 
