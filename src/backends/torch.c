@@ -333,7 +333,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         TorchScriptFunctionArgumentType *argTypes =
             array_new(TorchScriptFunctionArgumentType, argCount);
         for (size_t j = 0; j < argCount; j++) {
-            TorchScriptFunctionArgumentType argType= torchScript_FunctionArgumentype(script, i, j);
+            TorchScriptFunctionArgumentType argType = torchScript_FunctionArgumentype(script, i, j);
             argTypes = array_append(argTypes, argType);
         }
         AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
