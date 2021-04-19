@@ -30,7 +30,7 @@ commands:
           name: Setup executor
           command: |
             apt-get -qq update
-            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
+            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip sudo
             bash <(curl -fsSL https://get.docker.com)
       - setup_remote_docker:
           docker_layer_caching: true
