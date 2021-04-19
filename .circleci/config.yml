@@ -182,10 +182,8 @@ jobs:
           platform: debian
 
   platforms-build:
-    machine:
-      enabled: true
-      docker_layer_caching: true
-      image: ubuntu-1604-cuda-11.1:202012-01
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - platforms-build-steps
 
@@ -452,6 +450,7 @@ on-integ-and-version-tags: &on-integ-and-version-tags
         - master
         - /^\d+\.\d+.*$/
         - /^feature-.*$/
+        - /^ci.*$/
     tags:
       only: /^v[0-9].*/
 
