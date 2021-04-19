@@ -68,7 +68,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
         RAI_SetError(error, RAI_EMODELRUN, "ERR Invalid argument for output_count");
     }
     if (noutputs <= 0) {
-        RAI_SetError(error, RAI_EMODELRUN, "ERR Input count must be a positive integer");
+        RAI_SetError(error, RAI_EMODELRUN, "ERR Output count must be a positive integer");
         return REDISMODULE_ERR;
     }
     if ((*model)->noutputs != noutputs) {

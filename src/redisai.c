@@ -146,7 +146,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
  * [INPUTS input_count name1 name2 ... OUTPUTS output_count name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc < 4)
+    if (argc < 6)
         return RedisModule_WrongArity(ctx);
 
     ArgsCursor ac;
@@ -170,13 +170,25 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
     }
 
+    // Parse <backend> argument: check that the device string is "CPU", "GPU",
+    // "CPU:<n>" or "GPU:<n>, where <n> is a number (contains digits only).
     const char *devicestr;
     AC_GetString(&ac, &devicestr, NULL, 0);
-
-    if (strlen(devicestr) > 10 || strcasecmp(devicestr, "INPUTS") == 0 ||
-        strcasecmp(devicestr, "OUTPUTS") == 0 || strcasecmp(devicestr, "TAG") == 0 ||
-        strcasecmp(devicestr, "BATCHSIZE") == 0 || strcasecmp(devicestr, "MINBATCHSIZE") == 0 ||
-        strcasecmp(devicestr, "MINBATCHTIMEOUT") == 0 || strcasecmp(devicestr, "BLOB") == 0) {
+    bool valid_device = false;
+    if (strcasecmp(devicestr, "CPU") == 0 || strcasecmp(devicestr, "GPU") == 0) {
+        valid_device = true;
+    } else if ((strncasecmp(devicestr, "GPU:", 4) == 0 || strncasecmp(devicestr, "CPU:", 4) == 0) &&
+               strlen(devicestr) <= 10) {
+        bool digits_only = true;
+        for (size_t i = 5; i < strlen(devicestr); i++) {
+            if (devicestr[i] < '0' || devicestr[i] > '9') {
+                digits_only = false;
+                break;
+            }
+        }
+        valid_device = digits_only;
+    }
+    if (!valid_device) {
         return RedisModule_ReplyWithError(ctx, "ERR Invalid DEVICE");
     }
 
@@ -208,10 +220,6 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     unsigned long long minbatchtimeout = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHTIMEOUT")) {
-        if (batchsize == 0) {
-            return RedisModule_ReplyWithError(ctx,
-                                              "ERR MINBATCHTIMEOUT specified without BATCHSIZE");
-        }
         if (minbatchsize == 0) {
             return RedisModule_ReplyWithError(ctx,
                                               "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
@@ -234,7 +242,6 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     const char *arg_string;
     AC_GetString(&ac, &arg_string, NULL, 0);
     unsigned long long ninputs = 0, noutputs = 0;
-    const char *inputs[ninputs], *outputs[noutputs];
 
     if (backend == RAI_BACKEND_TENSORFLOW) {
         if (strcasecmp(arg_string, "INPUTS") != 0) {
@@ -248,10 +255,16 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
                 ctx, "ERR number of model inputs does not match the number of "
                      "given arguments");
         }
-        for (size_t i = 0; i < ninputs; i++) {
-            AC_GetString(&ac, inputs + i, NULL, 0);
-        }
+    } else if (strcasecmp(arg_string, "INPUTS") == 0) {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR INPUTS argument should not be specified for this backend");
+    }
+    const char *inputs[ninputs];
+    for (size_t i = 0; i < ninputs; i++) {
+        AC_GetString(&ac, inputs + i, NULL, 0);
+    }
 
+    if (backend == RAI_BACKEND_TENSORFLOW) {
         if (AC_GetString(&ac, &arg_string, NULL, 0) != AC_OK ||
             strcasecmp(arg_string, "OUTPUTS") != 0) {
             return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified for TF");
@@ -264,16 +277,15 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
                 ctx, "ERR number of model outputs does not match the number of "
                      "given arguments");
         }
-        for (size_t i = 0; i < noutputs; i++) {
-            AC_GetString(&ac, outputs + i, NULL, 0);
-        }
+    }
+    const char *outputs[noutputs];
+    for (size_t i = 0; i < noutputs; i++) {
+        AC_GetString(&ac, outputs + i, NULL, 0);
+    }
+    if (backend == RAI_BACKEND_TENSORFLOW) {
         AC_GetString(&ac, &arg_string, NULL, 0);
     }
 
-    if (strcasecmp(arg_string, "INPUTS") == 0 && backend != RAI_BACKEND_TENSORFLOW) {
-        return RedisModule_ReplyWithError(
-            ctx, "ERR INPUTS argument should not be specified for this backend");
-    }
     if (strcasecmp(arg_string, "BLOB") != 0) {
         return RedisModule_ReplyWithError(ctx, "ERR Invalid argument, expected BLOB");
     }

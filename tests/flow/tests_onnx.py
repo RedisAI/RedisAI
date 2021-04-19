@@ -16,19 +16,9 @@ def test_onnx_modelrun_mnist(env):
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mnist.onnx')
-    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(wrong_model_filename, 'rb') as f:
-        wrong_model_pb = f.read()
-
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
+    model_pb = load_from_file('mnist.onnx')
+    wrong_model_pb = load_from_file('graph.pb')
+    sample_raw = load_from_file('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -56,47 +46,13 @@ def test_onnx_modelrun_mnist(env):
     env.assertEqual(len(ret[11]), 1)
     env.assertEqual(len(ret[13]), 1)
 
-    try:
-        con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', wrong_model_pb)
-        env.assertTrue(False)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("No graph was found in the protobuf.", str(exception))
-
-    try:
-        con.execute_command('AI.MODELSTORE', 'm_1{1}', 'ONNX', 'BLOB', model_pb)
-        env.assertTrue(False)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid DEVICE", str(exception))
-
-    try:
-        con.execute_command('AI.MODELSTORE', 'm_2{1}', model_pb)
-        env.assertTrue(False)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.MODELSTORE' command", str(exception))
+    check_error_message(env, con, "No graph was found in the protobuf.",
+                        'AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', wrong_model_pb)
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-    try:
-        con.execute_command('AI.MODELEXECUTE', 'm_1{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-        env.assertTrue(False)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", str(exception))
-
-    try:
-        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OTUPUTS', 'c{1}')
-        env.assertTrue(False)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Number of keys given as INPUTS here does not match model definition", str(exception))
+    check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
+                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OTUPUTS', 'c{1}')
 
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
 
@@ -118,23 +74,19 @@ def test_onnx_modelrun_batchdim_mismatch(env):
         return
 
     con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'batchdim_mismatch.onnx')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('batchdim_mismatch.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 'VALUES', 1, 1)
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 3, 'VALUES', 1, 1, 1)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 'VALUES', 1, 1)
 
-    ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 2, 'c{1}', 'd{1}')
-    env.debugPrint(str(ret), force=True)
+    check_error_message(env, con, "Got invalid dimensions for input: 0 for the following indices  index: 0 Got: 3"
+                                  " Expected: 2  Please fix either the inputs or the model.",
+                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 2, 'c{1}', 'd{1}')
 
 
 def test_onnx_modelrun_mnist_autobatch(env):
@@ -142,16 +94,8 @@ def test_onnx_modelrun_mnist_autobatch(env):
         return
 
     con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mnist_batched.onnx')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
+    model_pb = load_from_file('mnist_batched.onnx')
+    sample_raw = load_from_file('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU',
                               'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
@@ -207,15 +151,8 @@ def test_onnx_modelrun_iris(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
-    logreg_model_filename = os.path.join(test_data_path, 'logreg_iris.onnx')
-
-    with open(linear_model_filename, 'rb') as f:
-        linear_model = f.read()
-
-    with open(logreg_model_filename, 'rb') as f:
-        logreg_model = f.read()
+    linear_model = load_from_file('linear_iris.onnx')
+    logreg_model = load_from_file('logreg_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -252,11 +189,7 @@ def test_onnx_modelinfo(env):
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
-
-    with open(linear_model_filename, 'rb') as f:
-        linear_model = f.read()
+    linear_model = load_from_file('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -307,11 +240,7 @@ def test_onnx_modelrun_disconnect(env):
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
-
-    with open(linear_model_filename, 'rb') as f:
-        linear_model = f.read()
+    linear_model = load_from_file('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -336,14 +265,10 @@ def test_onnx_model_rdb_save_load(env):
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
-
-    with open(linear_model_filename, 'rb') as f:
-        model_pb = f.read()
+    linear_model = load_from_file('linear_iris.onnx')
 
     con = env.getConnection()
-    ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
@@ -357,11 +282,12 @@ def test_onnx_model_rdb_save_load(env):
     con = env.getConnection()
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
     env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(model_pb), len(model_serialized_after_rdbload))
+    env.assertEqual(len(linear_model), len(model_serialized_after_rdbload))
     # Assert in memory model binary is equal to loaded model binary
     env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
     # Assert input model binary is equal to loaded model binary
-    env.assertTrue(model_pb == model_serialized_after_rdbload)
+    env.assertTrue(linear_model == model_serialized_after_rdbload)
+
 
 def tests_onnx_info(env):
     if not TEST_ONNX:
@@ -372,13 +298,9 @@ def tests_onnx_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    linear_model_filename = os.path.join(test_data_path, 'linear_iris.onnx')
+    linear_model = load_from_file('linear_iris.onnx')
 
-    with open(linear_model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     
     ret = con.execute_command('AI.INFO')
     env.assertEqual(8, len(ret))
@@ -392,13 +314,8 @@ def test_parallelism():
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mnist.onnx')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
+    model_pb = load_from_file('mnist.onnx')
+    sample_raw = load_from_file('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -428,10 +345,8 @@ def test_onnx_use_custom_allocator(env):
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mul_1.onnx')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('mul_1.onnx')
+
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                             for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)
@@ -471,13 +386,8 @@ def test_onnx_use_custom_allocator(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 12)
 
     # test the use of Redis allocator in model run op.
-    model_filename = os.path.join(test_data_path, 'mnist.onnx')
-    sample_filename = os.path.join(test_data_path, 'one.raw')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-    with open(sample_filename, 'rb') as f:
-        sample_raw = f.read()
+    model_pb = load_from_file('mnist.onnx')
+    sample_raw = load_from_file('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -508,10 +418,7 @@ def test_onnx_use_custom_allocator_with_GPU(env):
         return
 
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'mul_1.onnx')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('mul_1.onnx')
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)

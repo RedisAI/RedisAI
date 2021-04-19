@@ -152,15 +152,15 @@ redis> AI.TENSORGET mytensor META BLOB
 !!! important "Using `BLOB` is preferable to `VALUES`"
     While it is possible to get the tensor as binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to returning the values discretely.
 
-## AI.MODELSET
-The **`AI.MODELSET`** commands stores a model as the value of a key.
+## AI.MODELSTORE
+The **`AI.MODELSTORE`** command stores a model as the value of a key.
 
 **Redis API**
 
 ```
-AI.MODELSET <key> <backend> <device>
-    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
-    [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
+AI.MODELSTORE <key> <backend> <device>
+    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m [MINBATCHTIMEOUT t]]]
+    [INPUTS <input_count> <name> ...] [OUTPUTS <output_count> <name> ...] BLOB <model>
 ```
 
 _Arguments_
@@ -176,11 +176,13 @@ _Arguments_
     * **GPU**: a GPU device
     * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
 * **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
-* **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELRUN` is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
-* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELRUN` until the batch's size had reached `m`. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0), unless `MINBATCHTIMEOUT` is provided.
-* **MINBATCHTIMEOUT**: when provided with a `t` (expressed in milliseconds) that is greater than 0, the engine will trigger a run even though `MINBATCHSIZE` has not been reached after `t` milliseconds from the time a `MODELRUN` (or the enclosing `DAGRUN`) is enqueued. This only applies to cases where both `BATCHSIZE` and `MINBATCHSIZE` are greater than 0.
-* **INPUTS**: one or more names of the model's input nodes (applicable only for TensorFlow models)
-* **OUTPUTS**: one or more names of the model's output nodes (applicable only for TensorFlow models)
+* **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELEXECUTE` (or `AI.MODELRUN`) is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
+* **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELEXECUTE` until the batch's size had reached `m`. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0), unless `MINBATCHTIMEOUT` is provided.
+* **MINBATCHTIMEOUT**: when provided with a `t` (expressed in milliseconds) that is greater than 0, the engine will trigger a run even though `MINBATCHSIZE` has not been reached after `t` milliseconds from the time a `MODELEXECUTE` (or the enclosing `DAGRUN`) is enqueued. This only applies to cases where both `BATCHSIZE` and `MINBATCHSIZE` are greater than 0.
+* **INPUTS**: denotes that one or more names of the model's input nodes are following (applicable only for TensorFlow models)
+* **input_count**: a positive number that indicates the number of following input nodes. 
+* **OUTPUTS**: denotes that one or more names of the model's output nodes are following (applicable only for TensorFlow models)
+* **output_count**: a positive number that indicates the number of following input nodes. 
 * **model**: the Protobuf-serialized model. Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
 
 _Return_
@@ -192,8 +194,20 @@ A simple 'OK' string or an error.
 This example shows to set a model 'mymodel' key using the contents of a local file with [`redis-cli`](https://redis.io/topics/cli). Refer to the [Clients Page](clients.md) for additional client choices that are native to your programming language:
 
 ```
-$ cat resnet50.pb | redis-cli -x AI.MODELSET mymodel TF CPU TAG imagenet:5.0 INPUTS images OUTPUTS output BLOB
+$ cat resnet50.pb | redis-cli -x AI.MODELSTORE mymodel TF CPU TAG imagenet:5.0 INPUTS 1 images OUTPUTS 1 output BLOB
 OK
+```
+
+## AI.MODELSET
+_This command is deprecated and will not be available in future versions. consider using AI.MODELSTORE command instead._
+The **`AI.MODELSET`** command stores a model as the value of a key. The command's arguments and effect are both exactly the same as `AI.MODELEXECUTE` command, except that <input_count> and <output_count> arguments should not be specified for TF backend. 
+
+**Redis API**
+
+```
+AI.MODELSET <key> <backend> <device>
+    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m [MNBATCHTIMEOUT t]]]
+    [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
 ```
 
 ## AI.MODELGET
@@ -303,9 +317,9 @@ _Arguments_
 
 * **key**: the model's key name
 * **INPUTS**: denotes the beginning of the input tensors keys' list, followed by the number of inputs and one or more key names
-* **input_count**: A positive number that indicates the number of following input keys. 
+* **input_count**: a positive number that indicates the number of following input keys. 
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by the number of outputs one or more key names
-* **output_count**: A positive number that indicates the number of output keys to follow.
+* **output_count**: a positive number that indicates the number of output keys to follow.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 
 _Return_

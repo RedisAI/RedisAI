@@ -77,14 +77,10 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_from_file('graph.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -280,8 +276,8 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'DAGRun_test2')
     env.assertEqual(ret[0], b'test2_OK')

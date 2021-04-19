@@ -208,13 +208,10 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         const char *matches[] = {"OUTPUTS"};
         AC_GetSliceUntilMatches(&optionsac, &inac, 1, matches);
 
-        if (!AC_IsAtEnd(&optionsac)) {
-            if (!AC_AdvanceIfMatch(&optionsac, "OUTPUTS")) {
-                return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified");
-            }
-
-            AC_GetSliceToEnd(&optionsac, &outac);
+        if (AC_IsAtEnd(&optionsac) || !AC_AdvanceIfMatch(&optionsac, "OUTPUTS")) {
+            return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified");
         }
+        AC_GetSliceToEnd(&optionsac, &outac);
     }
 
     size_t ninputs = inac.argc;
@@ -241,11 +238,9 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     AC_AdvanceUntilMatches(&ac, 1, blob_matches);
 
-    if (AC_IsAtEnd(&ac)) {
+    if (AC_Advance(&ac) != AC_OK || AC_IsAtEnd(&ac)) {
         return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
     }
-
-    AC_Advance(&ac);
 
     ArgsCursor blobsac;
     AC_GetSliceToEnd(&ac, &blobsac);

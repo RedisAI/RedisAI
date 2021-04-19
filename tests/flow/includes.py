@@ -5,6 +5,8 @@ import sys
 import time
 from multiprocessing import Process
 import threading
+
+import redis
 from numpy.random import default_rng
 import numpy as np
 from skimage.io import imread
@@ -94,6 +96,7 @@ def load_resnet_test_data():
 
     return model_pb, script, labels, img
 
+
 def load_mobilenet_v1_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
@@ -115,6 +118,7 @@ def load_mobilenet_v1_test_data():
     img = img.astype(np.float32)
 
     return model_pb, input_var, output_var, labels, img
+
 
 def load_mobilenet_v2_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -162,8 +166,8 @@ def run_mobilenet(con, img, input_var, output_var):
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.MODELRUN', 'mobilenet{1}',
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    con.execute_command('AI.MODELEXECUTE', 'mobilenet{1}',
+                        'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
 
 def run_test_multiproc(env, n_procs, fn, args=tuple()):
@@ -180,3 +184,21 @@ def run_test_multiproc(env, n_procs, fn, args=tuple()):
         procs.append(p)
 
     [p.join() for p in procs]
+
+
+# Load a model/script from a file located in test_data dir.
+def load_from_file(file_name):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    filename = os.path.join(test_data_path, file_name)
+    with open(filename, 'rb') as f:
+        return f.read()
+
+
+def check_error_message(env, con, error_msg, *command):
+    try:
+        con.execute_command(*command)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(error_msg, str(exception))

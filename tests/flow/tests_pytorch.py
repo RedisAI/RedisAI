@@ -14,12 +14,7 @@ def test_pytorch_chunked_modelset(env):
         return
 
     con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-
-    with open(model_filename, 'rb') as f:
-        model = f.read()
+    model = load_from_file('pt-minimal.pt')
 
     chunk_size = len(model) // 3
 
@@ -51,21 +46,14 @@ def test_pytorch_modelrun(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-    wrong_model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_from_file('pt-minimal.pt')
+    wrong_model_pb = load_from_file('graph.pb')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(wrong_model_filename, 'rb') as f:
-        wrong_model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -118,40 +106,16 @@ def test_pytorch_modelrun(env):
         env.assertEqual(values2, values)
 
 
-def test_pytorch_modelrun_batchdim_mismatch(env):
-    con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'batchdim_mismatch.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 'VALUES', 1, 1)
-    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 'VALUES', 1, 1)
-
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 2, 'c{1}', 'd{1}')
-
-
 def test_pytorch_modelrun_autobatch(env):
     if not TEST_PT:
         return
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -187,12 +151,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
         return
 
     con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal-bb.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
@@ -208,24 +167,14 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
 
     def run():
         con = env.getConnection()
-        try:
-            ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'd{1}', 'e{1}', 'OUTPUTS', 'f1{1}', 'f2{1}')
-            env.assertFalse(True)
-        except Exception as e:
-            exception = e
-            env.assertEqual(type(exception), redis.exceptions.ResponseError)
-            env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+        check_error_message(env, con, "Model did not generate the expected batch size",
+                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'd{1}', 'e{1}', 'OUTPUTS', 2, 'f1{1}', 'f2{1}')
 
     t = threading.Thread(target=run)
     t.start()
 
-    try:
-        ret = con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c1{1}', 'c2{1}')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Model did not generate the expected batch size", exception.__str__())
+    check_error_message(env, con, "Model did not generate the expected batch size",
+                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 2, 'c1{1}', 'c2{1}')
     t.join()
 
 
@@ -236,15 +185,11 @@ def test_pytorch_modelinfo(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+    model_pb = load_from_file('pt-minimal.pt')
     model_key = 'm{1}'
     tensor_a_key = 'a{1}'
     tensor_b_key = 'b{1}'
     tensor_c_key = 'c{1}'
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
 
     ret = con.execute_command('AI.MODELSTORE', model_key, 'TORCH', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -762,11 +707,7 @@ def test_pytorch_modelrun_disconnect(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -837,11 +778,7 @@ def test_pytorch_model_rdb_save_load(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal.pt')
 
     con = env.getConnection()
 
@@ -882,10 +819,7 @@ def test_parallelism():
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal.pt')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -913,10 +847,7 @@ def test_modelget_for_tuple_output(env):
         return
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
+    model_pb = load_from_file('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
     env.assertEqual(b'OK', ret)
@@ -938,11 +869,8 @@ def test_torch_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'pt-minimal-bb.pt')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
+    model_pb = load_from_file('pt-minimal-bb.pt')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
 
     ret = con.execute_command('AI.INFO')
     env.assertEqual(8, len(ret))
