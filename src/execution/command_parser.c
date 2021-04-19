@@ -409,8 +409,8 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                                            RedisModuleString ***outkeys, long long *timeout,
                                            size_t **listSizes) {
     bool timeout_set = false;
-    int argpos;
-    for (argpos = 3; argpos < argc; argpos++) {
+    int argpos = 3;
+    while (argpos < argc ) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
 
         // Parse timeout arg if given and store it in timeout
@@ -439,6 +439,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR Invalid argument for input count in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
             }
+            argpos++;
             size_t first_input_pos = argpos;
             if (first_input_pos + ninputs > argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
@@ -459,6 +460,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR Invalid argument for key count in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
             }
+            argpos++;
             size_t first_input_pos = argpos;
             if (first_input_pos + ninputs > argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
@@ -472,7 +474,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             continue;
         }
         if (!strcasecmp(arg_string, "OUTPUTS")) {
-            if (array_len(outkeys) != 0) {
+            if (array_len(*outkeys) != 0) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already encountered an OUTPUTS keyword in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
@@ -484,6 +486,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR Invalid argument for output count in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
             }
+            argpos++;
             size_t first_output_pos = argpos;
             if (first_output_pos + noutputs > argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
@@ -504,6 +507,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR Invalid argument for list input count in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
             }
+            argpos++;
             size_t first_input_pos = argpos;
             if (first_input_pos + ninputs > argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
