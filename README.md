@@ -23,13 +23,13 @@ If you want to run examples, make sure you have [git-lfs](https://git-lfs.github
 To quickly tryout RedisAI, launch an instance using docker:
 
 ```sh
-docker run -p 6379:6379 -it --rm redislabs/redisai
+docker run -p 6379:6379 -it --rm redislabs/redisai:edge-cpu
 ```
 
 For docker instance with GPU support, you can launch it from `tensorwerk/redisai-gpu`
 
 ```sh
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu
 ```
 
 But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
@@ -122,6 +122,9 @@ Some languages have client libraries that provide support for RedisAI's commands
 | redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
 | redisai-go | Go | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-go) |
 | redisai-js | Typescript/Javascript | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-js) |
+| redis-modules-sdk | TypeScript | BSD-3-Clause | [Dani Tseitlin](https://github.com/danitseitlin) | [Github](https://github.com/danitseitlin/redis-modules-sdk) |
+| redis-modules-java | Java | Apache-2.0 | [dengliming](https://github.com/dengliming) | [Github](https://github.com/dengliming/redis-modules-java) |
+
 
 ## Backend Dependancy
 
