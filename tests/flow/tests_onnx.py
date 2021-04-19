@@ -16,9 +16,9 @@ def test_onnx_modelrun_mnist(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist.onnx')
-    wrong_model_pb = load_from_file('graph.pb')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist.onnx')
+    wrong_model_pb = load_file_content('graph.pb')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -74,7 +74,7 @@ def test_onnx_modelrun_batchdim_mismatch(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('batchdim_mismatch.onnx')
+    model_pb = load_file_content('batchdim_mismatch.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -94,8 +94,8 @@ def test_onnx_modelrun_mnist_autobatch(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist_batched.onnx')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist_batched.onnx')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU',
                               'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
@@ -151,8 +151,8 @@ def test_onnx_modelrun_iris(env):
 
     con = env.getConnection()
 
-    linear_model = load_from_file('linear_iris.onnx')
-    logreg_model = load_from_file('logreg_iris.onnx')
+    linear_model = load_file_content('linear_iris.onnx')
+    logreg_model = load_file_content('logreg_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -189,7 +189,7 @@ def test_onnx_modelinfo(env):
         return
 
     con = env.getConnection()
-    linear_model = load_from_file('linear_iris.onnx')
+    linear_model = load_file_content('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -240,7 +240,7 @@ def test_onnx_modelrun_disconnect(env):
         return
 
     con = env.getConnection()
-    linear_model = load_from_file('linear_iris.onnx')
+    linear_model = load_file_content('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
@@ -265,7 +265,7 @@ def test_onnx_model_rdb_save_load(env):
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    linear_model = load_from_file('linear_iris.onnx')
+    linear_model = load_file_content('linear_iris.onnx')
 
     con = env.getConnection()
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
@@ -298,7 +298,7 @@ def tests_onnx_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    linear_model = load_from_file('linear_iris.onnx')
+    linear_model = load_file_content('linear_iris.onnx')
 
     con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     
@@ -314,8 +314,8 @@ def test_parallelism():
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist.onnx')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist.onnx')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -345,7 +345,7 @@ def test_onnx_use_custom_allocator(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mul_1.onnx')
+    model_pb = load_file_content('mul_1.onnx')
 
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                             for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
@@ -386,8 +386,8 @@ def test_onnx_use_custom_allocator(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 12)
 
     # test the use of Redis allocator in model run op.
-    model_pb = load_from_file('mnist.onnx')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist.onnx')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -418,7 +418,7 @@ def test_onnx_use_custom_allocator_with_GPU(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mul_1.onnx')
+    model_pb = load_file_content('mul_1.onnx')
     ai_memory_config = {k.split(":")[0]: k.split(":")[1]
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory"]), 0)

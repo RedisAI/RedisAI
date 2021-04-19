@@ -187,7 +187,7 @@ def run_test_multiproc(env, n_procs, fn, args=tuple()):
 
 
 # Load a model/script from a file located in test_data dir.
-def load_from_file(file_name):
+def load_file_content(file_name):
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     filename = os.path.join(test_data_path, file_name)
     with open(filename, 'rb') as f:

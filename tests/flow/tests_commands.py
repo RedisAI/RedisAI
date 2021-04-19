@@ -17,7 +17,7 @@ def test_modelstore_errors(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     # Check that the basic arguments are valid (model's key, device, backend, blob)
     check_error_message(env, con, "wrong number of arguments for 'AI.MODELSTORE' command",
@@ -79,7 +79,7 @@ def test_modelexecute_errors(env):
         return
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')

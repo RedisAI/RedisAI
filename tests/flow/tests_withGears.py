@@ -77,7 +77,7 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)

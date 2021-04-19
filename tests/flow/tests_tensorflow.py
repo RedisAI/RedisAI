@@ -119,7 +119,7 @@ def test_run_mobilenet_multiproc(env):
 def test_del_tf_model(env):
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -157,7 +157,7 @@ def test_del_tf_model(env):
 def test_run_tf_model(env):
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -228,7 +228,7 @@ def test_run_tf_model(env):
 def test_run_tf2_model(env):
     con = env.getConnection()
 
-    model_pb = load_from_file('graph_v2.pb')
+    model_pb = load_file_content('graph_v2.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 1, 'x', 'OUTPUTS', 1, 'Identity', 'BLOB', model_pb)
@@ -294,8 +294,8 @@ def test_run_tf2_model(env):
 def test_run_tf_model_errors(env):
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
-    wrong_model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('graph.pb')
+    wrong_model_pb = load_file_content('pt-minimal.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
@@ -341,7 +341,7 @@ def test_run_tf_model_autobatch(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
@@ -384,7 +384,7 @@ def test_run_tf_model_autobatch(env):
 @skip_if_no_TF
 def test_tensorflow_modelinfo(env):
     con = env.getConnection()
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
@@ -447,7 +447,7 @@ def test_tensorflow_modelinfo(env):
 @skip_if_no_TF
 def test_tensorflow_modelrun_disconnect(env):
     red = env.getConnection()
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
 
     ret = red.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
@@ -694,7 +694,7 @@ def test_tf_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
 
     con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)

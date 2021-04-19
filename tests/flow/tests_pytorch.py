@@ -14,7 +14,7 @@ def test_pytorch_chunked_modelset(env):
         return
 
     con = env.getConnection()
-    model = load_from_file('pt-minimal.pt')
+    model = load_file_content('pt-minimal.pt')
 
     chunk_size = len(model) // 3
 
@@ -46,8 +46,8 @@ def test_pytorch_modelrun(env):
 
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal.pt')
-    wrong_model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('pt-minimal.pt')
+    wrong_model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
@@ -112,7 +112,7 @@ def test_pytorch_modelrun_autobatch(env):
 
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
@@ -151,7 +151,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('pt-minimal-bb.pt')
+    model_pb = load_file_content('pt-minimal-bb.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 3, 'BLOB', model_pb)
@@ -185,7 +185,7 @@ def test_pytorch_modelinfo(env):
 
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
     model_key = 'm{1}'
     tensor_a_key = 'a{1}'
     tensor_b_key = 'b{1}'
@@ -707,7 +707,7 @@ def test_pytorch_modelrun_disconnect(env):
 
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -778,7 +778,7 @@ def test_pytorch_model_rdb_save_load(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     con = env.getConnection()
 
@@ -819,7 +819,7 @@ def test_parallelism():
 
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -847,7 +847,7 @@ def test_modelget_for_tuple_output(env):
         return
     con = env.getConnection()
 
-    model_pb = load_from_file('pt-minimal-bb.pt')
+    model_pb = load_file_content('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
     env.assertEqual(b'OK', ret)
@@ -869,7 +869,7 @@ def test_torch_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    model_pb = load_from_file('pt-minimal-bb.pt')
+    model_pb = load_file_content('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
 
     ret = con.execute_command('AI.INFO')

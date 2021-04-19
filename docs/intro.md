@@ -246,7 +246,7 @@ AI.TENSORSET tB FLOAT 2 VALUES 3 5
 The model can now be run with the [`AI.MODELEXECUTE` command](commands.md#aimodelexecute) as follows:
 
 ```
-AI.MODELEXECUTE mymodel INPUTS tA tB OUTPUTS tResult
+AI.MODELEXECUTE mymodel INPUTS 2 tA tB OUTPUTS 1 tResult
 ```
 
 !!! example "Example: running a model"

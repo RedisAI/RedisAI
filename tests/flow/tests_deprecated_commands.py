@@ -12,7 +12,7 @@ def test_modelset_errors(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     # test validity of backend and device args.
     check_error_message(env, con, "wrong number of arguments for 'AI.MODELSET' command",
@@ -45,7 +45,7 @@ def test_modelset_errors(env):
                         'AI.MODELSET', 'm{1}', 'TORCH', DEVICE, 'BATCHSIZE', 2, 'BLOB')
 
     # test INPUTS and OUTPUTS args for TF backend
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     check_error_message(env, con, "Insufficient arguments, INPUTS and OUTPUTS not specified",
                         'AI.MODELSET', 'm_1{1}', 'TF', DEVICE, 'BLOB', model_pb)
     check_error_message(env, con, "INPUTS not specified",
@@ -62,7 +62,7 @@ def test_modelrun_errors(env):
         return
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -94,7 +94,7 @@ def test_modelset_modelrun_tf(env):
         return
     con = env.getConnection()
 
-    model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE, 'TAG', 'version:1',
                               'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -123,8 +123,8 @@ def test_modelset_modelrun_tflite(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist_model_quant.tflite')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist_model_quant.tflite')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -153,7 +153,7 @@ def test_modelset_modelrun_pytorch(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('pt-minimal.pt')
+    model_pb = load_file_content('pt-minimal.pt')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
@@ -187,8 +187,8 @@ def test_modelset_modelrun_onnx(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist.onnx')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist.onnx')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSET', 'm{1}', 'ONNX', DEVICE, 'TAG', 'version:2', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')

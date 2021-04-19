@@ -13,8 +13,8 @@ def test_run_tflite_model(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist_model_quant.tflite')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist_model_quant.tflite')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -54,9 +54,9 @@ def test_run_tflite_model_errors(env):
 
     con = env.getConnection()
 
-    model_pb = load_from_file('mnist_model_quant.tflite')
-    sample_raw = load_from_file('one.raw')
-    wrong_model_pb = load_from_file('graph.pb')
+    model_pb = load_file_content('mnist_model_quant.tflite')
+    sample_raw = load_file_content('one.raw')
+    wrong_model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm_2{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -93,8 +93,8 @@ def test_tflite_modelinfo(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist_model_quant.tflite')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist_model_quant.tflite')
+    sample_raw = load_file_content('one.raw')
 
     ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -140,8 +140,8 @@ def test_tflite_modelrun_disconnect(env):
         return
 
     red = env.getConnection()
-    model_pb = load_from_file('mnist_model_quant.tflite')
-    sample_raw = load_from_file('one.raw')
+    model_pb = load_file_content('mnist_model_quant.tflite')
+    sample_raw = load_file_content('one.raw')
 
     ret = red.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -162,7 +162,7 @@ def test_tflite_model_rdb_save_load(env):
         return
 
     con = env.getConnection()
-    model_pb = load_from_file('mnist_model_quant.tflite')
+    model_pb = load_file_content('mnist_model_quant.tflite')
 
     ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -194,7 +194,7 @@ def test_tflite_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    model_pb = load_from_file('mnist_model_quant.tflite')
+    model_pb = load_file_content('mnist_model_quant.tflite')
 
     con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
 
