@@ -503,9 +503,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     OrtStatus *status = NULL;
     const size_t ninputs = array_len(mctxs[0]->inputs);
     const size_t noutputs = array_len(mctxs[0]->outputs);
-    array_new_on_stack(const char *, 5, input_names)
-        array_new_on_stack(const char *, 5, output_names) array_new_on_stack(OrtValue *, 5, inputs)
-            array_new_on_stack(OrtValue *, 5, outputs) OrtTensorTypeAndShapeInfo *info = NULL;
+    array_new_on_stack(const char *, 5, input_names);
+    array_new_on_stack(const char *, 5, output_names);
+    array_new_on_stack(OrtValue *, 5, inputs);
+    array_new_on_stack(OrtValue *, 5, outputs);
+    OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
         size_t n_output_nodes;
@@ -611,9 +613,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             }
             ort->ReleaseValue(outputs[i]);
         }
+        array_free(outputs);
         for (size_t i = 0; i < n_input_nodes; i++) {
             ort->ReleaseValue(inputs[i]);
         }
+        array_free(inputs);
         return REDISMODULE_OK;
     }
 
