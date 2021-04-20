@@ -1,12 +1,13 @@
-ARG OS=nvidia/cuda:11.0.3-cudnn8-devel-ubuntu18.04
+ARG BAZEL_VERSION=3.1.0
+ARG TFLITE_ARCH=x86_64
+
+ARG OS=redisfab/ubuntu1804-${TFLITE_ARCH}-bazel${BAZEL_VERSION}
 
 ARG TFLITE_VERSION=2.4.0
-ARG TFLITE_ARCH=x86_64
 
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 
-ARG BAZEL_VERSION=3.1.0
 ARG FTLITE_VER
 ARG TFLITE_VERSION
 ARG TFLITE_ARCH
@@ -25,7 +26,5 @@ RUN apt-get install -qqy git \
             python3-distutils \
             python3-numpy
 RUN ln -s /usr/bin/python3 /usr/bin/python
-RUN wget -q https://github.com/bazelbuild/bazel/releases/download/3.1.0/bazel_3.1.0-linux-x86_64.deb -O /tmp/bazel.deb
-RUN dpkg -i /tmp/bazel.deb
 WORKDIR /tflite
-RUN bash build.sh ${TFLITE_VERSION} ${TFLITE_ARCH}
+RUN bash build.sh ${TFLITE_ARCH} ${TFLITE_VERSION}

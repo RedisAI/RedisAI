@@ -1,15 +1,16 @@
 #!/bin/bash
 set -e
 set -x
-VERSION=$1
+ARCH=$1
+
+VERSION=$2
 if [ "X$VERSION" == "X" ]; then
     VERSION=2.4.0
 fi
-ARCH=$2
 
-BAZEL_VERSION=$3
-if [ "X$BAZEL_VERSION" == "X" ]; then
-    BAZEL_VERSION=3.5.1
+BASEOS=$3
+if [ "X$BASEOS" == "X" ]; then
+    BASEOS=linux
 fi
 
 if [ ! -f v$VERSION.tar.gz ]; then
@@ -17,9 +18,12 @@ if [ ! -f v$VERSION.tar.gz ]; then
     tar -xzf v$VERSION.tar.gz
 fi
 cd tensorflow-$VERSION
+
+# fetch dependencies
+./tensorflow/lite/tools/make/download_dependencies.sh
+
 # build tensorflow lite library
 bazel build --config=monolithic --config=cuda //tensorflow/lite:libtensorflowlite.so
-./tensorflow/lite/tools/make/download_dependencies.sh
 TMP_LIB="tmp"
 # flatbuffer header files
 mkdir -p $TMP_LIB/include
@@ -50,4 +54,4 @@ bazel build -c opt --copt -DMESA_EGL_NO_X11_HEADERS --copt -DEGL_NO_X11 tensorfl
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so $TMP_LIB/lib
 # create .tar.gz file
 cd $TMP_LIB
-tar -cvzf libtensorflowlite-linux-$ARCH-$VERSION.tar.gz include lib
+tar -cvzf libtensorflowlite-$BASEOS-$ARCH-$VERSION.tar.gz include lib
