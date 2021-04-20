@@ -1,6 +1,8 @@
 #!/bin/bash
 set -e
 set -x
+
+cd `dirname ${BASH_SOURCE[0]}`
 ARCH=$1
 
 VERSION=$2
