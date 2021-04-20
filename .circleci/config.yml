@@ -35,18 +35,18 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
-  relocate-docker-storage:
-    steps:
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-
+#  relocate-docker-storage:
+#    steps:
+#      - run:
+#          name: Relocate docker overlay2 dir
+#          command: |
+#            sudo systemctl stop docker
+#            sudo mkdir -p /var2/lib/docker
+#            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+#            sudo mkdir /var/lib/docker/overlay2
+#            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+#            sudo systemctl start docker
+#
   setup-automation:
     steps:
       - run:
@@ -123,7 +123,7 @@ commands:
       - abort_for_docs
       - early_return_for_forked_pull_requests
       - checkout-all
-      - relocate-docker-storage
+        #      - relocate-docker-storage
       - setup-automation
       - run:
           name: Build for platform
@@ -183,7 +183,7 @@ jobs:
 
   platforms-build:
     docker:
-      - image: ubuntu-1604-cuda-11.1:202012-01
+      - image: ubuntu:bionic
     steps:
       - platforms-build-steps
 
