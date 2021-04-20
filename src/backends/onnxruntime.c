@@ -179,7 +179,8 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
     }
 }
 
-OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *error) {
+int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
+                            OrtStatus **status_ptr) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
@@ -218,12 +219,12 @@ OrtValue *RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, RAI_Error *erro
             RAI_TensorByteSize(t0), t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
     }
-    return out;
+    *input = out;
+    return REDISMODULE_OK;
 
 error:
-    RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
-    ort->ReleaseStatus(status);
-    return NULL;
+    *status_ptr = status;
+    return REDISMODULE_ERR;
 }
 
 RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long long batch_size,
@@ -233,6 +234,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     RAI_Tensor *ret = NULL;
     int64_t *shape = NULL;
     int64_t *strides = NULL;
+    OrtTensorTypeAndShapeInfo *info = NULL;
 
     int is_tensor;
     ONNX_VALIDATE_STATUS(ort->IsTensor(v, &is_tensor))
@@ -245,7 +247,6 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     ret = RAI_TensorNew();
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
 
-    OrtTensorTypeAndShapeInfo *info;
     ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))
 
     {
@@ -322,6 +323,9 @@ error:
     }
     if (ret != NULL) {
         RedisModule_Free(ret);
+    }
+    if (info != NULL) {
+        ort->ReleaseTensorTypeAndShapeInfo(info);
     }
     return NULL;
 }
@@ -497,19 +501,18 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     OrtStatus *status = NULL;
-    size_t n_input_nodes;
-    ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
-
-    size_t n_output_nodes;
-    ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes)) {
-        const char *input_names[n_input_nodes];
-        const char *output_names[n_output_nodes];
-
-        OrtValue *inputs[n_input_nodes];
-        OrtValue *outputs[n_output_nodes];
-
-        const size_t ninputs = array_len(mctxs[0]->inputs);
-        const size_t noutputs = array_len(mctxs[0]->outputs);
+    const size_t ninputs = array_len(mctxs[0]->inputs);
+    const size_t noutputs = array_len(mctxs[0]->outputs);
+    array_new_on_stack(const char *, 5, input_names);
+    array_new_on_stack(const char *, 5, output_names);
+    array_new_on_stack(OrtValue *, 5, inputs);
+    array_new_on_stack(OrtValue *, 5, outputs);
+    OrtTensorTypeAndShapeInfo *info = NULL;
+    {
+        size_t n_input_nodes;
+        size_t n_output_nodes;
+        ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
+        ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
 
         if (ninputs != n_input_nodes) {
             char msg[70];
@@ -529,26 +532,26 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             char *input_name;
             ONNX_VALIDATE_STATUS(
                 ort->SessionGetInputName(session, i, global_allocator, &input_name))
-            input_names[i] = input_name;
+            input_names = array_append(input_names, input_name);
 
             RAI_Tensor *batched_input_tensors[nbatches];
             for (size_t b = 0; b < nbatches; b++) {
                 batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
             }
-
-            inputs[i] = RAI_OrtValueFromTensors(batched_input_tensors, nbatches, error);
-            if (error->code != RAI_OK) {
-                ort->ReleaseStatus(status);
-                return REDISMODULE_ERR;
+            OrtValue *input;
+            if (RAI_OrtValueFromTensors(batched_input_tensors, nbatches, &input, &status) !=
+                REDISMODULE_OK) {
+                goto error;
             }
+            inputs = array_append(inputs, input);
         }
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             char *output_name;
             ONNX_VALIDATE_STATUS(
                 ort->SessionGetOutputName(session, i, global_allocator, &output_name))
-            output_names[i] = output_name;
-            outputs[i] = NULL;
+            output_names = array_append(output_names, output_name);
+            outputs = array_append(outputs, NULL);
         }
 
         OrtRunOptions *run_options = NULL;
@@ -559,13 +562,14 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         for (uint32_t i = 0; i < ninputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
         }
+        array_free(input_names);
         for (uint32_t i = 0; i < noutputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)output_names[i]);
         }
+        array_free(output_names);
 
         for (size_t i = 0; i < n_output_nodes; i++) {
             if (nbatches > 1) {
-                OrtTensorTypeAndShapeInfo *info;
                 ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(outputs[i], &info))
                 size_t ndims;
                 ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
@@ -575,50 +579,72 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                 if (dims[0] != total_batch_size) {
                     RAI_SetError(error, RAI_EMODELRUN,
                                  "ERR Model did not generate the expected batch size");
-                    ort->ReleaseStatus(status);
-                    return REDISMODULE_ERR;
+                    goto error;
                 }
 
                 for (size_t b = 0; b < nbatches; b++) {
                     RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(
                         outputs[i], batch_offsets[b], batch_sizes[b], error);
                     if (error->code != RAI_OK) {
-                        ort->ReleaseStatus(status);
-                        return REDISMODULE_ERR;
+                        goto error;
                     }
                     if (output_tensor) {
                         mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
                         RAI_TensorFree(output_tensor);
                     } else {
-                        printf("ERR: non-tensor output from ONNX models, ignoring (currently "
-                               "unsupported)");
+                        RedisModule_Log(NULL, "warning",
+                                        "non-tensor output from ONNX models, ignoring (currently "
+                                        "unsupported)");
                     }
                 }
             } else {
                 RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], 0, -1, error);
                 if (error->code != RAI_OK) {
-                    ort->ReleaseStatus(status);
-                    return REDISMODULE_ERR;
+                    goto error;
                 }
                 if (output_tensor) {
                     mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
                     RAI_TensorFree(output_tensor);
                 } else {
-                    printf("ERR: non-tensor output from ONNX models, ignoring (currently "
-                           "unsupported)");
+                    RedisModule_Log(NULL, "warning",
+                                    "non-tensor output from ONNX models, ignoring (currently "
+                                    "unsupported)");
                 }
             }
             ort->ReleaseValue(outputs[i]);
         }
+        array_free(outputs);
         for (size_t i = 0; i < n_input_nodes; i++) {
             ort->ReleaseValue(inputs[i]);
         }
+        array_free(inputs);
         return REDISMODULE_OK;
     }
 
 error:
-    RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
-    ort->ReleaseStatus(status);
+    if (status) {
+        RAI_SetError(error, RAI_EMODELRUN, ort->GetErrorMessage(status));
+        ort->ReleaseStatus(status);
+    }
+    for (uint32_t i = 0; i < array_len(input_names); i++) {
+        status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
+    }
+    array_free(input_names);
+    for (uint32_t i = 0; i < array_len(output_names); i++) {
+        status = ort->AllocatorFree(global_allocator, (void *)output_names[i]);
+    }
+    array_free(output_names);
+    for (size_t i = 0; i < array_len(inputs); i++) {
+        ort->ReleaseValue(inputs[i]);
+    }
+    array_free(inputs);
+    for (size_t i = 0; i < array_len(outputs); i++) {
+        ort->ReleaseValue(outputs[i]);
+    }
+    array_free(outputs);
+    if (info) {
+        ort->ReleaseTensorTypeAndShapeInfo(info);
+    }
     return REDISMODULE_ERR;
 }
 

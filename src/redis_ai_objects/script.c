@@ -159,7 +159,7 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(key);
-        RAI_SetError(err, RAI_ESCRIPTRUN, "ERR script key is empty");
+        RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
