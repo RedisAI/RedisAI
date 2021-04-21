@@ -35,14 +35,11 @@ STEM=libtensorflowlite-$(OS.publish)
 
 # x86 linux ------------------------------------------------------------------------------------------
 
-IID_X64=x86_64_$(VERSION).iid
-CID_X64=x86_64_$(VERSION).cid
-
 build_x64:
 	-@rm *.iid *.cid
-	@docker build --iidfile $(IID_X64) -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 --build-arg TFLITE_VERSION=$(VERSION) $(ROOT)
-	@docker create --cidfile $(CID_X64) `cat $$(IID_X64)`
-	@docker cp `cat $$(CID_$(1))`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-x86_x64-$(VERSION).tar.gz .
+	docker build --iidfile x64.iid -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 --build-arg TFLITE_VERSION=$(VERSION) $(ROOT)
+	docker create --cidfile x64.cid `cat x64.iid`
+	docker cp `cat x64.cid`:/tflite/tensorflow-$(VERSION)/tmp/$(STEM)-$(ARCH.publish)-$(VERSION).tar.gz .
 .PHONY: build_x64
 
 publish_x64:
@@ -62,7 +59,7 @@ build_arm:
 .PHONY: build_arm
 
 publish_arm:
-	@aws s3 cp tensorflow-$(VERSION)/tmp/$(STEM)-$(ARCH.publish)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp `pwd`/tensorflow-$(VERSION)/tmp/$(STEM)$(OS)-$(ARCH.publish)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_arm
 
