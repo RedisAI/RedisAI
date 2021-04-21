@@ -21,6 +21,16 @@ typedef enum RunCommand {
 int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
                              int argc);
 
+
+/**
+ * @brief  Parse and validate SCRIPTEXECUTE command: create a scriptRunCtx based on the script obtained
+ * from the key space and the function name given, and save it in the op. The keys of the input and
+ * output tensors are stored in the op's inkeys and outkeys arrays, the script key is saved in op's
+ * runkey, and the given timeout is saved as well (if given, otherwise it is zero).
+ * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
+ */
+int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                             int argc);
 /**
  * Extract the params for the ModelCtxRun object from AI.MODELEXECUTE arguments.
  *
@@ -33,16 +43,6 @@ int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, Redis
 
 int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
                           RedisModuleString **outkeys, RAI_ModelRunCtx *mctx, RAI_Error *err);
-
-/**
- * @brief  Parse and validate SCRIPTRUN command: create a scriptRunCtx based on the script obtained
- * from the key space and the function name given, and save it in the op. The keys of the input and
- * output tensors are stored in the op's inkeys and outkeys arrays, the script key is saved in op's
- * runkey, and the given timeout is saved as well (if given, otherwise it is zero).
- * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
- */
-int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
-                          int argc);
 
 /**
  * @brief  Parse and validate TIMEOUT argument. If it is valid, store it in timeout.

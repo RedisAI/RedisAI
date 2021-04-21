@@ -4,7 +4,7 @@
 #include "tensor_struct.h"
 #include "util/dict.h"
 
-typedef enum { UNKOWN, TENSOR, LIST, TUPLE } TorchScriptFunctionArgumentType;
+typedef enum { UNKOWN, TENSOR, LIST, TUPLE, STRING } TorchScriptFunctionArgumentType;
 
 // typedef struct {
 //     const char* name;
@@ -36,4 +36,5 @@ typedef struct RAI_ScriptRunCtx {
     RAI_ScriptCtxParam *inputs;
     RAI_ScriptCtxParam *outputs;
     size_t *listSizes;
+    RedisModuleString** keys;
 } RAI_ScriptRunCtx;

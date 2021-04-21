@@ -539,6 +539,9 @@ static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg
     }
     case c10::TypeKind::ListType: {
         return LIST;
+    }
+    case c10::TypeKind::StringType: {
+        return STRING;
     } 
     default:
         return UNKOWN;

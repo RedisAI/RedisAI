@@ -62,6 +62,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
+    sctx->keys = array_new(RedisModuleString*, PARAM_INITIAL_SIZE);
     return sctx;
 }
 
@@ -112,9 +113,15 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
         }
     }
 
+    for (size_t i = 0; i < array_len(sctx->keys); ++i) {
+        RedisModule_FreeString(sctx->keys[i]);
+    }
+
     array_free(sctx->inputs);
     array_free(sctx->outputs);
     array_free(sctx->listSizes);
+    array_free(sctx->keys);
+
 
     RedisModule_Free(sctx->fnname);
 
