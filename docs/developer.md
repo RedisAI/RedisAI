@@ -106,7 +106,7 @@ Within the `backends` folder you will find the implementations code required to 
 * **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
 
 ## Building and Testing
-You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that.
+You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that, or view the  detailed instructions on [building backends](developer-backends.md).
 
 **Running Tests**
 
