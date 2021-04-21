@@ -35,18 +35,18 @@ STEM=libtensorflowlite-$(OS.publish)
 
 # x86 linux ------------------------------------------------------------------------------------------
 
-IID_X64=$(1)_$(VERSION).iid
-CID_X64=$(1)_$(VERSION).cid
+IID_X64=x86_64_$(VERSION).iid
+CID_X64=x86_64_$(VERSION).cid
 
 build_x64:
 	-@rm *.iid *.cid
-	@docker build --iidfile $$(IID_X64) -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 --build-arg TFLITE_VERSION=$(VERSION) $(ROOT)
-	@docker create --cidfile $$(CID_X64) `cat $$(IID_X64)`
+	@docker build --iidfile $(IID_X64) -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 --build-arg TFLITE_VERSION=$(VERSION) $(ROOT)
+	@docker create --cidfile $(CID_X64) `cat $$(IID_X64)`
 	@docker cp `cat $$(CID_$(1))`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-x86_x64-$(VERSION).tar.gz .
 .PHONY: build_x64
 
 publish_x64:
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-x86_64-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 .PHONY: publish_x64
 
 # arm linux ------------------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ DOCKERBASE=redisfab/ubuntu1804-$(ARCH.publish)-bazel3.1.0-jetson:latest
 endif
 
 build_arm:
-	@docker run -v `pwd`/opt/build/tflite:/tflite -v /etc/alternatives:/etc/alternatives -v /usr/lib:/usr/lib -v /usr/local:/usr/local -v /usr/include:/usr/include ${DOCKERBASE} /tflite/build.sh $(ARCH.publish)
+	@cd ../../../ ; docker run -v `pwd`/opt/build/tflite:/tflite -v /etc/alternatives:/etc/alternatives -v /usr/lib:/usr/lib -v /usr/local:/usr/local -v /usr/include:/usr/include ${DOCKERBASE} /tflite/build.sh $(ARCH.publish) $(VERSION)
 
 .PHONY: build_arm
 

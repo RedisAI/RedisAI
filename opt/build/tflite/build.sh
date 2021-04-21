@@ -37,6 +37,7 @@ declare -a tfLiteDirectories=(
     "$TFLITE_DIR/c"
     "$TFLITE_DIR/core"
     "$TFLITE_DIR/core/api"
+    "$TFLITE_DIR/delegates/gpu"
     "$TFLITE_DIR/delegates/nnapi"
     "$TFLITE_DIR/delegates/xnnpack"
     "$TFLITE_DIR/experimental/resource"
@@ -52,8 +53,10 @@ do
 done
 mkdir -p $TMP_LIB/lib
 cp bazel-bin/tensorflow/lite/libtensorflowlite.so $TMP_LIB/lib
-bazel build -c opt --copt -DMESA_EGL_NO_X11_HEADERS --copt -DEGL_NO_X11 tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so
+bazel build -c opt --copt -DMESA_EGL_NO_X10_HEADERS --copt -DEGL_NO_X11 tensorflow/lite/delegates/gpu:libtensorflowlite_gpu_delegate.so
 cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so $TMP_LIB/lib
+
+bazel build --config=monolithic //tensorflow/lite:libtensorflowlite.so
 # create .tar.gz file
 cd $TMP_LIB
 tar -cvzf libtensorflowlite-$BASEOS-$ARCH-$VERSION.tar.gz include lib
