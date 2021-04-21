@@ -343,9 +343,12 @@ static torch::DeviceType getDeviceType(ModuleContext *ctx) {
     }
 }
 
-extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, size_t* listSizes, size_t nlists, char **error) {
+extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, 
+                                       size_t nlists, size_t nkeys,
+                                       char **error) {
     char* buf; 
     int schemaListCount = 0;
+    int schemaStringCount = 0;
     if(nInputs < nArguments) {
         asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
         goto cleanup;
@@ -353,12 +356,22 @@ extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScr
     for (size_t i = 0; i < nArguments; i++) {
         if(argumentTypes[i] == LIST) {
             schemaListCount++;
+            continue;
+        }
+        if(argumentTypes[i] == STRING) {
+            schemaStringCount++;
+            continue;
         }
     } 
     if(schemaListCount != nlists) {
         asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, nlists);
         goto cleanup;
     }
+    if(schemaStringCount != nkeys) {
+        asprintf(&buf, "Wrong number of keys. Expected %d but was %ld", schemaStringCount, nkeys);
+        goto cleanup;
+    }
+
     return true;
 
     cleanup:
@@ -372,6 +385,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                                 size_t nArguments,
                                 TorchScriptFunctionArgumentType* argumentTypes,
                                 size_t* listSizes,
+                                RedisModuleString **keys,
                                char **error, void *(*alloc)(size_t)) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
@@ -382,6 +396,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
 
         size_t listsIdx = 0;
         size_t inputsIdx = 0;
+        size_t keysIdx = 0;
         for(size_t i= 0; i < nArguments; i++) {
             // In case of tensor.
             if(argumentTypes[i] == TENSOR) {
@@ -389,7 +404,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                 torch::Tensor tensor = fromDLPack(input);
                 stack.push_back(tensor.to(device));
             }
-            else {
+            else if(argumentTypes[i] == LIST){
                 std::vector<torch::Tensor> args;
                 size_t argumentSize = listSizes[listsIdx++];
                 for (size_t j = 0; j < argumentSize; j++) {
@@ -399,6 +414,10 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     args.emplace_back(tensor);
                 }
                 stack.push_back(args);
+            } else {
+                const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
+                torch::string str = torch::string();
+                stack.push_back(str);
             }
         }
 

@@ -19,13 +19,13 @@ void *torchCompileScript(const char *script, DLDeviceType device, int64_t device
 void *torchLoadModel(const char *model, size_t modellen, DLDeviceType device, int64_t device_id,
                      char **error, void *(*alloc)(size_t));
 
-bool torchMatchScriptSchema(size_t nArguments, long nInputs,
-                            TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes,
-                            size_t nlists, char **error);
+bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes,
+                            size_t nlists, size_t nkeys,
+                            char **error);
 
 void torchRunScript(void *scriptCtx, const char *fnName, long nInputs, DLManagedTensor **inputs,
                     long nOutputs, DLManagedTensor **outputs, size_t nArguments,
-                    TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes, char **error,
+                    TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes, RedisModuleString **keys, char **error,
                     void *(*alloc)(size_t));
 
 void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **inputs, long nOutputs,

@@ -113,9 +113,11 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
         }
     }
 
+    RedisModuleCtx* ctx = RedisModule_ThreadSafeContext(NULL);
     for (size_t i = 0; i < array_len(sctx->keys); ++i) {
-        RedisModule_FreeString(sctx->keys[i]);
+        RedisModule_FreeString(ctx, sctx->keys[i]);
     }
+    RedisModule_FreeThreadSafeContext(ctx);
 
     array_free(sctx->inputs);
     array_free(sctx->outputs);

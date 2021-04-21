@@ -379,14 +379,14 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     if (!torchMatchScriptSchema(array_len(arguments), nInputs, arguments, sctx->listSizes,
-                                array_len(sctx->listSizes), &error_descr)) {
+                                array_len(sctx->listSizes), sctx->keys, array_len(sctx->keys), &error_descr)) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
         RedisModule_Free(error_descr);
         return 1;
     }
 
     torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs,
-                   array_len(arguments), arguments, sctx->listSizes, &error_descr,
+                   array_len(arguments), arguments, sctx->listSizes, sctx->keys, &error_descr,
                    RedisModule_Alloc);
 
     if (error_descr) {

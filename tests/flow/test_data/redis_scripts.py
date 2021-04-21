@@ -43,24 +43,24 @@ def test_float_set_get():
     redis.execute("DEL", "x{1}")
     return redis_string_float_to_tensor(res)
 
-def test_int_list():
-    redis.execute("RPUSH", "x{1}", "1")
-    redis.execute("RPUSH", "x{1}", "2")
-    res = redis.execute("LRANGE", "x{1}", "0", "2")
-    redis.execute("DEL", "x{1}")
+def test_int_list(key:str):
+    redis.execute("RPUSH", key, "1")
+    redis.execute("RPUSH", key, "2")
+    res = redis.execute("LRANGE", key, "0", "2")
+    redis.execute("DEL", "key)
     return redis_int_list_to_tensor(res)
 
 
-def test_hash():
-    redis.execute("HSET", "x{1}", "field1", "1", "field2", "2")
-    res = redis.execute("HVALS", "x{1}")
-    redis.execute("DEL", "x{1}")
+def test_hash(key:str):
+    redis.execute("HSET", key, "field1", "1", "field2", "2")
+    res = redis.execute("HVALS", key)
+    redis.execute("DEL", key)
     return redis_hash_to_tensor(res)
 
 
-def test_set_key():
+def test_set_key(key:str):
     redis.execute("SET", ["x{1}", "1"])
 
 
-def test_del_key():
+def test_del_key(key:str):
     redis.execute("DEL", ["x{1}"])
