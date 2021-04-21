@@ -1,6 +1,14 @@
 version: 2.1
 
 commands:
+
+  abort_for_valgrind:
+    steps:
+      - run:
+          name: Avoid running valgrind unless explicitly called
+          command: |
+            git log -1|grep 'run valgrind' || circleci step halt
+
   abort_for_docs:
     steps:
       - run:
@@ -201,6 +209,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_docs
       - checkout-all
       - restore_cache:
           keys:
@@ -252,6 +261,38 @@ jobs:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
+
+  valgrind_with_stop_check:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - abort_for_valgrind
+      - abort_for_docs
+      - checkout-all
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-build-system
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
+          no_output_timeout: 120m
+
 
 #  build-macos:
 #    macos:
@@ -500,7 +541,7 @@ workflows:
           context: common
           <<: *on-wip-branches
           <<: *after-linter
-      - valgrind:
+      - valgrind_with_stop_check:
           name: valgrind-general
           test_args: CLUSTER=0 AOF=0
           <<: *on-wip-branches
