@@ -129,8 +129,8 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
+      - setup-executor
       - checkout-all
-        # - relocate-docker-storage
       - setup-automation
       - run:
           name: Build for platform
@@ -199,8 +199,11 @@ jobs:
           platform: debian
 
   platforms-build:
-    docker:
-      - image: cimg/base:2020.01
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - platforms-build-steps
 
@@ -262,7 +265,7 @@ jobs:
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
 
-  valgrind_with_stop_check:
+  valgrind-general:
     parameters:
       test_args:
         type: string
@@ -270,9 +273,9 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
+      - early_return_for_forked_pull_requests
       - abort_for_docs
       - checkout-all
-      - abort_for_valgrind
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -449,6 +452,13 @@ on-any-branch: &on-any-branch
     tags:
       only: /.*/
 
+on-any-branch-but-tags: &on-any-branch-but-tags
+  filters:
+    branches:
+      only: /.*/
+    tags:
+      ignore: /.*/
+
 never: &never
   filters:
     branches:
@@ -481,15 +491,6 @@ on-wip-branches: &on-wip-branches
     tags:
       ignore: /.*/
 
-not-on-integ-branch: &not-on-integ-branch
-  filters:
-    branches:
-      ignore:
-        - master
-        - /^\d+\.\d+.*$/
-    tags:
-      ignore: /.*/
-
 on-version-tags: &on-version-tags
   filters:
     branches:
@@ -497,13 +498,11 @@ on-version-tags: &on-version-tags
     tags:
       only: /^v[0-9].*/
 
-on-integ-and-version-tags: &on-integ-and-version-tags
+on-master-and-version-tags: &on-master-and-version-tags
   filters:
     branches:
       only:
         - master
-        - /^\d+\.\d+.*$/
-        - /^feature-.*$/
     tags:
       only: /^v[0-9].*/
 
@@ -520,12 +519,7 @@ after-platform-builds: &after-platform-builds
   requires:
     - platforms-build
 
-platform-build-defs: &platform-build-defs
-  <<: *after-build-and-test
-  <<: *on-integ-and-version-tags
-  # <<: *on-any-branch # debugging
-
-
+#### define workflows
 workflows:
   version: 2
   build_and_package:
@@ -533,17 +527,13 @@ workflows:
       - lint:
           <<: *on-any-branch
       - build-and-test:
-          <<: *on-any-branch
+          <<: *on-any-branch-but-tags
           <<: *after-linter
       - platforms-build:
-          <<: *platform-build-defs
+          <<: *after-build-and-test
+          <<: *on-master-and-version-tags
       - coverage:
           context: common
-          <<: *on-wip-branches
-          <<: *after-linter
-      - valgrind_with_stop_check:
-          name: valgrind-general
-          test_args: CLUSTER=0 AOF=0
           <<: *on-wip-branches
           <<: *after-linter
       - valgrind:
@@ -556,22 +546,22 @@ workflows:
           test_args: GEN=0 CLUSTER=0
           <<: *on-integ-branch
           <<: *after-linter
-#      - build-and-test-gpu:
-#          <<: *on-any-branch
-#          <<: *after-linter
-#      - deploy-snapshot:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-integ-branch
-#      - deploy-release:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-version-tags
-#      - release-automation:
-#          context: common
-#          <<: *on-version-tags
-#          requires:
-#            - deploy-release
+      - build-and-test-gpu:
+          <<: *on-integ-branch
+          <<: *after-linter
+      - deploy-snapshot:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-integ-branch
+      - deploy-release:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
 
   nightly:
     triggers:
