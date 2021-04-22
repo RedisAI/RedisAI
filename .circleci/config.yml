@@ -43,18 +43,18 @@ commands:
       - setup_remote_docker:
           docker_layer_caching: true
 
-#  relocate-docker-storage:
-#    steps:
-#      - run:
-#          name: Relocate docker overlay2 dir
-#          command: |
-#            sudo systemctl stop docker
-#            sudo mkdir -p /var2/lib/docker
-#            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-#            sudo mkdir /var/lib/docker/overlay2
-#            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-#            sudo systemctl start docker
-#
+  relocate-docker-storage:
+    steps:
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo service docker stop
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo service docker start
+
   setup-automation:
     steps:
       - run:
@@ -203,13 +203,13 @@ jobs:
       - image: cimg/base:2020.01
     steps:
       - setup-executor
+      - relocate-docker-storage
       - platforms-build-steps
 
   coverage:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - abort_for_docs
       - abort_for_docs
       - checkout-all
       - restore_cache:
@@ -344,15 +344,15 @@ jobs:
     steps:
       - abort_for_docs
       - checkout-all
-#      - run:
-#          name: Relocate docker overlay2 dir
-#          command: |
-#            # sudo systemctl stop docker
-#            sudo mkdir -p /var2/lib/docker
-#            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-#            sudo mkdir /var/lib/docker/overlay2
-#            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-#            sudo systemctl start docker
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - run:
           name: Build
           command: |
@@ -484,7 +484,7 @@ on-integ-branch: &on-integ-branch
     tags:
       ignore: /.*/
 
-on-wip-branches: &on-wip-branches
+on-dev-branches: &on-dev-branches
   filters:
     branches:
       ignore:
@@ -536,7 +536,7 @@ workflows:
           <<: *on-master-and-version-tags
       - coverage:
           context: common
-          <<: *on-wip-branches
+          <<: *on-dev-branches
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
