@@ -521,7 +521,6 @@ after-platform-builds: &after-platform-builds
     - platforms-build
 
 platform-build-defs: &platform-build-defs
-      - abort_for_valgrind
   <<: *after-build-and-test
   <<: *on-integ-and-version-tags
   # <<: *on-any-branch # debugging
