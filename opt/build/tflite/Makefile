@@ -9,6 +9,9 @@ S3_URL=redismodules/tensorflow
 OS:=$(shell $(ROOT)/opt/readies/bin/platform --os)
 ARCH:=$(shell $(ROOT)/opt/readies/bin/platform --arch)
 
+# cuda | cpu
+REDISAI_PLATFORM=cuda
+
 # non-arm linux
 ifeq ($(OS),linux)
 ifeq ($(ARCH),x64)
@@ -35,15 +38,19 @@ STEM=libtensorflowlite-$(OS.publish)
 
 # x86 linux ------------------------------------------------------------------------------------------
 
+#IID_X64=x86_64_$(VERSION).iid
+#CID_X64=x86_64_$(VERSION).cid
+#
 build_x64:
 	-@rm *.iid *.cid
-	docker build --iidfile x64.iid -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 --build-arg TFLITE_VERSION=$(VERSION) $(ROOT)
-	docker create --cidfile x64.cid `cat x64.iid`
-	docker cp `cat x64.cid`:/tflite/tensorflow-$(VERSION)/tmp/$(STEM)-$(ARCH.publish)-$(VERSION).tar.gz .
+	@docker build --iidfile x64.iid -t redisfab/$(STEM)-x86_64:$(VERSION) -f Dockerfile.x64 \
+		--build-arg TFLITE_VERSION=$(VERSION) --build-arg REDISAI_PLATFORM=$(REDISAI_PLATFORM) $(ROOT)
+	@docker create --cidfile x64.cid `cat x64.iid`
+	@docker cp `cat x64.cid`:/tflite/tensorflow-$(VERSION)/tmp/libtensorflowlite-linux-$(REDISAI_PLATFORM)-x86_64-$(VERSION).tar.gz .
 .PHONY: build_x64
 
 publish_x64:
-	@aws s3 cp $(STEM)-x86_64-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp $(STEM)-$(REDISAI_PLATFORM)-x86_64-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 .PHONY: publish_x64
 
 # arm linux ------------------------------------------------------------------------------------------
@@ -54,12 +61,12 @@ DOCKERBASE=redisfab/ubuntu1804-$(ARCH.publish)-bazel3.1.0-jetson:latest
 endif
 
 build_arm:
-	@cd ../../../ ; docker run -v `pwd`/opt/build/tflite:/tflite -v /etc/alternatives:/etc/alternatives -v /usr/lib:/usr/lib -v /usr/local:/usr/local -v /usr/include:/usr/include ${DOCKERBASE} /tflite/build.sh $(ARCH.publish) $(VERSION)
+	@cd ../../../ ; docker run -v `pwd`/opt/build/tflite:/tflite -v /etc/alternatives:/etc/alternatives -v /usr/lib:/usr/lib -v /usr/local:/usr/local -v /usr/include:/usr/include ${DOCKERBASE} /tflite/build.sh $(ARCH.publish) $(VERSION) $(REDISAI_PLATFORM)
 
 .PHONY: build_arm
 
 publish_arm:
-	@aws s3 cp `pwd`/tensorflow-$(VERSION)/tmp/$(STEM)$(OS)-$(ARCH.publish)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp `pwd`/tensorflow-$(VERSION)/tmp/$(STEM)$(OS)-$(REDISAI_PLATFORM)-$(ARCH.publish)-$(VERSION).tar.gz s3://$(S3_URL)/ --acl public-read
 
 .PHONY: publish_arm
 
@@ -80,3 +87,4 @@ build: $(BUILD_TARGETS)
 publish: $(PUBLISH_TARGETS)
 
 .PHONY: all build publish help
+

@@ -10,7 +10,13 @@ if [ "X$VERSION" == "X" ]; then
     VERSION=2.4.0
 fi
 
-BASEOS=$3
+# cuda | cpu
+REDISAI_TARGET=$3
+if [ "X$REDISAI_TARGET" == "X" ]; then
+    REDISAI_TARGET="cuda"
+fi
+
+BASEOS=$4
 if [ "X$BASEOS" == "X" ]; then
     BASEOS=linux
 fi
@@ -25,7 +31,12 @@ cd tensorflow-$VERSION
 ./tensorflow/lite/tools/make/download_dependencies.sh
 
 # build tensorflow lite library
-bazel build --config=monolithic --config=cuda //tensorflow/lite:libtensorflowlite.so
+if [ "X$REDISAI_TARGET" == "cuda" ]; then
+    BAZEL_VARIANT="--config=cuda"
+fi
+bazel build --jobs $(nproc) --config=monolithic ${BAZEL_VARIANT} //tensorflow/lite:libtensorflowlite.so
+# bazel build --jobs ${nproc} --config=monolithic --config=cuda //tensorflow/lite:libtensorflowlite.so
+
 TMP_LIB="tmp"
 # flatbuffer header files
 mkdir -p $TMP_LIB/include
@@ -59,4 +70,5 @@ cp bazel-bin/tensorflow/lite/delegates/gpu/libtensorflowlite_gpu_delegate.so $TM
 bazel build --config=monolithic //tensorflow/lite:libtensorflowlite.so
 # create .tar.gz file
 cd $TMP_LIB
-tar -cvzf libtensorflowlite-$BASEOS-$ARCH-$VERSION.tar.gz include lib
+tar -cvzf libtensorflowlite-${BASEOS}-${REDISAI_TARGET}-${ARCH}-${VERSION}.tar.gz include lib
+
