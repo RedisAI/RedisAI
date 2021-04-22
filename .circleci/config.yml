@@ -271,8 +271,8 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
-      - abort_for_valgrind
       - checkout-all
+      - abort_for_valgrind
       - restore_cache:
           keys:
           - build-dependencies-{{ checksum "get_deps.sh" }}
@@ -521,6 +521,7 @@ after-platform-builds: &after-platform-builds
     - platforms-build
 
 platform-build-defs: &platform-build-defs
+      - abort_for_valgrind
   <<: *after-build-and-test
   <<: *on-integ-and-version-tags
   # <<: *on-any-branch # debugging
