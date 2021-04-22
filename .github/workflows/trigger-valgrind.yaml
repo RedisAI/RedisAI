@@ -10,7 +10,8 @@ jobs:
   valgrind_general:
     if: github.event.label.name == 'valgrind'
     runs-on: ubuntu-latest
-    steps: Run valgrind general
+    name: Run valgrind general
+
     steps:
       - uses: actions/checkout@v2
       - name: circle-ci job runner
