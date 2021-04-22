@@ -7,7 +7,7 @@ commands:
       - run:
           name: Avoid running valgrind unless explicitly called
           command: |
-            git log -1|grep 'run valgrind' || circleci step halt
+            git log --format=oneline -n 1 $CIRCLE_SHA1|grep 'run valgrind' || circleci step halt
 
   abort_for_docs:
     steps:
@@ -37,8 +37,8 @@ commands:
       - run:
           name: Setup executor
           command: |
-            apt-get -qq update
-            apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
+            sudo apt-get -qq update
+            sudo apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
             bash <(curl -fsSL https://get.docker.com)
       - setup_remote_docker:
           docker_layer_caching: true
@@ -270,8 +270,8 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - abort_for_valgrind
       - abort_for_docs
+      - abort_for_valgrind
       - checkout-all
       - restore_cache:
           keys:
@@ -556,22 +556,22 @@ workflows:
           test_args: GEN=0 CLUSTER=0
           <<: *on-integ-branch
           <<: *after-linter
-      - build-and-test-gpu:
-          <<: *on-any-branch
-          <<: *after-linter
-      - deploy-snapshot:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-integ-branch
-      - deploy-release:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-version-tags
-      - release-automation:
-          context: common
-          <<: *on-version-tags
-          requires:
-            - deploy-release
+#      - build-and-test-gpu:
+#          <<: *on-any-branch
+#          <<: *after-linter
+#      - deploy-snapshot:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-integ-branch
+#      - deploy-release:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
+#      - release-automation:
+#          context: common
+#          <<: *on-version-tags
+#          requires:
+#            - deploy-release
 
   nightly:
     triggers:
