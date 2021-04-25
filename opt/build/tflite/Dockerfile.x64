@@ -3,6 +3,9 @@ ARG TFLITE_ARCH=x86_64
 
 ARG OS=redisfab/ubuntu1804-${TFLITE_ARCH}-bazel${BAZEL_VERSION}
 
+# cuda | cpu
+ARG REDISAI_PLATFORM=cuda
+
 ARG TFLITE_VERSION=2.4.0
 
 #----------------------------------------------------------------------------------------------
@@ -11,6 +14,7 @@ FROM ${OS}
 ARG FTLITE_VER
 ARG TFLITE_VERSION
 ARG TFLITE_ARCH
+ARG REDISAI_PLATFORM
 
 ADD ./opt/build/tflite /tflite
 
@@ -27,4 +31,4 @@ RUN apt-get install -qqy git \
             python3-numpy
 RUN ln -s /usr/bin/python3 /usr/bin/python
 WORKDIR /tflite
-RUN bash build.sh ${TFLITE_ARCH} ${TFLITE_VERSION}
+RUN bash build.sh ${TFLITE_ARCH} ${TFLITE_VERSION} ${REDISAI_PLATFORM}
