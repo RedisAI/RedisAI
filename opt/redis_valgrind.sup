@@ -16,13 +16,6 @@
    ignore_unversioned_libs
    Memcheck:Leak
    ...
-   obj:*/libonnxruntime.so.*
-}
-
-{
-   ignore_unversioned_libs
-   Memcheck:Leak
-   ...
    obj:*/libtorch.so.*
 }
 

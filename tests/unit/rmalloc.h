@@ -1,6 +1,5 @@
 
-#ifndef TEST_UNIT_RMALLOC_H_
-#define TEST_UNIT_RMALLOC_H_
+#pragma once
 
 #include "../../src/redismodule.h"
 #include <stdlib.h>
@@ -13,5 +12,3 @@ void Alloc_Reset() {
     RedisModule_Free = free;
     RedisModule_Strdup = strdup;
 }
-
-#endif /* TEST_UNIT_RMALLOC_H_ */

@@ -5,8 +5,8 @@ import os
 import argparse
 
 HERE = os.path.abspath(os.path.dirname(__file__))
-READIES = os.path.join(HERE, "readies")
 ROOT = os.path.abspath(os.path.join(HERE, ".."))
+READIES = os.path.join(ROOT, "opt/readies")
 sys.path.insert(0, READIES)
 import paella
 
@@ -21,11 +21,13 @@ class RedisAISetup(paella.Setup):
         self.pip_install("wheel")
 
         self.install("git unzip patchelf")
-        self.install("coreutils") # for realpath
+        if self.osnick != 'centos8':
+            self.install("coreutils") # for realpath
 
     def debian_compat(self):
+        self.run("%s/bin/enable-utf8" % READIES)
+        self.run("%s/bin/getgcc" % READIES)
         self.install("gawk")
-        self.install("build-essential")
         self.install("libssl-dev")
         self.install("python3-regex")
         self.install("python3-psutil python3-networkx python3-numpy")
@@ -36,11 +38,11 @@ class RedisAISetup(paella.Setup):
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
-        self.install("redhat-lsb-core")
         self.run("%s/bin/enable-utf8" % READIES)
+        self.run("%s/bin/getepel" % READIES)
+        self.install("redhat-lsb-core")
 
         self.run("%s/bin/getgcc --modern" % READIES)
-        # self.install("llvm-toolset-7")
 
         if self.arch == 'x64':
             self.install_linux_gnu_tar()
@@ -48,17 +50,15 @@ class RedisAISetup(paella.Setup):
         if not self.dist == "amzn":
             self.install("epel-release")
             self.install("python3-devel libaec-devel")
-            self.install("python36-psutil")
         else:
             self.run("amazon-linux-extras install epel", output_on_error=True)
             self.install("python3-devel")
-            self.pip_install("psutil")
 
         self.install_git_lfs_on_linux()
 
     def fedora(self):
-        self.group_install("'Development Tools'")
-        self.install("python3 python3-psutil python3-networkx")
+        self.run("%s/bin/getepel" % READIES)
+        self.install("python3-networkx")
         self.install_git_lfs_on_linux()
 
     def linux_last(self):

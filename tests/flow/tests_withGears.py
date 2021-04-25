@@ -77,14 +77,10 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_file_content('graph.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -280,8 +276,8 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'DAGRun_test2')
     env.assertEqual(ret[0], b'test2_OK')
@@ -348,3 +344,34 @@ GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_Fr
 
     values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
     env.assertEqual(values, [5, 6, 7, 8])
+
+
+@skip_if_gears_not_loaded
+def test_flatten_tensor_via_gears(env):
+    script = '''
+
+import redisAI
+        
+def FlattenTensor(record):
+    
+    tensor = redisAI.createTensorFromValues('DOUBLE', [2,2], [1.0, 2.0, 3.0, 4.0])
+    tensor_as_list = redisAI.tensorToFlatList(tensor)
+    if tensor_as_list != [1.0, 2.0, 3.0, 4.0]:
+        return "ERROR failed to flatten tensor to list of doubles"
+        
+    tensor_blob = bytearray([5, 0, 6, 0, 7, 0, 8, 0])
+    tensor = redisAI.createTensorFromBlob('UINT16', [2,2], tensor_blob)
+    tensor_as_list = redisAI.tensorToFlatList(tensor)
+    if tensor_as_list != [5, 6, 7, 8]:
+        return "ERROR failed to flatten tensor to list of long long"
+    return "test_OK"
+
+        
+GB("CommandReader").map(FlattenTensor).register(trigger="FlattenTensor_test")
+    '''
+
+    con = env.getConnection()
+    ret = con.execute_command('rg.pyexecute', script)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('rg.trigger', 'FlattenTensor_test')
+    env.assertEqual(ret[0], b'test_OK')

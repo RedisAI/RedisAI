@@ -15,7 +15,7 @@ def tf_model_run(env, model_key):
 
     ensureSlaveSynced(con, env)
 
-    con.execute_command('AI.MODELRUN', model_key, 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    con.execute_command('AI.MODELEXECUTE', model_key, 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
 
     ensureSlaveSynced(con, env)
 
@@ -27,7 +27,7 @@ def torch_model_run(env, model_key):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.MODELRUN', model_key, 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    con.execute_command('AI.MODELEXECUTE', model_key, 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
 
     ensureSlaveSynced(con, env)
 
@@ -53,7 +53,7 @@ def onnx_model_run(env, model_key):
     con.execute_command('AI.TENSORSET', 'features{1}', 'FLOAT', 1, 4, 'VALUES', 5.1, 3.5, 1.4, 0.2)
     ensureSlaveSynced(con, env)
 
-    con.execute_command('AI.MODELRUN', model_key, 'INPUTS', 'features{1}', 'OUTPUTS', 'linear_out{1}')
+    con.execute_command('AI.MODELEXECUTE', model_key, 'INPUTS', 1, 'features{1}', 'OUTPUTS', 1, 'linear_out{1}')
     linear_out = con.execute_command('AI.TENSORGET', 'linear_out{1}', 'VALUES')
     env.assertEqual(float(linear_out[0]), -0.090524077415466309)
 

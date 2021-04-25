@@ -17,8 +17,7 @@ capabilities:
     - persistence_aof
     - clustering
     - backup_restore
-    - replica_of
-    - flash
+    - intershard_tls
 exclude_commands:
     - ai.modelset
     - ai.modeldel

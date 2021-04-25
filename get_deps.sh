@@ -280,7 +280,7 @@ fi
 
 ################################################################################### ONNXRUNTIME
 
-ORT_VERSION="1.6.0"
+ORT_VERSION="1.7.1"
 
 if [[ $WITH_ORT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME
@@ -295,15 +295,13 @@ if [[ $WITH_ORT != 0 ]]; then
 			else
 				ORT_BUILD="-gpu"
 			fi
+			ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			if [[ $ARCH == x64 ]]; then
 				ORT_ARCH=x64
-				ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 			elif [[ $ARCH == arm64v8 ]]; then
 				ORT_ARCH=arm64
-				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			elif [[ $ARCH == arm32v7 ]]; then
 				ORT_ARCH=arm
-				ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 			fi
 		elif [[ $OS == macos ]]; then
 			ORT_OS=osx

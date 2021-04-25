@@ -44,7 +44,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 # Add -fno-omit-frame-pointer to avoid seeing incomplete stack traces
 set(CMAKE_COMMON_FLAGS_DEBUG "-g -ggdb -fno-omit-frame-pointer -D_DEBUG -DVALGRIND -include \
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/common.h -I${CMAKE_CURRENT_SOURCE_DIR}/opt")
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/config/gdb_config.h -I${CMAKE_CURRENT_SOURCE_DIR}/opt")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}")
 
@@ -98,6 +98,7 @@ GET_FILENAME_COMPONENT(installAbs
 #----------------------------------------------------------------------------------------------
 
 INCLUDE_DIRECTORIES(${depsAbs}/dlpack/include)
+INCLUDE_DIRECTORIES(src)
 IF(BUILD_TF)
     INCLUDE_DIRECTORIES(${depsAbs}/libtensorflow/include)
 ENDIF()
@@ -193,7 +194,7 @@ IF(BUILD_TFLITE)
     # Find TensorFlow Lite stuff and build our wrapper
     INCLUDE_DIRECTORIES(util/libtflite_c)
 
-    ADD_SUBDIRECTORY(src/libtflite_c)
+    ADD_SUBDIRECTORY(src/backends/libtflite_c)
 ENDIF()
 
 #----------------------------------------------------------------------------------------------
@@ -205,7 +206,7 @@ IF(BUILD_TORCH)
 
     INCLUDE_DIRECTORIES(util/libtorch_c)
 
-    ADD_SUBDIRECTORY(src/libtorch_c)
+    ADD_SUBDIRECTORY(src/backends/libtorch_c)
 ENDIF()
 
 #----------------------------------------------------------------------------------------------

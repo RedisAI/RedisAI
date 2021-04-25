@@ -1,5 +1,4 @@
-#ifndef __RMUTIL_ALLOC__
-#define __RMUTIL_ALLOC__
+#pragma once
 
 /* Automatic Redis Module Allocation functions monkey-patching.
  *
@@ -47,5 +46,3 @@ char *rmalloc_strndup(const char *s, size_t n);
  * ouside of redis, usually for unit tests. Call it once when entering your unit
  * tests' main() */
 void RMUTil_InitAlloc();
-
-#endif /* __RMUTIL_ALLOC__ */
