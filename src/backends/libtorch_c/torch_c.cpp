@@ -399,25 +399,47 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
         size_t keysIdx = 0;
         for(size_t i= 0; i < nArguments; i++) {
             // In case of tensor.
-            if(argumentTypes[i] == TENSOR) {
-                DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
-                torch::Tensor tensor = fromDLPack(input);
-                stack.push_back(tensor.to(device));
-            }
-            else if(argumentTypes[i] == LIST){
-                std::vector<torch::Tensor> args;
-                size_t argumentSize = listSizes[listsIdx++];
-                for (size_t j = 0; j < argumentSize; j++) {
+            switch (argumentTypes[i]) {
+                case TENSOR: {
                     DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
                     torch::Tensor tensor = fromDLPack(input);
-                    tensor.to(device);
-                    args.emplace_back(tensor);
+                    stack.push_back(tensor.to(device));
+                    break;
                 }
-                stack.push_back(args);
-            } else {
-                const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
-                torch::string str = torch::string();
-                stack.push_back(str);
+                case LIST: {
+                    std::vector<torch::Tensor> args;
+                    size_t argumentSize = listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
+                        torch::Tensor tensor = fromDLPack(input);
+                        tensor.to(device);
+                        args.emplace_back(tensor);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case INT: {
+                    const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
+                    long long l;
+                    RedisModule_StringToLongLong(keys[keysIdx++], &l);
+                    int i = (int)l;
+                    stack.push_back(i);
+                    break;
+                }
+                case FLOAT: {
+                    double d;
+                    RedisModule_StringToDouble(keys[keysIdx++], &d);
+                    float f = (float)d;
+                    stack.push_back(f);
+                    break;
+                }
+                case STRING:
+                default: {
+                    const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
+                    torch::string str = torch::string(cstr);
+                    stack.push_back(str);
+                    break;
+                }
             }
         }
 
@@ -553,15 +575,14 @@ static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg
     {
     case c10::TypeKind::TensorType:
         return TENSOR;
-    case c10::TypeKind::TupleType: {
-        return TUPLE;
-    }
-    case c10::TypeKind::ListType: {
+    case c10::TypeKind::IntType: 
+        return INT;
+    case c10::TypeKind::FloatType:
+        return FLOAT;
+    case c10::TypeKind::ListType:
         return LIST;
-    }
-    case c10::TypeKind::StringType: {
+    case c10::TypeKind::StringType: 
         return STRING;
-    } 
     default:
         return UNKOWN;
     }

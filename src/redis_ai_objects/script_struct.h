@@ -4,7 +4,7 @@
 #include "tensor_struct.h"
 #include "util/dict.h"
 
-typedef enum { UNKOWN, TENSOR, LIST, TUPLE, STRING } TorchScriptFunctionArgumentType;
+typedef enum { UNKOWN, TENSOR, LIST, INT, FLOAT, STRING } TorchScriptFunctionArgumentType;
 
 // typedef struct {
 //     const char* name;

@@ -258,10 +258,10 @@ static const char *_ScriptCommand_GetFunction(RedisModuleString *functionName) {
 
 static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                            RAI_Error *error, RedisModuleString ***inkeys,
-                                           RedisModuleString ***outkeys, RedisModuleString ***otherKeys, long long *timeout,
-                                           size_t **listSizes) {
+                                           RedisModuleString ***outkeys, RAI_ScriptRunCtx* sctx, long long *timeout) {
     bool timeout_set = false;
     int argpos = 3;
+    array_new_on_stack(RedisModuleString*, 10, inputs);
     while (argpos < argc ) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
 
@@ -300,7 +300,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                 return REDISMODULE_ERR;
             }
             for (; argpos < first_input_pos + ninputs; argpos++) {
-                *inkeys = array_append(*inkeys, RAI_HoldString(NULL, argv[argpos]));
+                intputs = array_append(inputs, RAI_HoldString(NULL, argv[argpos]));
             }
             continue;
         }
@@ -326,7 +326,6 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR CROSSSLOT Keys in request don't hash to the same slot");
                     return REDISMODULE_ERR;
                 }
-                *otherKeys = array_append(*otherKeys, RAI_HoldString(NULL, argv[argpos]));
             }
             continue;
         }
@@ -373,7 +372,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                 return REDISMODULE_ERR;
             }
             for (; argpos < first_input_pos + ninputs; argpos++) {
-                *inkeys = array_append(*inkeys, RAI_HoldString(NULL, argv[argpos]));
+                inputs = array_append(inputs, RAI_HoldString(NULL, argv[argpos]));
             }
             *listSizes = array_append(*listSizes, ninputs);
             continue;
@@ -420,8 +419,7 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
     long long timeout = 0;
     size_t *listSizes = array_new(size_t, 1);
     if (_ScriptExecuteCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
-                                        &currentOp->outkeys, &sctx->keys, &timeout,
-                                        &sctx->listSizes) == REDISMODULE_ERR) {
+                                        &currentOp->outkeys, sctx, &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
     if (timeout > 0 && !rinfo->single_op_dag) {
