@@ -1,5 +1,5 @@
 # https://github.com/marketplace/actions/run-circle-ci-on-label
-name: Valgrind run
+name: valgrind-general-run
 
 on:
   pull_request:

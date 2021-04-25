@@ -1,5 +1,5 @@
 # https://github.com/marketplace/actions/run-circle-ci-on-label
-name: Valgrind run
+name: build-and-test-gpu
 
 on:
   pull_request:
