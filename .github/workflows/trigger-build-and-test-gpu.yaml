@@ -10,7 +10,7 @@ jobs:
   valgrind_general:
     if: github.event.label.name == '${{ secrets.CI_TRIGGER_LABEL }}'
     runs-on: ubuntu-latest
-    name: Run valgrind general
+    name: Run build and test cpu
 
     steps:
       - uses: actions/checkout@v2
@@ -19,5 +19,5 @@ jobs:
         uses: Open-Source-Contrib/circle-ci-trigger-action@latest
         with:
           circle_ci_token: ${{ secrets.CIRCLE_CI_SECRET}}
-          circle_ci_job: valgrind-general
+          circle_ci_job: build-and-test-gpu
           circle_ci_project_url: ${{ github.event.pull_request.head.ref }}
