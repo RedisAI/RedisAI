@@ -136,6 +136,13 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
                                                       int argc);
 
 /**
+ * See "RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys" above. While this function
+ * is used for AI.MODELEXECUTE command, RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys"
+ * is used for the deprecated AI.MODELRUN command syntax.
+ */
+int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
+/**
  * @brief  Returns the redis module type representing a model.
  * @return redis module type representing a model.
  */

@@ -26,8 +26,8 @@ def test_run_mobilenet(env):
 
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
-    con.execute_command('AI.MODELSET', 'mobilenet{1}', 'TF', DEVICE,
-                        'INPUTS', input_var, 'OUTPUTS', output_var, 'BLOB', model_pb)
+    con.execute_command('AI.MODELSTORE', 'mobilenet{1}', 'TF', DEVICE,
+                        'INPUTS', 1, input_var, 'OUTPUTS', 1, output_var, 'BLOB', model_pb)
 
     ensureSlaveSynced(con, env)
 
@@ -58,8 +58,8 @@ def test_run_mobilenet(env):
             'AI.TENSORGET', 'input{1}', 'META')
         env.assertEqual(input_tensor_meta, slave_tensor_meta)
 
-    con.execute_command('AI.MODELRUN', 'mobilenet{1}',
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    con.execute_command('AI.MODELEXECUTE', 'mobilenet{1}',
+                        'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
     ensureSlaveSynced(con, env)
 
@@ -88,8 +88,8 @@ def test_run_mobilenet_multiproc(env):
     con = env.getConnection()
 
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
-    con.execute_command('AI.MODELSET', 'mobilenet{1}', 'TF', DEVICE,
-                        'INPUTS', input_var, 'OUTPUTS', output_var, 'BLOB', model_pb)
+    con.execute_command('AI.MODELSTORE', 'mobilenet{1}', 'TF', DEVICE,
+                        'INPUTS', 1, input_var, 'OUTPUTS', 1, output_var, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
 
     run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
@@ -104,9 +104,7 @@ def test_run_mobilenet_multiproc(env):
 
     _, label = labels[str(label_id)]
 
-    env.assertEqual(
-        label, 'giant_panda'
-    )
+    env.assertEqual(label, 'giant_panda')
 
     if env.useSlaves:
         con2 = env.getSlaveConnection()
@@ -121,14 +119,9 @@ def test_run_mobilenet_multiproc(env):
 def test_del_tf_model(env):
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    model_pb = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -164,14 +157,9 @@ def test_del_tf_model(env):
 def test_run_tf_model(env):
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    model_pb = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -183,8 +171,8 @@ def test_run_tf_model(env):
     env.assertEqual(ret[11][1], b'b')
     env.assertEqual(ret[13][0], b'mul')
 
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE, 'TAG', 'version:1',
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'TAG', 'version:1',
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -207,7 +195,7 @@ def test_run_tf_model(env):
 
     ensureSlaveSynced(con, env)
 
-    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
 
     ensureSlaveSynced(con, env)
 
@@ -240,14 +228,10 @@ def test_run_tf_model(env):
 def test_run_tf2_model(env):
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph_v2.pb')
+    model_pb = load_file_content('graph_v2.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'x', 'OUTPUTS', 'Identity', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 1, 'x', 'OUTPUTS', 1, 'Identity', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -258,8 +242,8 @@ def test_run_tf2_model(env):
     env.assertEqual(ret[11][0], b'x')
     env.assertEqual(ret[13][0], b'Identity')
 
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE, 'TAG', 'asdf',
-                              'INPUTS', 'x', 'OUTPUTS', 'Identity', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'TAG', 'asdf',
+                              'INPUTS', 1, 'x', 'OUTPUTS', 1, 'Identity', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -277,7 +261,7 @@ def test_run_tf2_model(env):
 
     ensureSlaveSynced(con, env)
 
-    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'x{1}', 'OUTPUTS', 'y{1}')
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'x{1}', 'OUTPUTS', 1, 'y{1}')
 
     ensureSlaveSynced(con, env)
 
@@ -310,175 +294,45 @@ def test_run_tf2_model(env):
 def test_run_tf_model_errors(env):
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-    wrong_model_filename = os.path.join(test_data_path, 'pt-minimal.pt')
+    model_pb = load_file_content('graph.pb')
+    wrong_model_pb = load_file_content('pt-minimal.pt')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    with open(wrong_model_filename, 'rb') as f:
-        wrong_model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
-    try:
-        con.execute_command('AI.MODELGET')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(
-            "wrong number of arguments for 'AI.MODELGET' command", exception.__str__())
+    # commands with invalid syntax for TF backend (inputs and outputs must be specified)
+    check_error_message(env, con, "INPUTS not specified for TF",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'BLOB', model_pb)
+    check_error_message(env, con, "Invalid argument for input_count",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 'bad_count', 'BLOB', model_pb)
+    check_error_message(env, con, "number of model inputs does not match the number of "
+                                  "given arguments",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 2, 'a')
+    check_error_message(env, con, "OUTPUTS not specified for TF",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b')
+    check_error_message(env, con, "Invalid argument for output_count",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 'bad_count')
+    check_error_message(env, con, "number of model outputs does not match the number of "
+                                  "given arguments",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1)
+    check_error_message(env, con, "Invalid argument, expected BLOB",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul')
 
-    # ERR WRONGTYPE
-    con.execute_command('SET', 'NOT_MODEL{1}', 'BAR')
-    try:
-        con.execute_command('AI.MODELGET', 'NOT_MODEL{1}')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual(
-            "WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
-    # cleanup
-    con.execute_command('DEL', 'NOT_MODEL{1}')
+    # commands in which TF backend returns an error
+    check_error_message(env, con, "Invalid GraphDef",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE,
+                        'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', wrong_model_pb)
 
-    # ERR model key is empty
-    con.execute_command('DEL', 'DONT_EXIST{1}')
-    try:
-        con.execute_command('AI.MODELGET', 'DONT_EXIST{1}')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("model key is empty", exception.__str__())
+    check_error_message(env, con, "Input node named \"bad_input\" not found in TF graph.",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE,
+                        'INPUTS', 2, 'a', 'bad_input', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
 
-    try:
-        ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                                  'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', wrong_model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid GraphDef", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_1{1}', 'TF',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid DEVICE", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_2{1}', 'PORCH', DEVICE,
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("unsupported backend", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_3{1}', 'TORCH', DEVICE,
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_4{1}', 'TF',
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Invalid DEVICE", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_5{1}', 'TF', DEVICE,
-                            'INPUTS', 'a', 'b', 'bad_input', 'OUTPUTS', 'mul', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Input node named \"bad_input\" not found in TF graph.", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_6{1}', 'TF', DEVICE,
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mult', 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Output node named \"mult\" not found in TF graph", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_7{1}', 'TF', DEVICE, 'BLOB', model_pb)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, INPUTS and OUTPUTS not specified", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
-                            'INPUTS', 'a', 'b', 'OUTPUTS', 'mul')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
-                            'INPUTS', 'a_', 'b', 'OUTPUTS', 'mul')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
-                            'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'mul_')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELSET', 'm_8{1}', 'TF', DEVICE,
-                            'INPUTS', 'a', 'b', 'OUTPUTS')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Insufficient arguments, missing model BLOB",exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("Number of keys given as OUTPUTS here does not match model definition", exception.__str__())
-
-    try:
-        con.execute_command('AI.MODELRUN', 'm{1}', 'OUTPUTS', 'c{1}', 'd{1}', 'e{1}')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("INPUTS not specified", exception.__str__())
+    check_error_message(env, con, "Output node named \"mult\" not found in TF graph",
+                        'AI.MODELSTORE', 'm_1{1}', 'TF', DEVICE,
+                        'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mult', 'BLOB', model_pb)
 
 
 @skip_if_no_TF
@@ -487,16 +341,11 @@ def test_run_tf_model_autobatch(env):
         return
 
     con = env.getConnection()
+    model_pb = load_file_content('graph.pb')
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', 'CPU',
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 3,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT',
@@ -513,14 +362,14 @@ def test_run_tf_model_autobatch(env):
 
     def run():
         con = env.getConnection()
-        con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS',
-                            'd{1}', 'e{1}', 'OUTPUTS', 'f{1}')
+        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2,
+                            'd{1}', 'e{1}', 'OUTPUTS', 1, 'f{1}')
         ensureSlaveSynced(con, env)
 
     t = threading.Thread(target=run)
     t.start()
 
-    con.execute_command('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     t.join()
 
     ensureSlaveSynced(con, env)
@@ -535,14 +384,10 @@ def test_run_tf_model_autobatch(env):
 @skip_if_no_TF
 def test_tensorflow_modelinfo(env):
     con = env.getConnection()
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_file_content('graph.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     info = con.execute_command('AI.INFO', 'm{1}')  # Getting initial info before modelrun
     info_dict0 = info_to_dict(info)
@@ -551,8 +396,8 @@ def test_tensorflow_modelinfo(env):
     env.assertEqual(info_dict0, expected)
 
     # second modelset; a corner case
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     info = con.execute_command('AI.INFO', 'm{1}')  # this will fail
     info_dict1 = info_to_dict(info)
@@ -571,7 +416,7 @@ def test_tensorflow_modelinfo(env):
     previous_duration = 0
     for call in range(1, 10):
         ret = con.execute_command(
-            'AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
 
@@ -602,15 +447,10 @@ def test_tensorflow_modelinfo(env):
 @skip_if_no_TF
 def test_tensorflow_modelrun_disconnect(env):
     red = env.getConnection()
+    model_pb = load_file_content('graph.pb')
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = red.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = red.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = red.execute_command(
@@ -624,7 +464,7 @@ def test_tensorflow_modelrun_disconnect(env):
     ensureSlaveSynced(red, env)
 
     ret = send_and_disconnect(
-        ('AI.MODELRUN', 'm{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}'), red)
+        ('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), red)
     env.assertEqual(ret, None)
 
 
@@ -638,10 +478,10 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
     another_model_name = 'another_model{1}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
-    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+    con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', input_var,
-                        'OUTPUTS', output_var,
+                        'INPUTS', 1, input_var,
+                        'OUTPUTS', 1, output_var,
                         'BLOB', model_pb)
     con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -649,8 +489,8 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     def run(name=model_name, output_name='output{1}'):
         con = env.getConnection()
-        con.execute_command('AI.MODELRUN', name,
-                            'INPUTS', 'input{1}', 'OUTPUTS', output_name)
+        con.execute_command('AI.MODELEXECUTE', name,
+                            'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, output_name)
     
 
     # Running thrice since minbatchsize = 2
@@ -663,10 +503,10 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
     time.sleep(3)
 
-    con.execute_command('AI.MODELSET', another_model_name, 'TF', DEVICE,
+    con.execute_command('AI.MODELSTORE', another_model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', input_var,
-                        'OUTPUTS', output_var,
+                        'INPUTS', 1, input_var,
+                        'OUTPUTS', 1, output_var,
                         'BLOB', model_pb)
 
     p1b = mp.Process(target=run, args=(another_model_name, 'final1{1}'))
@@ -688,31 +528,6 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
         p.terminate()
 
 
-# @skip_if_no_TF
-# def test_tensorflow_modelrun_with_timeout(env):
-#     con = env.getConnection()
-#     batch_size = 2
-#     minbatch_size = 2
-#     timeout = 1
-#     model_name = 'model{1}'
-#     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
-
-#     con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-#                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-#                         'INPUTS', input_var,
-#                         'OUTPUTS', output_var,
-#                         'BLOB', model_pb)
-#     con.execute_command('AI.TENSORSET', 'input{1}',
-#                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
-#                         'BLOB', img.tobytes())
-
-#     res = con.execute_command('AI.MODELRUN', model_name,
-#                         'TIMEOUT', timeout,
-#                         'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
-
-#     env.assertEqual(b'TIMEDOUT', res)
-
-
 @skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
     con = env.getConnection()
@@ -722,18 +537,18 @@ def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
     model_name = 'model{1}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
-    con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
+    con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
                         'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
                         'MINBATCHTIMEOUT', minbatch_timeout,
-                        'INPUTS', input_var,
-                        'OUTPUTS', output_var,
+                        'INPUTS', 1, input_var,
+                        'OUTPUTS', 1, output_var,
                         'BLOB', model_pb)
     con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.MODELRUN', model_name,
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    con.execute_command('AI.MODELEXECUTE', model_name,
+                        'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
     _, dtype, _, shape, _, data = con.execute_command('AI.TENSORGET', 'output{1}', 'META', 'BLOB')
     dtype_map = {b'FLOAT': np.float32}
@@ -767,15 +582,15 @@ def test_tensorflow_modelrun_financialNet(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet{1}', 'TF', DEVICE,
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'financialNet{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     for tensor_number in range(1, MAX_TRANSACTIONS):
         for repetition in range(0, 10):
-            ret = con.execute_command('AI.MODELRUN', 'financialNet{1}', 'INPUTS',
+            ret = con.execute_command('AI.MODELEXECUTE', 'financialNet{1}', 'INPUTS', 2,
                                       'transactionTensor{{1}}:{}'.format(tensor_number),
-                                      'referenceTensor{{1}}:{}'.format(tensor_number), 'OUTPUTS',
+                                      'referenceTensor{{1}}:{}'.format(tensor_number), 'OUTPUTS', 1,
                                       'classificationTensor{{1}}:{}_{}'.format(tensor_number, repetition))
             env.assertEqual(ret, b'OK')
 
@@ -801,16 +616,16 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
         env.assertEqual(ret, b'OK')
         tensor_number = tensor_number + 1
 
-    ret = con.execute_command('AI.MODELSET', 'financialNet{1}', 'TF', DEVICE,
-                              'INPUTS', 'transaction', 'reference', 'OUTPUTS', 'output', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'financialNet{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     def functor_financialNet(env, key_max, repetitions):
         for tensor_number in range(1, key_max):
             for repetition in range(1, repetitions):
-                ret = env.execute_command('AI.MODELRUN', 'financialNet{1}', 'INPUTS',
+                ret = env.execute_command('AI.MODELEXECUTE', 'financialNet{1}', 'INPUTS', 2,
                                           'transactionTensor{{1}}:{}'.format(tensor_number),
-                                          'referenceTensor{{1}}:{}'.format(tensor_number), 'OUTPUTS',
+                                          'referenceTensor{{1}}:{}'.format(tensor_number), 'OUTPUTS', 1,
                                           'classificationTensor{{1}}:{}_{}'.format(tensor_number, repetition))
 
     t = time.time()
@@ -834,9 +649,9 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
 
     model_pb, script, labels, img = load_resnet_test_data()
 
-    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-                              'INPUTS', inputvar,
-                              'OUTPUTS', outputvar,
+    ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
+                              'INPUTS', 1, inputvar,
+                              'OUTPUTS', 1, outputvar,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -857,8 +672,8 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
                               'pre_process_3ch', 'INPUTS', image_key, 'OUTPUTS', temp_key1 )
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELRUN', model_name,
-                              'INPUTS', temp_key1, 'OUTPUTS', temp_key2 )
+    ret = con.execute_command('AI.MODELEXECUTE', model_name,
+                              'INPUTS', 1, temp_key1, 'OUTPUTS', 1, temp_key2 )
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTRUN',  script_name,
@@ -871,6 +686,7 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
     # tf model has 100 classes [0,999]
     env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
 
+
 @skip_if_no_TF
 def test_tf_info(env):
     con = env.getConnection()
@@ -878,14 +694,10 @@ def test_tf_info(env):
     ret = con.execute_command('AI.INFO')
     env.assertEqual(6, len(ret))
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_file_content('graph.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     
     ret = con.execute_command('AI.INFO')
     env.assertEqual(8, len(ret))

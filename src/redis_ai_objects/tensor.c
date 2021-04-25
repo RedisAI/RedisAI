@@ -20,6 +20,7 @@
 #include "rmutil/alloc.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
+#include "execution/utils.h"
 
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
@@ -557,11 +558,18 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
-        RAI_SetError(err, RAI_ETENSORGET, "ERR tensor key is empty");
+        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
+        } else {
+            RAI_SetError(err, RAI_EKEYEMPTY,
+                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+        }
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
         RedisModule_CloseKey(*key);
+        RedisModule_Log(ctx, "error", "%s is not a tensor",
+                        RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_ETENSORGET, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }

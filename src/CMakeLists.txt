@@ -17,6 +17,7 @@ file (GLOB BACKEND_COMMON_SRC
         util/dict.c
         redis_ai_objects/tensor.c
         util/string_utils.c
+        execution/utils.c
         serialization/ai_datatypes.c)
 
 ADD_LIBRARY(redisai_obj OBJECT
@@ -25,8 +26,10 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/string_utils.c
         redisai.c
         execution/command_parser.c
+        execution/deprecated.c
         execution/run_info.c
         execution/background_workers.c
+        execution/utils.c
         config/config.c
         execution/DAG/dag.c
         execution/DAG/dag_parser.c
@@ -43,7 +46,6 @@ ADD_LIBRARY(redisai_obj OBJECT
         rmutil/alloc.c
         rmutil/sds.c
         rmutil/args.c
-        execution/run_info.c
         redis_ai_types/model_type.c
         redis_ai_types/tensor_type.c
         redis_ai_types/script_type.c
