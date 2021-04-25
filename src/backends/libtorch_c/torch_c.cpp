@@ -348,7 +348,6 @@ extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScr
                                        char **error) {
     char* buf; 
     int schemaListCount = 0;
-    int schemaStringCount = 0;
     if(nInputs < nArguments) {
         asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
         goto cleanup;
@@ -358,20 +357,11 @@ extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScr
             schemaListCount++;
             continue;
         }
-        if(argumentTypes[i] == STRING) {
-            schemaStringCount++;
-            continue;
-        }
     } 
     if(schemaListCount != nlists) {
         asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, nlists);
         goto cleanup;
     }
-    if(schemaStringCount != nkeys) {
-        asprintf(&buf, "Wrong number of keys. Expected %d but was %ld", schemaStringCount, nkeys);
-        goto cleanup;
-    }
-
     return true;
 
     cleanup:

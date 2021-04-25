@@ -1,12 +1,15 @@
 #include "deprecated.h"
-#include "modelRun_ctx.h"
-#include "command_parser.h"
 #include "util/string_utils.h"
-#include "execution/utils.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
-#include "execution/background_workers.h"
 #include "redis_ai_objects/stats.h"
+#include "execution/utils.h"
+#include "execution/command_parser.h"
+#include "execution/background_workers.h"
+#include "execution/execution_contxets/modelRun_ctx.h"
+#include "execution/execution_contxets/scriptRun_ctx.h"
+#include "execution/parsing/parse_utils.h"
+
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
@@ -316,7 +319,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ModelRedisType())) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
@@ -328,7 +331,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+    RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 

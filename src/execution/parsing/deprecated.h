@@ -1,7 +1,7 @@
 #pragma once
 
 #include "redismodule.h"
-#include "run_info.h"
+#include "execution/run_info.h"
 
 /**
  * @brief  Parse and validate MODELRUN command: create a modelRunCtx based on the model obtained

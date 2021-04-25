@@ -14,9 +14,10 @@
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
-#include "execution/deprecated.h"
+#include "execution/parsing/deprecated.h"
 #include "redis_ai_objects/model.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contxets/modelRun_ctx.h"
+#include "execution/execution_contxets/scriptRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/stats.h"
 #include <pthread.h>
@@ -91,7 +92,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RAI_TensorRedisType(), t) != REDISMODULE_OK) {
         RAI_TensorFree(t);
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
@@ -368,7 +369,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ModelRedisType())) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
@@ -380,7 +381,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+    RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 
@@ -789,12 +790,12 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ScriptRedisType())) {
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
+    RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
     script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 

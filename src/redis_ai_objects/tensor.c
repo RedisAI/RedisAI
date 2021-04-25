@@ -22,6 +22,8 @@
 #include "util/string_utils.h"
 #include "execution/utils.h"
 
+extern RedisModuleType *RedisAI_TensorType;
+
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
         return (DLDataType){.code = kDLFloat, .bits = 32, .lanes = 1};
