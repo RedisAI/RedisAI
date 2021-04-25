@@ -145,7 +145,7 @@ fi # WITH_TF
 
 ################################################################################# LIBTFLITE
 
-TFLITE_VERSION="2.4.0"
+TFLITE_VERSION="2.4.1"
 
 if [[ $WITH_TFLITE != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTFLITE
