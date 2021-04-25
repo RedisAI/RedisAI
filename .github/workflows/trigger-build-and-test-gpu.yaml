@@ -8,7 +8,7 @@ on:
 
 jobs:
   valgrind_general:
-    if: github.event.label.name == '${{ secrets.CI_TRIGGER_LABEL }}'
+    if: github.event.label.name == 'ci-test'
     runs-on: ubuntu-latest
     name: Run build and test cpu
 
