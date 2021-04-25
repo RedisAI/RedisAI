@@ -14,7 +14,7 @@ commands:
       - run:
           name: Avoid tests for docs
           command: |
-            if [[ $CIRCLE_BRANCH == *docs* ]]; then
+            if [[ $CIRCLE_BRANCH == *docs ]]; then
               echo "Identifies as documents PR, no testing required"
               circleci step halt
             fi
