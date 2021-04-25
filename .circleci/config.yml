@@ -48,12 +48,12 @@ commands:
       - run:
           name: Relocate docker overlay2 dir
           command: |
-            sudo service docker stop
+            sudo systemctl stop docker
             sudo mkdir -p /var2/lib/docker
             sudo mv /var/lib/docker/overlay2 /var2/lib/docker
             sudo mkdir /var/lib/docker/overlay2
             sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo service docker start
+            sudo systemctl start docker
 
   setup-automation:
     steps:
@@ -129,8 +129,8 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
-      - setup-executor
       - checkout-all
+      - relocate-docker-storage
       - setup-automation
       - run:
           name: Build for platform
@@ -199,11 +199,12 @@ jobs:
           platform: debian
 
   platforms-build:
-    docker:
-      - image: cimg/base:2020.01
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-11.1:202012-01
     steps:
-      - setup-executor
-      - relocate-docker-storage
       - platforms-build-steps
 
   coverage:
