@@ -295,7 +295,6 @@ jobs:
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
 
-
 #  build-macos:
 #    macos:
 #      xcode: 11.3.0
