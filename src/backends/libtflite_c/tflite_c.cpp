@@ -4,6 +4,7 @@
 #include "redismodule.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/util.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
 
@@ -326,6 +327,32 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
     if (n_outputs != tflite_outputs.size()) {
         _setError("Inconsistent number of outputs", error);
         return;
+    }
+
+    bool need_reallocation = false;
+    std::vector<int> dims;
+    for (size_t i = 0; i < tflite_inputs.size(); i++) {
+        const TfLiteTensor* tflite_tensor = interpreter->tensor(tflite_inputs[i]);
+        int64_t ndim = inputs[i]->dl_tensor.ndim;
+        int64_t *shape = inputs[i]->dl_tensor.shape;
+        dims.resize(ndim);
+        for (size_t j=0; j < ndim; j++) {
+            dims[j] = shape[j];
+        }
+        if (!tflite::EqualArrayAndTfLiteIntArray(tflite_tensor->dims, dims.size(), dims.data())) {
+            if (interpreter->ResizeInputTensor(i, dims) != kTfLiteOk) {
+                _setError("Failed to resize input tensors, constants cannot be resized", error);
+                return;
+            }
+            need_reallocation = true;
+        }
+    }
+
+    if (need_reallocation) {
+        if (interpreter->AllocateTensors() != kTfLiteOk) {
+            _setError("Failed to allocate tensors", error);
+            return;
+        }
     }
 
     try {
