@@ -2,7 +2,8 @@
 #include "execution/parsing/dag_parser.h"
 #include "util/string_utils.h"
 #include "execution/run_info.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contxets/modelRun_ctx.h"
+#include "execution/execution_contxets/scriptRun_ctx.h"
 
 // Store the given arguments from the string in argv array and their amount in argc.
 int _StringToRMArray(const char *dag, RedisModuleString ***argv, int *argc, RAI_Error *err) {

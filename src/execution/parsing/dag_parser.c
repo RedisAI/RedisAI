@@ -1,14 +1,14 @@
 #include <string.h>
+#include "dag_parser.h"
 #include "redismodule.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
 #include "redis_ai_objects/tensor.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contxets/modelRun_ctx.h"
 #include "execution/command_parser.h"
-#include "dag.h"
-#include "dag_parser.h"
-#include "dag_execute.h"
-#include "execution/deprecated.h"
+#include "execution/DAG/dag.h"
+#include "execution/DAG/dag_execute.h"
+#include "execution/parsing/deprecated.h"
 #include "execution/utils.h"
 
 /**

@@ -344,16 +344,16 @@ static torch::DeviceType getDeviceType(ModuleContext *ctx) {
 }
 
 extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, 
-                                       size_t nlists, size_t nkeys,
+                                       size_t nlists, size_t nOtherInputs,
                                        char **error) {
     char* buf; 
     int schemaListCount = 0;
-    if(nInputs < nArguments) {
+    if((nInputs + nOtherInputs) < nArguments) {
         asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
         goto cleanup;
     }
     for (size_t i = 0; i < nArguments; i++) {
-        if(argumentTypes[i] == LIST) {
+        if(argumentTypes[i] == INT_LIST || argumentTypes[i] == FLOAT_LIST || argumentTypes[i] == STRING_LIST || argumentTypes[i] == TENSOR_LIST) {
             schemaListCount++;
             continue;
         }
@@ -375,7 +375,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                                 size_t nArguments,
                                 TorchScriptFunctionArgumentType* argumentTypes,
                                 size_t* listSizes,
-                                RedisModuleString **keys,
+                                RedisModuleString **otherInputs,
                                char **error, void *(*alloc)(size_t)) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
@@ -386,7 +386,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
 
         size_t listsIdx = 0;
         size_t inputsIdx = 0;
-        size_t keysIdx = 0;
+        size_t otherInputsIdx = 0;
         for(size_t i= 0; i < nArguments; i++) {
             // In case of tensor.
             switch (argumentTypes[i]) {
@@ -396,7 +396,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     stack.push_back(tensor.to(device));
                     break;
                 }
-                case LIST: {
+                case TENSOR_LIST: {
                     std::vector<torch::Tensor> args;
                     size_t argumentSize = listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
@@ -408,24 +408,59 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     stack.push_back(args);
                     break;
                 }
+                case STRING_LIST: {
+                    std::vector<torch::string> args;
+                    size_t argumentSize = listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        const char* cstr = RedisModule_StringPtrLen(otherInputs[otherInputsIdx++], NULL);
+                        torch::string str = torch::string(cstr);
+                        args.emplace_back(str);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case INT_LIST: {
+                    std::vector<int> args;
+                    size_t argumentSize = listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        long long l;
+                        RedisModule_StringToLongLong(otherInputs[otherInputsIdx++], &l);
+                        int val = (int)l;
+                        args.emplace_back(val);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case FLOAT_LIST: {
+                    std::vector<float> args;
+                    size_t argumentSize = listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        double d;
+                        RedisModule_StringToDouble(otherInputs[otherInputsIdx++], &d);
+                        float val = (float)d;
+                        args.emplace_back(val);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+
                 case INT: {
-                    const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
                     long long l;
-                    RedisModule_StringToLongLong(keys[keysIdx++], &l);
-                    int i = (int)l;
-                    stack.push_back(i);
+                    RedisModule_StringToLongLong(otherInputs[otherInputsIdx++], &l);
+                    int val = (int)l;
+                    stack.push_back(val);
                     break;
                 }
                 case FLOAT: {
                     double d;
-                    RedisModule_StringToDouble(keys[keysIdx++], &d);
-                    float f = (float)d;
-                    stack.push_back(f);
+                    RedisModule_StringToDouble(otherInputs[otherInputsIdx++], &d);
+                    float val = (float)d;
+                    stack.push_back(val);
                     break;
                 }
                 case STRING:
                 default: {
-                    const char* cstr = RedisModule_StringPtrLen(keys[keysIdx++], NULL);
+                    const char* cstr = RedisModule_StringPtrLen(otherInputs[otherInputsIdx++], NULL);
                     torch::string str = torch::string(cstr);
                     stack.push_back(str);
                     break;
@@ -569,10 +604,23 @@ static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg
         return INT;
     case c10::TypeKind::FloatType:
         return FLOAT;
-    case c10::TypeKind::ListType:
-        return LIST;
     case c10::TypeKind::StringType: 
         return STRING;
+    case c10::TypeKind::ListType: {
+        c10::ListTypePtr lt = arg.type()->cast<c10::ListType>();
+        switch(lt->getElementType()->kind()) {
+            case c10::TypeKind::TensorType:
+                return TENSOR_LIST;
+            case c10::TypeKind::IntType: 
+                return INT_LIST;
+            case c10::TypeKind::FloatType:
+                return FLOAT_LIST;
+            case c10::TypeKind::StringType: 
+                 return STRING_LIST;
+            default:
+                return UNKOWN;
+        }
+    }
     default:
         return UNKOWN;
     }

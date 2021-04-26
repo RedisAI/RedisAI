@@ -122,3 +122,17 @@ TorchScriptFunctionArgumentType * RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx*
  * @return size_t length of the input list in the given index
  */
 size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx* sctx, size_t index);
+
+/**
+ * Extract the params for the ScriptCtxRun object from AI.SCRIPTRUN arguments.
+ *
+ * @param ctx Context in which Redis modules operate.
+ * @param inkeys Script input tensors keys, as an array of strings.
+ * @param outkeys Script output tensors keys, as an array of strings.
+ * @param sctx Destination Script context to store the parsed data.
+ * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise.
+ */
+
+int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx,
+                                   RAI_Error *err);

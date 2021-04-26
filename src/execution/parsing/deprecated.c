@@ -445,14 +445,15 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     // Build a ScriptRunCtx from command.
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     RAI_ScriptRunCtx *sctx = NULL;
-    RAI_Script *script = _ScriptCommand_GetScript(ctx, argv[1], rinfo->err);
+    RAI_Script *script = NULL;
+    RedisModuleString* scriptName = argv[1];
+    RAI_GetScriptFromKeyspace(ctx, scriptName, &script, REDISMODULE_READ, rinfo->err);
     if (!script) {
         goto cleanup;
     }
-
     RAI_DagOpSetRunKey(currentOp, RAI_HoldString(ctx, argv[1]));
 
-    const char *func_name = _ScriptCommand_GetFunction(argv[2]);
+    const char *func_name = ScriptCommand_GetFunction(argv[2]);
     if (!func_name) {
         RAI_SetError(rinfo->err, RAI_ESCRIPTRUN, "ERR function name not specified");
         goto cleanup;
@@ -473,7 +474,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     if (rinfo->single_op_dag) {
         rinfo->timeout = timeout;
         // Set params in ScriptRunCtx, bring inputs from key space.
-        if (_ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx, rinfo->err) ==
+        if (ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx, rinfo->err) ==
             REDISMODULE_ERR)
             goto cleanup;
     }

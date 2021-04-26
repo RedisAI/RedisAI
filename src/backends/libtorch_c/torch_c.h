@@ -20,12 +20,12 @@ void *torchLoadModel(const char *model, size_t modellen, DLDeviceType device, in
                      char **error, void *(*alloc)(size_t));
 
 bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes,
-                            size_t nlists, size_t nkeys,
+                            size_t nlists, size_t nOtherInputs,
                             char **error);
 
 void torchRunScript(void *scriptCtx, const char *fnName, long nInputs, DLManagedTensor **inputs,
                     long nOutputs, DLManagedTensor **outputs, size_t nArguments,
-                    TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes, RedisModuleString **keys, char **error,
+                    TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes, RedisModuleString **otherInputs, char **error,
                     void *(*alloc)(size_t));
 
 void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **inputs, long nOutputs,

@@ -1,4 +1,5 @@
 #include "scriptRun_ctx.h"
+#include "redismodule.h"
 #include "execution/utils.h"
 #include "execution/DAG/dag.h"
 #include "execution/run_info.h"
@@ -12,7 +13,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
-    sctx->keys = array_new(RedisModuleString*, PARAM_INITIAL_SIZE);
+    sctx->otherInputs = array_new(RedisModuleString*, PARAM_INITIAL_SIZE);
     return sctx;
 }
 
@@ -68,16 +69,16 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
         }
     }
 
-    RedisModuleCtx* ctx = RedisModule_ThreadSafeContext(NULL);
-    for (size_t i = 0; i < array_len(sctx->keys); ++i) {
-        RedisModule_FreeString(ctx, sctx->keys[i]);
+    RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
+    for (size_t i = 0; i < array_len(sctx->otherInputs); ++i) {
+        RedisModule_FreeString(ctx, sctx->otherInputs[i]);
     }
     RedisModule_FreeThreadSafeContext(ctx);
 
     array_free(sctx->inputs);
     array_free(sctx->outputs);
     array_free(sctx->listSizes);
-    array_free(sctx->keys);
+    array_free(sctx->otherInputs);
 
 
     RedisModule_Free(sctx->fnname);
@@ -136,4 +137,27 @@ TorchScriptFunctionArgumentType * RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx*
 
 size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx* sctx, size_t index) {
     return sctx->listSizes[index];
+}
+
+int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx,
+                                   RAI_Error *err) {
+
+    RAI_Tensor *t;
+    RedisModuleKey *key;
+    size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
+    for (size_t i = 0; i < ninputs; i++) {
+        const int status =
+            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
+        if (status == REDISMODULE_ERR) {
+            RedisModule_Log(ctx, "warning", "could not load input tensor %s from keyspace",
+                            RedisModule_StringPtrLen(inkeys[i], NULL));
+            return REDISMODULE_ERR;
+        }
+        RAI_ScriptRunCtxAddInput(sctx, t, err);
+    }
+    for (size_t i = 0; i < noutputs; i++) {
+        RAI_ScriptRunCtxAddOutput(sctx);
+    }
+    return REDISMODULE_OK;
 }

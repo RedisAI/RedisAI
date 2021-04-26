@@ -11,7 +11,7 @@
 #include "redismodule.h"
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/model.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contxets/modelRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
 #include "redis_ai_objects/model_struct.h"

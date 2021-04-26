@@ -8,3 +8,11 @@
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
 int ParseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *timeout);
+
+/**
+ * @brief 
+ * 
+ * @param functionName 
+ * @return const char* 
+ */
+const char *ScriptCommand_GetFunction(RedisModuleString *functionName);
