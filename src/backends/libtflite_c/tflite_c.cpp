@@ -341,7 +341,7 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
         }
         if (!tflite::EqualArrayAndTfLiteIntArray(tflite_tensor->dims, dims.size(), dims.data())) {
             if (interpreter->ResizeInputTensor(i, dims) != kTfLiteOk) {
-                _setError("Failed to resize input tensors, constants cannot be resized", error);
+                _setError("Failed to resize input tensors", error);
                 return;
             }
             need_reallocation = true;
