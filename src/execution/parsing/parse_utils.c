@@ -18,5 +18,4 @@ const char *ScriptCommand_GetFunction(RedisModuleString *functionName) {
         return NULL;
     }
     return functionName_cstr;
-
 }

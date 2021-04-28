@@ -37,7 +37,7 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
 
 /**
  * @brief Adds a list length to the given script contxt.
- * 
+ *
  * @param sctx input RAI_ScriptRunCtx to add the list len.
  * @param len input tensors array len
  * @return int returns 1 on success, 0 in case of error.
@@ -107,21 +107,21 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
 /**
  * @brief Retuens the current Script Run context function signature
- * 
+ *
  * @param sctx ScriptRunCtx
- * @return TorchScriptFunctionArgumentType* Null in case of no match, arr of argument type according to function signature
+ * @return TorchScriptFunctionArgumentType* Null in case of no match, arr of argument type according
+ * to function signature
  */
-TorchScriptFunctionArgumentType * RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx* sctx);
-
+TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx);
 
 /**
  * @brief Returns the length of the input list in the given index
- * 
+ *
  * @param sctx ScriptRunCtx
  * @param index Index
  * @return size_t length of the input list in the given index
  */
-size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx* sctx, size_t index);
+size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index);
 
 /**
  * Extract the params for the ScriptCtxRun object from AI.SCRIPTRUN arguments.
@@ -134,5 +134,4 @@ size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx* sctx, size_t index);
  */
 
 int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx,
-                                   RAI_Error *err);
+                           RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx, RAI_Error *err);

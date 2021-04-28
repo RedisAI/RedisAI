@@ -13,7 +13,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
-    sctx->otherInputs = array_new(RedisModuleString*, PARAM_INITIAL_SIZE);
+    sctx->otherInputs = array_new(RedisModuleString *, PARAM_INITIAL_SIZE);
     return sctx;
 }
 
@@ -69,7 +69,7 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
         }
     }
 
-    RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     for (size_t i = 0; i < array_len(sctx->otherInputs); ++i) {
         RedisModule_FreeString(ctx, sctx->otherInputs[i]);
     }
@@ -79,7 +79,6 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
     array_free(sctx->outputs);
     array_free(sctx->listSizes);
     array_free(sctx->otherInputs);
-
 
     RedisModule_Free(sctx->fnname);
 
@@ -130,18 +129,16 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
     return REDISMODULE_OK;
 }
 
-TorchScriptFunctionArgumentType * RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx* sctx) {
+TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx) {
     return AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
 }
 
-
-size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx* sctx, size_t index) {
+size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index) {
     return sctx->listSizes[index];
 }
 
 int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
-                                   RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx,
-                                   RAI_Error *err) {
+                           RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx, RAI_Error *err) {
 
     RAI_Tensor *t;
     RedisModuleKey *key;

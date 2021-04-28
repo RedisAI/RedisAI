@@ -332,7 +332,7 @@ def test_pytorch_scriptdel(env):
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
 
-def test_pytorch_scriptrun(env):
+def test_pytorch_scriptexecute(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -357,7 +357,7 @@ def test_pytorch_scriptrun(env):
 
     for _ in range( 0,100):
 
-        ret = con.execute_command('AI.SCRIPTRUN', 'myscript{1}', 'bar', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
         env.assertEqual(ret, b'OK')
 
 
@@ -386,7 +386,7 @@ def test_pytorch_scriptrun(env):
         env.assertEqual(values2, values)
 
 
-def test_pytorch_scriptrun_variadic(env):
+def test_pytorch_scriptexecute_list_input(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -412,7 +412,7 @@ def test_pytorch_scriptrun_variadic(env):
     ensureSlaveSynced(con, env)
 
     for _ in range( 0,100):
-        ret = con.execute_command('AI.SCRIPTRUN', 'myscript{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$', 'b1{$}', 'b2{$}', 'OUTPUTS', 'c{$}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', 'LIST_INPUTS', 2, 'b1{$}', 'b2{$}', 'OUTPUTS', 1, 'c{$}')
         env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -440,7 +440,7 @@ def test_pytorch_scriptrun_variadic(env):
         env.assertEqual(values2, values)
 
 
-def test_pytorch_scriptrun_errors(env):
+def test_pytorch_scriptexecute_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -481,19 +481,19 @@ def test_pytorch_scriptrun_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
-    # ERR no script at key from SCRIPTRUN
+    # ERR no script at key from SCRIPTEXECUTE
     try:
         con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTRUN', 'EMPTY{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'EMPTY{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("script key is empty", exception.__str__())
 
-    # ERR wrong type from SCRIPTRUN
+    # ERR wrong type from SCRIPTEXECUTE
     try:
         con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'NOT_SCRIPT{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'NOT_SCRIPT{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -502,7 +502,7 @@ def test_pytorch_scriptrun_errors(env):
     # ERR Input key is empty
     try:
         con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'EMPTY{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'EMPTY{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -511,38 +511,38 @@ def test_pytorch_scriptrun_errors(env):
     # ERR Input key not tensor
     try:
         con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
 
-def test_pytorch_scriptrun_variadic_errors(env):
+def test_pytorch_scriptexecute_variadic_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -568,7 +568,7 @@ def test_pytorch_scriptrun_variadic_errors(env):
     # ERR Variadic input key is empty
     try:
         con.execute_command('DEL', 'EMPTY{$}')
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$', 'EMPTY{$}', 'b{$}', 'OUTPUTS', 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'EMPTY{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -577,33 +577,33 @@ def test_pytorch_scriptrun_variadic_errors(env):
     # ERR Variadic input key not tensor
     try:
         con.execute_command('SET', 'NOT_TENSOR{$}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$' , 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '${$}', 'OUTPUTS', 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 2, 'b{$}', '${$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '$', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'b{$}', 'LIST_INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 'LIST_INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
     
     # "ERR Already encountered a variable size list of tensors"
     try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'a{$}', '$', 'b{$}' 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}' 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -637,7 +637,7 @@ def test_pytorch_scriptinfo(env):
 
     previous_duration = 0
     for call in range(1, 100):
-        ret = con.execute_command('AI.SCRIPTRUN', 'ket_script{1}', 'bar', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'ket_script{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
 
@@ -665,7 +665,7 @@ def test_pytorch_scriptinfo(env):
     env.assertEqual(info_dict_0['errors'], 0)
 
 
-def test_pytorch_scriptrun_disconnect(env):
+def test_pytorch_scriptexecute_disconnect(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -692,7 +692,7 @@ def test_pytorch_scriptrun_disconnect(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = send_and_disconnect(('AI.SCRIPTRUN', 'ket_script{1}', 'bar', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}'), con)
+    ret = send_and_disconnect(('AI.SCRIPTEXECUTE', 'ket_script{1}', 'bar', 'KEYS', '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), con)
     env.assertEqual(ret, None)
 
 

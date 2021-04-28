@@ -26,7 +26,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_ThreadSafeContextUnlock",
                ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
-    get_api_fn("RedisModule_StringPtrLen", ((void**)&RedisModule_StringPtrLen));
+    get_api_fn("RedisModule_StringPtrLen", ((void **)&RedisModule_StringPtrLen));
 
     return REDISMODULE_OK;
 }
@@ -379,15 +379,17 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
         return 1;
     }
 
-    if (!torchMatchScriptSchema(array_len(arguments), nInputs, arguments,array_len(sctx->listSizes), array_len(sctx->otherInputs), &error_descr)) {
+    if (!torchMatchScriptSchema(array_len(arguments), nInputs, arguments,
+                                array_len(sctx->listSizes), array_len(sctx->otherInputs),
+                                &error_descr)) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
         RedisModule_Free(error_descr);
         return 1;
     }
 
     torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs,
-                   array_len(arguments), arguments, sctx->listSizes, sctx->otherInputs, &error_descr,
-                   RedisModule_Alloc);
+                   array_len(arguments), arguments, sctx->listSizes, sctx->otherInputs,
+                   &error_descr, RedisModule_Alloc);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);

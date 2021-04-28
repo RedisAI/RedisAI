@@ -10,7 +10,6 @@
 #include "execution/execution_contxets/scriptRun_ctx.h"
 #include "execution/parsing/parse_utils.h"
 
-
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
                                       RedisModuleString ***inkeys, RedisModuleString ***outkeys,
@@ -446,7 +445,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     RAI_ScriptRunCtx *sctx = NULL;
     RAI_Script *script = NULL;
-    RedisModuleString* scriptName = argv[1];
+    RedisModuleString *scriptName = argv[1];
     RAI_GetScriptFromKeyspace(ctx, scriptName, &script, REDISMODULE_READ, rinfo->err);
     if (!script) {
         goto cleanup;
@@ -487,7 +486,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
 cleanup:
     RedisModule_FreeThreadSafeContext(ctx);
-    if(sctx) {
+    if (sctx) {
         RAI_ScriptRunCtxFree(sctx);
     }
     return res;

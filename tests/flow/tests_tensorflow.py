@@ -637,7 +637,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
     # env.debugPrint("AI.MODELRUN elapsed time(sec) {:6.2f}\tTotal ops  {:10.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, total_ops, avg_ops_sec), True)
 
 
-def test_tensorflow_modelrun_scriptrun_resnet(env):
+def test_tensorflow_modelexecute_script_execute_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
@@ -668,16 +668,16 @@ def test_tensorflow_modelrun_scriptrun_resnet(env):
                               'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTRUN',  script_name,
-                              'pre_process_3ch', 'INPUTS', image_key, 'OUTPUTS', temp_key1 )
+    ret = con.execute_command('AI.SCRIPTEXECUTE',  script_name,
+                              'pre_process_3ch', 'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1 )
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELEXECUTE', model_name,
                               'INPUTS', 1, temp_key1, 'OUTPUTS', 1, temp_key2 )
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTRUN',  script_name,
-                              'post_process', 'INPUTS', temp_key2, 'OUTPUTS', output_key )
+    ret = con.execute_command('AI.SCRIPTEXECUTE',  script_name,
+                              'post_process', 'INPUTS', 1, temp_key2, 'OUTPUTS', 1, output_key )
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)

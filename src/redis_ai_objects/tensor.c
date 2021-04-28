@@ -564,7 +564,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
         } else {
             RAI_SetError(err, RAI_EKEYEMPTY,
-                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+                         "ERR CROSSSLOT Tensor key in request don't hash to the same slot");
         }
         return REDISMODULE_ERR;
     }

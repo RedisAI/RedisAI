@@ -120,21 +120,30 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 
         // Inputs, outpus, keys, lists.
         if ((!strcasecmp(str, "INPUTS")) || (!strcasecmp(str, "OUTPUTS")) ||
-            (!strcasecmp(str, "LIST_INPUT")) || (!strcasecmp(str, "KEYS"))) {
+            (!strcasecmp(str, "LIST_INPUTS")) || (!strcasecmp(str, "KEYS"))) {
+            bool updateKeyAtPos = false;
+            // The only scope where the inputs strings are 100% keys are in the KEYS and OUTPUTS
+            // scopes.
+            if ((!strcasecmp(str, "OUTPUTS")) || (!strcasecmp(str, "KEYS"))) {
+                updateKeyAtPos = true;
+            }
             if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
             if (RedisModule_StringToLongLong(argv[argpos++], &count) != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
-            if (count < 0) {
+            if (count <= 0) {
                 return REDISMODULE_ERR;
             }
             if (argpos + count >= argc) {
                 return REDISMODULE_ERR;
             }
             for (long long i = 0; i < count; i++) {
-                RedisModule_KeyAtPos(ctx, argpos++);
+                if (updateKeyAtPos) {
+                    RedisModule_KeyAtPos(ctx, argpos);
+                }
+                argpos++;
             }
             continue;
         }

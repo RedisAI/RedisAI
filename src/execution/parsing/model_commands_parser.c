@@ -156,4 +156,3 @@ cleanup:
     RedisModule_FreeThreadSafeContext(ctx);
     return res;
 }
-
