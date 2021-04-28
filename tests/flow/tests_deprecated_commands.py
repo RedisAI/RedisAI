@@ -385,7 +385,7 @@ def test_pytorch_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
 
     # ERR Input key not tensor
     try:
@@ -451,7 +451,7 @@ def test_pytorch_scriptrun_variadic_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
 
     # ERR Variadic input key not tensor
     try:

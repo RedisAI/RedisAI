@@ -561,7 +561,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
-            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty or in a different shard");
         } else {
             RAI_SetError(err, RAI_EKEYEMPTY,
                          "ERR CROSSSLOT Tensor key in request don't hash to the same slot");

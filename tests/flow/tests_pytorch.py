@@ -357,7 +357,7 @@ def test_pytorch_scriptexecute(env):
 
     for _ in range( 0,100):
 
-        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{1}', 'bar', 'KEYS', 1, '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
         env.assertEqual(ret, b'OK')
 
 
@@ -412,7 +412,7 @@ def test_pytorch_scriptexecute_list_input(env):
     ensureSlaveSynced(con, env)
 
     for _ in range( 0,100):
-        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', 'LIST_INPUTS', 2, 'b1{$}', 'b2{$}', 'OUTPUTS', 1, 'c{$}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_variadic', 'KEYS', 1, '{$}', 'INPUTS', 1, 'a{$}', 'LIST_INPUTS', 2, 'b1{$}', 'b2{$}', 'OUTPUTS', 1, 'c{$}')
         env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -484,7 +484,7 @@ def test_pytorch_scriptexecute_errors(env):
     # ERR no script at key from SCRIPTEXECUTE
     try:
         con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTEXECUTE', 'EMPTY{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'EMPTY{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -493,7 +493,7 @@ def test_pytorch_scriptexecute_errors(env):
     # ERR wrong type from SCRIPTEXECUTE
     try:
         con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-        con.execute_command('AI.SCRIPTEXECUTE', 'NOT_SCRIPT{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'NOT_SCRIPT{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -502,35 +502,41 @@ def test_pytorch_scriptexecute_errors(env):
     # ERR Input key is empty
     try:
         con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'EMPTY{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'EMPTY{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
 
     # ERR Input key not tensor
     try:
         con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+    try:
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'bar', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -540,6 +546,26 @@ def test_pytorch_scriptexecute_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertTrue("KEYS scope must be provided first for AI.SCRIPTEXECUTE command" in exception.__str__())
+
+
+
+    if env.isCluster():
+        # cross shard
+        try:
+            con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        except Exception as e:
+            exception = e
+            env.assertEqual(type(exception), redis.exceptions.ResponseError)
+            env.assertTrue("CROSSSLOT" in exception.__str__())
+
+        # key doesn't exist
+        try:
+            con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}')
+        except Exception as e:
+            exception = e
+            env.assertEqual(type(exception), redis.exceptions.ResponseError)
+            env.assertEqual("tensor key is empty or in a different shard",  exception.__str__())
 
 
 def test_pytorch_scriptexecute_variadic_errors(env):
@@ -568,42 +594,42 @@ def test_pytorch_scriptexecute_variadic_errors(env):
     # ERR Variadic input key is empty
     try:
         con.execute_command('DEL', 'EMPTY{$}')
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'EMPTY{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'EMPTY{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty", exception.__str__())
+        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
 
     # ERR Variadic input key not tensor
     try:
         con.execute_command('SET', 'NOT_TENSOR{$}', 'BAR')
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 2, 'b{$}', '${$}', 'OUTPUTS', 1, 'c{$}')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 2, 'b{$}', '${$}', 'OUTPUTS', 1, 'c{$}')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 1, 'b{$}', 'LIST_INPUTS', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'b{$}', 'LIST_INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'INPUTS', 'LIST_INPUTS', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 'LIST_INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
     
     # "ERR Already encountered a variable size list of tensors"
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}' 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}' 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -637,7 +663,7 @@ def test_pytorch_scriptinfo(env):
 
     previous_duration = 0
     for call in range(1, 100):
-        ret = con.execute_command('AI.SCRIPTEXECUTE', 'ket_script{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'ket_script{1}', 'bar', 'KEYS', 1, '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
         env.assertEqual(ret, b'OK')
         ensureSlaveSynced(con, env)
 

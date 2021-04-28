@@ -669,7 +669,7 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTEXECUTE',  script_name,
-                              'pre_process_3ch', 'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1 )
+                              'pre_process_3ch', 'KEYS', '1', script_name, 'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1 )
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELEXECUTE', model_name,
@@ -677,7 +677,7 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTEXECUTE',  script_name,
-                              'post_process', 'INPUTS', 1, temp_key2, 'OUTPUTS', 1, output_key )
+                              'post_process', 'KEYS', 1 ,script_name, 'INPUTS', 1, temp_key2, 'OUTPUTS', 1, output_key )
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
