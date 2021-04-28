@@ -12,8 +12,8 @@ typedef enum LLAPI_status {LLAPI_RUN_NONE = 0,
 						   LLAPI_NUM_OUTPUTS_ERROR
 } LLAPI_status;
 
-extern pthread_mutex_t global_lock;
-extern pthread_cond_t global_cond;
+pthread_mutex_t global_lock = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t global_cond = PTHREAD_COND_INITIALIZER;
 
 
 int RAI_llapi_basic_check(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -64,7 +64,9 @@ static void _ScriptFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) 
 
 	finish:
 	RedisAI_FreeError(err);
+    pthread_mutex_lock(&global_lock);
 	pthread_cond_signal(&global_cond);
+    pthread_mutex_unlock(&global_lock);
 }
 
 static void _ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
@@ -97,7 +99,9 @@ static void _ModelFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
 
 	finish:
 	RedisAI_FreeError(err);
+	pthread_mutex_lock(&global_lock);
 	pthread_cond_signal(&global_cond);
+    pthread_mutex_unlock(&global_lock);
 }
 
 static int _ExecuteModelRunAsync(RedisModuleCtx *ctx, RAI_ModelRunCtx* mctx) {

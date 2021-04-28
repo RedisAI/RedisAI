@@ -101,6 +101,12 @@ def test_dag_build_and_run(env):
     ret = con.execute_command("RAI_llapi.DAGrun")
     env.assertEqual(ret, b'DAG run success')
 
+    # Run the DAG LLAPI test again with multi process test to ensure that there are no dead-locks
+    def run_dag_llapi(con):
+        con.execute_command("RAI_llapi.DAGrun")
+
+    run_test_multiproc(env, 500, run_dag_llapi)
+
 
 @with_test_module
 def test_dagrun_multidevice_resnet(env):

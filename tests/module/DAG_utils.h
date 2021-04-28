@@ -6,10 +6,12 @@
 #define LLAPIMODULE_OK 0
 #define LLAPIMODULE_ERR 1
 
-typedef struct RAI_RunResults {
+typedef struct RAI_RunCtx {
     RAI_Tensor **outputs;
     RAI_Error *error;
-} RAI_RunResults;
+    pthread_mutex_t lock;
+    pthread_cond_t cond;
+} RAI_RunCtx;
 
 int testLoadTensor(RedisModuleCtx *ctx);
 
