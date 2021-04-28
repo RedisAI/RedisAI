@@ -4,8 +4,9 @@
 #include "util/string_utils.h"
 #include "execution/execution_contxets/scriptRun_ctx.h"
 
-static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx, RedisModuleString **inputs,
-                                        RedisModuleString ***inkeys, RAI_Error *error) {
+static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx,
+                                        RedisModuleString **inputs, RedisModuleString ***inkeys,
+                                        RAI_Error *error) {
     int signatureListCount = 0;
 
     TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
@@ -36,7 +37,7 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             signatureListCount++;
             if (signatureListCount > nlists) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
-                            "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
                 return false;
             }
             size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
@@ -49,18 +50,20 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             signatureListCount++;
             if (signatureListCount > nlists) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
-                            "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
                 return false;
             }
             size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
             for (size_t j = 0; j < listLen; j++) {
                 // Input is not a tensor. It is string/int/float, so it is not required a key.
-                sctx->otherInputs = array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+                sctx->otherInputs =
+                    array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
             continue;
         } else if (signature[i] != TENSOR) {
             // Input is not a tensor. It is string/int/float, so it is not required a key.
-            sctx->otherInputs = array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+            sctx->otherInputs =
+                array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             continue;
         } else {
             // Input is a tensor, add its name to the inkeys.
@@ -271,14 +274,14 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
     if (!_Script_buildInputsBySchema(ctx, sctx, inputs, inkeys, error)) {
         goto cleanup;
     }
-    for(size_t i=0; i < array_len(inputs); i++) {
+    for (size_t i = 0; i < array_len(inputs); i++) {
         RedisModule_FreeString(ctx, inputs[i]);
     }
     array_free(inputs);
 
     return REDISMODULE_OK;
 cleanup:
-    for(size_t i=0; i < array_len(inputs); i++) {
+    for (size_t i = 0; i < array_len(inputs); i++) {
         RedisModule_FreeString(ctx, inputs[i]);
     }
     array_free(inputs);
@@ -343,7 +346,7 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
 
 cleanup:
     RedisModule_FreeThreadSafeContext(ctx);
-    if(sctx) {
+    if (sctx) {
         RAI_ScriptRunCtxFree(sctx);
     }
     return res;
