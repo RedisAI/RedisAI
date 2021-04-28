@@ -67,9 +67,22 @@ RAI_Script *RAI_ScriptGetShallowCopy(RAI_Script *script) {
 int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RAI_Script **script,
                               int mode, RAI_Error *err) {
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
+
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(key);
+#ifndef LITE
+        RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
+                        RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
+        return REDISMODULE_ERR;
+#else
+        if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
+        } else {
+            RAI_SetError(err, RAI_EKEYEMPTY,
+                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+        }
+#endif
         return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ScriptType) {
