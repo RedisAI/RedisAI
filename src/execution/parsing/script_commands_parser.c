@@ -4,10 +4,9 @@
 #include "util/string_utils.h"
 #include "execution/execution_contxets/scriptRun_ctx.h"
 
-static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleString **inputs,
+static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx, RedisModuleString **inputs,
                                         RedisModuleString ***inkeys, RAI_Error *error) {
     int signatureListCount = 0;
-    size_t nlists = array_len(sctx->listSizes);
 
     TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
     if (!signature) {
@@ -15,6 +14,7 @@ static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleStrin
                      "Wrong number of inputs provided to AI.SCRIPTEXECUTE command");
         return false;
     }
+    size_t nlists = array_len(sctx->listSizes);
     size_t nArguments = array_len(signature);
     size_t nInputs = array_len(inputs);
     size_t inputsIdx = 0;
@@ -34,27 +34,37 @@ static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleStrin
         // Collect the inputs tensor names from the current list
         if (signature[i] == TENSOR_LIST) {
             signatureListCount++;
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx);
-            for (int j = 0; j < listLen; j++) {
-                *inkeys = array_append(*inkeys, inputs[inputsIdx++]);
+            if (signatureListCount > nlists) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                            "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                return false;
+            }
+            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
+            for (size_t j = 0; j < listLen; j++) {
+                *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
             continue;
         } else if (signature[i] == INT_LIST || signature[i] == FLOAT_LIST ||
                    signature[i] == STRING_LIST) {
             signatureListCount++;
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx);
-            for (int j = 0; j < listLen; j++) {
+            if (signatureListCount > nlists) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                            "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                return false;
+            }
+            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
+            for (size_t j = 0; j < listLen; j++) {
                 // Input is not a tensor. It is string/int/float, so it is not required a key.
-                sctx->otherInputs = array_append(sctx->otherInputs, inputs[inputsIdx++]);
+                sctx->otherInputs = array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
             continue;
         } else if (signature[i] != TENSOR) {
             // Input is not a tensor. It is string/int/float, so it is not required a key.
-            sctx->otherInputs = array_append(sctx->otherInputs, inputs[inputsIdx++]);
+            sctx->otherInputs = array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             continue;
         } else {
             // Input is a tensor, add its name to the inkeys.
-            *inkeys = array_append(*inkeys, inputs[inputsIdx++]);
+            *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
         }
     }
     if (signatureListCount != nlists) {
@@ -258,13 +268,19 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
         goto cleanup;
     }
 
-    if (!_Script_buildInputsBySchema(sctx, inputs, inkeys, error)) {
+    if (!_Script_buildInputsBySchema(ctx, sctx, inputs, inkeys, error)) {
         goto cleanup;
+    }
+    for(size_t i=0; i < array_len(inputs); i++) {
+        RedisModule_FreeString(ctx, inputs[i]);
     }
     array_free(inputs);
 
     return REDISMODULE_OK;
 cleanup:
+    for(size_t i=0; i < array_len(inputs); i++) {
+        RedisModule_FreeString(ctx, inputs[i]);
+    }
     array_free(inputs);
     return REDISMODULE_ERR;
 }

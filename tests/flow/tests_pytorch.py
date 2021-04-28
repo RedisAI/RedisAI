@@ -530,13 +530,13 @@ def test_pytorch_scriptexecute_errors(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'bar', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'bar', 'INPUTS', 'OUTPUTS')
+        con.execute_command('AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 'OUTPUTS')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
