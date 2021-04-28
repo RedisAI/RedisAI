@@ -198,11 +198,13 @@ jobs:
       - build-steps:
           platform: debian
 
+  # this build runs on a fixed machine, due to a storage need
+  # nothing about it necessitates the machine itself, other than the need for more disk.
   platforms-build:
     machine:
       enabled: true
       docker_layer_caching: true
-      resource_class: gpu.nvidia.small
+      resource_class: small
       image: ubuntu-1604-cuda-11.1:202012-01
     steps:
       - platforms-build-steps
