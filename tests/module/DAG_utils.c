@@ -23,9 +23,7 @@ static void _FreeRunResults(RAI_RunCtx *run_ctx) {
     pthread_cond_destroy(&run_ctx->cond);
 }
 
-static size_t _ResultsNumOutputs(RAI_RunCtx run_ctx) {
-    return array_len(run_ctx.outputs);
-}
+static size_t _ResultsNumOutputs(RAI_RunCtx run_ctx) { return array_len(run_ctx.outputs); }
 static void *_getFromKeySpace(RedisModuleCtx *ctx, const char *keyNameStr) {
 
     RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
@@ -47,7 +45,7 @@ static bool _assertError(RAI_Error *err, int status, const char *error_msg) {
 static void _DAGFinishFuncError(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     REDISMODULE_NOT_USED(onFinishCtx);
     REDISMODULE_NOT_USED(private_data);
-    //Do nothing, this callback should not be used...
+    // Do nothing, this callback should not be used...
     RedisModule_Assert(false);
 }
 
@@ -70,7 +68,7 @@ static void _DAGFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
     RAI_Tensor *t = (RAI_Tensor *)RedisAI_DAGOutputTensor(onFinishCtx, n_outputs);
     RedisModule_Assert(t == NULL);
 
-    finish:
+finish:
     pthread_mutex_lock(&run_ctx->lock);
     pthread_cond_signal(&run_ctx->cond);
     pthread_mutex_unlock(&run_ctx->lock);
@@ -91,7 +89,7 @@ int testLoadTensor(RedisModuleCtx *ctx) {
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     RedisAI_DAGFree(run_info);
     return res;
 }
@@ -109,7 +107,8 @@ int testModelRunOpError(RedisModuleCtx *ctx) {
 
     // This model expect for 2 inputs not 1.
     int status = RedisAI_DAGAddRunOp(run_info, op, err);
-    if (!_assertError(err, status, "Number of keys given as INPUTS does not match model definition")) {
+    if (!_assertError(err, status,
+                      "Number of keys given as INPUTS does not match model definition")) {
         goto cleanup;
     }
     RedisAI_ClearError(err);
@@ -117,12 +116,13 @@ int testModelRunOpError(RedisModuleCtx *ctx) {
     status = RedisAI_DAGAddRunOp(run_info, op, err);
 
     // We still get an error since the model expects for an output as well.
-    if (!_assertError(err, status, "Number of keys given as OUTPUTS does not match model definition")) {
+    if (!_assertError(err, status,
+                      "Number of keys given as OUTPUTS does not match model definition")) {
         goto cleanup;
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     RedisAI_FreeError(err);
     RedisAI_DAGRunOpFree(op);
     RedisAI_DAGFree(run_info);
@@ -132,7 +132,7 @@ int testModelRunOpError(RedisModuleCtx *ctx) {
 int testEmptyDAGError(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
-    RAI_Error* err;
+    RAI_Error *err;
     RedisAI_InitError(&err);
     int res = LLAPIMODULE_ERR;
 
@@ -140,12 +140,12 @@ int testEmptyDAGError(RedisModuleCtx *ctx) {
     RedisAI_DAGLoadTensor(run_info, "input", t);
 
     int status = RedisAI_DAGRun(run_info, _DAGFinishFuncError, NULL, err);
-    if(!_assertError(err, status, "ERR DAG is empty")) {
+    if (!_assertError(err, status, "ERR DAG is empty")) {
         goto cleanup;
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     RedisAI_FreeError(err);
     RedisAI_DAGFree(run_info);
     return res;
@@ -154,7 +154,7 @@ int testEmptyDAGError(RedisModuleCtx *ctx) {
 int testKeysMismatchError(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
-    RAI_Error* err;
+    RAI_Error *err;
     RedisAI_InitError(&err);
     int res = LLAPIMODULE_ERR;
 
@@ -163,12 +163,12 @@ int testKeysMismatchError(RedisModuleCtx *ctx) {
 
     RedisAI_DAGAddTensorGet(run_info, "non existing tensor");
     int status = RedisAI_DAGRun(run_info, _DAGFinishFuncError, NULL, err);
-    if(!_assertError(err, status, "ERR INPUT key cannot be found in DAG")) {
+    if (!_assertError(err, status, "ERR INPUT key cannot be found in DAG")) {
         goto cleanup;
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     RedisAI_FreeError(err);
     RedisAI_DAGFree(run_info);
     return res;
@@ -223,7 +223,7 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
     RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 2);
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     _FreeRunResults(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
@@ -267,7 +267,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 9, 4, 9};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
+        if (!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -276,7 +276,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     _FreeRunResults(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
@@ -289,13 +289,13 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     _InitRunResults(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
-    RAI_Tensor *tensor = (RAI_Tensor*)_getFromKeySpace(ctx, "a{1}");
+    RAI_Tensor *tensor = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
     RedisAI_DAGAddTensorSet(run_info, "input1", tensor);
-    tensor = (RAI_Tensor*)_getFromKeySpace(ctx, "b{1}");
+    tensor = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
     RedisAI_DAGAddTensorSet(run_info, "input2", tensor);
 
     // The script myscript{1} should exist in key space.
-    RAI_Script *script = (RAI_Script*)_getFromKeySpace(ctx, "myscript{1}");
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "myscript{1}");
     RAI_DAGRunOp *op = RedisAI_DAGCreateScriptRunOp(script, "bar");
     RedisAI_DAGRunOpAddInput(op, "input1");
     RedisAI_DAGRunOpAddInput(op, "input2");
@@ -320,7 +320,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     double expceted[4] = {4, 6, 4, 6};
     double val;
     for (long long i = 0; i < 4; i++) {
-        if(!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
+        if (!RedisAI_TensorGetValueAsDouble(out_tensor, i, &val)) {
             goto cleanup;
         }
         if (expceted[i] != val) {
@@ -329,7 +329,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     _FreeRunResults(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
@@ -342,11 +342,11 @@ int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
     _InitRunResults(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
-    RAI_Tensor *tensor = (RAI_Tensor*) _getFromKeySpace(ctx, "a{1}");
+    RAI_Tensor *tensor = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
     RedisAI_DAGAddTensorSet(run_info, "input1", tensor);
 
     // The script myscript{1} should exist in key space.
-    RAI_Script *script = (RAI_Script*)_getFromKeySpace(ctx, "myscript{1}");
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "myscript{1}");
     RAI_DAGRunOp *op = RedisAI_DAGCreateScriptRunOp(script, "no_function");
     RedisAI_DAGRunOpAddInput(op, "input1");
     RedisAI_DAGRunOpAddOutput(op, "output");
@@ -371,7 +371,7 @@ int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
     }
     res = LLAPIMODULE_OK;
 
-    cleanup:
+cleanup:
     _FreeRunResults(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
@@ -387,23 +387,25 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "image:{{1}}");
     RedisAI_DAGLoadTensor(run_info, "image:{{1}}", t);
 
-    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx,  "imagenet_script1:{{1}}");
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "imagenet_script1:{{1}}");
     RAI_DAGRunOp *script_op = RedisAI_DAGCreateScriptRunOp(script, "pre_process_3ch");
     RedisAI_DAGRunOpAddInput(script_op, "image:{{1}}");
     RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{{1}}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
-    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx,  "imagenet_model1:{{1}}");
+    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model1:{{1}}");
     RAI_DAGRunOp *model_op = RedisAI_DAGCreateModelRunOp(model);
     RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_0");
-    if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK) goto cleanup;
+    if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
+        goto cleanup;
 
-    model = (RAI_Model *)_getFromKeySpace(ctx,  "imagenet_model2:{{1}}");
+    model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model2:{{1}}");
     model_op = RedisAI_DAGCreateModelRunOp(model);
     RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_1");
-    if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK) goto cleanup;
+    if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
+        goto cleanup;
 
     script_op = RedisAI_DAGCreateScriptRunOp(script, "ensemble");
     RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_0");
@@ -431,12 +433,13 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 1);
     RAI_Tensor *out_tensor = run_ctx.outputs[0];
     long long val;
-    if(!RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val)) goto cleanup;
+    if (!RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val))
+        goto cleanup;
     if (0 <= val && val <= 1000) {
         res = LLAPIMODULE_OK;
     }
 
-    cleanup:
+cleanup:
     _FreeRunResults(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;

@@ -3,7 +3,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 
-#define LLAPIMODULE_OK 0
+#define LLAPIMODULE_OK  0
 #define LLAPIMODULE_ERR 1
 
 typedef struct RAI_RunCtx {
