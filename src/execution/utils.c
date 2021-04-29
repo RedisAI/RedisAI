@@ -45,10 +45,14 @@ bool IsEnterprise() { return rlecMajorVersion != -1; }
 bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
     if (IsEnterprise()) {
         int key_slot = RedisModule_ShardingGetKeySlot(key_str);
+        RedisModule_Log(ctx, "warning",
+          "key %s is in slot %d", RedisModule_StringPtrLen(key_str, NULL), key_slot);
         // If key_slot equals -1, then sharding is not enabled in enterprise.
         if (key_slot != -1) {
             int first_slot, last_slot;
             RedisModule_ShardingGetSlotRange(&first_slot, &last_slot);
+            RedisModule_Log(ctx, "warning",
+              "First slot in shard is %d, and last slot is %d", first_slot, last_slot);
             if (key_slot < first_slot || key_slot > last_slot) {
                 RedisModule_Log(ctx, "warning",
                                 "could not load %s from keyspace,"
