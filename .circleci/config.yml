@@ -205,7 +205,7 @@ jobs:
       enabled: true
       docker_layer_caching: true
       resource_class: small
-      image: ubuntu-1604-cuda-11.1:202012-01
+      image: ubuntu-2004:202101-01
     steps:
       - platforms-build-steps
 
