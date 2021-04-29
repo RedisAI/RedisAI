@@ -31,8 +31,8 @@ class RedisAISetup(paella.Setup):
         self.install("libssl-dev")
         self.install("python3-regex")
         self.install("python3-networkx python3-numpy")
-        if self.platform.is_arm():
-            self.install("python3-dev") # python3-skimage
+        # if self.platform.is_arm():
+        #    self.install("python3-dev") # python3-skimage
         self.install("libmpich-dev libopenblas-dev") # for libtorch
         self.install_git_lfs_on_linux()
 
