@@ -10,7 +10,7 @@ jobs:
   valgrind_general:
     if: github.event.label.name == 'ci-test'
     runs-on: ubuntu-latest
-    name: Run build and test cpu
+    name: Run build and test gpu
 
     steps:
       - uses: actions/checkout@v2
