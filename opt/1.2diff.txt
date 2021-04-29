@@ -1,0 +1,460 @@
+*   f1a0530 - (HEAD -> master, origin/master, origin/HEAD) Merge pull request #603 from RedisAI/lite (4 hours ago)
+|\  
+| *   43b0fb2 - (origin/lite) Merge branch 'master' into lite (20 hours ago)
+| |\  
+| |/  
+|/|   
+* |   353c7c2 - Merge pull request #629 from RedisAI/folder_structure_refactor (20 hours ago)
+|\ \  
+| * | 7c2c2f0 - (origin/folder_structure_refactor, folder_structure_refactor) make format (22 hours ago)
+| * | 4c5020d - moved files, pragma once, order of includes, cleanups (22 hours ago)
+| * | e1739ad - moved backends folders (22 hours ago)
+|/ /  
+* |   d6d98ef - Merge pull request #638 from RedisAI/fix_minbatchsize_logic (22 hours ago)
+|\ \  
+| * \   f92a6de - (origin/fix_minbatchsize_logic) Merge branch 'master' into fix_minbatchsize_logic (2 days ago)
+| |\ \  
+| |/ /  
+|/| |   
+* | |   b39b542 - Merge pull request #639 from RedisAI/fix_leak_in_running_onnx_with_batching (2 days ago)
+|\ \ \  
+| * | | e74cedb - (origin/fix_leak_in_running_onnx_with_batching) Call ReleaseTensorTypeAndShape after running onnx model with batching (2 days ago)
+|/ / /  
+| * | 146a86e - (fix_minbatchsize_logic) fixed PR comment (2 days ago)
+| * | dfb1d18 - fixed timeout issue (2 days ago)
+| * | 97c338b - fix for the case where minbatchsize is not met (2 days ago)
+| * | 0d585cb - make format (2 days ago)
+| * | 954ecad - changed minbatch logic (2 days ago)
+|/ /  
+* |   dfaed79 - Merge pull request #634 from RedisAI/Revert_changes_in_TensorGetAs_APIs (3 days ago)
+|\ \  
+| * \   067f6c9 - (origin/Revert_changes_in_TensorGetAs_APIs) Merge branch 'master' into Revert_changes_in_TensorGetAs_APIs (3 days ago)
+| |\ \  
+| |/ /  
+|/| |   
+* | |   b99ada7 - Merge pull request #636 from RedisAI/fix_invalid_mem_access_on_batching (3 days ago)
+|\ \ \  
+| * | | d306f64 - (origin/fix_invalid_mem_access_on_batching, fix_invalid_mem_access_on_batching) fix invalid access after freeing `next_item` (4 days ago)
+|/ / /  
+| * |   3fe500b - Merge branch 'master' into Revert_changes_in_TensorGetAs_APIs (5 days ago)
+| |\ \  
+| |/ /  
+|/| |   
+| * | 5688846 - Revert to avoid breaking api with gears: return 1 if TensorGetValueAsDouble/LongLong succeeded, 0 otherwise. (5 days ago)
+| | *   6236622 - Merge branch 'master' into lite (5 days ago)
+| | |\  
+| |_|/  
+|/| |   
+* | |   52ce7bd - Merge pull request #619 from RedisAI/OnnxRuntime_set_allocator (5 days ago)
+|\ \ \  
+| |/ /  
+|/| |   
+| * | f27405b - (origin/OnnxRuntime_set_allocator) Remove onnx from valgrind suppressions, and fix leaks that were found. Extend tests to make a more precise check of the allocator usage. (5 days ago)
+| * | dd19238 - Fix GPU test (5 days ago)
+| * |   a847b1f - Merge branch 'OnnxRuntime_set_allocator' of https://github.com/RedisAI/RedisAI into OnnxRuntime_set_allocator (5 days ago)
+| |\ \  
+| | * \   3eefa1c - Merge branch 'master' into OnnxRuntime_set_allocator (6 days ago)
+| | |\ \  
+| |_|/ /  
+|/| | |   
+| * | | 9bf31c2 - Extend GPU test (5 days ago)
+| |/ /  
+| * |   3b6e094 - Merge branch 'OnnxRuntime_set_allocator' of https://github.com/RedisAI/RedisAI into OnnxRuntime_set_allocator (6 days ago)
+| |\ \  
+| | * \   979b92e - Merge branch 'master' into OnnxRuntime_set_allocator (7 days ago)
+| | |\ \  
+| * | | | 688ac74 - Elaborate documentation. (6 days ago)
+| |/ / /  
+| * | | d4fba33 - Fix test for GPU+CPU (7 days ago)
+| * | | 8a67662 - Align allocation for onnx to 64-byte (8 days ago)
+| * | | 049417e - Align allocation for onnx to 32-byte (8 days ago)
+| * | | 84b7e21 - Debug CI (8 days ago)
+| * | |   bdf610f - Merge branch 'OnnxRuntime_set_allocator' of https://github.com/RedisAI/RedisAI into OnnxRuntime_set_allocator (8 days ago)
+| |\ \ \  
+| | * \ \   19633fa - Merge branch 'master' into OnnxRuntime_set_allocator (11 days ago)
+| | |\ \ \  
+| * | | | | 1628d38 - Upgrade to onnx 1.7.1 (forked version with custom allocator) (8 days ago)
+| |/ / / /  
+| * | | | f9e45ff - Disable graph optimization (to fix flaky tests in onnx) (11 days ago)
+| * | | |   56651ec - Merge iwth Haim change (12 days ago)
+| |\ \ \ \  
+| | * \ \ \   bf5678e - Merge pull request #621 from RedisAI/ck-dockerisms (12 days ago)
+| | |\ \ \ \  
+| | | * \ \ \   3124433 - Merge branch 'OnnxRuntime_set_allocator' into ck-dockerisms (12 days ago)
+| | | |\ \ \ \  
+| | | |/ / / /  
+| | |/| | | |   
+| | * | | | | a0ec6c3 - Debug coverage in CI (12 days ago)
+| | | * | | |   8f92cd8 - (origin/ck-dockerisms) Merge branch 'OnnxRuntime_set_allocator' into ck-dockerisms (13 days ago)
+| | | |\ \ \ \  
+| | | |/ / / /  
+| | |/| | | |   
+| | | * | | | 3d7be97 - speeding up the docker build by pararellizing the submodule fetch (2 weeks ago)
+| * | | | | | 1b6ba6c - Debug coverage in CI (12 days ago)
+| |/ / / / /  
+| * | | | | eac91a1 - Update build config of onnxruntime to RelWithDebInfo (13 days ago)
+| * | | | |   513bb7c - (OnnxRuntime_set_allocator) Merge master (2 weeks ago)
+| |\ \ \ \ \  
+| * | | | | | 4c49aa9 - Use custom allocator for models that created for CPU, even when CUDA is used. (2 weeks ago)
+| * | | | | |   7406ba7 - Merge branch 'OnnxRuntime_set_allocator' of https://github.com/RedisAI/RedisAI into OnnxRuntime_set_allocator (2 weeks ago)
+| |\ \ \ \ \ \  
+| | | |/ / / /  
+| | |/| | | |   
+| | * | | | |   df58ff2 - Merge branch 'master' into OnnxRuntime_set_allocator (2 weeks ago)
+| | |\ \ \ \ \  
+| * | | | | | | dd5bdc6 - for Debug COV test in CI (2 weeks ago)
+| |/ / / / / /  
+| * | | | | | fb7c758 - Fixes for building and publishing onnx for gpu. (2 weeks ago)
+| * | | | | | daa6b2e - added gpu dockerfile (2 weeks ago)
+| * | | | | | 2502d09 - Use custom allocator also in GPU, for allocating input and output names. (2 weeks ago)
+| * | | | | |   2bb4bd9 - Merge branch 'master' into OnnxRuntime_set_allocator (2 weeks ago)
+| |\ \ \ \ \ \  
+| * | | | | | | 504f1eb - Add sanitizer test for GPU + Dvir's PR comments (2 weeks ago)
+| * | | | | | | c83fccc - Addressing Rafi's comments. (3 weeks ago)
+| * | | | | | |   e404178 - Backward compatibility for GPU - when running on GPU, use the default allocator. (3 weeks ago)
+| |\ \ \ \ \ \ \  
+| | * \ \ \ \ \ \   968a5a0 - Merge branch 'master' into OnnxRuntime_set_allocator (3 weeks ago)
+| | |\ \ \ \ \ \ \  
+| * | | | | | | | | 79a613a - Backward compatibility for GPU - when running on GPU, use the default allocator. (3 weeks ago)
+| |/ / / / / / / /  
+| * | | | | | | | 67c40f8 - Remove test model and use only flow test (the test module is redundant since onnx memory info is saved in redis' INFO report, that can be produced by calling the INFO MODULES command) (3 weeks ago)
+| * | | | | | | | c00874e - Fix docker build (3 weeks ago)
+| * | | | | | | |   9da01d6 - Merge branch 'master' into OnnxRuntime_set_allocator (3 weeks ago)
+| |\ \ \ \ \ \ \ \  
+| * | | | | | | | | c5a6ef9 - Introduce an API that allows setting a custom allocator for onnxruntime backend. We register RedisModule Alloc and Free functions as onnx allocator, so that onnx is now using them in model create, delete and run. - The memory usage of onnx (via redis allocator) and the number of accesses to the allocator is saved as part of the module info (defined in redisai.c), under a new section named "ai_memory_info". These are exported to RedisAI as new fields in the RAI_LoadedBackend struct. (3 weeks ago)
+| * | | | | | | | | e256864 - testing onnx custom allocator (3 weeks ago)
+| * | | | | | | | | 16cb197 - changes to get the tarball from the docker and publish to s3 (4 weeks ago)
+| * | | | | | | | | 089464e - Fix docker build for onnx (4 weeks ago)
+| * | | | | | | | |   ff3a29f - Merge branch 'onxruntime-arch' into OnnxRuntime_set_allocator (4 weeks ago)
+| |\ \ \ \ \ \ \ \ \  
+| | * | | | | | | | | cf89a89 - (origin/onxruntime-arch) arm64v7 (4 weeks ago)
+| | * | | | | | | | | 6985a7d - passing arch in to pack.sh (4 weeks ago)
+| * | | | | | | | | | 3da3825 - Update readies (4 weeks ago)
+| * | | | | | | | | | e74a8ab - POC - set Redis allocator in onnx and use forked onnx repo (4 weeks ago)
+| | | | | | | | | | * b36bdf3 - (lite) fixed PR comment (5 days ago)
+| | | | | | | | | | * 846fbe3 - fixed PR comments (5 days ago)
+| | | | | | | | | | * 2dd36fd - fixed PR comment (5 days ago)
+| | | | | | | | | | *   8966fc7 - Merge branch 'master' into lite (5 days ago)
+| | | | | | | | | | |\  
+| |_|_|_|_|_|_|_|_|_|/  
+|/| | | | | | | | | |   
+* | | | | | | | | | | 110030e - Updated docs after Dockerhub build changes (#601) (6 days ago)
+| |_|_|_|_|_|_|_|/ /  
+|/| | | | | | | | |   
+* | | | | | | | | |   efe2bad - (remove_bgthread_wait) Merge pull request #626 from RedisAI/ck-605 (8 days ago)
+|\ \ \ \ \ \ \ \ \ \  
+| |_|_|_|_|_|_|_|/ /  
+|/| | | | | | | | |   
+| * | | | | | | | | daa45fb - docker publish on make (8 days ago)
+|/ / / / / / / / /  
+* | | | | | | | |   9abed57 - Merge pull request #622 from RedisAI/ck-shrink-jetson (13 days ago)
+|\ \ \ \ \ \ \ \ \  
+| |_|_|_|_|_|_|/ /  
+|/| | | | | | | |   
+| * | | | | | | |   c9b5762 - (origin/ck-shrink-jetson) Merge branch 'master' into ck-shrink-jetson (13 days ago)
+| |\ \ \ \ \ \ \ \  
+| |/ / / / / / / /  
+|/| | | | | | | |   
+* | | | | | | | |   19f7305 - Merge pull request #623 from RedisAI/Change_test_module_makefile_to_cmake (2 weeks ago)
+|\ \ \ \ \ \ \ \ \  
+| |_|_|_|_|_|_|/ /  
+|/| | | | | | | |   
+| * | | | | | | | 30c2d48 - (origin/Change_test_module_makefile_to_cmake) Send the path of test module .so to  tests.sh and use it in tests_llapi.py to load the module. (2 weeks ago)
+| * | | | | | | | b404063 - Use Cmakelist instead of makefile for test module (2 weeks ago)
+|/ / / / / / / /  
+| * / / / / / / 6d79442 - shrinking the docker file (2 weeks ago)
+|/ / / / / / /  
+* | | | | | |   147ca89 - Merge pull request #620 from RedisAI/Create_tensor_through_gears-refactor_and_test (2 weeks ago)
+|\ \ \ \ \ \ \  
+| |_|_|_|_|/ /  
+|/| | | | | |   
+| * | | | | | 5bef776 - Use RM_Calloc for allocating tensor blob only when creating an empty tensor (for security reasons). Otherwise use RM_Alloc (for better performance). (2 weeks ago)
+| * | | | | |   c169a8f - (origin/Create_tensor_through_gears-refactor_and_test) Merge branch 'master' into Create_tensor_through_gears-refactor_and_test (2 weeks ago)
+| |\ \ \ \ \ \  
+| |/ / / / / /  
+|/| | | | | |   
+| * | | | | | 16775f2 - merge with master (2 weeks ago)
+| * | | | | | 076b70a - Use RedisModule_Calloc to allocate tensor blob. (3 weeks ago)
+| * | | | | |   80c9906 - Merge branch 'master' into Create_tensor_through_gears-refactor_and_test (3 weeks ago)
+| |\ \ \ \ \ \  
+| | | |_|_|/ /  
+| | |/| | | |   
+| * | | | | | 93fbce4 - Test tensor create from blob. (4 weeks ago)
+| * | | | | | 1c677ea - Test and small refactor creating tensor from values through gears. (4 weeks ago)
+| | | | | | *   2b8e5ba - Merge branch 'master' into lite (2 weeks ago)
+| | | | | | |\  
+| |_|_|_|_|_|/  
+|/| | | | | |   
+* | | | | | |   b3d44c3 - Merge pull request #614 from RedisAI/dlpack_v0.4 (2 weeks ago)
+|\ \ \ \ \ \ \  
+| |_|/ / / / /  
+|/| | | | | |   
+| * | | | | |   253860d - Merge branch 'master' into dlpack_v0.4 (3 weeks ago)
+| |\ \ \ \ \ \  
+| |/ / / / / /  
+|/| | | | | |   
+* | | | | | | 9fe3b7d - upgrade mkdocs & mkdocs-material (#618) (3 weeks ago)
+| |_|_|_|/ /  
+|/| | | | |   
+| * | | | |   ec2b615 - Merge branch 'master' into dlpack_v0.4 (3 weeks ago)
+| |\ \ \ \ \  
+| |/ / / / /  
+|/| | | | |   
+* | | | | |   cebc284 - Merge pull request #617 from RedisAI/ck-cmake-version (3 weeks ago)
+|\ \ \ \ \ \  
+| * | | | | | a86f368 - cmake version change for RedisAI to rely on the build cmake (3 weeks ago)
+|/ / / / / /  
+| * | | | |   1cb54a3 - Merge branch 'master' into dlpack_v0.4 (3 weeks ago)
+| |\ \ \ \ \  
+| |/ / / / /  
+|/| | | | |   
+* | | | | | d36c2fa - use mkdocs-modules-template (#615) (3 weeks ago)
+| * | | | |   a147e1b - Merge branch 'master' into dlpack_v0.4 (3 weeks ago)
+| |\ \ \ \ \  
+| |/ / / / /  
+|/| | | | |   
+* | | | | |   593d495 - (folders_refactor) Merge pull request #584 from RedisAI/Add_tests_with_gears_to_CI (3 weeks ago)
+|\ \ \ \ \ \  
+| * | | | | | b3cb0d7 - PR comments - added quoting and set -e so that things will fail when they fail (3 weeks ago)
+| * | | | | |   819b0da - Merge branch 'master' into Add_tests_with_gears_to_CI (3 weeks ago)
+| |\ \ \ \ \ \  
+| |/ / / / / /  
+|/| | | | | |   
+| * | | | | | 9a705e9 - Fixes in Install_RedisGears.sh + readies update (3 weeks ago)
+| * | | | | | 4488c8a - (origin/Add_tests_with_gears_to_CI) Loading gears before test - PR fixes (4 weeks ago)
+| * | | | | | c9eba52 - PR fixes (4 weeks ago)
+| | |/ / / /  
+| |/| | | |   
+| * | | | |   7564b42 - Merge branch 'master' into Add_tests_with_gears_to_CI (4 weeks ago)
+| |\ \ \ \ \  
+| | | |_|/ /  
+| | |/| | |   
+| * | | | | 9dd7561 - Set RedisGears path for redis gears tests (4 weeks ago)
+| * | | | | e1b7a7e - Install_RedisGears.sh: fix 1 (4 weeks ago)
+| * | | | | acb97eb - Updated Install_RedisGears.sh (4 weeks ago)
+| * | | | | a197b9f - - Copy Install gears script to docker-gpu - Install gears from flow test (instead of deps) - Add gears suppressions to valgrind.sup (6 weeks ago)
+| * | | | | d48406b - Install redis-gears from S3 as part of module deps, and test AI-Gears LLAPI. (6 weeks ago)
+| | | * | | 7737b22 - (origin/dlpack_v0.4, dlpack_v0.4) fixed onnx (3 weeks ago)
+| | | * | | 38ba650 - dlpack v0.4 (3 weeks ago)
+| |_|/ / /  
+|/| | | |   
+* | | | |   acea0b8 - Merge pull request #611 from RedisAI/dlpack_version (3 weeks ago)
+|\ \ \ \ \  
+| |_|/ / /  
+|/| | | |   
+| * | | | 537c869 - (origin/dlpack_version, dlpack_version) dlpack v0.3 (3 weeks ago)
+|/ / / /  
+| | | *   9e933b2 - Merge branch 'master' into lite (4 weeks ago)
+| | | |\  
+| |_|_|/  
+|/| | |   
+* | | | 5ac7d2a - CircleCI: deployment fixes (#604) (4 weeks ago)
+| |/ /  
+|/| |   
+| | * f78b067 - lite & rce (5 weeks ago)
+| |/  
+|/|   
+* | adcd882 - Refactored docker builder (#602) (5 weeks ago)
+* |   8c258e7 - Merge pull request #566 from RedisAI/backends_upgrade (6 weeks ago)
+|\ \  
+| * \   be1da3f - Merge branch 'master' into backends_upgrade (6 weeks ago)
+| |\ \  
+| |/ /  
+|/| |   
+* | | 69027b1 - CircleCI: dockerhub builds (#583) (6 weeks ago)
+* | | 3c49c4c - Fix argument passing for tensor dtype (#597) (6 weeks ago)
+* | |   8bb0735 - Merge pull request #592 from RedisAI/thread_join_on_tests (6 weeks ago)
+|\ \ \  
+| * \ \   e5c23e7 - Merge branch 'master' into thread_join_on_tests (6 weeks ago)
+| |\ \ \  
+| |/ / /  
+|/| | |   
+* | | |   9d7d3c9 - Merge pull request #593 from RedisAI/onnx_support_threads (6 weeks ago)
+|\ \ \ \  
+| * | | | 99e5e4c - Set intra and inter op parallelism in onnx (6 weeks ago)
+|/ / / /  
+| * | | ad55959 - fixed PR comments (6 weeks ago)
+| * | | fbc0167 - join threads on tests (6 weeks ago)
+|/ / /  
+* | |   130ed18 - Merge pull request #563 from RedisAI/remove-resharding (6 weeks ago)
+|\ \ \  
+| * \ \   23f8af6 - Merge branch 'master' into remove-resharding (6 weeks ago)
+| |\ \ \  
+| |/ / /  
+|/| | |   
+* | | |   5686016 - Merge pull request #581 from RedisAI/improve_tensor_len_calculation (6 weeks ago)
+|\ \ \ \  
+| * \ \ \   68534d6 - Merge branch 'master' into improve_tensor_len_calculation (6 weeks ago)
+| |\ \ \ \  
+| |/ / / /  
+|/| | | |   
+| * | | |   2a198ff - Merge branch 'master' into improve_tensor_len_calculation (6 weeks ago)
+| |\ \ \ \  
+| * \ \ \ \   a5d5df6 - Merge branch 'master' into improve_tensor_len_calculation (7 weeks ago)
+| |\ \ \ \ \  
+| * | | | | | 9620519 - tensor len member (7 weeks ago)
+| | | | * | |   7483f27 - Merge branch 'master' into remove-resharding (7 weeks ago)
+| | | | |\ \ \  
+| | | | * | | | 50f1d83 - remove resharding (8 weeks ago)
+| | | | | | * |   f2ebc1c - Merge branch 'master' into backends_upgrade (6 weeks ago)
+| | | | | | |\ \  
+| |_|_|_|_|_|/ /  
+|/| | | | | | |   
+* | | | | | | |   14e82db - Merge pull request #580 from RedisAI/backend_version (6 weeks ago)
+|\ \ \ \ \ \ \ \  
+| * \ \ \ \ \ \ \   5bceebc - Merge branch 'master' into backend_version (6 weeks ago)
+| |\ \ \ \ \ \ \ \  
+| |/ / / / / / / /  
+|/| | | | | | | |   
+* | | | | | | | |   a4173a1 - Merge pull request #582 from RedisAI/Turn_DAG_local_context_into_array (6 weeks ago)
+|\ \ \ \ \ \ \ \ \  
+| |_|_|_|/ / / / /  
+|/| | | | | | | |   
+| * | | | | | | | 63cf975 - PR fix (6 weeks ago)
+| * | | | | | | |   55bdfbf - Merge branch 'master' into Turn_DAG_local_context_into_array (6 weeks ago)
+| |\ \ \ \ \ \ \ \  
+| |/ / / / / / / /  
+|/| | | | | | | |   
+| * | | | | | | | 2fabf5e - revert readies to match redisAI master version (6 weeks ago)
+| * | | | | | | | e3d2db2 - Validate that we don't load more than one tensor under the same name to DAG in LLAPI. (6 weeks ago)
+| * | | | | | | | 322890a - - save index by casting void* to size_t in TensorsNamesToIndices. - Save the indices of the tensors to persist as values in persistTensors dict, and release TensorsNamesToIndices before DAG run. (6 weeks ago)
+| * | | | | | | | 7c2736e - Undo changes in readies (6 weeks ago)
+| * | | | | | | | af351b2 - Fix leaks (6 weeks ago)
+| * | | | | | | |   d001222 - Merge master (7 weeks ago)
+| |\ \ \ \ \ \ \ \  
+| | | |_|/ / / / /  
+| | |/| | | | | |   
+| * | | | | | | | 764b6b4 - Introduce a shared array in DAG runInfo that stores DAG intermediate tensors (instead of the DagLocalContext dict). Every op holds the indices of its input and output tensors, and uses this array to load and store them in turn. (7 weeks ago)
+| * | | | | | | | 27822aa - - Ignore Overlap errors from libtorch_cpu in valgrind. - In TF: verify that model inputs names correspond to model inputs ops (and not just for any op) (7 weeks ago)
+| | | * | | | | | f80db75 - added NA for torch and TFLITE (6 weeks ago)
+| | | * | | | | |   c35e52f - Merge branch 'master' into backend_version (6 weeks ago)
+| | | |\ \ \ \ \ \  
+| |_|_|/ / / / / /  
+|/| | | | | | | |   
+* | | | | | | | |   812444a - Merge pull request #573 from RedisAI/Refactor_get_model/script_from_keyspace (6 weeks ago)
+|\ \ \ \ \ \ \ \ \  
+| |_|/ / / / / / /  
+|/| | | | | | | /   
+| | |_|_|_|_|_|/    
+| |/| | | | | |     
+| * | | | | | |   620a273 - Merge branch 'master' into Refactor_get_model/script_from_keyspace (6 weeks ago)
+| |\ \ \ \ \ \ \  
+| |/ / / / / / /  
+|/| | | | | | |   
+| * | | | | | | 179076c - Refactor RAI_getModel/ScriptFromKeyspace - no need to sent RM_Key ot the func. Update the signatures in LLAPI. (8 weeks ago)
+| | | * | | | |   ce82032 - Merge branch 'master' into backend_version (7 weeks ago)
+| | | |\ \ \ \ \  
+| |_|_|/ / / / /  
+|/| | | | | | |   
+* | | | | | | |   7c82c60 - Merge pull request #575 from RedisAI/Valgrind_cleaning (7 weeks ago)
+|\ \ \ \ \ \ \ \  
+| |_|_|_|/ / / /  
+|/| | | | | | |   
+| * | | | | | | 569170b - Set valgrind-cluster and valgrind-aof to run in master and integrations only (7 weeks ago)
+| * | | | | | |   3b9abf4 - Merge branch 'Valgrind_cleaning' of https://github.com/RedisAI/RedisAI into Valgrind_cleaning (7 weeks ago)
+| |\ \ \ \ \ \ \  
+| | * \ \ \ \ \ \   1e1d020 - Merge branch 'master' into Valgrind_cleaning (7 weeks ago)
+| | |\ \ \ \ \ \ \  
+| |_|/ / / / / / /  
+|/| | | | | | | |   
+| * | | | | | | | 9a4e8a8 - skip test_dagrun_modelrun_scriptrun_resnet since its hanging CI (7 weeks ago)
+| |/ / / / / / /  
+| * | | | | | | f055248 - Split valgrind in CI to 3 (7 weeks ago)
+| * | | | | | | 3eacedf - Include string utils from backends (7 weeks ago)
+| * | | | | | |   9e2b311 - Merge branch 'Valgrind_cleaning' of https://github.com/RedisAI/RedisAI into Valgrind_cleaning (7 weeks ago)
+| |\ \ \ \ \ \ \  
+| | * \ \ \ \ \ \   0047e5b - Merge branch 'master' into Valgrind_cleaning (7 weeks ago)
+| | |\ \ \ \ \ \ \  
+| | | | |_|_|_|/ /  
+| | | |/| | | | |   
+| * | / | | | | | 1e04e81 - Replace HoldString with RetainString (7 weeks ago)
+| |/ / / / / / /  
+| * | | | | | |   a43f2b2 - Merge branch 'Valgrind_cleaning' of https://github.com/RedisAI/RedisAI into Valgrind_cleaning (7 weeks ago)
+| |\ \ \ \ \ \ \  
+| | * \ \ \ \ \ \   3a0d8af - Merge branch 'master' into Valgrind_cleaning (7 weeks ago)
+| | |\ \ \ \ \ \ \  
+| * | | | | | | | | 80b973c - Hold RM_String when creating tensor after validations (fix leak) (7 weeks ago)
+| |/ / / / / / / /  
+| * | | | | | | | 97e7aeb - run valgrind on any branch (temporary) PR fixes (7 weeks ago)
+| * | | | | | | | 45dce4e - PR fixes (7 weeks ago)
+| * | | | | | | | 9dc2be5 - - Ignore Overlap errors from libtorch_cpu in valgrind. - In TF: verify that model inputs names correspond to model inputs ops (and not just for any op) (7 weeks ago)
+| | |_|_|/ / / /  
+| |/| | | | | |   
+| * | | | | | | 49f0605 - Check that blob len match the tensor dimensions and type in TENSORSET. - Fix TENSORSET error tests so they would fail if no exception has occurred. (7 weeks ago)
+| * | | | | | | 0d00df4 - - copy tensor blob when creating RAI_Tensor - Do not shallow copy when save tensor outputs to keyspace after MODELRUN (7 weeks ago)
+| | |_|/ / / /  
+| |/| | | | |   
+| | | | * | |   0afe986 - Merge branch 'master' into backend_version (7 weeks ago)
+| | | | |\ \ \  
+| |_|_|_|/ / /  
+|/| | | | | |   
+* | | | | | | aab7c36 - Updated readies (for getpy3) and system-setup.py (#579) (7 weeks ago)
+| |_|/ / / /  
+|/| | | | |   
+| | | * | | bd235ed - added docs (7 weeks ago)
+| | | * | | 423cdf3 - make format (7 weeks ago)
+| | | * | | 57a26b8 - tests (7 weeks ago)
+| | | * | | f418761 - onnx info (7 weeks ago)
+| | | * | | 0e68fc1 - tf version (7 weeks ago)
+| | |/ / /  
+| | | | *   29f7c92 - Merge branch 'master' into backends_upgrade (7 weeks ago)
+| | | | |\  
+| |_|_|_|/  
+|/| | | |   
+* | | | |   a8695b9 - Merge pull request #574 from guyroyse/master (7 weeks ago)
+|\ \ \ \ \  
+| |_|/ / /  
+|/| | | |   
+| * | | |   29b9564 - Merge branch 'master' into master (7 weeks ago)
+| |\ \ \ \  
+| |/ / / /  
+|/| | | |   
+* | | | |   8a3a3b2 - Merge pull request #571 from RedisAI/lint_on_tags (7 weeks ago)
+|\ \ \ \ \  
+| |_|/ / /  
+|/| | | |   
+| * | | | 2799032 - lint on tags (7 weeks ago)
+|/ / / /  
+| * / / 37c75da - added link to RedisAI introduction video (7 weeks ago)
+|/ / /  
+* | |   cc0ff36 - Merge pull request #556 from RedisAI/DAG_LLAPI (8 weeks ago)
+|\ \ \  
+| * \ \   1a92b9c - Merge branch 'master' into DAG_LLAPI (8 weeks ago)
+| |\ \ \  
+| |/ / /  
+|/| | |   
+* | | |   16652f3 - Merge pull request #569 from RedisAI/fix_getver (8 weeks ago)
+|\ \ \ \  
+| * | | | c26272c - fixed getver (8 weeks ago)
+|/ / / /  
+| * | |   9da4477 - Merge branch 'master' into DAG_LLAPI (8 weeks ago)
+| |\ \ \  
+| |/ / /  
+|/| | |   
+* | | | 80bf0eb - CircleCI: support for intergration branches (#567) (8 weeks ago)
+| |/ /  
+|/| |   
+| * | ef09f12 - PR fixes (8 weeks ago)
+| * | ea8e972 - - Replace the REDISAI_MAIN macro in redisai.h with REDISAI_EXTERN. - Added tests for errors in dag parsing. - Bug fix in parse timeout (8 weeks ago)
+| * | 7db6b5d - - Setting a global error in DAG runInfo when one of its ops returns with an error. this is the one that is returned in LLAPI. - Add macro to redisai.h to resolve double includes issues. - Update arr.h, support creating dynamic arrays on stack (in addition). - PR fixes, test module refactor (8 weeks ago)
+| * | 102b25c - Avoid using RedisModule_ThreadSafeContextUnlock(ctx) in parsing modelrun/script run command (currently assume that the access is only from redis main thread) (8 weeks ago)
+| * | 4173742 - Replace read lock of DagLocalContext with write lock (as the DagLocalContext dict is not thread safe for reading operations) (9 weeks ago)
+| * |   b0ea914 - Merge with master (9 weeks ago)
+| |\ \  
+| |/ /  
+|/| |   
+| * | fea057d - Add LLAPI that allows adding ops to a DAG from string. (9 weeks ago)
+| * | 9d4b1db - Add and use getters for having model number of model inputs and outputs. (9 weeks ago)
+| * | ff2754b - Added another test - multidevice resnet + documentation of LLAPI (9 weeks ago)
+| * | e56ede3 - Remove Persist. Add LLAPI for getting the status of each DAG op (RAI_Error) + tests via test module. (9 weeks ago)
+| * | b9d4608 - Add SCRIPTRUN, PERSIST, TENSORSET ops to LLAPI. test LLAPI (with/without errors) via test module (passed valgrind). Persist not checked (require enablement). (9 weeks ago)
+| * | 7c696d3 - LOAD, MODELRUN, TENSORSET in DAG - test LLAPI (with/without errors) via test module (passed valgrind) (10 weeks ago)
+| * | 5e42d0b - Merge with master. (10 weeks ago)
+| * | 904ee42 - Add a LLAPI for DAG create, add load phase, add modelRun op, and tensorGet op. Return an error for DAGRUN command with no ops. (10 weeks ago)
+|  /  
+| * 1b1f0c4 - copy only cuda libs (8 weeks ago)
+| * 9a7a3eb - backend updates (8 weeks ago)
+|/  
+* ffd4084 - Merge pull request #561 from RedisAI/Support_TENSORGET_command_without_format_arg (9 weeks ago)
+* 0c9c805 - PR fixes (9 weeks ago)
+* d840edc - Let TENSORGET command return BLOB+META by default (9 weeks ago)

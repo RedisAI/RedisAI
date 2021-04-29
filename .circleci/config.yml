@@ -138,7 +138,9 @@ commands:
             pushd opt/build/docker
             for osnick in bionic xenial; do
                 make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make CPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
                 make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make GPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -155,7 +157,9 @@ commands:
             cd opt/build/docker
             for osnick in bionic xenial; do
                 make CPU=1 OSNICK=$osnick VERBOSE=1 publish
+                make CPU=1 LITE=1 OSNICK=$osnick VERBOSE=1 publish
                 make GPU=1 OSNICK=$osnick VERBOSE=1 publish
+                make GPU=1 LITE=1 OSNICK=$osnick VERBOSE=1 publish
             done
       - persist_to_workspace:
           root: bin/

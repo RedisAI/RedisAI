@@ -55,7 +55,7 @@ option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
 option(BUILD_TORCH "Build the PyTorch backend" ON)
-
+option(LITE "Build the RedisAI Lite Varient" OFF)
 #----------------------------------------------------------------------------------------------
 
 FUNCTION(ADD_LDFLAGS _TARGET NEW_FLAGS)
@@ -114,6 +114,9 @@ ENDIF()
 
 SET(CMAKE_C_STANDARD 11)
 ADD_DEFINITIONS(-DREDISMODULE_EXPERIMENTAL_API)
+if(LITE)
+    ADD_DEFINITIONS(-DLITE)
+ENDIF()
 
 # SET(CUDA_TOOLKIT_ROOT_DIR /usr/local/cuda-10.0)
 
