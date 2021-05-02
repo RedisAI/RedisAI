@@ -1230,7 +1230,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-#ifndef LITE
+#ifndef REDISAI_LITE
     if (RedisModule_Init(ctx, "ai", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;

@@ -132,8 +132,8 @@ else
 USE_PROFILE=off
 endif
 
-ifeq ($(LITE),1)
-CMAKE_FLAGS += -DLITE=on
+ifeq ($(REDISAI_LITE),1)
+CMAKE_FLAGS += -DREDISAI_LITE=on
 endif
 
 CMAKE_FLAGS += \
