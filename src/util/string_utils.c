@@ -3,7 +3,7 @@
 #include <string.h>
 #include "util/redisai_memory.h"
 
-RedisModuleString *RAI_HoldString(RedisModuleCtx *ctx, RedisModuleString *str) {
+RedisModuleString *RAI_HoldString(RedisModuleString *str) {
     if (str == NULL) {
         return NULL;
     }

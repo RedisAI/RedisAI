@@ -1,7 +1,7 @@
 #include "redismodule.h"
 #include "dict.h"
 
-RedisModuleString *RAI_HoldString(RedisModuleCtx *ctx, RedisModuleString *str);
+RedisModuleString *RAI_HoldString(RedisModuleString *str);
 
 uint64_t RAI_StringsHashFunction(const void *key);
 int RAI_StringsKeyCompare(void *privdata, const void *key1, const void *key2);

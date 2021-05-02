@@ -25,7 +25,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    RAI_HoldString(NULL, argv[argpos]);
+    RAI_HoldString(argv[argpos]);
     *runkey = argv[argpos];
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
@@ -49,7 +49,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
             is_input = false;
             is_output = true;
         } else {
-            RAI_HoldString(NULL, argv[argpos]);
+            RAI_HoldString(argv[argpos]);
             if (is_input) {
                 ninputs++;
                 *inkeys = array_append(*inkeys, argv[argpos]);
@@ -412,7 +412,7 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             continue;
         }
         // Parse argument name
-        RAI_HoldString(NULL, argv[argpos]);
+        RAI_HoldString(argv[argpos]);
         if (is_input) {
             ninputs++;
             *inkeys = array_append(*inkeys, argv[argpos]);
@@ -450,7 +450,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     if (!script) {
         goto cleanup;
     }
-    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(ctx, argv[1]));
+    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(argv[1]));
 
     const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
     if (!func_name) {

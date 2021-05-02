@@ -59,7 +59,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
 
     if (model) {
         if (tag) {
-            model->tag = RAI_HoldString(NULL, tag);
+            model->tag = RAI_HoldString(tag);
         } else {
             model->tag = RedisModule_CreateString(NULL, "", 0);
         }

@@ -19,7 +19,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    *runkey = RAI_HoldString(NULL, argv[arg_pos++]);
+    *runkey = RAI_HoldString(argv[arg_pos++]);
     const char *arg_string = RedisModule_StringPtrLen(argv[arg_pos++], NULL);
 
     if (strcasecmp(arg_string, "INPUTS") != 0) {
@@ -51,7 +51,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
         return REDISMODULE_ERR;
     }
     for (; arg_pos < first_input_pos + ninputs; arg_pos++) {
-        *inkeys = array_append(*inkeys, RAI_HoldString(NULL, argv[arg_pos]));
+        *inkeys = array_append(*inkeys, RAI_HoldString(argv[arg_pos]));
     }
 
     if (argc == arg_pos ||
@@ -83,7 +83,7 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
         return REDISMODULE_ERR;
     }
     for (; arg_pos < first_output_pos + noutputs; arg_pos++) {
-        *outkeys = array_append(*outkeys, RAI_HoldString(NULL, argv[arg_pos]));
+        *outkeys = array_append(*outkeys, RAI_HoldString(argv[arg_pos]));
     }
     if (arg_pos == argc) {
         return REDISMODULE_OK;

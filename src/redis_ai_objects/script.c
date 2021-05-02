@@ -30,7 +30,7 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
 
     if (script) {
         if (tag) {
-            script->tag = RAI_HoldString(NULL, tag);
+            script->tag = RAI_HoldString(tag);
         } else {
             script->tag = RedisModule_CreateString(NULL, "", 0);
         }

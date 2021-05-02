@@ -4,9 +4,8 @@
 #include "util/string_utils.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
-static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx,
-                                        RedisModuleString **inputs, RedisModuleString ***inkeys,
-                                        RAI_Error *error) {
+static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleString **inputs,
+                                        RedisModuleString ***inkeys, RAI_Error *error) {
     int signatureListCount = 0;
 
     TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
@@ -43,7 +42,7 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             }
             size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
             for (size_t j = 0; j < listLen; j++) {
-                *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
+                *inkeys = array_append(*inkeys, RAI_HoldString(inputs[inputsIdx++]));
             }
             break;
         }
@@ -60,7 +59,7 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             for (size_t j = 0; j < listLen; j++) {
                 // Input is not a tensor. It is string/int/float, so it is not required a key.
                 sctx->nonTensorsInputs =
-                    array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+                    array_append(sctx->nonTensorsInputs, RAI_HoldString(inputs[inputsIdx++]));
             }
             break;
         }
@@ -69,13 +68,13 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
         case STRING: {
             // Input is not a tensor. It is string/int/float, so it is not required a key.
             sctx->nonTensorsInputs =
-                array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+                array_append(sctx->nonTensorsInputs, RAI_HoldString(inputs[inputsIdx++]));
             break;
         }
         case TENSOR:
         default: {
             // Input is a tensor, add its name to the inkeys.
-            *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
+            *inkeys = array_append(*inkeys, RAI_HoldString(inputs[inputsIdx++]));
             break;
         }
         }
@@ -197,7 +196,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             }
             // Add to local input context.
             for (; argpos < first_input_pos + ninputs; argpos++) {
-                inputs = array_append(inputs, RAI_HoldString(NULL, argv[argpos]));
+                inputs = array_append(inputs, RAI_HoldString(argv[argpos]));
             }
             continue;
         }
@@ -233,7 +232,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                 goto cleanup;
             }
             for (; argpos < first_output_pos + noutputs; argpos++) {
-                *outkeys = array_append(*outkeys, RAI_HoldString(NULL, argv[argpos]));
+                *outkeys = array_append(*outkeys, RAI_HoldString(argv[argpos]));
             }
             continue;
         }
@@ -261,7 +260,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                 goto cleanup;
             }
             for (; argpos < first_input_pos + ninputs; argpos++) {
-                inputs = array_append(inputs, RAI_HoldString(NULL, argv[argpos]));
+                inputs = array_append(inputs, RAI_HoldString(argv[argpos]));
             }
             RAI_ScriptRunCtxAddListSize(sctx, ninputs);
             continue;
@@ -275,7 +274,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
         goto cleanup;
     }
 
-    if (!_Script_buildInputsBySchema(ctx, sctx, inputs, inkeys, error)) {
+    if (!_Script_buildInputsBySchema(sctx, inputs, inkeys, error)) {
         goto cleanup;
     }
     for (size_t i = 0; i < array_len(inputs); i++) {
@@ -314,7 +313,7 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
         goto cleanup;
     }
 
-    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(ctx, argv[1]));
+    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(argv[1]));
 
     const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
     if (!func_name) {
