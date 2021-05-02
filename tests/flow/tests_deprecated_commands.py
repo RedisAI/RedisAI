@@ -217,12 +217,7 @@ def test_pytorch_scriptrun(env):
         return
 
     con = env.getConnection()
-
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    script_filename = os.path.join(test_data_path, 'script.txt')
-
-    with open(script_filename, 'rb') as f:
-        script = f.read()
+    script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -272,11 +267,7 @@ def test_pytorch_scriptrun_variadic(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    script_filename = os.path.join(test_data_path, 'script.txt')
-
-    with open(script_filename, 'rb') as f:
-        script = f.read()
+    script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'myscript{$}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -326,11 +317,7 @@ def test_pytorch_scriptrun_errors(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    script_filename = os.path.join(test_data_path, 'script.txt')
-
-    with open(script_filename, 'rb') as f:
-        script = f.read()
+    script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -342,84 +329,37 @@ def test_pytorch_scriptrun_errors(env):
 
     ensureSlaveSynced(con, env)
 
+    con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTGET
-    try:
-        con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTGET', 'EMPTY{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("script key is empty", exception.__str__())
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
 
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
     # ERR wrong type from SCRIPTGET
-    try:
-        con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-        con.execute_command('AI.SCRIPTGET', 'NOT_SCRIPT{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
 
+    con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTRUN
-    try:
-        con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTRUN', 'EMPTY{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("script key is empty", exception.__str__())
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTRUN', 'EMPTY{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
 
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
     # ERR wrong type from SCRIPTRUN
-    try:
-        con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'NOT_SCRIPT{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTRUN', 'NOT_SCRIPT{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
 
+    con.execute_command('DEL', 'EMPTY{1}')
     # ERR Input key is empty
-    try:
-        con.execute_command('DEL', 'EMPTY{1}')
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'EMPTY{1}', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
+    check_error_message(env, con, "tensor key is empty or in a different shard", 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'EMPTY{1}', 'b{1}', 'OUTPUTS', 'c{1}')
 
+    con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
     # ERR Input key not tensor
-    try:
-        con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 'c{1}')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS', 'c{1}')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'INPUTS', 'a{1}', 'b{1}', 'OUTPUTS', 'c{1}')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'b{1}', 'OUTPUTS')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
 
 def test_pytorch_scriptrun_variadic_errors(env):
     if not TEST_PT:
@@ -428,11 +368,7 @@ def test_pytorch_scriptrun_variadic_errors(env):
 
     con = env.getConnection()
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    script_filename = os.path.join(test_data_path, 'script.txt')
-
-    with open(script_filename, 'rb') as f:
-        script = f.read()
+    script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{$}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -444,45 +380,18 @@ def test_pytorch_scriptrun_variadic_errors(env):
 
     ensureSlaveSynced(con, env)
 
+    con.execute_command('DEL', 'EMPTY{$}')
     # ERR Variadic input key is empty
-    try:
-        con.execute_command('DEL', 'EMPTY{$}')
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$', 'EMPTY{$}', 'b{$}', 'OUTPUTS', 'c{$}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty or in a different shard", exception.__str__())
-
+    check_error_message(env, con, "tensor key is empty or in a different shard", 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$', 'EMPTY{$}', 'b{$}', 'OUTPUTS', 'c{$}')
+ 
+    con.execute_command('SET', 'NOT_TENSOR{$}', 'BAR')
     # ERR Variadic input key not tensor
-    try:
-        con.execute_command('SET', 'NOT_TENSOR{$}', 'BAR')
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$' , 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 'c{$}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value", exception.__str__())
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'a{$}', '$' , 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 'c{$}')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '${$}', 'OUTPUTS', 'c{$}')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '${$}', 'OUTPUTS', 'c{$}')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '$', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', 'b{$}', '$', 'OUTPUTS')
 
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-    
-    # "ERR Already encountered a variable size list of tensors"
-    try:
-        con.execute_command('AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'a{$}', '$', 'b{$}' 'OUTPUTS')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+    check_error(env, con, 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'OUTPUTS')
+
+    check_error_message(env, con, "Already encountered a variable size list of tensors", 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'a{$}', '$', 'b{$}' 'OUTPUTS')
