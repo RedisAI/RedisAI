@@ -123,7 +123,7 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                                                            RedisModuleString **argv, int argc) {
     // AI.SCRIPTEXECUTE script_name func KEYS n key....
-    if(argc < 6) {
+    if (argc < 6) {
         return REDISMODULE_ERR;
     }
     RedisModule_KeyAtPos(ctx, 1);
