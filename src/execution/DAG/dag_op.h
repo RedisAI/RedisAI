@@ -46,4 +46,11 @@ int RAI_InitDagOp(RAI_DagOp **result);
  */
 void RAI_FreeDagOp(RAI_DagOp *dagOp);
 
+/**
+ * @brief Sets the key name of current dag op execution subject. The subject is either a model or a
+ * script.
+ *
+ * @param dagOp Current op.
+ * @param runkey Subject key name.
+ */
 void RAI_DagOpSetRunKey(RAI_DagOp *dagOp, RedisModuleString *runkey);
