@@ -16,11 +16,6 @@ typedef enum {
     STRING_LIST
 } TorchScriptFunctionArgumentType;
 
-// typedef struct {
-//     const char* name;
-//     TorchScriptFunctionArgumentType* argumentTypes;
-// } TorchScriptFunction;
-
 typedef struct RAI_Script {
     void *script;
     char *scriptdef;
@@ -32,7 +27,7 @@ typedef struct RAI_Script {
     RedisModuleString *tag;
     long long refCount;
     void *infokey;
-    AI_dict *functionData;
+    AI_dict *functionData;  // A <String, TorchScriptFunctionArgumentType*> dict to map between function name, and its schema.
 } RAI_Script;
 
 typedef struct RAI_ScriptCtxParam {
