@@ -69,11 +69,9 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
         }
     }
 
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     for (size_t i = 0; i < array_len(sctx->nonTensorsInputs); ++i) {
-        RedisModule_FreeString(ctx, sctx->nonTensorsInputs[i]);
+        RedisModule_FreeString(NULL, sctx->nonTensorsInputs[i]);
     }
-    RedisModule_FreeThreadSafeContext(ctx);
 
     array_free(sctx->inputs);
     array_free(sctx->outputs);

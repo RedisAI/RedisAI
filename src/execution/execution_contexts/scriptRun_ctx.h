@@ -115,16 +115,16 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx);
 
 /**
- * @brief Returns the length of the input list in the given index
+ * @brief Returns the length of the input list in the given index.
  *
- * @param sctx ScriptRunCtx
- * @param index Index
- * @return size_t length of the input list in the given index
+ * @param sctx ScriptRunCtx.
+ * @param index Index of the list out of all the lists given as inputs.
+ * @return size_t length of the input list in the given index.
  */
 size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index);
 
 /**
- * Extract the params for the ScriptCtxRun object from AI.SCRIPTRUN arguments.
+ * Extract the ternsor parameters for the ScriptCtxRun object from AI.SCRIPTEXECUTE arguments.
  *
  * @param ctx Context in which Redis modules operate.
  * @param inkeys Script input tensors keys, as an array of strings.
