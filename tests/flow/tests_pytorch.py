@@ -389,6 +389,53 @@ def test_pytorch_scriptexecute_list_input(env):
         env.assertEqual(values2, values)
 
 
+def test_pytorch_scriptexecute_multiple_list_input(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    script = load_file_content('script.txt')
+
+    ret = con.execute_command('AI.SCRIPTSET', 'myscript{$}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'b{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    for _ in range( 0,100):
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_two_lists', 'KEYS', 1, '{$}', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}', 'OUTPUTS', 1, 'c{$}')
+        env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    info = con.execute_command('AI.INFO', 'myscript{$}')
+    info_dict_0 = info_to_dict(info)
+
+    env.assertEqual(info_dict_0['key'], 'myscript{$}')
+    env.assertEqual(info_dict_0['type'], 'SCRIPT')
+    env.assertEqual(info_dict_0['backend'], 'TORCH')
+    env.assertEqual(info_dict_0['tag'], 'version1')
+    env.assertTrue(info_dict_0['duration'] > 0)
+    env.assertEqual(info_dict_0['samples'], -1)
+    env.assertEqual(info_dict_0['calls'], 100)
+    env.assertEqual(info_dict_0['errors'], 0)
+
+    values = con.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
+    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
+
+    ensureSlaveSynced(con, env)
+
+    if env.useSlaves:
+        con2 = env.getSlaveConnection()
+        values2 = con2.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
+        env.assertEqual(values2, values)
+
 def test_pytorch_scriptexecute_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -484,7 +531,7 @@ def test_pytorch_scriptexecute_variadic_errors(env):
     check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 'LIST_INPUTS', 'OUTPUTS')
 
     check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}' 'OUTPUTS')
-    
+
 
 def test_pytorch_scriptinfo(env):
     if not TEST_PT:
