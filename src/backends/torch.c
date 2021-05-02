@@ -60,7 +60,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
 
     char *error_descr = NULL;
     if (opts.backends_inter_op_parallelism > 0) {
-        torchSetInterOpThreads(opts.backends_inter_op_parallelism, &error_descr, RedisModule_Alloc);
+        torchSetInterOpThreads(opts.backends_inter_op_parallelism, &error_descr);
     }
 
     if (error_descr != NULL) {
@@ -70,7 +70,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     }
 
     if (opts.backends_intra_op_parallelism > 0) {
-        torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr, RedisModule_Alloc);
+        torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr);
     }
     if (error_descr) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
@@ -79,7 +79,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     }
 
     void *model =
-        torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+        torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (error_descr) {
         goto cleanup;
@@ -227,8 +227,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
-                  RedisModule_Alloc);
+    torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_TensorFree(inputs[i]);
@@ -275,7 +274,7 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
         *len = model->datalen;
     } else {
         char *error_descr = NULL;
-        torchSerializeModel(model->model, buffer, len, &error_descr, RedisModule_Alloc);
+        torchSerializeModel(model->model, buffer, len, &error_descr);
 
         if (*buffer == NULL) {
             RAI_SetError(error, RAI_EMODELSERIALIZE, error_descr);
@@ -312,7 +311,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
 
     char *error_descr = NULL;
     void *script =
-        torchCompileScript(scriptdef, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+        torchCompileScript(scriptdef, dl_device, deviceid, &error_descr);
 
     if (script == NULL) {
         RAI_SetError(error, RAI_ESCRIPTCREATE, error_descr);
@@ -389,7 +388,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
 
     torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs,
                    array_len(arguments), arguments, sctx->listSizes, sctx->otherInputs,
-                   &error_descr, RedisModule_Alloc);
+                   &error_descr);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);

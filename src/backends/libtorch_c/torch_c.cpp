@@ -250,28 +250,8 @@ void torchRunModule(ModuleContext *ctx, const char *fnName, torch::jit::Stack& s
 
 } // namespace
 
-extern "C" void torchBasicTest() {
-    torch::Tensor mat = torch::rand({3, 3});
-    std::cout << mat << std::endl;
-}
-
-extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t *shape,
-                                           int64_t *strides, char *data) {
-    // at::DeviceType device_type = getATenDeviceType(kDLCPU);
-    at::ScalarType stype = toScalarType(dtype);
-    torch::Device device(getATenDeviceType(kDLCPU), -1);
-    torch::Tensor tensor =
-        torch::from_blob(data, at::IntArrayRef(shape, ndims), at::IntArrayRef(strides, ndims),
-                         // torch::device(at::DeviceType::CPU).dtype(stype));
-                         torch::device(device).dtype(stype));
-
-    DLManagedTensor *dl_tensor = toManagedDLPack(tensor);
-
-    return dl_tensor;
-}
-
 extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
-                                    char **error, void* (*alloc)(size_t))
+                                    char **error)
 {
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
@@ -293,10 +273,7 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
 
   }
   catch(std::exception& e) {
-    size_t len = strlen(e.what()) +1;
-    *error = (char*)alloc(len * sizeof(char));
-    strcpy(*error, e.what());
-    (*error)[len-1] = '\0';
+    *error = RedisModule_Strdup(e.what());
     delete ctx;
     return NULL;
   }
@@ -304,7 +281,7 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
 }
 
 extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
-                                int64_t device_id, char **error, void *(*alloc)(size_t)) {
+                                int64_t device_id, char **error) {
     std::string graphstr(graph, graphlen);
     std::istringstream graph_stream(graphstr, std::ios_base::binary);
     ModuleContext *ctx = new ModuleContext();
@@ -322,10 +299,7 @@ extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType
         ctx->module = module;
         ctx->cu = nullptr;
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+       *error = RedisModule_Strdup(e.what());
         delete ctx;
         return NULL;
     }
@@ -376,7 +350,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                                 TorchScriptFunctionArgumentType* argumentTypes,
                                 size_t* listSizes,
                                 RedisModuleString **otherInputs,
-                               char **error, void *(*alloc)(size_t)) {
+                               char **error) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
         torch::DeviceType device_type = getDeviceType(ctx);
@@ -470,15 +444,12 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
 
         torchRunModule(ctx, fnName, stack, nOutputs, outputs);
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
 extern "C" void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **inputs, long nOutputs,
-                              DLManagedTensor **outputs, char **error, void *(*alloc)(size_t)) {
+                              DLManagedTensor **outputs, char **error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     try {
         torch::DeviceType device_type = getDeviceType(ctx);
@@ -492,29 +463,22 @@ extern "C" void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **in
         }
         torchRunModule(ctx, "forward", stack, nOutputs, outputs);
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
-extern "C" void torchSerializeModel(void *modelCtx, char **buffer, size_t *len, char **error,
-                                    void *(*alloc)(size_t)) {
+extern "C" void torchSerializeModel(void *modelCtx, char **buffer, size_t *len, char **error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     std::ostringstream out;
     try {
         ctx->module->save(out);
         auto out_str = out.str();
         int size = out_str.size();
-        *buffer = (char *)alloc(size);
+        *buffer = (char *)RedisModule_Alloc(size);
         memcpy(*buffer, out_str.c_str(), size);
         *len = size;
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
@@ -525,7 +489,7 @@ extern "C" void torchDeallocContext(void *ctx) {
     }
 }
 
-extern "C" void torchSetInterOpThreads(int num_threads, char **error, void *(*alloc)(size_t)) {
+extern "C" void torchSetInterOpThreads(int num_threads, char **error) {
     int current_num_interop_threads = torch::get_num_interop_threads();
     if (current_num_interop_threads != num_threads) {
         try {
@@ -533,15 +497,12 @@ extern "C" void torchSetInterOpThreads(int num_threads, char **error, void *(*al
         } catch (std::exception) {
             std::string error_msg =
                 "Cannot set number of inter-op threads after parallel work has started";
-            size_t len = error_msg.length() + 1;
-            *error = (char *)alloc(len * sizeof(char));
-            strcpy(*error, error_msg.c_str());
-            (*error)[len - 1] = '\0';
+            *error = RedisModule_Strdup(error_msg.c_str());
         }
     }
 }
 
-extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*alloc)(size_t)) {
+extern "C" void torchSetIntraOpThreads(int num_threads, char **error) {
     int current_num_threads = torch::get_num_threads();
     if (current_num_threads != num_threads) {
         try {
@@ -549,10 +510,7 @@ extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*al
         } catch (std::exception) {
             std::string error_msg =
                 "Cannot set number of intra-op threads after parallel work has started";
-            size_t len = error_msg.length() + 1;
-            *error = (char *)alloc(len * sizeof(char));
-            strcpy(*error, error_msg.c_str());
-            (*error)[len - 1] = '\0';
+            *error = RedisModule_Strdup(error_msg.c_str());
         }
     }
 }
