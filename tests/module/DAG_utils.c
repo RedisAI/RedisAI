@@ -6,14 +6,14 @@
 #include <stdlib.h>
 #include "util/arr.h"
 
-static void _InitRunResults(RAI_RunCtx *run_ctx) {
+static void _InitRunCtx(RAI_RunCtx *run_ctx) {
     RedisAI_InitError(&run_ctx->error);
     run_ctx->outputs = array_new(RAI_Tensor *, 1);
     pthread_mutex_init(&run_ctx->lock, NULL);
     pthread_cond_init(&run_ctx->cond, NULL);
 }
 
-static void _FreeRunResults(RAI_RunCtx *run_ctx) {
+static void _FreeRunCtx(RAI_RunCtx *run_ctx) {
     RedisAI_FreeError(run_ctx->error);
     for (size_t i = 0; i < array_len(run_ctx->outputs); i++) {
         RedisAI_TensorFree(run_ctx->outputs[i]);
@@ -23,7 +23,8 @@ static void _FreeRunResults(RAI_RunCtx *run_ctx) {
     pthread_cond_destroy(&run_ctx->cond);
 }
 
-static size_t _ResultsNumOutputs(RAI_RunCtx run_ctx) { return array_len(run_ctx.outputs); }
+static size_t _RunCtxNumOutputs(RAI_RunCtx run_ctx) { return array_len(run_ctx.outputs); }
+
 static void *_getFromKeySpace(RedisModuleCtx *ctx, const char *keyNameStr) {
 
     RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
@@ -178,7 +179,7 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunCtx run_ctx;
-    _InitRunResults(&run_ctx);
+    _InitRunCtx(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
     RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
@@ -220,11 +221,11 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
     pthread_mutex_unlock(&run_ctx.lock);
 
     // Verify that we received the expected tensor at the end of the run.
-    RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 2);
+    RedisModule_Assert(_RunCtxNumOutputs(run_ctx) == 2);
     res = LLAPIMODULE_OK;
 
 cleanup:
-    _FreeRunResults(&run_ctx);
+    _FreeRunCtx(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
 }
@@ -233,7 +234,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunCtx run_ctx;
-    _InitRunResults(&run_ctx);
+    _InitRunCtx(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
     RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
@@ -262,7 +263,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     pthread_mutex_unlock(&run_ctx.lock);
 
     // Verify that we received the expected tensor at the end of the run.
-    RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 1);
+    RedisModule_Assert(_RunCtxNumOutputs(run_ctx) == 1);
     RAI_Tensor *out_tensor = run_ctx.outputs[0];
     double expceted[4] = {4, 9, 4, 9};
     double val;
@@ -277,7 +278,7 @@ int testSimpleDAGRun(RedisModuleCtx *ctx) {
     res = LLAPIMODULE_OK;
 
 cleanup:
-    _FreeRunResults(&run_ctx);
+    _FreeRunCtx(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
 }
@@ -286,7 +287,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunCtx run_ctx;
-    _InitRunResults(&run_ctx);
+    _InitRunCtx(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
     RAI_Tensor *tensor = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
@@ -315,7 +316,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     pthread_mutex_unlock(&run_ctx.lock);
 
     // Verify that we received the expected tensor at the end of the run.
-    RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 1);
+    RedisModule_Assert(_RunCtxNumOutputs(run_ctx) == 1);
     RAI_Tensor *out_tensor = run_ctx.outputs[0];
     double expceted[4] = {4, 6, 4, 6};
     double val;
@@ -330,7 +331,7 @@ int testSimpleDAGRun2(RedisModuleCtx *ctx) {
     res = LLAPIMODULE_OK;
 
 cleanup:
-    _FreeRunResults(&run_ctx);
+    _FreeRunCtx(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
 }
@@ -339,7 +340,7 @@ int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
 
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
     RAI_RunCtx run_ctx;
-    _InitRunResults(&run_ctx);
+    _InitRunCtx(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
     RAI_Tensor *tensor = (RAI_Tensor *)_getFromKeySpace(ctx, "a{1}");
@@ -365,21 +366,21 @@ int testSimpleDAGRun2Error(RedisModuleCtx *ctx) {
     pthread_mutex_unlock(&run_ctx.lock);
 
     // Verify that we received an error in SCRIPTRUN op.
-    RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 0);
+    RedisModule_Assert(_RunCtxNumOutputs(run_ctx) == 0);
     if (RedisAI_GetErrorCode(run_ctx.error) != RedisAI_ErrorCode_ESCRIPTRUN) {
         goto cleanup;
     }
     res = LLAPIMODULE_OK;
 
 cleanup:
-    _FreeRunResults(&run_ctx);
+    _FreeRunCtx(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
 }
 
 int testDAGResnet(RedisModuleCtx *ctx) {
     RAI_RunCtx run_ctx;
-    _InitRunResults(&run_ctx);
+    _InitRunCtx(&run_ctx);
     int res = LLAPIMODULE_ERR;
 
     // Build the DAG with LOAD->SCRIPTRUN->MODELRUN->MODELRUN-SCRIPTRUN->SCRIPTRUN->TENSORGET
@@ -430,7 +431,7 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     pthread_mutex_unlock(&run_ctx.lock);
 
     // Verify that we received the expected output.
-    RedisModule_Assert(_ResultsNumOutputs(run_ctx) == 1);
+    RedisModule_Assert(_RunCtxNumOutputs(run_ctx) == 1);
     RAI_Tensor *out_tensor = run_ctx.outputs[0];
     long long val;
     if (!RedisAI_TensorGetValueAsLongLong(out_tensor, 0, &val))
@@ -440,7 +441,7 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     }
 
 cleanup:
-    _FreeRunResults(&run_ctx);
+    _FreeRunCtx(&run_ctx);
     RedisAI_DAGFree(run_info);
     return res;
 }
