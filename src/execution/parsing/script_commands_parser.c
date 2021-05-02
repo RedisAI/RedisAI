@@ -2,7 +2,7 @@
 #include "parse_utils.h"
 #include "execution/utils.h"
 #include "util/string_utils.h"
-#include "execution/execution_contxets/scriptRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 
 static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx,
                                         RedisModuleString **inputs, RedisModuleString ***inkeys,

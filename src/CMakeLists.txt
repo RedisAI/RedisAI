@@ -41,8 +41,8 @@ ADD_LIBRARY(redisai_obj OBJECT
         execution/DAG/dag_builder.c
         execution/DAG/dag_execute.c
         execution/DAG/dag_op.c
-        execution/execution_contxets/modelRun_ctx.c
-        execution/execution_contxets/scriptRun_ctx.c
+        execution/execution_contexts/modelRun_ctx.c
+        execution/execution_contexts/scriptRun_ctx.c
         backends/backends.c
         backends/util.c
         redis_ai_objects/model.c

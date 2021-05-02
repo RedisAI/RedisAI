@@ -6,8 +6,8 @@
 #include "execution/utils.h"
 #include "execution/command_parser.h"
 #include "execution/background_workers.h"
-#include "execution/execution_contxets/modelRun_ctx.h"
-#include "execution/execution_contxets/scriptRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "execution/parsing/parse_utils.h"
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,

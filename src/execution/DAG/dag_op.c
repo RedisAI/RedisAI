@@ -1,7 +1,7 @@
 #include "dag_op.h"
 #include "util/arr.h"
-#include "execution/execution_contxets/modelRun_ctx.h"
-#include "execution/execution_contxets/scriptRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 /**
  * Allocate the memory and initialise the RAI_DagOp.
  * @param result Output parameter to capture allocated RAI_DagOp.

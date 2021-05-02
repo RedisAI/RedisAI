@@ -16,8 +16,8 @@
 #include "execution/DAG/dag_execute.h"
 #include "execution/parsing/deprecated.h"
 #include "redis_ai_objects/model.h"
-#include "execution/execution_contxets/modelRun_ctx.h"
-#include "execution/execution_contxets/scriptRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/stats.h"
 #include <pthread.h>

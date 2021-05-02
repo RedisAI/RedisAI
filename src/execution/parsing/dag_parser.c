@@ -4,7 +4,7 @@
 #include "util/dict.h"
 #include "util/string_utils.h"
 #include "redis_ai_objects/tensor.h"
-#include "execution/execution_contxets/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/command_parser.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_execute.h"

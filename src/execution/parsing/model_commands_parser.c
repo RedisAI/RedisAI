@@ -2,7 +2,7 @@
 #include "redis_ai_objects/model.h"
 #include "util/string_utils.h"
 #include "execution/parsing/parse_utils.h"
-#include "execution/execution_contxets/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
 
 static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                           RAI_Model **model, RAI_Error *error,
