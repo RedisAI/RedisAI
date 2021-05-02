@@ -13,7 +13,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
-    sctx->otherInputs = array_new(RedisModuleString *, PARAM_INITIAL_SIZE);
+    sctx->nonTensorsInputs = array_new(RedisModuleString *, PARAM_INITIAL_SIZE);
     return sctx;
 }
 
@@ -70,15 +70,15 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
     }
 
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    for (size_t i = 0; i < array_len(sctx->otherInputs); ++i) {
-        RedisModule_FreeString(ctx, sctx->otherInputs[i]);
+    for (size_t i = 0; i < array_len(sctx->nonTensorsInputs); ++i) {
+        RedisModule_FreeString(ctx, sctx->nonTensorsInputs[i]);
     }
     RedisModule_FreeThreadSafeContext(ctx);
 
     array_free(sctx->inputs);
     array_free(sctx->outputs);
     array_free(sctx->listSizes);
-    array_free(sctx->otherInputs);
+    array_free(sctx->nonTensorsInputs);
 
     RedisModule_Free(sctx->fnname);
 

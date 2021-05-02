@@ -39,14 +39,14 @@ void *torchLoadModel(const char *model, size_t modellen, DLDeviceType device, in
  * @param nInputs Number of tensor inputs from the user.
  * @param argumentTypes Fuction argument types (schema).
  * @param nlists Number of lists got as input from the user.
- * @param nOtherInputs Number of other inputs (ints, floats, strings) got from the user.
+ * @param nNonTensorsInputs Number of other inputs (ints, floats, strings) got from the user.
  * @param error Error string to be populated in case of an exception.
  * @return true If the user provided inputs from types and order that matches the schema.
  * @return false Otherwise.
  */
 bool torchMatchScriptSchema(size_t nArguments, long nInputs,
                             TorchScriptFunctionArgumentType *argumentTypes, size_t nlists,
-                            size_t nOtherInputs, char **error);
+                            size_t nNonTensorsInputs, char **error);
 
 /**
  * @brief Executes a function in a script.
@@ -60,13 +60,13 @@ bool torchMatchScriptSchema(size_t nArguments, long nInputs,
  * @param nArguments Number of arguments in the function.
  * @param argumentTypes Fuction argument types (schema).
  * @param listSizes Sized of user inputs lists.
- * @param otherInputs Array of strings represeing other inputs (ints, floats, strings).
+ * @param nonTensorsInputs Array of strings representing other inputs (ints, floats, strings).
  * @param error Error string to be populated in case of an exception.
  */
 void torchRunScript(void *scriptCtx, const char *fnName, long nInputs, DLManagedTensor **inputs,
                     long nOutputs, DLManagedTensor **outputs, size_t nArguments,
                     TorchScriptFunctionArgumentType *argumentTypes, size_t *listSizes,
-                    RedisModuleString **otherInputs, char **error);
+                    RedisModuleString **nonTensorsInputs, char **error);
 
 /**
  * @brief Executes a model.

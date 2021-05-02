@@ -78,8 +78,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
         return NULL;
     }
 
-    void *model =
-        torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
+    void *model = torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (error_descr) {
         goto cleanup;
@@ -310,8 +309,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
     }
 
     char *error_descr = NULL;
-    void *script =
-        torchCompileScript(scriptdef, dl_device, deviceid, &error_descr);
+    void *script = torchCompileScript(scriptdef, dl_device, deviceid, &error_descr);
 
     if (script == NULL) {
         RAI_SetError(error, RAI_ESCRIPTCREATE, error_descr);
@@ -379,7 +377,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     if (!torchMatchScriptSchema(array_len(arguments), nInputs, arguments,
-                                array_len(sctx->listSizes), array_len(sctx->otherInputs),
+                                array_len(sctx->listSizes), array_len(sctx->nonTensorsInputs),
                                 &error_descr)) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
         RedisModule_Free(error_descr);
@@ -387,7 +385,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     torchRunScript(sctx->script->script, sctx->fnname, nInputs, inputs, nOutputs, outputs,
-                   array_len(arguments), arguments, sctx->listSizes, sctx->otherInputs,
+                   array_len(arguments), arguments, sctx->listSizes, sctx->nonTensorsInputs,
                    &error_descr);
 
     if (error_descr) {

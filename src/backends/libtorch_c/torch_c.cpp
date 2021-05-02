@@ -318,11 +318,11 @@ static torch::DeviceType getDeviceType(ModuleContext *ctx) {
 }
 
 extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, 
-                                       size_t nlists, size_t nOtherInputs,
+                                       size_t nlists, size_t nNonTensorsInputs,
                                        char **error) {
     char* buf; 
     int schemaListCount = 0;
-    if((nInputs + nOtherInputs) < nArguments) {
+    if((nInputs + nNonTensorsInputs) < nArguments) {
         asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
         goto cleanup;
     }
@@ -349,7 +349,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                                 size_t nArguments,
                                 TorchScriptFunctionArgumentType* argumentTypes,
                                 size_t* listSizes,
-                                RedisModuleString **otherInputs,
+                                RedisModuleString **nonTensorsInputs,
                                char **error) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
@@ -386,7 +386,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     std::vector<torch::string> args;
                     size_t argumentSize = listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
-                        const char* cstr = RedisModule_StringPtrLen(otherInputs[otherInputsIdx++], NULL);
+                        const char* cstr = RedisModule_StringPtrLen(nonTensorsInputs[otherInputsIdx++], NULL);
                         torch::string str = torch::string(cstr);
                         args.emplace_back(str);
                     }
@@ -398,7 +398,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     size_t argumentSize = listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
                         long long l;
-                        RedisModule_StringToLongLong(otherInputs[otherInputsIdx++], &l);
+                        RedisModule_StringToLongLong(nonTensorsInputs[otherInputsIdx++], &l);
                         int val = (int)l;
                         args.emplace_back(val);
                     }
@@ -410,7 +410,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                     size_t argumentSize = listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
                         double d;
-                        RedisModule_StringToDouble(otherInputs[otherInputsIdx++], &d);
+                        RedisModule_StringToDouble(nonTensorsInputs[otherInputsIdx++], &d);
                         float val = (float)d;
                         args.emplace_back(val);
                     }
@@ -420,21 +420,21 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
 
                 case INT: {
                     long long l;
-                    RedisModule_StringToLongLong(otherInputs[otherInputsIdx++], &l);
+                    RedisModule_StringToLongLong(nonTensorsInputs[otherInputsIdx++], &l);
                     int val = (int)l;
                     stack.push_back(val);
                     break;
                 }
                 case FLOAT: {
                     double d;
-                    RedisModule_StringToDouble(otherInputs[otherInputsIdx++], &d);
+                    RedisModule_StringToDouble(nonTensorsInputs[otherInputsIdx++], &d);
                     float val = (float)d;
                     stack.push_back(val);
                     break;
                 }
                 case STRING:
                 default: {
-                    const char* cstr = RedisModule_StringPtrLen(otherInputs[otherInputsIdx++], NULL);
+                    const char* cstr = RedisModule_StringPtrLen(nonTensorsInputs[otherInputsIdx++], NULL);
                     torch::string str = torch::string(cstr);
                     stack.push_back(str);
                     break;

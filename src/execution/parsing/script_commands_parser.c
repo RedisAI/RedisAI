@@ -56,14 +56,14 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
             for (size_t j = 0; j < listLen; j++) {
                 // Input is not a tensor. It is string/int/float, so it is not required a key.
-                sctx->otherInputs =
-                    array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+                sctx->nonTensorsInputs =
+                    array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
             continue;
         } else if (signature[i] != TENSOR) {
             // Input is not a tensor. It is string/int/float, so it is not required a key.
-            sctx->otherInputs =
-                array_append(sctx->otherInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
+            sctx->nonTensorsInputs =
+                array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             continue;
         } else {
             // Input is a tensor, add its name to the inkeys.
