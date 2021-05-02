@@ -79,7 +79,7 @@ device selection options (fetch, build, and test):
   JETSON=1      # build for Nvidia Jetson
 
 enterprise variant
-  REDISAI_LITE=1        # build RedisAI LITE
+  LITE=1        # build RedisAI LITE
 endef
 
 #----------------------------------------------------------------------------------------------
@@ -132,7 +132,7 @@ else
 USE_PROFILE=off
 endif
 
-ifeq ($(REDISAI_LITE),1)
+ifeq ($(LITE),1)
 CMAKE_FLAGS += -DREDISAI_LITE=on
 endif
 
