@@ -10,15 +10,6 @@ static array_t dict_arr_clone_fn(void *privdata, const void *arr) {
 
 static void dict_arr_free_fn(void *privdata, void *arr) { array_free(arr); }
 
-AI_dictType AI_dictTypeHeapStringsVals = {
-    .hashFunction = RAI_StringsHashFunction,
-    .keyDup = RAI_StringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_StringsKeyCompare,
-    .keyDestructor = RAI_StringsKeyDestructor,
-    .valDestructor = RAI_StringsKeyDestructor,
-};
-
 AI_dictType AI_dictTypeHeapStrings = {
     .hashFunction = RAI_StringsHashFunction,
     .keyDup = RAI_StringsKeyDup,
@@ -26,15 +17,6 @@ AI_dictType AI_dictTypeHeapStrings = {
     .keyCompare = RAI_StringsKeyCompare,
     .keyDestructor = RAI_StringsKeyDestructor,
     .valDestructor = NULL,
-};
-
-AI_dictType AI_dictTypeHeapRStringsVals = {
-    .hashFunction = RAI_RStringsHashFunction,
-    .keyDup = RAI_RStringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_RStringsKeyCompare,
-    .keyDestructor = RAI_RStringsKeyDestructor,
-    .valDestructor = RAI_RStringsKeyDestructor,
 };
 
 AI_dictType AI_dictTypeHeapRStrings = {
@@ -52,14 +34,5 @@ AI_dictType AI_dictType_String_ArrSimple = {
     .valDup = dict_arr_clone_fn,
     .keyCompare = RAI_StringsKeyCompare,
     .keyDestructor = RAI_StringsKeyDestructor,
-    .valDestructor = dict_arr_free_fn,
-};
-
-AI_dictType AI_dictType_RString_ArrSimple = {
-    .hashFunction = RAI_RStringsHashFunction,
-    .keyDup = RAI_RStringsKeyDup,
-    .valDup = dict_arr_clone_fn,
-    .keyCompare = RAI_RStringsKeyCompare,
-    .keyDestructor = RAI_RStringsKeyDestructor,
     .valDestructor = dict_arr_free_fn,
 };

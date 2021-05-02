@@ -1,11 +1,20 @@
-#pragma onc
+#pragma once
 #include "dict.h"
 
+/**
+ * @brief Dictionary key type: const char*. value type: void*.
+ *
+ */
 extern AI_dictType AI_dictTypeHeapStrings;
-extern AI_dictType AI_dictTypeHeapStringsVals;
 
+/**
+ * @brief Dictionary key type: RedisModuleString*. value type: void*.
+ *
+ */
 extern AI_dictType AI_dictTypeHeapRStrings;
-extern AI_dictType AI_dictTypeHeapRStringsVals;
 
+/**
+ * @brief Dictionary key type: const char*. value type: arr.
+ *
+ */
 extern AI_dictType AI_dictType_String_ArrSimple;
-extern AI_dictType AI_dictType_RString_ArrSimple;
