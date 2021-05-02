@@ -79,7 +79,7 @@ device selection options (fetch, build, and test):
   JETSON=1      # build for Nvidia Jetson
 
 enterprise variant
-  LITE=1        # build RedisAI LITE
+  REDISAI_LITE=1        # build RedisAI LITE
 endef
 
 #----------------------------------------------------------------------------------------------
