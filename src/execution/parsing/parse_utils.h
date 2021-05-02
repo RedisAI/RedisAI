@@ -15,4 +15,4 @@ int ParseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *ti
  * @param functionName
  * @return const char*
  */
-const char *ScriptCommand_GetFunction(RedisModuleString *functionName);
+const char *ScriptCommand_GetFunctionName(RedisModuleString *functionName);

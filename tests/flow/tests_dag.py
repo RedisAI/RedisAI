@@ -367,7 +367,7 @@ def test_dag_scriptrun_errors(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("function name not specified", exception.__str__())
+        env.assertEqual("Unrecongnized parameter to SCRIPTRUN", exception.__str__())
 
 
 def test_dag_modelrun_financialNet_errors(env):

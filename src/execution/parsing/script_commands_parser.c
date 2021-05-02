@@ -12,7 +12,7 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
     TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
     if (!signature) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "Wrong number of inputs provided to AI.SCRIPTEXECUTE command");
+                     "Wrong function name provider to AI.SCRIPTEXECUTE command");
         return false;
     }
     size_t nlists = array_len(sctx->listSizes);
@@ -27,13 +27,14 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
         return false;
     }
     for (size_t i = 0; i < nArguments; i++) {
-        if (signature[i] == UNKOWN) {
+        switch (signature[i]) {
+        case UNKOWN: {
             RAI_SetError(error, RAI_ESCRIPTRUN,
                          "Unsupported argument type in AI.SCRIPTEXECUTE command");
             return false;
         }
-        // Collect the inputs tensor names from the current list
-        if (signature[i] == TENSOR_LIST) {
+        case TENSOR_LIST: {
+            // Collect the inputs tensor names from the current list
             signatureListCount++;
             if (signatureListCount > nlists) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
@@ -44,9 +45,11 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
             for (size_t j = 0; j < listLen; j++) {
                 *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
-            continue;
-        } else if (signature[i] == INT_LIST || signature[i] == FLOAT_LIST ||
-                   signature[i] == STRING_LIST) {
+            break;
+        }
+        case INT_LIST:
+        case FLOAT_LIST:
+        case STRING_LIST: {
             signatureListCount++;
             if (signatureListCount > nlists) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
@@ -59,15 +62,22 @@ static bool _Script_buildInputsBySchema(RedisModuleCtx *ctx, RAI_ScriptRunCtx *s
                 sctx->nonTensorsInputs =
                     array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
             }
-            continue;
-        } else if (signature[i] != TENSOR) {
+            break;
+        }
+        case INT:
+        case FLOAT:
+        case STRING: {
             // Input is not a tensor. It is string/int/float, so it is not required a key.
             sctx->nonTensorsInputs =
                 array_append(sctx->nonTensorsInputs, RAI_HoldString(ctx, inputs[inputsIdx++]));
-            continue;
-        } else {
+            break;
+        }
+        case TENSOR:
+        default: {
             // Input is a tensor, add its name to the inkeys.
             *inkeys = array_append(*inkeys, RAI_HoldString(ctx, inputs[inputsIdx++]));
+            break;
+        }
         }
     }
     if (signatureListCount != nlists) {
@@ -92,12 +102,6 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
     if (keysRequired) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, "KEYS")) {
-            // Check for already given keys.
-            if (KeysDone) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Already Encountered KEYS scope in AI.SCRIPTEXECUTE command");
-                goto cleanup;
-            }
             KeysDone = true;
             // Read key number.
             argpos++;
@@ -106,8 +110,8 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
                              "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
                 goto cleanup;
             }
-            long long ninputs;
-            if (RedisModule_StringToLongLong(argv[argpos], &ninputs) != REDISMODULE_OK) {
+            long long nkeys;
+            if (RedisModule_StringToLongLong(argv[argpos], &nkeys) != REDISMODULE_OK) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Invalid argument for key count in AI.SCRIPTEXECUTE");
                 goto cleanup;
@@ -115,14 +119,14 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             // Check validity of key numbers.
             argpos++;
             size_t first_input_pos = argpos;
-            if (first_input_pos + ninputs > argc) {
+            if (first_input_pos + nkeys > argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR number of input keys to AI.SCRIPTEXECUTE command does not match "
                              "the number of given arguments");
                 goto cleanup;
             }
             // Verify given keys in local shard.
-            for (; argpos < first_input_pos + ninputs; argpos++) {
+            for (; argpos < first_input_pos + nkeys; argpos++) {
                 if (!VerifyKeyInThisShard(ctx, argv[argpos])) {
                     RAI_SetError(error, RAI_ESCRIPTRUN,
                                  "ERR CROSSSLOT Keys in AI.SCRIPTEXECUTE request don't hash to the "
@@ -312,7 +316,7 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
 
     RAI_DagOpSetRunKey(currentOp, RAI_HoldString(ctx, argv[1]));
 
-    const char *func_name = ScriptCommand_GetFunction(argv[2]);
+    const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
     if (!func_name) {
         RAI_SetError(rinfo->err, RAI_ESCRIPTRUN, "ERR function name not specified");
         goto cleanup;

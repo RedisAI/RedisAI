@@ -11,16 +11,3 @@
  */
 int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
                               RedisModuleString **argv, int argc);
-
-// /**
-//  * @brief  Parse and validate SCRIPTEXECUTE from within a DAGEXECUTEE command. This function
-//  parse
-//  * the script scopes INPUTS, LIST_INPOUTS, OUTPUTS, without the KEYS scope as it will begiven in
-//  the
-//  * DAG command.
-//  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
-//  */
-// int ParseScriptExecuteArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-//                                            RAI_Error *error, RedisModuleString ***inkeys,
-//                                            RedisModuleString ***outkeys, RAI_ScriptRunCtx *sctx,
-//                                            long long *timeout);
