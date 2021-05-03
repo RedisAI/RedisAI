@@ -3,7 +3,7 @@ ARG OS=ubuntu:16.04
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
-ARG ONNXRUNTIME_VER=1.7.2_RCE
+ARG ONNXRUNTIME_VER=1.7.2
 ARG ARCH=x64
 
 RUN apt-get -qq update
@@ -32,7 +32,7 @@ RUN apt-get install -y locales && \
 WORKDIR /build
 ARG BUILDTYPE=Release
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
-RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
+RUN git clone --single-branch --branch rel-${ONNXRUNTIME_VER}_RCE ${ONNXRUNTIME_REPO} onnxruntime
 WORKDIR /build/onnxruntime
 RUN git fetch --recurse-submodules
 RUN ./build.sh ${BUILDARGS} --update --build

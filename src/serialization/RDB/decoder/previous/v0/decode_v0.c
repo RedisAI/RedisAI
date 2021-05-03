@@ -101,12 +101,12 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
         outputs[i] = RedisModule_LoadStringBuffer(io, NULL);
     }
 
-    RAI_ModelOpts opts = {
-        .batchsize = batchsize,
-        .minbatchsize = minbatchsize,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
-    };
+    RAI_ModelOpts opts = {.batchsize = batchsize,
+                          .minbatchsize = minbatchsize,
+                          // todo: minbatchtimeout is missing!
+                          .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
+                          .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+                          .external_data_disabled = isRunningOnRCE()};
 
     buffer = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))

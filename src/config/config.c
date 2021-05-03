@@ -20,7 +20,7 @@ long long backends_inter_op_parallelism; //  number of threads used for parallel
                                          //  between independent operations.
 long long model_chunk_size;              //  size of chunks used to break up model payloads.
 
-bool RCE;                                //  Indicates if we run on the cloud.
+bool RCE; //  Indicates if we run on the cloud.
 
 /**
  *
@@ -88,13 +88,9 @@ int setModelChunkSize(long long size) {
     return result;
 }
 
-bool isRunningOnRCE() {
-    return RCE;
-}
+bool isRunningOnRCE() { return RCE; }
 
-void setRCEConfig(bool RCE_flag) {
-    RCE = RCE_flag;
-}
+void setRCEConfig(bool RCE_flag) { RCE = RCE_flag; }
 
 /**
  * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
@@ -240,47 +236,43 @@ int RedisAI_Config_RCE(RedisModuleString *RCE_string) {
 int RAI_configParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                          RedisModuleString *rsval) {
     int ret = REDISMODULE_OK;
-    if(strcasecmp((key), "TF") == 0) {
+    if (strcasecmp((key), "TF") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, (val));
-    } else if(strcasecmp((key), "TFLITE") == 0) {
+    } else if (strcasecmp((key), "TFLITE") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, (val));
-    } else if(strcasecmp((key), "TORCH") == 0) {
+    } else if (strcasecmp((key), "TORCH") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, (val));
-    } else if(strcasecmp((key), "ONNX") == 0) {
+    } else if (strcasecmp((key), "ONNX") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, (val));
     }
-        // enable configuring the main thread to create a fixed number of worker
-        // threads up front per device. by default we'll use 1
-    else if(strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
+    // enable configuring the main thread to create a fixed number of worker
+    // threads up front per device. by default we'll use 1
+    else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
         ret = RedisAI_Config_QueueThreads(rsval);
-        if(ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s",
-              REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
         }
-    } else if(strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
+    } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
         ret = RedisAI_Config_IntraOperationParallelism(rsval);
-        if(ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld",
-              REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-              getBackendsIntraOpParallelism());
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
+                            getBackendsIntraOpParallelism());
         }
-    } else if(strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
+    } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
         ret = RedisAI_Config_InterOperationParallelism(rsval);
-        if(ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld",
-              REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-              getBackendsInterOpParallelism());
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
+                            getBackendsInterOpParallelism());
         }
-    } else if(strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
+    } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
         ret = RedisAI_Config_ModelChunkSize(rsval);
-        if(ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld",
-              REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
-              getModelChunkSize());
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
+                            getModelChunkSize());
         }
-    } else if(strcasecmp((key), "RCE") == 0) {
+    } else if (strcasecmp((key), "RCE") == 0) {
         ret = RedisAI_Config_RCE(rsval);
-        if(ret == REDISMODULE_OK) {
+        if (ret == REDISMODULE_OK) {
             RedisModule_Log(ctx, "notice", "Running on RCE");
         }
     } else if (strcasecmp((key), "BACKENDSPATH") == 0) {

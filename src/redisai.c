@@ -234,6 +234,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         .minbatchtimeout = minbatchtimeout,
         .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .external_data_disabled = isRunningOnRCE(),
     };
 
     if (AC_IsAtEnd(&ac)) {

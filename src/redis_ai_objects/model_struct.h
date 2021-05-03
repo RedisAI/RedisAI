@@ -7,10 +7,11 @@ typedef struct RAI_ModelOpts {
     size_t batchsize;
     size_t minbatchsize;
     size_t minbatchtimeout;
-    long long backends_intra_op_parallelism; //  number of threads used within an
-    //  individual op for parallelism.
-    long long backends_inter_op_parallelism; //  number of threads used for parallelism
-                                             //  between independent operations.
+    long long backends_intra_op_parallelism; // number of threads used within an individual op for
+                                             // parallelism.
+    long long backends_inter_op_parallelism; // number of threads used for parallelism between
+                                             // independent operations.
+    bool external_data_disabled; // Set to true if we don't allow loading external data (in RCE).
 } RAI_ModelOpts;
 
 typedef struct RAI_Model {

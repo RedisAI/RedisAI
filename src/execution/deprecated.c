@@ -226,13 +226,12 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         AC_GetString(&outac, outputs + i, NULL, 0);
     }
 
-    RAI_ModelOpts opts = {
-        .batchsize = batchsize,
-        .minbatchsize = minbatchsize,
-        .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
-    };
+    RAI_ModelOpts opts = {.batchsize = batchsize,
+                          .minbatchsize = minbatchsize,
+                          .minbatchtimeout = minbatchtimeout,
+                          .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
+                          .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+                          .external_data_disabled = isRunningOnRCE()};
 
     RAI_Model *model = NULL;
 

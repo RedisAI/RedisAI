@@ -462,3 +462,19 @@ def test_onnx_use_custom_allocator_with_GPU(env):
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 11)
 
+
+def test_onnx_disable_external_initializers():
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+    env = Env(moduleArgs='RCE 1')
+    con = env.getConnection()
+    model_pb = load_file_content('model_with_external_initializers.onnx')
+
+    # Try creating an onnx model which uses external initializers under RCE configuration - should raise an error.
+    try:
+        con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+        con.assertFalse(True)
+    except Exception as exception:
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertTrue(str(exception).find("Initializer tensors with external data is not allowed"))

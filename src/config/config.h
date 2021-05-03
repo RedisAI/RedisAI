@@ -1,6 +1,7 @@
 #pragma once
 
 #include "redismodule.h"
+#include <stdbool.h>
 
 typedef enum { RAI_MODEL, RAI_SCRIPT } RAI_RunType;
 

@@ -361,11 +361,17 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     }
 
     // TODO: these options could be configured at the AI.CONFIG level
-    ONNX_VALIDATE_STATUS(ort->SetSessionGraphOptimizationLevel(session_options, ORT_ENABLE_BASIC))
+    ONNX_VALIDATE_STATUS(ort->SetSessionGraphOptimizationLevel(session_options, ORT_ENABLE_BASIC));
     ONNX_VALIDATE_STATUS(
-        ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism))
+        ort->SetIntraOpNumThreads(session_options, (int)opts.backends_intra_op_parallelism));
     ONNX_VALIDATE_STATUS(
-        ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism))
+        ort->SetInterOpNumThreads(session_options, (int)opts.backends_inter_op_parallelism));
+
+    // We dont allow loading onnx models that load external data on RCE (security reasons).
+    if (opts.external_data_disabled) {
+        ONNX_VALIDATE_STATUS(
+            ort->AddSessionConfigEntry(session_options, "session.disable_external_data", "1"));
+    }
 
     // If the model is set for GPU, this will set CUDA provider for the session,
     // so that onnx will use its own allocator for CUDA (not Redis allocator)
