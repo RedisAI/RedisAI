@@ -91,6 +91,17 @@ int setModelChunkSize(long long size);
  * @param argc Redis command number of arguments
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
  */
+
+/**
+ * @return true if redis runs in the cloud.
+ */
+bool isRunningOnRCE(void);
+
+/**
+ * Sets the RCE flag.
+ */
+void setRCEConfig(bool RCE_flag);
+
 int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
@@ -138,6 +149,13 @@ int RedisAI_Config_IntraOperationParallelism(RedisModuleString *num_threads_stri
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
 int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string);
+
+/**
+ * Set the RCE flag to true so we will know that we are running on the cloud,
+ * @param RCE_string (should be 1 for setting the flag to true properly)
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int RedisAI_Config_RCE(RedisModuleString *RCE_string);
 
 /**
  *

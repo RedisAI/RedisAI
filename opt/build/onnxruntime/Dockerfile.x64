@@ -3,7 +3,7 @@ ARG OS=ubuntu:16.04
 #----------------------------------------------------------------------------------------------
 FROM ${OS}
 ARG ONNXRUNTIME_REPO=https://github.com/RedisAI/onnxruntime
-ARG ONNXRUNTIME_VER=1.7.1
+ARG ONNXRUNTIME_VER=1.7.2_RCE
 ARG ARCH=x64
 
 RUN apt-get -qq update

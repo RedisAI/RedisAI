@@ -1357,6 +1357,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     // Default configs
     RAI_BackendsPath = NULL;
     perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+    setRCEConfig(false);
     setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
     setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
     setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
