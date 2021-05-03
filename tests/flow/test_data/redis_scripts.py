@@ -25,20 +25,20 @@ def redis_hash_to_tensor(redis_value: Any):
 def test_redis_error(key:str):
     redis.execute("SET", key)
 
-def test_int_set_get(key:str, value:str):
-    redis.execute("SET", key, value)
+def test_int_set_get(key:str, value:int):
+    redis.execute("SET", key, str(value))
     res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_int_set_incr(key:str, value:str):
-    redis.execute("SET", key, value)
+def test_int_set_incr(key:str, value:int):
+    redis.execute("SET", key, str(value))
     res = redis.execute("INCR", key)
     redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_float_set_get(key:str, value:str):
-    redis.execute("SET", key, value)
+def test_float_set_get(key:str, value:float):
+    redis.execute("SET", key, str(value))
     res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_float_to_tensor(res)

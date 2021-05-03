@@ -514,7 +514,122 @@ OK
     The `AI.SCRIPTDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
 
+## AI.SCRIPTEXECUTE
+
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors, int, float or strings and store output tensors.
+
+The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
+
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case).
+
+!!! warning "Intermediate memory overhead"
+    The execution of models will generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the TORCH backend (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+**Redis API**
+
+```
+AI.SCRIPTRUN <key> <function> 
+KEYS n <key> [keys...] 
+INPUTS m <input> [input ...]
+LIST_INPUTS l <input> [input ...]
+OUTPUTS k <output> [output ...] [TIMEOUT t]
+```
+
+_Arguments_
+
+* **key**: the script's key name
+* **function**: the name of the function to run
+* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share.
+* **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that list inputs are treated in the **LIST_INPUTS** scope.
+* **LIST_INPUTS** Denotes the beginning of a list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that if more than one list is provided, their order should be aligned with the order of their respected paramter at the function signature.
+
+* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names
+* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+
+_Return_
+
+A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
+
+**Examples**
+
+The following is an example of running the previously-created 'myscript' on two input tensors:
+
+```
+redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
+OK
+redis> AI.SCRIPTEXECUTE myscript addtwo KEYS 3 mytensor1 mytensor2 result INPUTS 2 mytensor1 mytensor2 OUTPUTS 1 result
+OK
+redis> AI.TENSORGET result VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
+```
+
+Note: The above command could be executed with a shorter version, given all the keys are tagged with the same tag:
+
+```
+redis> AI.TENSORSET mytensor1{tag} FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 2
+OK
+redis> AI.SCRIPTEXECUTE myscript{tag} addtwo KEYS 1 {tag} INPUTS 2 mytensor1{tag} mytensor2{tag} OUTPUTS 1 result{tag}
+OK
+redis> AI.TENSORGET result{tag} VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
+```
+
+If 'myscript' supports `List[Tensor]` arguments:
+```python
+def addn(a, args : List[Tensor]):
+    return a + torch.stack(args).sum()
+```
+
+then one can provide an arbitrary number of inputs after the `$` sign:
+
+```
+redis> AI.TENSORSET mytensor1{tag} FLOAT 1 VALUES 40
+OK
+redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 1
+OK
+redis> AI.TENSORSET mytensor3{tag} FLOAT 1 VALUES 1
+OK
+redis> AI.SCRIPTRUN myscript{tag} addn keys 1 {tag} INPUTS 1 mytensor1{tag} LIST_INPUTS 2 mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
+OK
+redis> AI.TENSORGET result{tag} VALUES
+1) FLOAT
+2) 1) (integer) 1
+3) 1) "42"
+```
+
+### Redis Commands support.
+In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following (usless) script gets a key name, an `int` value and sets it in a tensor. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+
+```
+def redis_int_to_tensor(redis_value: int):
+    return torch.tensor(redis_value)
+
+def int_set_get(key:str, value:int):
+    redis.execute("SET", key, str(value))
+    res = redis.execute("GET", key)
+    return redis_string_int_to_tensor(res)
+```
+```
+redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 {1} INPUTS 2 x{1} 3 OUTPUTS 1 y{1}
+OK
+redis> AI.TENSORGET y{1} VALUES
+1) (integer) 3
+```
+
+!!! warning "Intermediate memory overhead"
+    The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
 ## AI.SCRIPTRUN
+_This command is deprecated and will not be available in future versions. consider using AI.MODELEXECUTE command instead._   
+
 The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors and store output tensors.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
