@@ -1097,7 +1097,17 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptFree, ctx);
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);

@@ -27,7 +27,7 @@ def test_redis_error(key:str):
 
 def test_int_set_get(key:str, value:str):
     redis.execute("SET", key, value)
-    res = redis.execute("GET", key,)
+    res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
@@ -39,7 +39,7 @@ def test_int_set_incr(key:str, value:str):
 
 def test_float_set_get(key:str, value:str):
     redis.execute("SET", key, value)
-    res = redis.execute("GET", key,)
+    res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_float_to_tensor(res)
 

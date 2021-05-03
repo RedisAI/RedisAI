@@ -317,25 +317,78 @@ static torch::DeviceType getDeviceType(ModuleContext *ctx) {
     }
 }
 
-extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScriptFunctionArgumentType* argumentTypes, 
-                                       size_t nlists, size_t nNonTensorsInputs,
-                                       char **error) {
+extern "C" bool torchMatchScriptSchema(TorchScriptFunctionArgumentType *schema ,size_t nArguments, TorchFunctionInputCtx* inputsCtx, char **error) {
     char* buf; 
     int schemaListCount = 0;
-    if((nInputs + nNonTensorsInputs) < nArguments) {
-        asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, nInputs);
+    size_t schemaTensorCount = 0;
+    size_t schemaIntCount = 0;
+    size_t schemaFloatCount = 0;
+    size_t schemaStringCount = 0;
+    size_t totalInputsCount = inputsCtx->tensorCount + inputsCtx->intCount + inputsCtx->floatCount + inputsCtx->stringCount;
+    if((totalInputsCount) < nArguments) {
+        asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, totalInputsCount);
         goto cleanup;
     }
     for (size_t i = 0; i < nArguments; i++) {
-        if(argumentTypes[i] == INT_LIST || argumentTypes[i] == FLOAT_LIST || argumentTypes[i] == STRING_LIST || argumentTypes[i] == TENSOR_LIST) {
-            schemaListCount++;
-            continue;
+        switch (schema[i]) {
+            case TENSOR:
+                schemaTensorCount++;
+                break;
+            case INT:
+                schemaIntCount++;
+                break;
+            case FLOAT:
+                schemaFloatCount++;
+                break;
+            case STRING:
+                schemaStringCount++;
+                break;
+            case TENSOR_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaTensorCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case INT_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaIntCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case FLOAT_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaFloatCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case STRING_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaStringCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            default:
+                asprintf(&buf, "Unkown type in script schema validation.");
+                goto cleanup;
         }
     } 
-    if(schemaListCount != nlists) {
-        asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, nlists);
+    if(schemaListCount != inputsCtx->listCount) {
+        asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
         goto cleanup;
     }
+    if(schemaTensorCount != inputsCtx->tensorCount || schemaIntCount != inputsCtx->intCount || schemaFloatCount != inputsCtx->floatCount || schemaStringCount!= inputsCtx->stringCount) {
+        asprintf(&buf, "Wrong number of parameters");
+        goto cleanup;
+    }
+
     return true;
 
     cleanup:
@@ -344,13 +397,11 @@ extern "C" bool torchMatchScriptSchema(size_t nArguments, long nInputs, TorchScr
     return false;
 }
 
-extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs,
-                               DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs,
-                                size_t nArguments,
-                                TorchScriptFunctionArgumentType* argumentTypes,
-                                size_t* listSizes,
-                                RedisModuleString **nonTensorsInputs,
-                               char **error) {
+extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
+                                TorchScriptFunctionArgumentType* schema, size_t nArguments,
+                                TorchFunctionInputCtx* inputsCtx,
+                                DLManagedTensor **outputs,long nOutputs,
+                                char **error) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
         torch::DeviceType device_type = getDeviceType(ctx);
@@ -359,22 +410,24 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
         torch::jit::Stack stack;
 
         size_t listsIdx = 0;
-        size_t inputsIdx = 0;
-        size_t otherInputsIdx = 0;
+        size_t tensorIdx = 0;
+        size_t intIdx = 0;
+        size_t floatIdx = 0;
+        size_t stringIdx = 0;
         for(size_t i= 0; i < nArguments; i++) {
             // In case of tensor.
-            switch (argumentTypes[i]) {
+            switch (schema[i]) {
                 case TENSOR: {
-                    DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
+                    DLTensor *input = &(inputsCtx->tensorInputs[tensorIdx++]->dl_tensor);
                     torch::Tensor tensor = fromDLPack(input);
                     stack.push_back(tensor.to(device));
                     break;
                 }
                 case TENSOR_LIST: {
                     std::vector<torch::Tensor> args;
-                    size_t argumentSize = listSizes[listsIdx++];
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
-                        DLTensor *input = &(inputs[inputsIdx++]->dl_tensor);
+                        DLTensor *input = &(inputsCtx->tensorInputs[tensorIdx++]->dl_tensor);
                         torch::Tensor tensor = fromDLPack(input);
                         tensor.to(device);
                         args.emplace_back(tensor);
@@ -384,9 +437,9 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                 }
                 case STRING_LIST: {
                     std::vector<torch::string> args;
-                    size_t argumentSize = listSizes[listsIdx++];
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
-                        const char* cstr = RedisModule_StringPtrLen(nonTensorsInputs[otherInputsIdx++], NULL);
+                        const char* cstr = RedisModule_StringPtrLen(inputsCtx->stringsInputs[stringIdx++], NULL);
                         torch::string str = torch::string(cstr);
                         args.emplace_back(str);
                     }
@@ -395,11 +448,9 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                 }
                 case INT_LIST: {
                     std::vector<int> args;
-                    size_t argumentSize = listSizes[listsIdx++];
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
-                        long long l;
-                        RedisModule_StringToLongLong(nonTensorsInputs[otherInputsIdx++], &l);
-                        int val = (int)l;
+                        int32_t val = inputsCtx->intInputs[intIdx++];
                         args.emplace_back(val);
                     }
                     stack.push_back(args);
@@ -407,11 +458,9 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                 }
                 case FLOAT_LIST: {
                     std::vector<float> args;
-                    size_t argumentSize = listSizes[listsIdx++];
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
                     for (size_t j = 0; j < argumentSize; j++) {
-                        double d;
-                        RedisModule_StringToDouble(nonTensorsInputs[otherInputsIdx++], &d);
-                        float val = (float)d;
+                        float val = inputsCtx->floatInputs[floatIdx++];
                         args.emplace_back(val);
                     }
                     stack.push_back(args);
@@ -419,24 +468,23 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName, long nInputs
                 }
 
                 case INT: {
-                    long long l;
-                    RedisModule_StringToLongLong(nonTensorsInputs[otherInputsIdx++], &l);
-                    int val = (int)l;
+                    int32_t val = inputsCtx->intInputs[intIdx++];
                     stack.push_back(val);
                     break;
                 }
                 case FLOAT: {
-                    double d;
-                    RedisModule_StringToDouble(nonTensorsInputs[otherInputsIdx++], &d);
-                    float val = (float)d;
+                    float val = inputsCtx->floatInputs[floatIdx++];
                     stack.push_back(val);
                     break;
                 }
-                case STRING:
-                default: {
-                    const char* cstr = RedisModule_StringPtrLen(nonTensorsInputs[otherInputsIdx++], NULL);
+                case STRING: {
+                    const char* cstr = RedisModule_StringPtrLen(inputsCtx->stringsInputs[stringIdx++], NULL);
                     torch::string str = torch::string(cstr);
                     stack.push_back(str);
+                    break;
+                }
+                default: {
+                    *error = RedisModule_Strdup("Unkown script input type");
                     break;
                 }
             }

@@ -42,5 +42,7 @@ typedef struct RAI_ScriptRunCtx {
     RAI_ScriptCtxParam *inputs;
     RAI_ScriptCtxParam *outputs;
     size_t *listSizes;
-    RedisModuleString **nonTensorsInputs;
+    int32_t *intInputs;
+    float *floatInputs;
+    RedisModuleString **stringInputs;
 } RAI_ScriptRunCtx;

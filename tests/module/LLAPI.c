@@ -43,23 +43,6 @@ static void _ScriptFinishFunc(RAI_OnFinishCtx *onFinishCtx, void *private_data) 
         *(int *)private_data = LLAPI_RUN_ERROR;
         goto finish;
     }
-    if (RedisAI_ScriptRunCtxNumOutputs(sctx) != 1) {
-        *(int *)private_data = LLAPI_NUM_OUTPUTS_ERROR;
-        goto finish;
-    }
-    RAI_Tensor *tensor = RedisAI_ScriptRunCtxOutputTensor(sctx, 0);
-    double expceted[4] = {4, 6, 4, 6};
-    double val[4];
-
-    // Verify that we received the expected tensor at the end of the run.
-    for (long long i = 0; i < 4; i++) {
-        if (!RedisAI_TensorGetValueAsDouble(tensor, i, &val[i])) {
-            goto finish;
-        }
-        if (expceted[i] != val[i]) {
-            goto finish;
-        }
-    }
     *(int *)private_data = LLAPI_RUN_SUCCESS;
 
 finish:
@@ -216,7 +199,7 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
     RAI_Tensor *input1 = RedisModule_ModuleTypeGetValue(key);
-    RedisAI_ScriptRunCtxAddInput(sctx, input1, err);
+    RedisAI_ScriptRunCtxAddTensorInput(sctx, input1);
     RedisModule_FreeString(ctx, keyRedisStr);
     RedisModule_CloseKey(key);
 
@@ -224,7 +207,7 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
     RAI_Tensor *input2 = RedisModule_ModuleTypeGetValue(key);
-    RedisAI_ScriptRunCtxAddInput(sctx, input2, err);
+    RedisAI_ScriptRunCtxAddTensorInput(sctx, input2);
     RedisModule_FreeString(ctx, keyRedisStr);
     RedisModule_CloseKey(key);
 
@@ -234,6 +217,56 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     if (_ExecuteScriptRunAsync(ctx, sctx) != LLAPI_RUN_SUCCESS)
         return RedisModule_ReplyWithSimpleString(ctx, "Async run failed");
     return RedisModule_ReplyWithSimpleString(ctx, "Async run success");
+}
+
+static void _asyncScriptUnblockClient(RAI_OnFinishCtx *onFinishCtx, void *private_data) {
+    RAI_Error *err;
+    if (RedisAI_InitError(&err) != REDISMODULE_OK)
+        goto finish;
+    RAI_ScriptRunCtx *sctx = RedisAI_GetAsScriptRunCtx(onFinishCtx, err);
+    if (RedisAI_GetErrorCode(err) != RedisAI_ErrorCode_OK) {
+        goto finish;
+    }
+finish:
+    RedisAI_FreeError(err);
+    RedisModule_UnblockClient(private_data, sctx);
+}
+
+static int RAI_llapi_script_int_get_set_reply(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                              int arg) {
+    RAI_ScriptRunCtx *sctx = RedisModule_GetBlockedClientPrivateData(ctx);
+    RAI_Tensor *tensor = RedisAI_ScriptRunCtxOutputTensor(sctx, 0);
+    RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, "y{1}", strlen("y{1}"));
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_WRITE);
+    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorRedisType(), tensor) != REDISMODULE_OK) {
+        return RedisModule_ReplyWithSimpleString(ctx, "tensorset failed");
+    }
+    RedisModule_FreeString(ctx, keyRedisStr);
+    RedisModule_CloseKey(key);
+    return REDISMODULE_OK;
+}
+
+int RAI_llapi_script_int_get_set(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    REDISMODULE_NOT_USED(argv);
+
+    if (argc > 1) {
+        RedisModule_WrongArity(ctx);
+        return REDISMODULE_OK;
+    }
+    // The script 'llapi_script{1}' should exist in key space.
+    const char *keyNameStr = "llapi_script{1}";
+    RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
+    RAI_Script *script = RedisModule_ModuleTypeGetValue(key);
+    RAI_ScriptRunCtx *sctx = RedisAI_ScriptRunCtxCreate(script, "test_int_set_get");
+    RedisModule_FreeString(ctx, keyRedisStr);
+    RedisModule_CloseKey(key);
+    RedisAI_ScriptRunCtxAddStringInput(sctx, "x{1}", strlen("x{1}"));
+    RedisAI_ScriptRunCtxAddStringInput(sctx, "1", strlen("1"));
+    RedisAI_ScriptRunCtxAddOutput(sctx);
+    RedisModuleBlockedClient *client =
+        RedisModule_BlockClient(ctx, RAI_llapi_script_int_get_set_reply, NULL, NULL, 0);
+    RedisAI_ScriptRunAsync(sctx, _asyncScriptUnblockClient, client);
 }
 
 int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -324,6 +357,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "RAI_llapi.DAG_resnet", RAI_llapi_DAG_resnet, "", 0, 0, 0) ==
         REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+
+    if (RedisModule_CreateCommand(ctx, "RAI_llapi.script_int_get_set", RAI_llapi_script_int_get_set,
+                                  "", 0, 0, 0) == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
 

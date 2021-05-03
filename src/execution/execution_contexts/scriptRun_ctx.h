@@ -135,3 +135,26 @@ size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index);
 
 int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
                            RedisModuleString **outkeys, RAI_ScriptRunCtx *sctx, RAI_Error *err);
+
+int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor);
+
+int RAI_ScriptRunCtxAddIntInput(RAI_ScriptRunCtx *sctx, int32_t i);
+
+int RAI_ScriptRunCtxAddFloatInput(RAI_ScriptRunCtx *sctx, float f);
+
+int RAI_ScriptRunCtxAddRStringInput(RAI_ScriptRunCtx *sctx, RedisModuleString *s);
+
+int RAI_ScriptRunCtxAddStringInput(RAI_ScriptRunCtx *sctx, const char *s, size_t len);
+
+int RAI_ScriptRunCtxAddTensorInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors,
+                                       size_t count);
+
+int RAI_ScriptRunCtxAddIntInputList(RAI_ScriptRunCtx *sctx, int32_t *intInputs, size_t count);
+
+int RAI_ScriptRunCtxAddFloatInputList(RAI_ScriptRunCtx *sctx, float *floatInputs, size_t count);
+
+int RAI_ScriptRunCtxAddRStringInputList(RAI_ScriptRunCtx *sctx, RedisModuleString **stringInputs,
+                                        size_t count);
+
+int RAI_ScriptRunCtxAddStringInputList(RAI_ScriptRunCtx *sctx, const char **stringInputs,
+                                       size_t *lens, size_t count);

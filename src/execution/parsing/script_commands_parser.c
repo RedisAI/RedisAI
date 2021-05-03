@@ -46,8 +46,36 @@ static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleStrin
             }
             break;
         }
-        case INT_LIST:
-        case FLOAT_LIST:
+        case INT_LIST: {
+            signatureListCount++;
+            if (signatureListCount > nlists) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                return false;
+            }
+            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
+            for (size_t j = 0; j < listLen; j++) {
+                long long l;
+                RedisModule_StringToLongLong(inputs[inputsIdx++], &l);
+                RAI_ScriptRunCtxAddIntInput(sctx, (int32_t)l);
+            }
+            break;
+        }
+        case FLOAT_LIST: {
+            signatureListCount++;
+            if (signatureListCount > nlists) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
+                return false;
+            }
+            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
+            for (size_t j = 0; j < listLen; j++) {
+                double d;
+                RedisModule_StringToDouble(inputs[inputsIdx++], &d);
+                RAI_ScriptRunCtxAddFloatInput(sctx, (float)d);
+            }
+            break;
+        }
         case STRING_LIST: {
             signatureListCount++;
             if (signatureListCount > nlists) {
@@ -57,18 +85,25 @@ static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleStrin
             }
             size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
             for (size_t j = 0; j < listLen; j++) {
-                // Input is not a tensor. It is string/int/float, so it is not required a key.
-                sctx->nonTensorsInputs =
-                    array_append(sctx->nonTensorsInputs, RAI_HoldString(inputs[inputsIdx++]));
+                RAI_ScriptRunCtxAddRStringInput(sctx, inputs[inputsIdx++]);
             }
             break;
         }
-        case INT:
-        case FLOAT:
+        case INT: {
+            long long l;
+            RedisModule_StringToLongLong(inputs[inputsIdx++], &l);
+            RAI_ScriptRunCtxAddIntInput(sctx, (int32_t)l);
+            break;
+        }
+        case FLOAT: {
+            double d;
+            RedisModule_StringToDouble(inputs[inputsIdx++], &d);
+            RAI_ScriptRunCtxAddFloatInput(sctx, (float)d);
+            break;
+        }
         case STRING: {
-            // Input is not a tensor. It is string/int/float, so it is not required a key.
-            sctx->nonTensorsInputs =
-                array_append(sctx->nonTensorsInputs, RAI_HoldString(inputs[inputsIdx++]));
+            // Input is a string.
+            RAI_ScriptRunCtxAddRStringInput(sctx, inputs[inputsIdx++]);
             break;
         }
         case TENSOR:
