@@ -516,7 +516,7 @@ OK
 
 ## AI.SCRIPTEXECUTE
 
-The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors, int, float or strings and store output tensors.
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It accepts one or more inputs, where the inputs could be tensors stored in RedisAI, int, float, or strings and stores the script outputs as RedisAI tensors if required.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 
@@ -528,22 +528,21 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 **Redis API**
 
 ```
-AI.SCRIPTRUN <key> <function> 
+AI.SCRIPTEXECUTE <key> <function> 
 KEYS n <key> [keys...] 
-INPUTS m <input> [input ...]
-LIST_INPUTS l <input> [input ...]
-OUTPUTS k <output> [output ...] [TIMEOUT t]
+[INPUTS m <input> [input ...] | [LIST_INPUTS l <input> [input ...]]*]
+[OUTPUTS k <output> [output ...] [TIMEOUT t]]+
 ```
 
 _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
-* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share.
+* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command.
 * **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that list inputs are treated in the **LIST_INPUTS** scope.
 * **LIST_INPUTS** Denotes the beginning of a list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that if more than one list is provided, their order should be aligned with the order of their respected paramter at the function signature.
 
-* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names
+* **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 
 _Return_
@@ -588,8 +587,6 @@ def addn(a, args : List[Tensor]):
     return a + torch.stack(args).sum()
 ```
 
-then one can provide an arbitrary number of inputs after the `$` sign:
-
 ```
 redis> AI.TENSORSET mytensor1{tag} FLOAT 1 VALUES 40
 OK
@@ -597,7 +594,7 @@ redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 1
 OK
 redis> AI.TENSORSET mytensor3{tag} FLOAT 1 VALUES 1
 OK
-redis> AI.SCRIPTRUN myscript{tag} addn keys 1 {tag} INPUTS 1 mytensor1{tag} LIST_INPUTS 2 mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addn keys 1 {tag} INPUTS 1 mytensor1{tag} LIST_INPUTS 2 mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -606,7 +603,7 @@ redis> AI.TENSORGET result{tag} VALUES
 ```
 
 ### Redis Commands support.
-In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following (usless) script gets a key name, an `int` value and sets it in a tensor. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following (usless) script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
 
 ```
 def redis_int_to_tensor(redis_value: int):
