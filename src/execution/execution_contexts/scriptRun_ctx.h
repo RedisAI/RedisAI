@@ -158,4 +158,3 @@ int RAI_ScriptRunCtxAddRStringInputList(RAI_ScriptRunCtx *sctx, RedisModuleStrin
 
 int RAI_ScriptRunCtxAddStringInputList(RAI_ScriptRunCtx *sctx, const char **stringInputs,
                                        size_t *lens, size_t count);
-                                       
