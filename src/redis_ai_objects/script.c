@@ -128,9 +128,6 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     }
     RedisModule_KeyAtPos(ctx, 1);
     size_t argpos = 3;
-    if (argpos >= argc) {
-        return REDISMODULE_ERR;
-    }
     long long count;
     while (argpos < argc) {
         const char *str = RedisModule_StringPtrLen(argv[argpos++], NULL);
