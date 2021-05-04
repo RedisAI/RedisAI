@@ -538,7 +538,7 @@ _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
-* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command.
+* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command. Redis will verify that all potional key accesses are done to the right shard.
 * **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that list inputs are treated in the **LIST_INPUTS** scope.
 * **LIST_INPUTS** Denotes the beginning of a list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that if more than one list is provided, their order should be aligned with the order of their respected paramter at the function signature.
 
