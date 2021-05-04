@@ -412,13 +412,12 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             continue;
         }
         // Parse argument name
-        RAI_HoldString(argv[argpos]);
         if (is_input) {
             ninputs++;
-            *inkeys = array_append(*inkeys, argv[argpos]);
+            *inkeys = array_append(*inkeys, RAI_HoldString(argv[argpos]));
         } else if (is_output) {
             noutputs++;
-            *outkeys = array_append(*outkeys, argv[argpos]);
+            *outkeys = array_append(*outkeys, RAI_HoldString(argv[argpos]));
         } else {
             RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to SCRIPTRUN");
             return REDISMODULE_ERR;
