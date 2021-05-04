@@ -204,7 +204,7 @@ jobs:
     machine:
       enabled: true
       docker_layer_caching: true
-      resource_class: large
+      resource_class: medium
       image: ubuntu-2004:202101-01
     steps:
       - platforms-build-steps
