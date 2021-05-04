@@ -150,13 +150,3 @@ def test_dagrun_multidevice_resnet(env):
 
     ret = con.execute_command("RAI_llapi.DAG_resnet")
     env.assertEqual(ret, b'DAG resnet success')
-
-# @with_test_module
-# def test_script_params(env):
-#     con = env.getConnection()
-#     script = load_file_content('redis_scripts.py')
-#     con.execute_command('AI.SCRIPTSET', 'llapi_script{1}', DEVICE, 'SOURCE', script)
-
-#     con.execute_command("RAI_llapi.script_int_get_set")
-#     y = con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
-#     env.assertEqual(y, [b"dtype", b"INT64", b"shape", [], b"values", [1]] )
