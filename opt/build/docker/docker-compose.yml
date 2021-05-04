@@ -1,0 +1,46 @@
+# This docker-compose file exists purely to make building within a docker, on a
+# per-platform basis easier. Each target service builds a docker on the target platform, using the
+# existing Dockerfile in this folder. Builds are run via the command below.
+# If you'd like to build a specific OS target (i.e. bionic) add the target to the command:
+#
+# examples:
+#   docker-compose build --parallel
+#   docker-compose build bionic
+#   docker-compose build --parallel bionic xenial
+---
+
+version: "3.9"
+services:
+
+  bionic:
+    image: redislabs/redisai:${VERSION:-edge}-bionic-${DOCKER_ARCH:-x64}
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: bionic
+        REDIS_VERSION: ${REDIS_VERSION}
+        ARCH: ${DOCKER_ARCH:-x64}
+        VARIANT: ${VARIANT:-cpu}
+
+  xenial:
+    image: redislabs/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: xenial
+        REDIS_VERSION: ${REDIS_VERSION}
+        ARCH: ${DOCKER_ARCH:-x64}
+        VARIANT: ${VARIANT:-cpu}
+
+  buster:
+    image: redislabs/redisai:${VERSION:-edge}-buster-${DOCKER_ARCH:-x64}
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: buster
+        REDIS_VERSION: ${REDIS_VERSION}
+        ARCH: ${DOCKER_ARCH:-x64}
+        VARIANT: ${VARIANT:-cpu}
