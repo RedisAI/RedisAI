@@ -40,8 +40,8 @@ commands:
             sudo apt-get -qq update
             sudo apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
             bash <(curl -fsSL https://get.docker.com)
-      - setup_remote_docker:
-          docker_layer_caching: true
+#      - setup_remote_docker:
+#          docker_layer_caching: true
 
   relocate-docker-storage:
     steps:
@@ -204,7 +204,7 @@ jobs:
     machine:
       enabled: true
       docker_layer_caching: true
-      resource_class: small
+      resource_class: large
       image: ubuntu-2004:202101-01
     steps:
       - platforms-build-steps
