@@ -16,7 +16,7 @@ venv*/
 *.tar.gz
 /VARIANT
 
-# Docs API reference 
+# Docs API reference
 docs/api_reference.md
 
 ### Cmake auto tools
@@ -138,3 +138,6 @@ dkms.conf
 
 # docs site
 site/
+
+# docker-compose generates
+**/.env

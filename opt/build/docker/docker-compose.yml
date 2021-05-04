@@ -13,7 +13,7 @@ version: "3.9"
 services:
 
   bionic:
-    image: redislabs/redisai:${VERSION:-edge}-bionic-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-bionic-${DOCKER_ARCH:-x64}
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -24,7 +24,7 @@ services:
         VARIANT: ${VARIANT:-cpu}
 
   xenial:
-    image: redislabs/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -35,7 +35,7 @@ services:
         VARIANT: ${VARIANT:-cpu}
 
   buster:
-    image: redislabs/redisai:${VERSION:-edge}-buster-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
