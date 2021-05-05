@@ -2,6 +2,7 @@
 #include "backends/util.h"
 #include "backends/torch.h"
 #include "util/arr.h"
+#include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
 #include "redis_ai_objects/tensor.h"
 
@@ -25,6 +26,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_ThreadSafeContextUnlock",
                ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
+    get_api_fn("RedisModule_StringPtrLen", ((void **)&RedisModule_StringPtrLen));
 
     return REDISMODULE_OK;
 }
@@ -58,7 +60,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
 
     char *error_descr = NULL;
     if (opts.backends_inter_op_parallelism > 0) {
-        torchSetInterOpThreads(opts.backends_inter_op_parallelism, &error_descr, RedisModule_Alloc);
+        torchSetInterOpThreads(opts.backends_inter_op_parallelism, &error_descr);
     }
 
     if (error_descr != NULL) {
@@ -68,7 +70,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
     }
 
     if (opts.backends_intra_op_parallelism > 0) {
-        torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr, RedisModule_Alloc);
+        torchSetIntraOpThreads(opts.backends_intra_op_parallelism, &error_descr);
     }
     if (error_descr) {
         RAI_SetError(error, RAI_EMODELCREATE, error_descr);
@@ -76,8 +78,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
         return NULL;
     }
 
-    void *model =
-        torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+    void *model = torchLoadModel(modeldef, modellen, dl_device, deviceid, &error_descr);
 
     if (error_descr) {
         goto cleanup;
@@ -225,8 +226,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr,
-                  RedisModule_Alloc);
+    torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_TensorFree(inputs[i]);
@@ -273,7 +273,7 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
         *len = model->datalen;
     } else {
         char *error_descr = NULL;
-        torchSerializeModel(model->model, buffer, len, &error_descr, RedisModule_Alloc);
+        torchSerializeModel(model->model, buffer, len, &error_descr);
 
         if (*buffer == NULL) {
             RAI_SetError(error, RAI_EMODELSERIALIZE, error_descr);
@@ -309,8 +309,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
     }
 
     char *error_descr = NULL;
-    void *script =
-        torchCompileScript(scriptdef, dl_device, deviceid, &error_descr, RedisModule_Alloc);
+    void *script = torchCompileScript(scriptdef, dl_device, deviceid, &error_descr);
 
     if (script == NULL) {
         RAI_SetError(error, RAI_ESCRIPTCREATE, error_descr);
@@ -323,6 +322,21 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
+    ret->functionData = AI_dictCreate(&AI_dictType_String_ArrSimple, NULL);
+
+    size_t functionCount = torchScript_FunctionCount(script);
+    for (size_t i = 0; i < functionCount; i++) {
+        const char *name = torchScript_FunctionName(script, i);
+        size_t argCount = torchScript_FunctionArgumentCount(script, i);
+        TorchScriptFunctionArgumentType *argTypes =
+            array_new(TorchScriptFunctionArgumentType, argCount);
+        for (size_t j = 0; j < argCount; j++) {
+            TorchScriptFunctionArgumentType argType = torchScript_FunctionArgumentype(script, i, j);
+            argTypes = array_append(argTypes, argType);
+        }
+        AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
+        array_free(argTypes);
+    }
 
     return ret;
 }
@@ -330,6 +344,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
 
     torchDeallocContext(script->script);
+    AI_dictRelease(script->functionData);
     RedisModule_Free(script->scriptdef);
     RedisModule_Free(script->devicestr);
     RedisModule_Free(script);
@@ -352,8 +367,36 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    torchRunScript(sctx->script->script, sctx->fnname, sctx->variadic, nInputs, inputs, nOutputs,
-                   outputs, &error_descr, RedisModule_Alloc);
+
+    TorchScriptFunctionArgumentType *arguments =
+        AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
+    if (!arguments) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "attempted to get undefined function");
+        RedisModule_Free(error_descr);
+        return 1;
+    }
+
+    // Create inputs context on stack.
+    TorchFunctionInputCtx inputsCtx = {0};
+    inputsCtx.tensorInputs = inputs;
+    inputsCtx.tensorCount = nInputs;
+    inputsCtx.intInputs = sctx->intInputs;
+    inputsCtx.intCount = array_len(sctx->intInputs);
+    inputsCtx.floatInputs = sctx->floatInputs;
+    inputsCtx.floatCount = array_len(sctx->floatInputs);
+    inputsCtx.stringsInputs = sctx->stringInputs;
+    inputsCtx.stringCount = array_len(sctx->stringInputs);
+    inputsCtx.listSizes = sctx->listSizes;
+    inputsCtx.listCount = array_len(sctx->listSizes);
+
+    if (!torchMatchScriptSchema(arguments, array_len(arguments), &inputsCtx, &error_descr)) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
+        RedisModule_Free(error_descr);
+        return 1;
+    }
+
+    torchRunScript(sctx->script->script, sctx->fnname, arguments, array_len(arguments), &inputsCtx,
+                   outputs, nOutputs, &error_descr);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);

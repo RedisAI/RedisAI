@@ -14,9 +14,10 @@
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
-#include "execution/deprecated.h"
+#include "execution/parsing/deprecated.h"
 #include "redis_ai_objects/model.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/stats.h"
 #include <pthread.h>
@@ -29,7 +30,7 @@
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
 #include "util/arr.h"
-#include "util/dict.h"
+#include "util/dictionaries.h"
 #include "util/string_utils.h"
 #include "util/queue.h"
 #include "version.h"
@@ -91,7 +92,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RAI_TensorRedisType(), t) != REDISMODULE_OK) {
         RAI_TensorFree(t);
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
@@ -368,7 +369,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ModelRedisType())) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
@@ -380,7 +381,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+    RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 
@@ -623,6 +624,15 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }
 
+int RedisAI_ScriptExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+
+    // Convert The script run command into a DAG command that contains a single op.
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTEXECUTE, false);
+}
+
 /**
  * AI.SCRIPTGET script_key [META] [SOURCE]
  */
@@ -780,12 +790,12 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ScriptRedisType())) {
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
+    RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
     script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 
@@ -1087,7 +1097,17 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptFree, ctx);
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);
@@ -1330,6 +1350,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptrun", RedisAI_ScriptRun_RedisCommand,
                                   "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.scriptexecute", RedisAI_ScriptExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 5, 5, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand,

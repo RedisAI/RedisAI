@@ -58,7 +58,5 @@ bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
             }
         }
     }
-    RedisModule_Log(ctx, "warning", "%s doesn't exist in keyspace",
-                    RedisModule_StringPtrLen(key_str, NULL));
     return true;
 }

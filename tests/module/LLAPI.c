@@ -216,7 +216,7 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
     RAI_Tensor *input1 = RedisModule_ModuleTypeGetValue(key);
-    RedisAI_ScriptRunCtxAddInput(sctx, input1, err);
+    RedisAI_ScriptRunCtxAddTensorInput(sctx, input1);
     RedisModule_FreeString(ctx, keyRedisStr);
     RedisModule_CloseKey(key);
 
@@ -224,7 +224,7 @@ int RAI_llapi_scriptRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc)
     keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
     RAI_Tensor *input2 = RedisModule_ModuleTypeGetValue(key);
-    RedisAI_ScriptRunCtxAddInput(sctx, input2, err);
+    RedisAI_ScriptRunCtxAddTensorInput(sctx, input2);
     RedisModule_FreeString(ctx, keyRedisStr);
     RedisModule_CloseKey(key);
 
