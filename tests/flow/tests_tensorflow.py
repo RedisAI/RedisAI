@@ -646,7 +646,6 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
     inputvar = 'images'
     outputvar = 'output'
 
-
     model_pb, script, labels, img = load_resnet_test_data()
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,

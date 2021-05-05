@@ -1,4 +1,4 @@
-import redis
+import numpy as np
 
 from includes import *
 
@@ -47,6 +47,60 @@ def test_run_tflite_model(env):
     env.assertEqual(values[0], 1)
 
 
+def test_run_tflite_model_autobatch(env):
+    if not TEST_TFLITE:
+        env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    model_pb = load_file_content('lite-model_imagenet_mobilenet_v3_small_100_224_classification_5_default_1.tflite')
+    _, _, _, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU',
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 0,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
+    env.assertEqual(len(ret), 14)
+    if DEVICE == "CPU":
+        env.assertEqual(ret[1], b'TFLITE')
+        env.assertEqual(ret[3], b'CPU')
+
+    ret = con.execute_command('AI.TENSORSET', 'a{1}',
+                              'UINT8', 1, img.shape[1], img.shape[0], 3,
+                              'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'b{1}',
+                              'UINT8', 1, img.shape[1], img.shape[0], 3,
+                              'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    def run():
+        con = env.getConnection()
+        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1,
+                            'b{1}', 'OUTPUTS', 1, 'd{1}')
+        ensureSlaveSynced(con, env)
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    # TODO: enable me. CI is having issues on GPU asserts of TFLITE and CPU
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'c{1}')
+    t.join()
+
+    ensureSlaveSynced(con, env)
+
+    values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
+    idx = np.argmax(values)
+    env.assertEqual(idx, 112)
+
+    values = con.execute_command('AI.TENSORGET', 'd{1}', 'VALUES')
+    idx = np.argmax(values)
+    env.assertEqual(idx, 112)
+
+
 def test_run_tflite_model_errors(env):
     if not TEST_TFLITE:
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
@@ -63,13 +117,6 @@ def test_run_tflite_model_errors(env):
 
     check_error_message(env, con, "Failed to load model from buffer",
                         'AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', wrong_model_pb)
-
-    # TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch
-    #       size. At least we should constrain MINBATCHSIZE according to the
-    #       hard-coded dims in the tflite model.
-    check_error_message(env, con, "Auto-batching not supported by the TFLITE backend",
-                        'AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU',
-                        'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')

@@ -329,6 +329,12 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
         return;
     }
 
+    // NOTE: TFLITE requires all tensors in the graph to be explicitly
+    // preallocated before input tensors are memcopied. These are cached
+    // in the session, so we need to check if for instance the batch size
+    // has changed or the shape has changed in general compared to the
+    // previous run and in that case we resize input tensors and call
+    // the AllocateTensor function manually.
     bool need_reallocation = false;
     std::vector<int> dims;
     for (size_t i = 0; i < tflite_inputs.size(); i++) {

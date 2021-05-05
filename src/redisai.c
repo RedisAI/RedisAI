@@ -200,10 +200,6 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     unsigned long long batchsize = 0;
     if (AC_AdvanceIfMatch(&ac, "BATCHSIZE")) {
-        if (backend == RAI_BACKEND_TFLITE) {
-            return RedisModule_ReplyWithError(
-                ctx, "ERR Auto-batching not supported by the TFLITE backend");
-        }
         if (AC_GetUnsignedLongLong(&ac, &batchsize, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for BATCHSIZE");
         }
