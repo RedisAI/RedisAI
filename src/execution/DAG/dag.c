@@ -33,7 +33,6 @@
 #include <unistd.h>
 
 #include "redisai.h"
-#include "dag_parser.h"
 #include "rmutil/args.h"
 #include "rmutil/alloc.h"
 #include "util/arr.h"
@@ -41,8 +40,10 @@
 #include "util/queue.h"
 #include "util/string_utils.h"
 #include "execution/run_info.h"
-#include "execution/modelRun_ctx.h"
 #include "execution/background_workers.h"
+#include "execution/parsing/dag_parser.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/model.h"
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
@@ -100,7 +101,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RAI_TensorRedisType(), tensor) != REDISMODULE_OK) {
         RAI_SetError(err, RAI_EDAGRUN, "ERR could not save tensor");
         RedisModule_CloseKey(key);
         return REDISMODULE_ERR;

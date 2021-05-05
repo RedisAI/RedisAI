@@ -199,3 +199,10 @@ static void array_free(array_t arr) {
         RedisModule_Assert(array_hdr(arr)->len > 0);                                               \
         arr[--(array_hdr(arr)->len)];                                                              \
     })
+
+/* Duplicate the array to the pointer dest. */
+#define array_clone(dest, arr)                                                                     \
+    ({                                                                                             \
+        dest = array_newlen((array_hdr(arr)->elem_sz), array_len(arr));                            \
+        memcpy(dest, arr, (array_hdr(arr)->elem_sz) * (array_len(arr)));                           \
+    })

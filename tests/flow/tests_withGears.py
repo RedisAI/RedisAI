@@ -180,7 +180,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
 
     ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function bad_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
 
 @skip_if_gears_not_loaded
@@ -299,7 +299,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test4')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function no_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test5')
     env.assertEqual(ret[0], b'test5_OK')

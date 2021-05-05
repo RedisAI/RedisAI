@@ -3,3 +3,6 @@ def bar(a, b):
 
 def bar_variadic(a, args : List[Tensor]):
     return args[0] + args[1]
+
+def bar_two_lists(a: List[Tensor], b:List[Tensor]):
+    return a[0] + b[0]

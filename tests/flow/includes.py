@@ -202,3 +202,11 @@ def check_error_message(env, con, error_msg, *command):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(error_msg, str(exception))
+
+def check_error(env, con, *command):
+    try:
+        con.execute_command(*command)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
