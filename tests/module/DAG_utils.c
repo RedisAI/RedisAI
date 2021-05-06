@@ -195,15 +195,17 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
     t = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
     RedisAI_DAGAddTensorSet(run_info, "input2", t);
 
-    dag_string = "|> AI.MODELRUN m{1} INPUTS input1 input2 OUTPUTS output |> bad_op no_tensor";
+    dag_string =
+        "|> AI.MODELEXECUTE m{1} INPUTS 2 input1 input2 OUTPUTS 1 output |> bad_op no_tensor";
     status = RedisAI_DAGAddOpsFromString(run_info, dag_string, run_ctx.error);
-    if (!_assertError(run_ctx.error, status, "unsupported command within DAG")) {
+    if (!_assertError(run_ctx.error, status, "Unsupported command within DAG")) {
         goto cleanup;
     }
     RedisAI_ClearError(run_ctx.error);
     RedisModule_Assert(RedisAI_DAGNumOps(run_info) == 1);
 
-    dag_string = "|> AI.MODELRUN m{1} INPUTS input1 input2 OUTPUTS output |> AI.TENSORGET output";
+    dag_string =
+        "|> AI.MODELEXECUTE m{1} INPUTS 2 input1 input2 OUTPUTS 1 output |> AI.TENSORGET output";
     if (RedisAI_DAGAddOpsFromString(run_info, dag_string, run_ctx.error) != REDISMODULE_OK) {
         goto cleanup;
     }

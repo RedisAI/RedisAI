@@ -163,7 +163,7 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
         }
     }
 
-    if (ParseDAGOps(rinfo, new_ops) != REDISMODULE_OK) {
+    if (ParseDAGExecuteOps(rinfo, new_ops, false) != REDISMODULE_OK) {
         RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
         goto cleanup;
     }

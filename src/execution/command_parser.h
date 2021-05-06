@@ -8,7 +8,8 @@ typedef enum RunCommand {
     CMD_SCRIPTRUN,
     CMD_DAGRUN,
     CMD_MODELEXECUTE,
-    CMD_SCRIPTEXECUTE
+    CMD_SCRIPTEXECUTE,
+    CMD_DAGEXECUTE
 } RunCommand;
 
 /**

@@ -668,24 +668,23 @@ cleanup:
     return REDISMODULE_OK;
 }
 
-int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                                    int argc) {
+int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                        RedisModuleString **argv, int argc) {
     for (size_t argpos = 1; argpos < argc; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if ((!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST")) &&
-            (argpos + 1 < argc)) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
+        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ||
+            !strcasecmp(arg_string, "KEYS")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
             long long n_keys;
-            argpos++;
-            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+            const int retval = RedisModule_StringToLongLong(argv[argpos++], &n_keys);
             if (retval != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
-            argpos++;
-            if (n_keys > 0) {
-                size_t last_persist_argpos = n_keys + argpos;
-                for (; argpos < last_persist_argpos && argpos < argc; argpos++) {
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
+            size_t last_argpos = n_keys + argpos;
+            for (; argpos < last_argpos && argpos < argc; argpos++) {
+                RedisModule_KeyAtPos(ctx, argpos);
             }
         }
     }

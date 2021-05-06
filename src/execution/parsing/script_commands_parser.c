@@ -11,7 +11,7 @@ static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleStrin
     TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
     if (!signature) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "Wrong function name provider to AI.SCRIPTEXECUTE command");
+                     "Wrong function name given to AI.SCRIPTEXECUTE command");
         return false;
     }
     size_t nlists = array_len(sctx->listSizes);
@@ -130,13 +130,11 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
     int argpos = 3;
     bool inputsDone = false;
     bool outputsDone = false;
-    bool KeysDone = false;
     // Local input context to verify correctness.
     array_new_on_stack(RedisModuleString *, 10, inputs);
     if (keysRequired) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, "KEYS")) {
-            KeysDone = true;
             // Read key number.
             argpos++;
             if (argpos >= argc) {
@@ -179,7 +177,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
 
     while (argpos < argc) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        // See that no addtional KEYS scope is provided.
+        // See that no additional KEYS scope is provided.
         if (!strcasecmp(arg_string, "KEYS")) {
             RAI_SetError(error, RAI_ESCRIPTRUN,
                          "ERR Already Encountered KEYS scope in current command");
@@ -301,7 +299,8 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             continue;
         }
 
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to AI.SCRIPTEXECUTE");
+        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecognized parameter to AI.SCRIPTEXECUTE");
+        RedisModule_Log(ctx, "error", "Command syntax error. Unexpected argument: %s", arg_string);
         goto cleanup;
     }
     if (argpos != argc) {

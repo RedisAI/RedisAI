@@ -1,14 +1,17 @@
+#include <execution/DAG/dag_execute.h>
 #include "deprecated.h"
 #include "util/string_utils.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
 #include "redis_ai_objects/stats.h"
+#include "execution/DAG/dag_builder.h"
 #include "execution/utils.h"
 #include "execution/command_parser.h"
 #include "execution/background_workers.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 #include "execution/parsing/parse_utils.h"
+#include "dag_parser.h"
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
@@ -488,5 +491,118 @@ cleanup:
     if (sctx) {
         RAI_ScriptRunCtxFree(sctx);
     }
+    return res;
+}
+
+int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
+
+    for (long long i = 0; i < array_len(ops); i++) {
+        RAI_DagOp *currentOp = ops[i];
+        // The first op arg is the command name.
+        const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
+
+        if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+            currentOp->commandType = REDISAI_DAG_CMD_TENSORGET;
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
+            currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
+            if (currentOp->fmt == TENSOR_NONE)
+                goto cleanup;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+            currentOp->commandType = REDISAI_DAG_CMD_TENSORSET;
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
+            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
+                                       rinfo->err) == -1)
+                goto cleanup;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+            if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
+                REDISMODULE_OK) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
+            if (ParseScriptRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
+                REDISMODULE_OK) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "AI.MODELEXECUTE"
+                         " cannot be used in deprecated AI.DAGRUN command");
+            goto cleanup;
+        }
+        if (!strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "AI.SCRIPTEXECUTE"
+                         " cannot be used in deprecated AI.DAGRUN command");
+            goto cleanup;
+        }
+        // If none of the cases match, we have an invalid op.
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "Unsupported command within DAG");
+        goto cleanup;
+    }
+
+    // After validating all the ops, insert them to the DAG.
+    for (size_t i = 0; i < array_len(ops); i++) {
+        rinfo->dagOps = array_append(rinfo->dagOps, ops[i]);
+    }
+    rinfo->dagOpCount = array_len(rinfo->dagOps);
+    return REDISMODULE_OK;
+
+cleanup:
+    for (size_t i = 0; i < array_len(ops); i++) {
+        RAI_FreeDagOp(ops[i]);
+    }
+    return REDISMODULE_ERR;
+}
+
+int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
+                       int argc, bool dag_ro) {
+
+    int res = REDISMODULE_ERR;
+    if (argc < 4) {
+        if (dag_ro) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN_RO' command");
+        } else {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN' command");
+        }
+        return res;
+    }
+
+    // First we parse LOAD, PERSIST and TIMEOUT parts, and we collect the DAG ops' args.
+    array_new_on_stack(RAI_DagOp *, 10, dag_ops);
+    if (DAGInitialParsing(rinfo, ctx, argv, argc, dag_ro, &dag_ops) != REDISMODULE_OK) {
+        return REDISMODULE_ERR;
+    }
+
+    if (ParseDAGRunOps(rinfo, dag_ops) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    if (MapTensorsKeysToIndices(rinfo, rinfo->tensorsNamesToIndices) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    if (ValidatePersistKeys(rinfo, rinfo->tensorsNamesToIndices, rinfo->persistTensors) !=
+        REDISMODULE_OK) {
+        goto cleanup;
+    }
+
+    AI_dictRelease(rinfo->tensorsNamesToIndices);
+    rinfo->tensorsNamesToIndices = NULL;
+    res = REDISMODULE_OK;
+
+cleanup:
+    array_free(dag_ops);
     return res;
 }

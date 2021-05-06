@@ -624,6 +624,13 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
 }
 
+/**
+ * AI.SCRIPTEXECUTE <key> <function>
+ * KEYS <keys_count> <key> [key ...]
+ * [INPUTS <input_count> <input> [input ...] | INPUTS_LIST <list_len> <input> [input ...]]*
+ * [OUTPUTS <output_count> <output> [output ...]]
+ * [TIMEOUT <time>]
+ */
 int RedisAI_ScriptExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -1007,10 +1014,40 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  * client blocks until the computation finishes.
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        RedisModule_Log(ctx, "error",
+                        "AI.DAGRUN command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.DAGEXECUTE instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.DAGRUN command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.DAGEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN command is deprecated and will"
+                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
-        return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, false);
+}
+
+/**
+ * AI.DAGEXECUTE
+ * [[KEYS <keys_count> <key> [key ...]] |
+ * [LOAD <nkeys> <key> [key... ]] |
+ * [PERSIST <nkeys> <key> [key2...]]]+
+ * [TIMEOUT t]
+ * [|> <COMMAND1>]+
+ *
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_DagExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGEXECUTE, false);
 }
 
 /**
@@ -1022,13 +1059,42 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  * client blocks until the computation finishes.
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        RedisModule_Log(ctx, "error",
+                        "AI.DAGRUN_RO command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.DAGEXECUTE_RO instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.DAGRUN_RO command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.DAGEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN_RO command is deprecated and will"
+                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
-        return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, true);
 }
 
-#define EXECUTION_PLAN_FREE_MSG 100
+/**
+ * AI.DAGEXECUTE_RO
+ * [[KEYS <keys_count> <key> [key ...]] |
+ * [LOAD <nkeys> key [key ... ]]]+
+ * [TIMEOUT t]
+ * [|> <COMMAND>]+
+ *
+ * Read-only (no PERSIST) DAG execution. AI.SCRIPTEXEXUTE is not allowed
+ * within RO context.
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_DagExecuteRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGEXECUTE, true);
+}
 
 #define REGISTER_API(name, ctx)                                                                    \
     if (RedisModule_ExportSharedAPI) {                                                             \
@@ -1372,7 +1438,15 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                                   "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
+    if (RedisModule_CreateCommand(ctx, "ai.dagexecute", RedisAI_DagExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
     if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand,
+                                  "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.dagexecute_ro", RedisAI_DagExecuteRO_RedisCommand,
                                   "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
