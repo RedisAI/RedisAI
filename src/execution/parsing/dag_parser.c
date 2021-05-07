@@ -12,6 +12,7 @@
 #include "execution/utils.h"
 #include "model_commands_parser.h"
 #include "script_commands_parser.h"
+#include "parse_utils.h"
 
 /**
  * DAGRUN Building Block to parse [LOAD <nkeys> key1 key2... ]
@@ -54,7 +55,7 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         const int status =
             RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not LOAD tensor %s from keyspace into DAG",
+            RedisModule_Log(ctx, "warning", "Could not LOAD tensor %s from keyspace into DAG",
                             arg_string);
             return -1;
         }
@@ -120,41 +121,6 @@ static int _ParseDAGPersistArgs(RedisModuleString **argv, int argc, AI_dict *per
         return -1;
     }
     return number_keys_to_persist + 2;
-}
-
-static int _ParseDAGKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                             RAI_Error *err) {
-    if (argc < 3) {
-        RAI_SetError(err, RAI_EDAGBUILDER,
-                     "ERR missing arguments after KEYS keyword in DAG command");
-        return -1;
-    }
-
-    long long n_keys;
-    const int retval = RedisModule_StringToLongLong(argv[1], &n_keys);
-    if (retval != REDISMODULE_OK || n_keys <= 0) {
-        RAI_SetError(err, RAI_EDAGBUILDER, "ERR invalid or negative value found in number of KEYS");
-        return -1;
-    }
-
-    // Go over the given args and verify that these keys are located in the local shard.
-    int key_pos = 0;
-    for (size_t argpos = 2; (argpos < argc) && (key_pos < n_keys); argpos++) {
-        if (!VerifyKeyInThisShard(ctx, argv[argpos])) {
-            RAI_SetError(err, RAI_EDAGBUILDER,
-                         "ERR CROSSSLOT Keys in DAG don't hash to the same slot");
-            return -1;
-        }
-        key_pos++;
-    }
-    if (key_pos != n_keys) {
-        RAI_SetError(
-            err, RAI_EDAGBUILDER,
-            "ERR number of pre declared KEYS to be used in the DAG does not match the number "
-            "of given arguments");
-        return -1;
-    }
-    return key_pos + 2;
 }
 
 static int _parseTimeout(RedisModuleString **argv, int argc, long long *timeout, RAI_Error *err) {
@@ -316,8 +282,7 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             continue;
         }
         if (!strcasecmp(arg_string, "KEYS") && !keys_complete && chainingOpCount == 0) {
-            const int parse_result =
-                _ParseDAGKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
+            const int parse_result = ParseKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
             if (parse_result <= 0)
                 return REDISMODULE_ERR;
             arg_pos += parse_result;
@@ -342,7 +307,8 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             continue;
         }
         // If none of the cases match, we have an invalid op.
-        RedisModule_Log(ctx, "error", "Command syntax error. Unexpected argument: %s", arg_string);
+        RedisModule_Log(ctx, "warning", "Command syntax error. Unexpected argument: %s",
+                        arg_string);
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Invalid DAG command");
         return REDISMODULE_ERR;
     }

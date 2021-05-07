@@ -133,3 +133,38 @@ def test_modelexecute_errors(env):
                             'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b', 'OUTPUTS', 1, 'c{1}')
         check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot",
                             'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c')
+
+
+def test_keys_syntax(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+    # the KEYS keyword must appears in every AI.SCRIPTEXECUTE command, an may appear in AI.DAGEXECUTE(_RO) command.
+
+    con = env.getConnection()
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSET', 'script{1}', DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    # ERR wrong number of arguments for KEYS
+    check_error_message(env, con, "Missing arguments after KEYS keyword",
+                        "AI.SCRIPTEXECUTE script{1} bar KEYS 1")
+
+    # ERR invalid or negative number of arguments for KEYS
+    check_error_message(env, con, "Invalid or negative value found in number of KEYS",
+                        "AI.SCRIPTEXECUTE script{1} bar KEYS not_number key{1}")
+
+    con.execute_command('AI.TENSORSET', 'a{{1}}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    # ERR number of KEYS does not match the number of given arguments.
+    check_error_message(env, con, "Number of pre declared KEYS to be used in the command does not match the number "
+                                  "of given arguments",
+                        "AI.SCRIPTEXECUTE script{1} bar KEYS 2 key{1}")
+
+    # ERR KEYS missing in AI.SCRIPTEXECUTE
+    check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command",
+                        "AI.SCRIPTEXECUTE script{1} bar INPUTS 2 a{{1}} a{{1}}")
+
+    # ERR KEYS section in an inner AI.SCRIPTEXEUTE command within a DAG is not allowed.
+    check_error_message(env, con, "Already encountered KEYS scope in current command",
+                        "AI.DAGEXECUTE KEYS 1 a{{1}} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{{1}}")

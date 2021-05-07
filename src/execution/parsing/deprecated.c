@@ -282,7 +282,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
                         bckstr);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "could not load %s default backend", bckstr);
+            RedisModule_Log(ctx, "warning", "could not load %s default backend", bckstr);
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -297,7 +297,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     if (err.code != RAI_OK) {
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -308,7 +308,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -325,7 +325,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;

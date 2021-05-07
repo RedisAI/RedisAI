@@ -235,7 +235,8 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
         RedisModule_CloseKey(key);
-        RedisModule_Log(ctx, "error", "%s is not a model", RedisModule_StringPtrLen(keyName, NULL));
+        RedisModule_Log(ctx, "warning", "%s is not a model",
+                        RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }

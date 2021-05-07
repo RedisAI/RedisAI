@@ -132,42 +132,16 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
     bool outputsDone = false;
     // Local input context to verify correctness.
     array_new_on_stack(RedisModuleString *, 10, inputs);
+
     if (keysRequired) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, "KEYS")) {
-            // Read key number.
-            argpos++;
-            if (argpos >= argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            long long nkeys;
-            if (RedisModule_StringToLongLong(argv[argpos], &nkeys) != REDISMODULE_OK) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid argument for key count in AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            // Check validity of key numbers.
-            argpos++;
-            size_t first_input_pos = argpos;
-            if (first_input_pos + nkeys > argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR number of input keys to AI.SCRIPTEXECUTE command does not match "
-                             "the number of given arguments");
-                goto cleanup;
-            }
-            // Verify given keys in local shard.
-            for (; argpos < first_input_pos + nkeys; argpos++) {
-                if (!VerifyKeyInThisShard(ctx, argv[argpos])) {
-                    RAI_SetError(error, RAI_ESCRIPTRUN,
-                                 "ERR CROSSSLOT Keys in AI.SCRIPTEXECUTE request don't hash to the "
-                                 "same slot");
-                    goto cleanup;
-                }
-            }
+            const int parse_result = ParseKeysArgs(ctx, &argv[argpos], argc - argpos, error);
+            if (parse_result <= 0)
+                return REDISMODULE_ERR;
+            argpos += parse_result;
         }
-        // argv[3] is not KEYS.
+        // argv[3] is not KEYS in AI.SCRIPTEXECUTE command (i.e., not in a DAG).
         else {
             RAI_SetError(error, RAI_ESCRIPTRUN,
                          "ERR KEYS scope must be provided first for AI.SCRIPTEXECUTE command");
@@ -180,7 +154,7 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
         // See that no additional KEYS scope is provided.
         if (!strcasecmp(arg_string, "KEYS")) {
             RAI_SetError(error, RAI_ESCRIPTRUN,
-                         "ERR Already Encountered KEYS scope in current command");
+                         "ERR Already encountered KEYS scope in current command");
             goto cleanup;
         }
         // Parse timeout arg if given and store it in timeout.
@@ -300,7 +274,8 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
         }
 
         RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecognized parameter to AI.SCRIPTEXECUTE");
-        RedisModule_Log(ctx, "error", "Command syntax error. Unexpected argument: %s", arg_string);
+        RedisModule_Log(ctx, "warning", "Command syntax error. Unexpected argument: %s",
+                        arg_string);
         goto cleanup;
     }
     if (argpos != argc) {

@@ -330,7 +330,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
                         bckstr);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "could not load %s default backend", bckstr);
+            RedisModule_Log(ctx, "warning", "could not load %s default backend", bckstr);
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -345,7 +345,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     }
 
     if (err.code != RAI_OK) {
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -356,7 +356,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -373,7 +373,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -574,7 +574,7 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "error",
+        RedisModule_Log(ctx, "warning",
                         "AI.MODELRUN command is deprecated and cannot be used in "
                         "enterprise cluster, use AI.MODELEXECUTE instead");
         return RedisModule_ReplyWithError(
@@ -759,7 +759,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
                         "Backend TORCH not loaded, will try loading default backend");
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load TORCH default backend");
+            RedisModule_Log(ctx, "warning", "Could not load TORCH default backend");
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -1015,7 +1015,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "error",
+        RedisModule_Log(ctx, "warning",
                         "AI.DAGRUN command is deprecated and cannot be used in "
                         "enterprise cluster, use AI.DAGEXECUTE instead");
         return RedisModule_ReplyWithError(
@@ -1060,7 +1060,7 @@ int RedisAI_DagExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "error",
+        RedisModule_Log(ctx, "warning",
                         "AI.DAGRUN_RO command is deprecated and cannot be used in "
                         "enterprise cluster, use AI.DAGEXECUTE_RO instead");
         return RedisModule_ReplyWithError(

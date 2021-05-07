@@ -44,18 +44,20 @@ bool IsEnterprise() { return rlecMajorVersion != -1; }
 
 bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
     if (IsEnterprise()) {
+        int first_slot, last_slot;
+        RedisModule_ShardingGetSlotRange(&first_slot, &last_slot);
         int key_slot = RedisModule_ShardingGetKeySlot(key_str);
-        // If key_slot equals -1, then sharding is not enabled in enterprise.
-        if (key_slot != -1) {
-            int first_slot, last_slot;
-            RedisModule_ShardingGetSlotRange(&first_slot, &last_slot);
-            if (key_slot < first_slot || key_slot > last_slot) {
-                RedisModule_Log(ctx, "warning",
-                                "could not load %s from keyspace,"
-                                " this key's hash slot belongs to a different shard",
-                                RedisModule_StringPtrLen(key_str, NULL));
-                return false;
-            }
+        RedisModule_Log(ctx, "notice", "key %s is in slot %d",
+                        RedisModule_StringPtrLen(key_str, NULL), key_slot);
+        // If first_slot=last_slot=-1, then sharding is not enabled in enterprise,
+        // so we definitely don't have a cross shard violation.
+        if (first_slot != -1 && last_slot != -1 &&
+            (key_slot < first_slot || key_slot > last_slot)) {
+            RedisModule_Log(ctx, "warning",
+                            "could not load %s from keyspace,"
+                            " this key's hash slot belongs to a different shard",
+                            RedisModule_StringPtrLen(key_str, NULL));
+            return false;
         }
     }
     return true;

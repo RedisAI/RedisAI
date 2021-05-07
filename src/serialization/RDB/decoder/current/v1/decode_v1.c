@@ -138,7 +138,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default backend");
+            RedisModule_Log(ctx, "warning", "Could not load default backend");
             RAI_ClearError(&err);
             goto cleanup;
         }
@@ -149,7 +149,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     if (err.code != RAI_OK) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         RAI_ClearError(&err);
         goto cleanup;
     }
@@ -221,7 +221,7 @@ void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default TORCH backend\n");
+            RedisModule_Log(ctx, "warning", "Could not load default TORCH backend\n");
             RAI_ClearError(&err);
             goto cleanup;
         }
