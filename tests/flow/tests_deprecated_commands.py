@@ -411,11 +411,11 @@ def test_dagrun_common_errors(env):
 
     # ERR bad syntax
     check_error_message(env, con, "Invalid DAG command",
-                        "AI.DAGRUN PERSIST 1 a{{1}} BAD_ARG")
+                        "AI.DAGRUN PERSIST 1 a{1} BAD_ARG")
 
     # ERR unsupported command within DAG
     check_error_message(env, con, "Unsupported command within DAG",
-                        "AI.DAGRUN |> AI.NOCOMMAND a{{1}} FLOAT 1 2 VALUES 5 10")
+                        "AI.DAGRUN |> AI.NOCOMMAND a{1} FLOAT 1 2 VALUES 5 10")
 
     # ERR wrong number of arguments for 'AI.DAGRUN' command
     check_error_message(env, con, "wrong number of arguments for 'AI.DAGRUN' command", "AI.DAGRUN ")
@@ -426,12 +426,12 @@ def test_dagrun_common_errors(env):
     env.assertEqual(ret, b'OK')
     check_error_message(env, con, "DAG is empty", "AI.DAGRUN LOAD 1 volatile_tensor{1}")
 
-    # ERR non-deprecated commands in (deprecated) AI.DAGRUN
-    check_error_message(env, con, "AI.MODELEXECUTE cannot be used in deprecated AI.DAGRUN command",
+    # ERR new commands in deprecated AI.DAGRUN
+    check_error_message(env, con, "AI.MODELEXECUTE cannot be used in a deprecated AI.DAGRUN command",
                         "AI.DAGRUN LOAD 1 volatile_tensor{1} "
                         "|> AI.MODELEXECUTE m{1} INPUTS 2 volatile_tensor{1} volatile_tensor{1} OUTPUTS 1 output_tensor{1}")
 
-    check_error_message(env, con, "AI.SCRIPTEXECUTE cannot be used in deprecated AI.DAGRUN command",
+    check_error_message(env, con, "AI.SCRIPTEXECUTE cannot be used in a deprecated AI.DAGRUN command",
                         "AI.DAGRUN LOAD 1 volatile_tensor{1} "
                         "|> AI.SCRIPTEXECUTE script{1} bar INPUTS 2 volatile_tensor{1} volatile_tensor{1} OUTPUTS 1 output_tensor{1}")
 
@@ -440,26 +440,26 @@ def test_dagrun_common_errors(env):
 
     # ERR persist in not allowed in AI.DAGEXECUTE_RO
     check_error_message(env, con, "PERSIST cannot be specified in a read-only DAG",
-                        "AI.DAGRUN_RO PERSIST 1 tensor1{{1}} |> AI.TENSORSET tensor1{{1}} FLOAT 1 2 VALUES 5 10")
+                        "AI.DAGRUN_RO PERSIST 1 tensor1{1} |> AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10")
 
 
-def test_dagrun_modelexecute_multidevice_resnet_ensemble_alias(env):
+def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     if (not TEST_TF or not TEST_PT):
         return
     con = env.getConnection()
 
-    model_name_0 = 'imagenet_model1:{{1}}'
-    model_name_1 = 'imagenet_model2:{{1}}'
-    script_name_0 = 'imagenet_script1:{{1}}'
-    script_name_1 = 'imagenet_script2:{{1}}'
+    model_name_0 = 'imagenet_model1:{1}'
+    model_name_1 = 'imagenet_model2:{1}'
+    script_name_0 = 'imagenet_script1:{1}'
+    script_name_1 = 'imagenet_script2:{1}'
     inputvar = 'images'
     outputvar = 'output'
-    image_key = 'image:{{1}}'
-    temp_key1 = 'temp_key1:{{1}}'
+    image_key = 'image:{1}'
+    temp_key1 = 'temp_key1:{1}'
     temp_key2_0 = 'temp_key2_0'
     temp_key2_1 = 'temp_key2_1'
-    class_key_0 = 'output0:{{1}}'
-    class_key_1 = 'output1:{{1}}'
+    class_key_0 = 'output0:{1}'
+    class_key_1 = 'output1:{1}'
 
     model_pb, script, labels, img = load_resnet_test_data()
 

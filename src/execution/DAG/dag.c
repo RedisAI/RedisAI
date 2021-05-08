@@ -683,7 +683,10 @@ int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                 return REDISMODULE_ERR;
             }
             size_t last_argpos = n_keys + argpos;
-            for (; argpos < last_argpos && argpos < argc; argpos++) {
+            if (last_argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
+            for (; argpos < last_argpos; argpos++) {
                 RedisModule_KeyAtPos(ctx, argpos);
             }
         }

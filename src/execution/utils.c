@@ -47,8 +47,7 @@ bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str) {
         int first_slot, last_slot;
         RedisModule_ShardingGetSlotRange(&first_slot, &last_slot);
         int key_slot = RedisModule_ShardingGetKeySlot(key_str);
-        RedisModule_Log(ctx, "notice", "key %s is in slot %d",
-                        RedisModule_StringPtrLen(key_str, NULL), key_slot);
+
         // If first_slot=last_slot=-1, then sharding is not enabled in enterprise,
         // so we definitely don't have a cross shard violation.
         if (first_slot != -1 && last_slot != -1 &&

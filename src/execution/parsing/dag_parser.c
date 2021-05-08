@@ -318,7 +318,7 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
                      strlen("AI.DAGEXECUTE"))) {
         if (!load_complete && !persist_complete && !keys_complete) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
-                         "ERR AI.DAGEXECUTE command must "
+                         "ERR AI.DAGEXECUTE and AI.DAGEXECUTE_RO commands must "
                          "contain at least one out of KEYS, LOAD, PERSIST keywords");
             return REDISMODULE_ERR;
         }
@@ -334,6 +334,8 @@ int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisMod
                            int argc, bool dag_ro) {
 
     int res = REDISMODULE_ERR;
+    // The minimal command is of the form: AI.DAGEXECUTE(_RO) KEYS/LOAD/PERSIST 1 <key> |>
+    // AI.TENSORGET <key>
     if (argc < 7) {
         if (dag_ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
