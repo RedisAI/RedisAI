@@ -1,17 +1,18 @@
-#include <execution/DAG/dag_execute.h>
+
 #include "deprecated.h"
-#include "util/string_utils.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
+#include "util/string_utils.h"
 #include "redis_ai_objects/stats.h"
-#include "execution/DAG/dag_builder.h"
+
 #include "execution/utils.h"
-#include "execution/command_parser.h"
+#include "execution/DAG/dag_builder.h"
+#include "execution/DAG/dag_execute.h"
 #include "execution/background_workers.h"
+#include "execution/parsing/dag_parser.h"
+#include "execution/parsing/parse_utils.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
-#include "execution/parsing/parse_utils.h"
-#include "dag_parser.h"
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
@@ -538,13 +539,13 @@ int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "AI.MODELEXECUTE"
-                         " cannot be used in deprecated AI.DAGRUN command");
+                         " cannot be used in a deprecated AI.DAGRUN command");
             goto cleanup;
         }
         if (!strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "AI.SCRIPTEXECUTE"
-                         " cannot be used in deprecated AI.DAGRUN command");
+                         " cannot be used in a deprecated AI.DAGRUN command");
             goto cleanup;
         }
         // If none of the cases match, we have an invalid op.
@@ -570,6 +571,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
                        int argc, bool dag_ro) {
 
     int res = REDISMODULE_ERR;
+    // This minimal possible command (syntactically) is: AI.DAGRUN(_RO) |> TENSORGET <key>.
     if (argc < 4) {
         if (dag_ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,

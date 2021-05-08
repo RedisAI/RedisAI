@@ -154,7 +154,7 @@ def test_keys_syntax(env):
     check_error_message(env, con, "Invalid or negative value found in number of KEYS",
                         "AI.SCRIPTEXECUTE script{1} bar KEYS not_number key{1}")
 
-    con.execute_command('AI.TENSORSET', 'a{{1}}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     # ERR number of KEYS does not match the number of given arguments.
     check_error_message(env, con, "Number of pre declared KEYS to be used in the command does not match the number "
@@ -163,8 +163,8 @@ def test_keys_syntax(env):
 
     # ERR KEYS missing in AI.SCRIPTEXECUTE
     check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command",
-                        "AI.SCRIPTEXECUTE script{1} bar INPUTS 2 a{{1}} a{{1}}")
+                        "AI.SCRIPTEXECUTE script{1} bar INPUTS 2 a{1} a{1}")
 
     # ERR KEYS section in an inner AI.SCRIPTEXEUTE command within a DAG is not allowed.
     check_error_message(env, con, "Already encountered KEYS scope in current command",
-                        "AI.DAGEXECUTE KEYS 1 a{{1}} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{{1}}")
+                        "AI.DAGEXECUTE KEYS 1 a{1} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{1}")

@@ -30,21 +30,23 @@ int ParseKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_E
         return -1;
     }
 
-    // Go over the given args and verify that these keys are located in the local shard.
-    int key_pos = 0;
-    for (size_t argpos = 2; (argpos < argc) && (key_pos < n_keys); argpos++) {
-        if (!VerifyKeyInThisShard(ctx, argv[argpos])) {
-            RAI_SetError(err, RAI_EDAGBUILDER, "ERR CROSSSLOT Keys don't hash to the same slot");
-            return -1;
-        }
-        key_pos++;
-    }
-    if (key_pos != n_keys) {
+    size_t argpos = 2;
+    if (argpos + n_keys > argc) {
         RAI_SetError(
             err, RAI_EDAGBUILDER,
             "ERR Number of pre declared KEYS to be used in the command does not match the number "
             "of given arguments");
         return -1;
     }
-    return key_pos + 2;
+
+    // Go over the given args and verify that these keys are located in the local shard.
+    while (argpos < n_keys + 2) {
+        if (!VerifyKeyInThisShard(ctx, argv[argpos++])) {
+            RAI_SetError(err, RAI_EDAGBUILDER,
+                         "ERR Some of the KEYS specified in the command hash to slots which aren't "
+                         "belong to the current shard");
+            return -1;
+        }
+    }
+    return argpos;
 }
