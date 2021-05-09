@@ -248,7 +248,7 @@ MODULE=$(realpath $(INSTALLED_TARGET)) \
 CLUSTER=$(CLUSTER) \
 GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
-$(ROOT)/tests/flow/tests.sh
+$(ROOT)/tests/flow/tests_auxiliaries/tests.sh
 endef
 
 unit_tests: build
@@ -265,7 +265,7 @@ flow_tests: build
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_auxiliaries/tests.sh
 
 	$(COVERAGE_COLLECT_REPORT)
 
@@ -283,16 +283,16 @@ test: build
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_auxiliaries/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 #----------------------------------------------------------------------------------------------
 
 valgrind:
-	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/tests/flow/tests_auxiliaries/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/tests_auxiliaries/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 

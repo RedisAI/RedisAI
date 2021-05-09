@@ -387,25 +387,25 @@ int testDAGResnet(RedisModuleCtx *ctx) {
 
     // Build the DAG with LOAD->SCRIPTRUN->MODELRUN->MODELRUN-SCRIPTRUN->SCRIPTRUN->TENSORGET
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
-    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "image:{{1}}");
-    RedisAI_DAGLoadTensor(run_info, "image:{{1}}", t);
+    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "image:{1}");
+    RedisAI_DAGLoadTensor(run_info, "image:{1}", t);
 
-    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "imagenet_script1:{{1}}");
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "imagenet_script1:{1}");
     RAI_DAGRunOp *script_op = RedisAI_DAGCreateScriptRunOp(script, "pre_process_3ch");
-    RedisAI_DAGRunOpAddInput(script_op, "image:{{1}}");
-    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(script_op, "image:{1}");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
-    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model1:{{1}}");
+    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model1:{1}");
     RAI_DAGRunOp *model_op = RedisAI_DAGCreateModelRunOp(model);
-    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{1}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_0");
     if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
         goto cleanup;
 
-    model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model2:{{1}}");
+    model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model2:{1}");
     model_op = RedisAI_DAGCreateModelRunOp(model);
-    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{1}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_1");
     if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
         goto cleanup;
@@ -413,15 +413,15 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     script_op = RedisAI_DAGCreateScriptRunOp(script, "ensemble");
     RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_0");
     RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_1");
-    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key_1:{{1}}");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key_1:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
     script_op = RedisAI_DAGCreateScriptRunOp(script, "post_process");
-    RedisAI_DAGRunOpAddInput(script_op, "tmp_key_1:{{1}}");
-    RedisAI_DAGRunOpAddOutput(script_op, "output:{{1}}");
+    RedisAI_DAGRunOpAddInput(script_op, "tmp_key_1:{1}");
+    RedisAI_DAGRunOpAddOutput(script_op, "output:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
-    RedisAI_DAGAddTensorGet(run_info, "output:{{1}}");
+    RedisAI_DAGAddTensorGet(run_info, "output:{1}");
 
     pthread_mutex_lock(&run_ctx.lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &run_ctx, run_ctx.error) != REDISMODULE_OK) {
