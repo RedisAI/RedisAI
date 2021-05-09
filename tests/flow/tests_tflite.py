@@ -16,14 +16,14 @@ def test_run_tflite_model(env):
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
     env.assertEqual(len(ret), 14)
     env.assertEqual(ret[5], b'')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', DEVICE, 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
@@ -40,7 +40,7 @@ def test_run_tflite_model(env):
     # TODO: enable me. CI is having issues on GPU asserts of TFLITE and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TFLITE')
-        env.assertEqual(ret[3], b'CPU')
+        env.assertEqual(ret[3], bDEVICE)
 
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 2, 'b{1}', 'c{1}')
     values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
@@ -58,17 +58,17 @@ def test_run_tflite_model_errors(env):
     sample_raw = load_file_content('one.raw')
     wrong_model_pb = load_file_content('graph.pb')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm_2{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm_2{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     check_error_message(env, con, "Failed to load model from buffer",
-                        'AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', wrong_model_pb)
+                        'AI.MODELSTORE', 'm{1}', 'TFLITE', DEVICE, 'TAG', 'asdf', 'BLOB', wrong_model_pb)
 
     # TODO: Autobatch is tricky with TFLITE because TFLITE expects a fixed batch
     #       size. At least we should constrain MINBATCHSIZE according to the
     #       hard-coded dims in the tflite model.
     check_error_message(env, con, "Auto-batching not supported by the TFLITE backend",
-                        'AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU',
+                        'AI.MODELSTORE', 'm{1}', 'TFLITE', DEVICE,
                         'BATCHSIZE', 2, 'MINBATCHSIZE', 2, 'BLOB', model_pb)
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -96,7 +96,7 @@ def test_tflite_modelinfo(env):
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
-    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -143,7 +143,7 @@ def test_tflite_modelrun_disconnect(env):
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
-    ret = red.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = red.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = red.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -164,7 +164,7 @@ def test_tflite_model_rdb_save_load(env):
     con = env.getConnection()
     model_pb = load_file_content('mnist_model_quant.tflite')
 
-    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     model_serialized_memory = con.execute_command('AI.MODELGET', 'mnist{1}', 'BLOB')
@@ -196,7 +196,7 @@ def test_tflite_info(env):
 
     model_pb = load_file_content('mnist_model_quant.tflite')
 
-    con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', DEVICE, 'BLOB', model_pb)
 
     ret = con.execute_command('AI.INFO')
     env.assertEqual(8, len(ret))
