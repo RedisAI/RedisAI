@@ -128,6 +128,7 @@ commands:
 
   platforms-build-steps:
     steps:
+      - early_return_for_forked_pull_requests
       - abort_for_docs
       - checkout-all
       - relocate-docker-storage
@@ -136,9 +137,11 @@ commands:
           name: Build for platform
           command: |
             pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                docker image prune -f
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -147,16 +150,6 @@ commands:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
-      - early_return_for_forked_pull_requests
-      - run:
-          name: Build for platform (publish)
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick VERBOSE=1 publish
-                make GPU=1 OSNICK=$osnick VERBOSE=1 publish
-            done
       - persist_to_workspace:
           root: bin/
           paths:
