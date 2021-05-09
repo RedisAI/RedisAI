@@ -108,6 +108,27 @@ Within the `backends` folder you will find the implementations code required to 
 ## Building and Testing
 You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that.
 
+**Configuring the build environment**
+
+Detailed instructions on configuring your build environment can be found in the [system-setup.py file](https://github.com/RedisAI/RedisAI/blob/master/opt/system-setup.py).  This script will install dependencies for building RedisAI - and is the recommended way of installing build dependencies.
+
+Alternatively, the RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. As per the example below, try running an Ubuntu 18.04 docker, with the RedisAI source code mounted in /build, run the following command. Note: This should be run from the root of the repository, and it is assumed that docker is installed.
+
+```docker run -v `pwd`:/build -t ubuntu:bionic bash```
+
+On x86 based Linuxes, RedisAI builds on Ubuntu 16.04, Ubuntu 18.04, and Debian buster. On Arm-based Linuxes, the Nvidia dockers from the [nvidia cuda project](https://hub.docker.com/r/nvidia/cuda) are the baseline.
+
+Currently, the following dependencies are required:
+
+* [CMake > 3.15](https://github.com/Kitware/CMake/releases)
+* GCC > 6.x , but < 10
+* unzip and patch - These are needed by get_deps as documented in the [quickstart](quickstart.md#building-and-running)
+* [NetworkX](https://networkx.org/)
+* [numpy](https://pypi.org/project/numpy/)
+* [OpenBLAS](https://www.openblas.net/)
+
+If you intend on running memory tests, please install valgrind.
+
 **Running Tests**
 
 The module includes a basic set of unit tests and integration tests, split across common and backend specific files. To run them you'll need:
