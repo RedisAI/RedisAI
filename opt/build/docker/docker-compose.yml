@@ -9,11 +9,11 @@
 #   docker-compose build --parallel bionic xenial
 ---
 
-version: "3.9"
+version: "3.8"
 services:
 
   bionic:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-bionic-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-bionic
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -24,7 +24,7 @@ services:
         VARIANT: ${VARIANT:-cpu}
 
   xenial:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-xenial
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -34,8 +34,30 @@ services:
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
 
+  focal:
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-focal
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: focal
+        REDIS_VERSION: ${REDIS_VERSION}
+        ARCH: ${DOCKER_ARCH:-x64}
+        VARIANT: ${VARIANT:-cpu}
+
+  centos7:
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-centos7
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: centos7
+        REDIS_VERSION: ${REDIS_VERSION}
+        ARCH: ${DOCKER_ARCH:-x64}
+        VARIANT: ${VARIANT:-cpu}
+
   buster:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-xenial-${DOCKER_ARCH:-x64}
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-buster
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}

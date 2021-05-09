@@ -70,14 +70,12 @@ class RedisAISetup(paella.Setup):
 
     def common_last(self):
         self.run("%s/bin/getclang --format" % READIES)
-        if self.platform == "arm":
-            self.run("%s/bin/getcmake" % READIES)
-        else:
-            self.run("%s/bin/getcmake --no-repo" % READIES)
+        self.run("%s/bin/getcmake --no-repo" % READIES)
 
         self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
 
-        self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
+        if self.platform.is_arm():
+            self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")

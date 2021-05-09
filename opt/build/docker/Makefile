@@ -9,12 +9,12 @@
 ROOT=../../..
 
 VERSION=$(shell ../../../opt/readies/bin/generateversion a|cut -d '-' -f 1-1)
-REDIS_VER:=6.0.9
+REDIS_VER:=6.0.12
 
 # default, do not publish
 PUBLISH=1
 
-DOCKER_ARCH:=x64
+DOCKER_ARCH=$(shell ../../../opt/readies/bin/platform --arch)
 ifeq ($(VERSION),master)
 VERSION=edge
 endif
@@ -22,7 +22,8 @@ endif
 DOCKER_SERVICES=\
 	xenial\
 	buster\
-	bionic
+	bionic\
+	focal
 
 # cpu|gpu
 VARIANT:=cpu
@@ -31,8 +32,13 @@ DOCKERFILE_NAME=Dockerfile.gpu
 else ifeq ($(VARIANT),jetson)
 DOCKERFILE_NAME=Dockerfile.jetson
 else
+ifeq ($(DOCKER_ARCH),arm64v8)
+DOCKERFILE_NAME=Dockerfile.arm
+else
 DOCKERFILE_NAME=Dockerfile
 endif
+endif
+DOCKERFILE_NAME=Dockerfile
 
 # override, to not push to the redislabs docker
 DOCKER_ORG=redislabs
@@ -63,3 +69,8 @@ define build_docker
 	docker-compose build --parallel ${DOCKER_SERVICES}
 $(if $(filter ${PUBLISH},1),@echo -n "",echo docker-compose push ${DOCKER_SERVICES})
 endef
+
+# if you've been testing and building locally, and just want to push
+publish_dockers::
+	docker-compose push ${DOCKER_SERVICES}
+.PHONY: publish_dockers
