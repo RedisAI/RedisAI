@@ -31,7 +31,7 @@ WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
-COPY ./tests/flow/test_requirements.txt tests/flow
+COPY ./tests/flow/test_auxiliaries/test_requirements.txt tests/flow
 
 RUN ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py

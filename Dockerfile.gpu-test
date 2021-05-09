@@ -34,7 +34,7 @@ COPY --from=cuda_10.2 /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu
 RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
 
 COPY ./opt/ opt/
-COPY ./tests/flow/test_requirements.txt tests/flow/
+COPY ./tests/flow/test_auxiliaries/test_requirements.txt tests/flow/
 COPY ./tests/flow/tests_auxiliaries/Install_RedisGears.sh tests/flow/
 
 RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
