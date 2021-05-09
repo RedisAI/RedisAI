@@ -121,7 +121,7 @@ To run all tests in a Python virtualenv, follow these steps:
     $ mkdir -p .env
     $ virtualenv .env
     $ source .env/bin/activate
-    $ pip install -r tests/flow/test_auxiliaries/test_requirements.txt
+    $ pip install -r tests/flow/tests_auxiliaries/test_requirements.txt
     $ make -C opt test
 
 **Integration tests**
