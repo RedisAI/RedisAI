@@ -272,10 +272,12 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             RAI_ScriptRunCtxAddListSize(sctx, ninputs);
             continue;
         }
-
-        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecognized parameter to AI.SCRIPTEXECUTE");
-        RedisModule_Log(ctx, "warning", "Command syntax error. Unexpected argument: %s",
-                        arg_string);
+        size_t error_len = strlen("ERR Invalid AI.SCRIPTEXECUTE command. Unexpected argument: ") +
+                           strlen(arg_string) + 1;
+        char error_str[error_len];
+        sprintf(error_str, "ERR Invalid AI.SCRIPTEXECUTE command. Unexpected argument: %s",
+                arg_string);
+        RAI_SetError(error, RAI_ESCRIPTRUN, error_str);
         goto cleanup;
     }
     if (argpos != argc) {

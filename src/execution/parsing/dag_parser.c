@@ -307,9 +307,11 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             continue;
         }
         // If none of the cases match, we have an invalid op.
-        RedisModule_Log(ctx, "warning", "Command syntax error. Unexpected argument: %s",
-                        arg_string);
-        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Invalid DAG command");
+        size_t error_len =
+            strlen("ERR Invalid DAG command. Unexpected argument: ") + strlen(arg_string) + 1;
+        char error_str[error_len];
+        sprintf(error_str, "ERR Invalid DAG command. Unexpected argument:  %s", arg_string);
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, error_str);
         return REDISMODULE_ERR;
     }
     // This verification is needed for AI.DAGEXECUTE(_RO) commands (but not for the deprecated DAG

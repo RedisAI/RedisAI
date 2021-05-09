@@ -410,7 +410,7 @@ def test_dagrun_common_errors(env):
     env.assertEqual(ret, b'OK')
 
     # ERR bad syntax
-    check_error_message(env, con, "Invalid DAG command",
+    check_error_message(env, con, "Invalid DAG command. Unexpected argument:  BAD_ARG",
                         "AI.DAGRUN PERSIST 1 a{1} BAD_ARG")
 
     # ERR unsupported command within DAG

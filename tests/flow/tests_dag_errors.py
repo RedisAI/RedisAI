@@ -72,7 +72,7 @@ def test_dag_common_errors(env):
     env.assertEqual(ret, b'OK')
 
     # ERR bad syntax
-    check_error_message(env, con, "Invalid DAG command",
+    check_error_message(env, con, "Invalid DAG command. Unexpected argument:  BAD_ARG",
                         "AI.DAGEXECUTE KEYS 1 a{1} PERSIST 1 a{1} BAD_ARG")
 
     # ERR DAG doesn't contains none of KEYS, LOAD, PERSIST
@@ -145,7 +145,7 @@ def test_dag_scriptexecute_errors(env):
     env.assertEqual(ret, b'OK')
 
     # The function name in AI.SCRIPTEXECUTE is missing, so 'INPUTS' is considered as the function name, and
-    # error is raised for the unexpected argument coming where INPUTS should come.
+    # error is raised for the unexpected argument ("1") coming where INPUTS should have come.
     image_key = 'image{1}'
     temp_key1 = 'temp_key1{1}'
     temp_key2 = 'temp_key2{1}'
@@ -163,7 +163,7 @@ def test_dag_scriptexecute_errors(env):
         'INPUTS', 1, temp_key2,
         'OUTPUTS', 1, class_key
     )
-    check_error_message(env, con, "Unrecognized parameter to AI.SCRIPTEXECUTE", *command)
+    check_error_message(env, con, "Invalid AI.SCRIPTEXECUTE command. Unexpected argument: 1", *command)
 
 
 def test_dag_modelexecute_financialNet_errors(env):
