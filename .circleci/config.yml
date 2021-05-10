@@ -191,6 +191,8 @@ jobs:
     docker:
       - image: redislabsmodules/llvm-toolset:latest
     steps:
+      - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - setup-build-system
       - run:
