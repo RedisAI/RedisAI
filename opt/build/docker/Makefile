@@ -19,14 +19,13 @@ ifeq ($(VERSION),master)
 VERSION=edge
 endif
 
+# can be xenial buster bionic focal centos7...
 DOCKER_SERVICES=\
 	xenial\
-	buster\
-	bionic\
-	focal
+	bionic
 
 # cpu|gpu
-VARIANT:=cpu
+VARIANT=cpu
 ifeq ($(VARIANT),gpu)
 DOCKERFILE_NAME=Dockerfile.gpu
 else ifeq ($(VARIANT),jetson)
@@ -40,19 +39,27 @@ endif
 endif
 DOCKERFILE_NAME=Dockerfile
 
+CLEANFLAGS=
+ifdef NOCLEAN
+CLEANFLAGS=--no-rm --no-cache
+endif
+
 # override, to not push to the redislabs docker
 DOCKER_ORG=redislabs
 
 .NOTPARALLEL:
 
+# build whatever docker is specified in variant (defaults to CPU)
+docker::
+	$(call build_docker,$(VARIANT),${DOCKERFILE_NAME})
+
+# build cpu dockers
 docker_cpu:
 	$(call build_docker,cpu,${DOCKERFILE_NAME})
 
+# build gpu dockers
 docker_gpu:
 	$(call build_docker,gpu,Dockerfile.gpu)
-
-docker::
-	$(call build_docker,${VARIANT},${DOCKERFILE_NAME})
 
 dockers:: docker_cpu docker_gpu
 
@@ -66,7 +73,8 @@ define build_docker
 	@@echo "DOCKERFILE_NAME=${2}" >> .env
 	@@echo "DOCKER_ORG=${DOCKER_ORG}" >> .env
 	@@cat .env
-	docker-compose build --parallel ${DOCKER_SERVICES}
+	docker-compose build --parallel ${DOCKER_SERVICES} ${CLEANFLAGS}
+	docker rmi `docker images -f "dangling=true"`
 $(if $(filter ${PUBLISH},1),@echo -n "",echo docker-compose push ${DOCKER_SERVICES})
 endef
 
