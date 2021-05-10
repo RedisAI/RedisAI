@@ -19,6 +19,17 @@ commands:
               circleci step halt
             fi
 
+  abort_for_noci:
+    steps:
+      - run:
+          name: Ignore CI for specific branches
+          command: |
+            if [[ $CIRCLE_BRANCH == *noci ]]; then
+              echo "Identifies as actively ignoring CI, no testing required."
+              circleci step halt
+            fi
+
+
   early_return_for_forked_pull_requests:
     description: >-
       If this build is from a fork, stop executing the current job and return success.
@@ -84,6 +95,7 @@ commands:
         type: string
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -129,6 +141,8 @@ commands:
   platforms-build-steps:
     steps:
       - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
       - checkout-all
       - relocate-docker-storage
       - setup-automation
@@ -136,9 +150,11 @@ commands:
           name: Build for platform
           command: |
             pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                docker image prune -f
             done
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
@@ -147,16 +163,6 @@ commands:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
-      - early_return_for_forked_pull_requests
-      - run:
-          name: Build for platform (publish)
-          command: |
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            cd opt/build/docker
-            for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick VERBOSE=1 publish
-                make GPU=1 OSNICK=$osnick VERBOSE=1 publish
-            done
       - persist_to_workspace:
           root: bin/
           paths:
@@ -172,6 +178,7 @@ commands:
         type: string
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - run:
           name: Deploy to S3
@@ -184,6 +191,8 @@ jobs:
     docker:
       - image: redislabsmodules/llvm-toolset:latest
     steps:
+      - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - setup-build-system
       - run:
@@ -214,6 +223,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -245,6 +255,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -274,8 +285,9 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - early_return_for_forked_pull_requests
       - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
       - checkout-all
       - restore_cache:
           keys:
@@ -345,6 +357,7 @@ jobs:
 
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - run:
           name: Relocate docker overlay2 dir
@@ -376,6 +389,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
@@ -393,6 +407,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
@@ -416,6 +431,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
