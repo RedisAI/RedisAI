@@ -17,6 +17,10 @@ PUBLISH=1
 DOCKER_ARCH=$(shell ../../../opt/readies/bin/platform --arch)
 ifeq ($(VERSION),master)
 VERSION=edge
+else
+ifeq ($(VERSION),)
+VERSION=edge
+endif
 endif
 
 # can be xenial buster bionic focal centos7...
@@ -42,6 +46,16 @@ DOCKERFILE_NAME=Dockerfile
 CLEANFLAGS=
 ifdef NOCLEAN
 CLEANFLAGS=--no-rm --no-cache
+endif
+
+# run tests in the docker
+ifndef TEST
+TEST=0
+endif
+
+# pack artifacts
+ifndef PACK
+PACK=0
 endif
 
 # override, to not push to the redislabs docker
@@ -72,6 +86,8 @@ define build_docker
 	@@echo "DOCKER_ARCH=${DOCKER_ARCH}" >> .env
 	@@echo "DOCKERFILE_NAME=${2}" >> .env
 	@@echo "DOCKER_ORG=${DOCKER_ORG}" >> .env
+	@@echo "PACK=${PACK}" >> .env
+	@@echo "TEST=${TEST}" >> .env
 	@@cat .env
 	docker-compose build --parallel ${DOCKER_SERVICES} ${CLEANFLAGS}
 	docker rmi `docker images -f "dangling=true"`

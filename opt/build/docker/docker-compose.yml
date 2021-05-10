@@ -22,6 +22,8 @@ services:
         REDIS_VERSION: ${REDIS_VERSION}
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
+        PACK: ${PACK:-0}
+        TEST: ${TEST:-0}
 
   xenial:
     image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-xenial
@@ -33,6 +35,8 @@ services:
         REDIS_VERSION: ${REDIS_VERSION}
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
+        PACK: ${PACK:-0}
+        TEST: ${TEST:-0}
 
   focal:
     image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-focal
@@ -44,6 +48,8 @@ services:
         REDIS_VERSION: ${REDIS_VERSION}
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
+        PACK: ${PACK:-0}
+        TEST: ${TEST:-0}
 
   centos7:
     image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-centos7
@@ -55,6 +61,8 @@ services:
         REDIS_VERSION: ${REDIS_VERSION}
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
+        PACK: ${PACK:-0}
+        TEST: ${TEST:-0}
 
   buster:
     image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${DOCKER_ARCH:-x64}-${VARIANT:-cpu}-buster
@@ -66,3 +74,5 @@ services:
         REDIS_VERSION: ${REDIS_VERSION}
         ARCH: ${DOCKER_ARCH:-x64}
         VARIANT: ${VARIANT:-cpu}
+        PACK: ${PACK:-0}
+        TEST: ${TEST:-0}
