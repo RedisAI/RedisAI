@@ -15,6 +15,7 @@ file (GLOB BACKEND_COMMON_SRC
         backends/util.c
         redis_ai_objects/err.c
         util/dict.c
+        util/dictionaries.c
         redis_ai_objects/tensor.c
         util/string_utils.c
         execution/utils.c
@@ -22,20 +23,26 @@ file (GLOB BACKEND_COMMON_SRC
 
 ADD_LIBRARY(redisai_obj OBJECT
         util/dict.c
+        util/dictionaries.c
         util/queue.c
         util/string_utils.c
         redisai.c
         execution/command_parser.c
-        execution/deprecated.c
+        execution/parsing/deprecated.c
+        execution/parsing/dag_parser.c
+        execution/parsing/model_commands_parser.c
+        execution/parsing/script_commands_parser.c
+        execution/parsing/parse_utils.c
         execution/run_info.c
         execution/background_workers.c
         execution/utils.c
         config/config.c
         execution/DAG/dag.c
-        execution/DAG/dag_parser.c
         execution/DAG/dag_builder.c
         execution/DAG/dag_execute.c
-        execution/modelRun_ctx.c
+        execution/DAG/dag_op.c
+        execution/execution_contexts/modelRun_ctx.c
+        execution/execution_contexts/scriptRun_ctx.c
         backends/backends.c
         backends/util.c
         redis_ai_objects/model.c

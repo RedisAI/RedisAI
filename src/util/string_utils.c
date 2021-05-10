@@ -3,7 +3,7 @@
 #include <string.h>
 #include "util/redisai_memory.h"
 
-RedisModuleString *RAI_HoldString(RedisModuleCtx *ctx, RedisModuleString *str) {
+RedisModuleString *RAI_HoldString(RedisModuleString *str) {
     if (str == NULL) {
         return NULL;
     }
@@ -32,24 +32,6 @@ void RAI_StringsKeyDestructor(void *privdata, void *key) { RA_FREE(key); }
 
 void *RAI_StringsKeyDup(void *privdata, const void *key) { return RA_STRDUP((char *)key); }
 
-AI_dictType AI_dictTypeHeapStringsVals = {
-    .hashFunction = RAI_StringsHashFunction,
-    .keyDup = RAI_StringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_StringsKeyCompare,
-    .keyDestructor = RAI_StringsKeyDestructor,
-    .valDestructor = RAI_StringsKeyDestructor,
-};
-
-AI_dictType AI_dictTypeHeapStrings = {
-    .hashFunction = RAI_StringsHashFunction,
-    .keyDup = RAI_StringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_StringsKeyCompare,
-    .keyDestructor = RAI_StringsKeyDestructor,
-    .valDestructor = NULL,
-};
-
 uint64_t RAI_RStringsHashFunction(const void *key) {
     size_t len;
     const char *buffer = RedisModule_StringPtrLen((RedisModuleString *)key, &len);
@@ -70,21 +52,3 @@ void RAI_RStringsKeyDestructor(void *privdata, void *key) {
 void *RAI_RStringsKeyDup(void *privdata, const void *key) {
     return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
 }
-
-AI_dictType AI_dictTypeHeapRStringsVals = {
-    .hashFunction = RAI_RStringsHashFunction,
-    .keyDup = RAI_RStringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_RStringsKeyCompare,
-    .keyDestructor = RAI_RStringsKeyDestructor,
-    .valDestructor = RAI_RStringsKeyDestructor,
-};
-
-AI_dictType AI_dictTypeHeapRStrings = {
-    .hashFunction = RAI_RStringsHashFunction,
-    .keyDup = RAI_RStringsKeyDup,
-    .valDup = NULL,
-    .keyCompare = RAI_RStringsKeyCompare,
-    .keyDestructor = RAI_RStringsKeyDestructor,
-    .valDestructor = NULL,
-};

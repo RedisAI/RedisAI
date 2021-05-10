@@ -22,6 +22,8 @@
 #include "util/string_utils.h"
 #include "execution/utils.h"
 
+extern RedisModuleType *RedisAI_TensorType;
+
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
         return (DLDataType){.code = kDLFloat, .bits = 32, .lanes = 1};
@@ -193,7 +195,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     }
     char *data = RedisModule_Alloc(nbytes);
     memcpy(data, blob, nbytes);
-    RAI_HoldString(NULL, rstr);
+    RAI_HoldString(rstr);
 
     RAI_Tensor *ret = RAI_TensorNew();
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
@@ -559,10 +561,10 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     if (RedisModule_KeyType(*key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(*key);
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
-            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty");
+            RAI_SetError(err, RAI_EKEYEMPTY, "ERR tensor key is empty or in a different shard");
         } else {
             RAI_SetError(err, RAI_EKEYEMPTY,
-                         "ERR CROSSSLOT Keys in request don't hash to the same slot");
+                         "ERR CROSSSLOT Tensor key in request don't hash to the same slot");
         }
         return REDISMODULE_ERR;
     }

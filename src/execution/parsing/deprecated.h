@@ -1,7 +1,7 @@
 #pragma once
 
 #include "redismodule.h"
-#include "run_info.h"
+#include "execution/run_info.h"
 
 /**
  * @brief  Parse and validate MODELRUN command: create a modelRunCtx based on the model obtained
@@ -12,5 +12,8 @@
  */
 int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
                          int argc);
+
+int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                          int argc);
 
 int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
