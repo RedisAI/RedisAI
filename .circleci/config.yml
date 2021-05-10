@@ -19,6 +19,17 @@ commands:
               circleci step halt
             fi
 
+  abort_for_noci:
+    steps:
+      - run:
+          name: Ignore CI for specific branches
+          command: |
+            if [[ $CIRCLE_BRANCH == *noci ]]; then
+              echo "Identifies as actively ignoring CI, no testing required."
+              circleci step halt
+            fi
+
+
   early_return_for_forked_pull_requests:
     description: >-
       If this build is from a fork, stop executing the current job and return success.
@@ -84,6 +95,7 @@ commands:
         type: string
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -128,8 +140,9 @@ commands:
 
   platforms-build-steps:
     steps:
-      - early_return_for_forked_pull_requests
       - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
       - checkout-all
       - relocate-docker-storage
       - setup-automation
@@ -165,6 +178,7 @@ commands:
         type: string
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - run:
           name: Deploy to S3
@@ -177,6 +191,8 @@ jobs:
     docker:
       - image: redislabsmodules/llvm-toolset:latest
     steps:
+      - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - setup-build-system
       - run:
@@ -207,6 +223,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -238,6 +255,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
@@ -267,8 +285,9 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - early_return_for_forked_pull_requests
       - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
       - checkout-all
       - restore_cache:
           keys:
@@ -338,6 +357,7 @@ jobs:
 
     steps:
       - abort_for_docs
+      - abort_for_noci
       - checkout-all
       - run:
           name: Relocate docker overlay2 dir
@@ -369,6 +389,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
@@ -386,6 +407,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
@@ -409,6 +431,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - abort_for_docs
+      - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
           at: workspace
