@@ -51,7 +51,13 @@ BINDIR=$(realpath $BINDIR)
 INSTALL_DIR=$(realpath $INSTALL_DIR)
 
 $READIES/enable-utf8
-source /etc/profile.d/utf8.sh
+if [ -f /etc/profile.d/utf8.sh ]; then
+    source /etc/profile.d/utf8.sh
+else
+    echo export LC_ALL=C.UTF-8 >> /etc/profile.d/utf8.sh
+    echo export LANG=C.UTF-8 >> /etc/profile.d/utf8.sh
+    source /etc/profile.d/utf8.sh
+fi
 
 export ARCH=$($READIES/platform --arch)
 export OS=$($READIES/platform --os)
