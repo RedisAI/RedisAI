@@ -16,3 +16,15 @@ int ParseTimeout(RedisModuleString *timeout_arg, RAI_Error *error, long long *ti
  * @return const char*
  */
 const char *ScriptCommand_GetFunctionName(RedisModuleString *functionName);
+
+/**
+ * Parse KEYS section in command [* KEYS <nkeys> key1 key2... ]
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param argv Redis command arguments, as an array of strings
+ * @param argc Redis command number of arguments
+ * @param err An error object to store an error message if needed.
+ * @return processed number of arguments on success, or -1 if the parsing failed
+ */
+
+int ParseKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Error *err);

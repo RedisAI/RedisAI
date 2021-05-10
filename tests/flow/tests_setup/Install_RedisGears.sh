@@ -3,7 +3,7 @@
 set -e
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-ROOT=$(cd $HERE/../.. && pwd)
+ROOT=$(cd $HERE/../../.. && pwd)
 READIES=$ROOT/opt/readies
 . $READIES/shibumi/defs
 

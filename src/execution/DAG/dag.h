@@ -144,8 +144,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
  * @param argc Redis command number of arguments
  * @return
  */
-int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                                    int argc);
+int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                        RedisModuleString **argv, int argc);
 
 /**
  * @brief This callback is called at the end of a DAG run and performs unblock client and reply.

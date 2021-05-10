@@ -77,7 +77,7 @@ class RedisAISetup(paella.Setup):
 
         self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
 
-        self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
+        self.pip_install("-r %s/tests/flow/tests_setup/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")
