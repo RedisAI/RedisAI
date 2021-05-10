@@ -136,7 +136,7 @@ fi
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/tests/flow/tests_auxiliaries
+cd $ROOT/tests/flow/tests_setup
 
 install_git_lfs
 check_redis_server

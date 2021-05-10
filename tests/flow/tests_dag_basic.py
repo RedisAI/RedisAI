@@ -144,8 +144,8 @@ def test_dag_load_persist_tensorset_tensorget(env):
     env.assertEqual(ret, b'OK')
 
     command = "AI.DAGEXECUTE LOAD 2 persisted_tensor_1{1} persisted_tensor_2:{1}" \
-              " PERSIST 1 volatile_tensor_persisted |> " \
-              "AI.TENSORSET volatile_tensor_persisted FLOAT 1 2 VALUES 5 10 |> " \
+              " PERSIST 1 volatile_tensor_persisted{1} |> " \
+              "AI.TENSORSET volatile_tensor_persisted{1} FLOAT 1 2 VALUES 5 10 |> " \
               "AI.TENSORGET persisted_tensor_1{1} META VALUES |> " \
               "AI.TENSORGET persisted_tensor_2:{1} META VALUES "
 
@@ -153,7 +153,7 @@ def test_dag_load_persist_tensorset_tensorget(env):
     env.assertEqual(ret, [b'OK', [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']], [
         b'dtype', b'FLOAT', b'shape', [1, 3], b'values', [b'0', b'0', b'0']]])
 
-    ret = con.execute_command("AI.TENSORGET volatile_tensor_persisted META VALUES")
+    ret = con.execute_command("AI.TENSORGET volatile_tensor_persisted{1} META VALUES")
     env.assertEqual(ret, [b'dtype', b'FLOAT', b'shape', [1, 2], b'values', [b'5', b'10']])
 
 
@@ -200,6 +200,35 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
     ret = con.execute_command(command)
     env.assertEqual(ret, [b'OK', [b'5', b'10'], [b'5', b'10']])
 
+
+def test_dag_with_timeout(env):
+    if not TEST_TF:
+        return
+    con = env.getConnection()
+    batch_size = 2
+    minbatch_size = 2
+    timeout = 1
+    model_name = 'model{1}'
+    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+
+    con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
+                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
+                        'INPUTS', 1, input_var,
+                        'OUTPUTS', 1, output_var,
+                        'BLOB', model_pb)
+    con.execute_command('AI.TENSORSET', 'input{1}',
+                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
+                        'BLOB', img.tobytes())
+
+    res = con.execute_command('AI.DAGEXECUTE',
+                              'LOAD', '1', 'input{1}',
+                              'TIMEOUT', timeout, '|>',
+                              'AI.MODELEXECUTE', model_name,
+                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}',
+                              '|>', 'AI.MODELEXECUTE', model_name,
+                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
+
+    env.assertEqual(b'TIMEDOUT', res)
 
 def test_dag_with_timeout(env):
     if not TEST_TF:

@@ -124,6 +124,7 @@ def test_dag_ro_errors(env):
                         "AI.DAGEXECUTE_RO LOAD 1 volatile_tensor{1}"
                         " |> AI.SCRIPTEXECUTE script{1} bar INPUTS 2 volatile_tensor{1} volatile_tensor{1}")
 
+
 def test_dag_scriptexecute_errors(env):
     if (not TEST_TF or not TEST_PT):
         return
@@ -195,3 +196,28 @@ def test_dag_modelexecute_financialNet_errors(env):
         'AI.TENSORGET', 'resultTensor:{}{}'.format("{1}", tensor_number), 'META',
     )
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition", *command)
+
+
+def test_dag_crossslot_violation_errors(env):
+
+    if env.isCluster():
+        con = env.getConnection()
+
+        # ERR CROSSSLOT violation (LOAD and PERSIST tensors has different hash tags)
+        command = (
+            'AI.DAGEXECUTE', 'LOAD', '1', 'referenceTensor:{1}',
+            'PERSIST', '1', 'resultTensor:{2}', '|>',
+            'AI.TENSORSET', 'resultTensor:{2}', 'FLOAT', 1, 30,
+        )
+        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
+
+        # ERR CROSSSLOT violation (model key has a different hash tag than the LOAD and PERSIST tensors)
+        command = (
+            'AI.DAGEXECUTE', 'LOAD', '1', 'referenceTensor:{1}',
+            'PERSIST', '1', 'resultTensor:{1}', '|>',
+            'AI.TENSORSET', 'transactionTensor:{1}', 'FLOAT', 1, 30, '|>',
+            'AI.MODELEXECUTE', 'model_key{2}',
+            'INPUTS', 1, 'transactionTensor:{1}',
+            'OUTPUTS', 1, 'resultTensor:{1}',
+        )
+        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)

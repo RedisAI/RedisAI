@@ -66,7 +66,7 @@ def test_dag_modelexecute_financialNet_separate_tensorget(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{{hhh}}'
+    model_name = 'financialNet{hhh}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
@@ -109,7 +109,7 @@ def test_dag_modelexecute_financialNet(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{{hhh}}'
+    model_name = 'financialNet{hhh}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
@@ -122,7 +122,7 @@ def test_dag_modelexecute_financialNet(env):
             result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
             reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
             transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
-            
+
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
                                     'BLOB', reference_tensor.tobytes())
@@ -156,7 +156,7 @@ def test_dag_modelexecute_financialNet_autobatch(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{{hhh}}'
+    model_name = 'financialNet{hhh}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', 'CPU',
                               'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
@@ -223,7 +223,7 @@ def test_dag_modelexecute_financialNet_no_writes(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{{hhh}}'
+    model_name = 'financialNet{hhh}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1,'output', 'BLOB', model_pb)
@@ -276,7 +276,7 @@ def test_dagro_modelexecute_financialNet_no_writes_multiple_modelruns(env):
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet_no_writes{{hhh}}'
+    model_name = 'financialNet_no_writes{hhh}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)

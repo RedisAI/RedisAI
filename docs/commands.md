@@ -737,11 +737,11 @@ It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
 By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
-Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace.
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify keys in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `KEYS`.  
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
-A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case). Note that individual `MODELRUN` or `SCRIPTRUN` commands within the DAG do not support `TIMEOUT`. `TIMEOUT` only applies to the `DAGRUN` request as a whole.
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case). Note that individual `MODELEXECUTE` or `SCRIPTEXECUTE` commands within the DAG do not support `TIMEOUT`. `TIMEOUT` only applies to the `DAGEXECUTE` request as a whole.
 
 
 **Redis API**
@@ -756,19 +756,21 @@ AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
 
 _Arguments_
 
-* **LOAD**: an optional argument, that denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
-* **PERSIST**: an optional argument, that denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **KEYS**: an optional argument, that denotes the beginning of keys' list which are used within this command, followed by the number of keys, and one or more key names. Alternately, the keys names list can be replaced with a tag which all those keys share. Redis will verify that all potential key accesses are done to the right shard.
-* **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+* **LOAD**: denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
+* **PERSIST**: denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
+* **KEYS**: denotes the beginning of keys' list which are used within this command, followed by the number of keys, and one or more key names. Alternately, the keys names list can be replaced with a tag which all of those keys share. Redis will verify that all potential key accesses are done to the right shard.
+
+_While each of the LOAD, PERSIST and KEYS sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
+* **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
     * `AI.TENSORSET`
     * `AI.TENSORGET`
     * `AI.MODELEXECUTE`
     * `AI.SCRIPTEXECUTE`
 
-Note that LOAD, PERSIST and KEYS sections may appear at most once in the command, and that the command must contain **at least one** of these 3 keywords.
-Moreover, KEYS should not be specified in `AI.SCRIPTEXECUTE` commands of the DAG. 
+
 `AI.MODELEXECUTE` and `AI.SCRIPTEXECUTE` commands can run on models or scripts that were set on different devices. RedisAI will analyze the DAG and execute commands in parallel if they are located on different devices and their inputs are available.
+Note that KEYS should not be specified in `AI.SCRIPTEXECUTE` commands of the DAG. 
 
 _Return_
 
@@ -781,10 +783,10 @@ Assuming that running the model that's stored at 'mymodel', we define a temporar
 
 
 ```
-redis> AI.DAGEXECUTE PERSIST 1 predictions |>
+redis> AI.DAGEXECUTE PERSIST 1 predictions{tag} |>
           AI.TENSORSET mytensor FLOAT 1 2 VALUES 5 10 |>
-          AI.MODELEXECUTE mymodel INPUTS 1 mytensor OUTPUTS 2 classes predictions |>
-          AI.TENSORGET predictions VALUES
+          AI.MODELEXECUTE mymodel{tag} INPUTS 1 mytensor OUTPUTS 2 classes predictions{tag} |>
+          AI.TENSORGET predictions{tag} VALUES
 1) OK
 2) OK
 3) 1) FLOAT
@@ -800,9 +802,9 @@ To optimize the classification process we can use a post process script to retur
 ```
 redis> AI.DAGEXECUTE KEYS 1 {tag} |> 
             AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
-            AI.SCRIPTEXECUTE imagenet_script pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
-            AI.MODELEXECUTE imagenet_model INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 
-            AI.SCRIPTEXECUTE imagenet_script post_process INPUTS 1 temp_key2 OUTPUTS 1 output |> 
+            AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
+            AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 
+            AI.SCRIPTEXECUTE imagenet_script{tag} post_process INPUTS 1 temp_key2 OUTPUTS 1 output |> 
             AI.TENSORGET output VALUES
 1) OK
 2) OK
