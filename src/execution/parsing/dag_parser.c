@@ -172,7 +172,7 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
             currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
             if (currentOp->fmt == TENSOR_NONE) {
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             continue;
         }
@@ -183,14 +183,14 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
             if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
                                        rinfo->err) == -1) {
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
             if (ParseModelExecuteCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             continue;
         }
@@ -199,11 +199,11 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
                 // Scripts can contain call to Redis commands (that may write to Redis)
                 RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                              "ERR AI.SCRIPTEXECUTE command cannot be specified in a read-only DAG");
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             if (ParseScriptExecuteCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
                 REDISMODULE_OK) {
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             continue;
         }
@@ -211,17 +211,17 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "Deprecated AI.MODELRUN"
                          " cannot be used in AI.DAGEXECUTE command");
-            goto cleanup;
+            return REDISMODULE_ERR;
         }
         if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "Deprecated AI.SCRIPTRUN"
                          " cannot be used in AI.DAGEXECUTE command");
-            goto cleanup;
+            return REDISMODULE_ERR;
         }
         // If none of the cases match, we have an invalid op.
         RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "Unsupported command within DAG");
-        goto cleanup;
+        return REDISMODULE_ERR;
     }
 
     // After validating all the ops, insert them to the DAG.
@@ -230,12 +230,6 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
     }
     rinfo->dagOpCount = array_len(rinfo->dagOps);
     return REDISMODULE_OK;
-
-cleanup:
-    for (size_t i = 0; i < array_len(ops); i++) {
-        RAI_FreeDagOp(ops[i]);
-    }
-    return REDISMODULE_ERR;
 }
 
 int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
@@ -335,7 +329,6 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
 int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                            int argc, bool dag_ro) {
 
-    int res = REDISMODULE_ERR;
     // The minimal command is of the form: AI.DAGEXECUTE(_RO) KEYS/LOAD/PERSIST 1 <key> |>
     // AI.TENSORGET <key>
     if (argc < 7) {
@@ -346,7 +339,7 @@ int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisMod
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR missing arguments for 'AI.DAGEXECUTE' command");
         }
-        return res;
+        return REDISMODULE_ERR;
     }
 
     // First we parse KEYS, LOAD, PERSIST and TIMEOUT parts, and we collect the DAG ops' args.
@@ -368,9 +361,13 @@ int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisMod
     }
     AI_dictRelease(rinfo->tensorsNamesToIndices);
     rinfo->tensorsNamesToIndices = NULL;
-    res = REDISMODULE_OK;
+    array_free(dag_ops);
+    return REDISMODULE_OK;
 
 cleanup:
+    for (size_t i = 0; i < array_len(dag_ops); i++) {
+        RAI_FreeDagOp(dag_ops[i]);
+    }
     array_free(dag_ops);
-    return res;
+    return REDISMODULE_ERR;
 }

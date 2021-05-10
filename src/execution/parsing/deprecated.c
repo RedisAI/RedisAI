@@ -586,7 +586,7 @@ int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleS
     // First we parse LOAD, PERSIST and TIMEOUT parts, and we collect the DAG ops' args.
     array_new_on_stack(RAI_DagOp *, 10, dag_ops);
     if (DAGInitialParsing(rinfo, ctx, argv, argc, dag_ro, &dag_ops) != REDISMODULE_OK) {
-        return REDISMODULE_ERR;
+        goto cleanup;
     }
 
     if (ParseDAGRunOps(rinfo, dag_ops) != REDISMODULE_OK) {
