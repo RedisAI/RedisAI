@@ -368,6 +368,8 @@ cleanup:
     for (size_t i = 0; i < array_len(dag_ops); i++) {
         RAI_FreeDagOp(dag_ops[i]);
     }
+    // For the case that error was raised after the ops were inserted to the run info.
+    array_clear(rinfo->dagOps);
     array_free(dag_ops);
     return REDISMODULE_ERR;
 }
