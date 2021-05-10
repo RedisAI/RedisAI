@@ -673,26 +673,26 @@ int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 
     size_t argpos = 1;
     while (argpos < argc) {
-        const char* arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
-        if(!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST")
-           || !strcasecmp(arg_string, "KEYS")) {
-            if(argpos >= argc) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
+        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ||
+            !strcasecmp(arg_string, "KEYS")) {
+            if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
             long long n_keys;
-            const int retval = RedisModule_StringToLongLong(argv[argpos++],
-              &n_keys);
-            if(retval != REDISMODULE_OK) {
+            const int retval = RedisModule_StringToLongLong(argv[argpos++], &n_keys);
+            if (retval != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
             size_t last_argpos = n_keys + argpos;
-            if(last_argpos >= argc) {
+            if (last_argpos >= argc) {
                 return REDISMODULE_ERR;
             }
-            for(; argpos < last_argpos; argpos++) {
+            for (; argpos < last_argpos; argpos++) {
                 RedisModule_KeyAtPos(ctx, argpos);
             }
-        } else if (!strcasecmp(arg_string, "AI.MODELEXECUTE") || !strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
+        } else if (!strcasecmp(arg_string, "AI.MODELEXECUTE") ||
+                   !strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
             if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
