@@ -43,6 +43,15 @@ commands:
               circleci step halt
             fi
 
+  setup-executor:
+    steps:
+      - run:
+          name: Setup executor
+          command: |
+            sudo apt-get -qq update
+            sudo apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
+            bash <(curl -fsSL https://get.docker.com)
+
   relocate-docker-storage:
     steps:
       - run:
