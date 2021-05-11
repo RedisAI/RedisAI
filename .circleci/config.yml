@@ -583,11 +583,13 @@ workflows:
 #          <<: *on-any-branch-but-tags
 #          <<: *after-linter
       - platforms-build-cpu:
+          <<: *on-any-branch
 #          <<: *after-build-and-test
-          <<: *on-master-and-version-tags
+#          <<: *on-master-and-version-tags
       - platforms-build-gpu:
+          <<: *on-any-branch
 #          <<: *after-build-and-test
-          <<: *on-master-and-version-tags
+#          <<: *on-master-and-version-tags
 #      - coverage:
 #          context: common
 #          <<: *on-dev-branches
