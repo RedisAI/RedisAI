@@ -134,7 +134,6 @@ commands:
       - early_return_for_forked_pull_requests
       - checkout-all
       - setup-automation
-      - setup_remote_docker
       - run:
           name: Build for platform
           command: |
@@ -167,8 +166,8 @@ commands:
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
-      - relocate-docker-storage
       - setup-automation
+      - setup_remote_docker
       - run:
           name: Build for platform
           command: |
