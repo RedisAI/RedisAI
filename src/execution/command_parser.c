@@ -35,13 +35,6 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         rinfo->dagOps = array_append(rinfo->dagOps, scriptRunOp);
         status = ParseScriptRunCommand(rinfo, scriptRunOp, argv, argc);
         break;
-    case CMD_SCRIPTEXECUTE:
-        rinfo->single_op_dag = 1;
-        RAI_DagOp *scriptExecOp;
-        RAI_InitDagOp(&scriptExecOp);
-        rinfo->dagOps = array_append(rinfo->dagOps, scriptExecOp);
-        status = ParseScriptExecuteCommand(rinfo, scriptExecOp, argv, argc);
-        break;
     case CMD_DAGRUN:
         status = ParseDAGRunCommand(rinfo, ctx, argv, argc, ro_dag);
         break;
@@ -51,6 +44,16 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RAI_InitDagOp(&modelExecuteOp);
         rinfo->dagOps = array_append(rinfo->dagOps, modelExecuteOp);
         status = ParseModelExecuteCommand(rinfo, modelExecuteOp, argv, argc);
+        break;
+    case CMD_SCRIPTEXECUTE:
+        rinfo->single_op_dag = 1;
+        RAI_DagOp *scriptExecOp;
+        RAI_InitDagOp(&scriptExecOp);
+        rinfo->dagOps = array_append(rinfo->dagOps, scriptExecOp);
+        status = ParseScriptExecuteCommand(rinfo, scriptExecOp, argv, argc);
+        break;
+    case CMD_DAGEXECUTE:
+        status = ParseDAGExecuteCommand(rinfo, ctx, argv, argc, ro_dag);
         break;
     default:
         break;
