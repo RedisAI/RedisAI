@@ -141,6 +141,7 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
+      - setup_remote_docker
       - setup-executor
       - checkout-all
       - setup-automation
@@ -176,8 +177,8 @@ commands:
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
+      - setup-executor
       - setup-automation
-      - setup_remote_docker
       - run:
           name: Build for platform
           command: |
