@@ -195,15 +195,17 @@ int testBuildDAGFromString(RedisModuleCtx *ctx) {
     t = (RAI_Tensor *)_getFromKeySpace(ctx, "b{1}");
     RedisAI_DAGAddTensorSet(run_info, "input2", t);
 
-    dag_string = "|> AI.MODELRUN m{1} INPUTS input1 input2 OUTPUTS output |> bad_op no_tensor";
+    dag_string =
+        "|> AI.MODELEXECUTE m{1} INPUTS 2 input1 input2 OUTPUTS 1 output |> bad_op no_tensor";
     status = RedisAI_DAGAddOpsFromString(run_info, dag_string, run_ctx.error);
-    if (!_assertError(run_ctx.error, status, "unsupported command within DAG")) {
+    if (!_assertError(run_ctx.error, status, "Unsupported command within DAG")) {
         goto cleanup;
     }
     RedisAI_ClearError(run_ctx.error);
     RedisModule_Assert(RedisAI_DAGNumOps(run_info) == 1);
 
-    dag_string = "|> AI.MODELRUN m{1} INPUTS input1 input2 OUTPUTS output |> AI.TENSORGET output";
+    dag_string =
+        "|> AI.MODELEXECUTE m{1} INPUTS 2 input1 input2 OUTPUTS 1 output |> AI.TENSORGET output";
     if (RedisAI_DAGAddOpsFromString(run_info, dag_string, run_ctx.error) != REDISMODULE_OK) {
         goto cleanup;
     }
@@ -385,25 +387,25 @@ int testDAGResnet(RedisModuleCtx *ctx) {
 
     // Build the DAG with LOAD->SCRIPTRUN->MODELRUN->MODELRUN-SCRIPTRUN->SCRIPTRUN->TENSORGET
     RAI_DAGRunCtx *run_info = RedisAI_DAGRunCtxCreate();
-    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "image:{{1}}");
-    RedisAI_DAGLoadTensor(run_info, "image:{{1}}", t);
+    RAI_Tensor *t = (RAI_Tensor *)_getFromKeySpace(ctx, "image:{1}");
+    RedisAI_DAGLoadTensor(run_info, "image:{1}", t);
 
-    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "imagenet_script1:{{1}}");
+    RAI_Script *script = (RAI_Script *)_getFromKeySpace(ctx, "imagenet_script1:{1}");
     RAI_DAGRunOp *script_op = RedisAI_DAGCreateScriptRunOp(script, "pre_process_3ch");
-    RedisAI_DAGRunOpAddInput(script_op, "image:{{1}}");
-    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(script_op, "image:{1}");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
-    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model1:{{1}}");
+    RAI_Model *model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model1:{1}");
     RAI_DAGRunOp *model_op = RedisAI_DAGCreateModelRunOp(model);
-    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{1}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_0");
     if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
         goto cleanup;
 
-    model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model2:{{1}}");
+    model = (RAI_Model *)_getFromKeySpace(ctx, "imagenet_model2:{1}");
     model_op = RedisAI_DAGCreateModelRunOp(model);
-    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{{1}}");
+    RedisAI_DAGRunOpAddInput(model_op, "tmp_key:{1}");
     RedisAI_DAGRunOpAddOutput(model_op, "tmp_key2_1");
     if (RedisAI_DAGAddRunOp(run_info, model_op, run_ctx.error) != REDISMODULE_OK)
         goto cleanup;
@@ -411,15 +413,15 @@ int testDAGResnet(RedisModuleCtx *ctx) {
     script_op = RedisAI_DAGCreateScriptRunOp(script, "ensemble");
     RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_0");
     RedisAI_DAGRunOpAddInput(script_op, "tmp_key2_1");
-    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key_1:{{1}}");
+    RedisAI_DAGRunOpAddOutput(script_op, "tmp_key_1:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
     script_op = RedisAI_DAGCreateScriptRunOp(script, "post_process");
-    RedisAI_DAGRunOpAddInput(script_op, "tmp_key_1:{{1}}");
-    RedisAI_DAGRunOpAddOutput(script_op, "output:{{1}}");
+    RedisAI_DAGRunOpAddInput(script_op, "tmp_key_1:{1}");
+    RedisAI_DAGRunOpAddOutput(script_op, "output:{1}");
     RedisAI_DAGAddRunOp(run_info, script_op, run_ctx.error);
 
-    RedisAI_DAGAddTensorGet(run_info, "output:{{1}}");
+    RedisAI_DAGAddTensorGet(run_info, "output:{1}");
 
     pthread_mutex_lock(&run_ctx.lock);
     if (RedisAI_DAGRun(run_info, _DAGFinishFunc, &run_ctx, run_ctx.error) != REDISMODULE_OK) {

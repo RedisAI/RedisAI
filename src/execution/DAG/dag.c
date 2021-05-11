@@ -668,25 +668,36 @@ cleanup:
     return REDISMODULE_OK;
 }
 
-int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                                    int argc) {
-    for (size_t argpos = 1; argpos < argc; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if ((!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST")) &&
-            (argpos + 1 < argc)) {
+int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                        RedisModuleString **argv, int argc) {
+
+    size_t argpos = 1;
+    while (argpos < argc) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
+        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ||
+            !strcasecmp(arg_string, "KEYS")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
             long long n_keys;
-            argpos++;
-            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+            const int retval = RedisModule_StringToLongLong(argv[argpos++], &n_keys);
             if (retval != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
-            argpos++;
-            if (n_keys > 0) {
-                size_t last_persist_argpos = n_keys + argpos;
-                for (; argpos < last_persist_argpos && argpos < argc; argpos++) {
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
+            size_t last_argpos = n_keys + argpos;
+            if (last_argpos >= argc) {
+                return REDISMODULE_ERR;
             }
+            for (; argpos < last_argpos; argpos++) {
+                RedisModule_KeyAtPos(ctx, argpos);
+            }
+        } else if (!strcasecmp(arg_string, "AI.MODELEXECUTE") ||
+                   !strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
+            // After every AI.MODEL/SCRIPTEXECUTE arg comes the model/script key.
+            RedisModule_KeyAtPos(ctx, argpos++);
         }
     }
     return REDISMODULE_OK;
