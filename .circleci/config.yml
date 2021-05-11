@@ -43,17 +43,6 @@ commands:
               circleci step halt
             fi
 
-  setup-executor:
-    steps:
-      - run:
-          name: Setup executor
-          command: |
-            sudo apt-get -qq update
-            sudo apt-get -q install -y git openssh-client curl ca-certificates make tar gzip
-            bash <(curl -fsSL https://get.docker.com)
-#      - setup_remote_docker:
-#          docker_layer_caching: true
-
   relocate-docker-storage:
     steps:
       - run:
@@ -138,7 +127,41 @@ commands:
       - store_artifacts:
           path: tests/logs
 
-  platforms-build-steps:
+  platforms-build-steps-cpu:
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - checkout-all
+      - setup-automation
+      - setup_remote_docker
+      - run:
+          name: Build for platform
+          command: |
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            for osnick in bionic xenial; do
+                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                make CPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
+                docker image prune -f
+            done
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+          no_output_timeout: 40m
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*.zip
+            - artifacts/*.tgz
+            - artifacts/*.tar
+      - store_artifacts:
+          path: test/logs
+
+  platforms-build-steps-gpu:
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -152,9 +175,7 @@ commands:
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
                 make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                make CPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
                 make GPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
                 docker image prune -f
             done
@@ -173,6 +194,7 @@ commands:
             - artifacts/*.tar
       - store_artifacts:
           path: test/logs
+
 
   deploy-steps:
     parameters:
@@ -211,14 +233,22 @@ jobs:
 
   # this build runs on a fixed machine, due to a storage need
   # nothing about it necessitates the machine itself, other than the need for more disk.
-  platforms-build:
+  platforms-build-cpu:
     machine:
       enabled: true
       docker_layer_caching: true
       resource_class: medium
       image: ubuntu-2004:202101-01
     steps:
-      - platforms-build-steps
+      - platforms-build-steps-cpu
+
+  # this build runs on a fixed machine, due to a storage need
+  # nothing about it necessitates the machine itself, other than the need for more disk.
+  platforms-build-gpu:
+    docker:
+      - image: cimg/base:2021.04
+    steps:
+      - platforms-build-steps-gpu
 
   coverage:
     docker:
@@ -539,51 +569,55 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    - platforms-build
+    - platforms-build-cpu
+    - platforms-build-gpu
 
 #### define workflows
 workflows:
   version: 2
   build_and_package:
     jobs:
-      - lint:
-          <<: *on-any-branch
-      - build-and-test:
-          <<: *on-any-branch-but-tags
-          <<: *after-linter
-      - platforms-build:
-          <<: *after-build-and-test
+#      - lint:
+#          <<: *on-any-branch
+#      - build-and-test:
+#          <<: *on-any-branch-but-tags
+#          <<: *after-linter
+      - platforms-build-cpu:
+#          <<: *after-build-and-test
           <<: *on-master-and-version-tags
-      - coverage:
-          context: common
-          <<: *on-dev-branches
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - build-and-test-gpu:
-          <<: *on-integ-branch
-          <<: *after-linter
-      - deploy-snapshot:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-integ-branch
-      - deploy-release:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-version-tags
-      - release-automation:
-          context: common
-          <<: *on-version-tags
-          requires:
-            - deploy-release
+      - platforms-build-gpu:
+#          <<: *after-build-and-test
+          <<: *on-master-and-version-tags
+#      - coverage:
+#          context: common
+#          <<: *on-dev-branches
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0 AOF=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-aof
+#          test_args: GEN=0 CLUSTER=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - build-and-test-gpu:
+#          <<: *on-integ-branch
+#          <<: *after-linter
+##      - deploy-snapshot:
+##          context: common
+##          <<: *after-platform-builds
+##          <<: *on-integ-branch
+#      - deploy-release:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
+#      - release-automation:
+#          context: common
+#          <<: *on-version-tags
+#          requires:
+#            - deploy-release
 
   nightly:
     triggers:
