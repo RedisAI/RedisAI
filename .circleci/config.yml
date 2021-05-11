@@ -141,6 +141,7 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
+      - setup-executor
       - checkout-all
       - setup-automation
       - run:
