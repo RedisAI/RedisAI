@@ -241,7 +241,7 @@ jobs:
 
   # this build runs on a fixed machine, due to a storage need
   # nothing about it necessitates the machine itself, other than the need for more disk.
-  platforms-build-cpu:
+  platforms-build-gpu:
     machine:
       enabled: true
       docker_layer_caching: true
@@ -252,9 +252,9 @@ jobs:
 
   # this build runs on a fixed machine, due to a storage need
   # nothing about it necessitates the machine itself, other than the need for more disk.
-  platforms-build-gpu:
+  platforms-build-cpu:
     docker:
-      - image: cimg/base:2021.04
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
       - platforms-build-steps-gpu
 
