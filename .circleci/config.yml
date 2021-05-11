@@ -250,7 +250,7 @@ jobs:
       resource_class: medium
       image: ubuntu-2004:202101-01
     steps:
-      - platforms-build-steps-cpu
+      - platforms-build-steps-gpu
 
   # this build runs on a fixed machine, due to a storage need
   # nothing about it necessitates the machine itself, other than the need for more disk.
@@ -258,7 +258,7 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - platforms-build-steps-gpu
+      - platforms-build-steps-cpu
 
   coverage:
     docker:
