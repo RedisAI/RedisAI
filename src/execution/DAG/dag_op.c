@@ -19,8 +19,7 @@ int RAI_InitDagOp(RAI_DagOp **result) {
     dagOp->inkeys_indices = array_new(size_t, 1);
     dagOp->outkeys_indices = array_new(size_t, 1);
     dagOp->outTensor = NULL;
-    dagOp->mctx = NULL;
-    dagOp->sctx = NULL;
+    dagOp->ectx = NULL;
     dagOp->devicestr = NULL;
     dagOp->duration_us = 0;
     dagOp->result = -1;
@@ -43,12 +42,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     if (dagOp->outTensor)
         RAI_TensorFree(dagOp->outTensor);
 
-    if (dagOp->mctx) {
-        RAI_ModelRunCtxFree(dagOp->mctx);
-    }
-    if (dagOp->sctx) {
-        RAI_ScriptRunCtxFree(dagOp->sctx);
-    }
+    dagOp->ectx->freeFn(dagOp->ectx);
 
     if (dagOp->inkeys) {
         for (size_t i = 0; i < array_len(dagOp->inkeys); i++) {

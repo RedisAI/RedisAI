@@ -9,9 +9,8 @@
 RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ScriptRunCtx *sctx = RedisModule_Calloc(1, sizeof(*sctx));
+    sctx->base = RAI_ExecutionCtx_New(RAI_ScriptRunCtxFree);
     sctx->script = RAI_ScriptGetShallowCopy(script);
-    sctx->inputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
-    sctx->outputs = array_new(RAI_ScriptCtxParam, PARAM_INITIAL_SIZE);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
     sctx->intInputs = array_new(int32_t, PARAM_INITIAL_SIZE);
@@ -20,18 +19,9 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
     return sctx;
 }
 
-static int _Script_RunCtxAddParam(RAI_ScriptCtxParam **paramArr, RAI_Tensor *tensor) {
-    RAI_ScriptCtxParam param = {
-        .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
-    };
-    *paramArr = array_append(*paramArr, param);
-    return 1;
-}
-
 // Deprecated.
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
-    // Even if variadic is set, we still allow to add inputs in the LLAPI
-    _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
+    RAI_ExecutionCtx_AddInput(sctx->base, inputTensor);
     return 1;
 }
 
@@ -40,14 +30,14 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
                                  RAI_Error *err) {
     int res;
     for (size_t i = 0; i < len; i++) {
-        res = _Script_RunCtxAddParam(&sctx->inputs, inputTensors[i]);
+           RAI_ExecutionCtx_AddInput(sctx->base, inputTensors[i]);
     }
     sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
 int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
-    _Script_RunCtxAddParam(&sctx->inputs, inputTensor);
+    RAI_ExecutionCtx_AddInput(sctx->base, inputTensor);
     return 1;
 }
 
@@ -114,40 +104,28 @@ int RAI_ScriptRunCtxAddStringInputList(RAI_ScriptRunCtx *sctx, const char **stri
     return res;
 }
 
-int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len) {
+inline int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len) {
     sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
-int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    return _Script_RunCtxAddParam(&sctx->outputs, NULL);
+inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
+    RAI_ExecutionCtx_AddOuputPlaceholder(sctx->base, NULL);
+    return 1;
 }
 
-size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) { return array_len(sctx->outputs); }
+inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) { RAI_ExecutionCtx_OutputsLen(sctx->base); }
 
 RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
-    assert(RAI_ScriptRunCtxNumOutputs(sctx) > index && index >= 0);
-    return sctx->outputs[index].tensor;
+    return RAI_ExecutionCtx_GetOutput(sctx->base, index);
 }
 
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
-
-    for (size_t i = 0; i < array_len(sctx->inputs); ++i) {
-        RAI_TensorFree(sctx->inputs[i].tensor);
-    }
-
-    for (size_t i = 0; i < array_len(sctx->outputs); ++i) {
-        if (sctx->outputs[i].tensor) {
-            RAI_TensorFree(sctx->outputs[i].tensor);
-        }
-    }
-
+    RAI_ExecutionCtx_Free(sctx->base);
     for (size_t i = 0; i < array_len(sctx->stringInputs); ++i) {
         RedisModule_FreeString(NULL, sctx->stringInputs[i]);
     }
 
-    array_free(sctx->inputs);
-    array_free(sctx->outputs);
     array_free(sctx->listSizes);
     array_free(sctx->stringInputs);
     array_free(sctx->intInputs);

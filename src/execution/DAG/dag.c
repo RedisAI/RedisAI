@@ -44,11 +44,12 @@
 #include "execution/parsing/dag_parser.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
+#include "execution/execution_contexts/execution_ctx.h"
 #include "redis_ai_objects/model.h"
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
 
-static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+static void Dag_LoadInputsToExecutionCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
     uint n_inkeys = array_len(currentOp->inkeys);
     uint n_outkeys = array_len(currentOp->outkeys);
 
@@ -66,18 +67,11 @@ static void Dag_LoadInputsToModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curre
     // For other backends, model->inputs and model->outputs is null.
     for (uint i = 0; i < n_inkeys; i++) {
         const char *opname = NULL;
-        if (currentOp->mctx->model->inputs) {
-            opname = currentOp->mctx->model->inputs[i];
-        }
-        RAI_ModelRunCtxAddInput(currentOp->mctx, opname, inputTensors[i]);
+        RAI_ExecutionCtx_AddInput(currentOp->ectx, inputTensors[i]);
     }
 
     for (uint i = 0; i < n_outkeys; i++) {
-        const char *opname = NULL;
-        if (currentOp->mctx->model->outputs) {
-            opname = currentOp->mctx->model->outputs[i];
-        }
-        RAI_ModelRunCtxAddOutput(currentOp->mctx, opname);
+        RAI_ExecutionCtx_AddOuputPlaceholder(currentOp->ectx);
     }
 }
 

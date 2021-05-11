@@ -1,6 +1,14 @@
 #pragma once
 
 #include "redis_ai_objects/model.h"
+#include "execution_ctx.h"
+
+typedef struct RAI_ModelRunCtx {
+    RAI_ExecutionCtx* base;
+    size_t ctxtype;
+    RAI_Model *model;
+} RAI_ModelRunCtx;
+
 
 /**
  * Allocates the RAI_ModelRunCtx data structure required for async background
@@ -92,12 +100,12 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
                           RedisModuleString **outkeys, RAI_ModelRunCtx *mctx, RAI_Error *err);
 
 /**
- * Given the input array of mctxs, run the associated backend
- * session. If the input array of model context runs is larger than one, then
+ * Given a model and  the input array of ectxs, run the associated backend
+ * session. If the length of the input context is larger than one, then
  * each backend's `model_run` is responsible for concatenating tensors, and run
  * the model in batches with the size of the input array. On success, the
  * tensors corresponding to outputs[0,noutputs-1] are placed in each
- * RAI_ModelRunCtx output tensors array. Relies on each backend's `model_run`
+ * RAI_ExecutionCtx output tensors array. Relies on each backend's `model_run`
  * definition.
  *
  * @param mctxs array on input model contexts
@@ -107,7 +115,7 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
+int RAI_ModelRun(RAI_Model* model, RAI_ExecutionCtx **ectxs, long long n, RAI_Error *err);
 
 /**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.
@@ -120,3 +128,8 @@ int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
  */
 
 int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data);
+
+/**
+ * @brief Returns the internal RAI_Model object of RAI_ModelRunCtx.
+ */
+RAI_Model* RAI_ModelRunCtxGetModel(RAI_ModelRunCtx* mctx);

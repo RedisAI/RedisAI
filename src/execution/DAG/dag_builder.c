@@ -97,12 +97,12 @@ int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
     if (op->mctx) {
         RAI_Model *model = op->mctx->model;
-        if (ModelGetNumInputs(model) != array_len(op->inkeys)) {
+        if (RAI_ModelGetNumInputs(model) != array_len(op->inkeys)) {
             RAI_SetError(err, RAI_EDAGBUILDER,
                          "Number of keys given as INPUTS does not match model definition");
             return REDISMODULE_ERR;
         }
-        if (ModelGetNumOutputs(model) != array_len(op->outkeys)) {
+        if (RAI_ModelGetNumOutputs(model) != array_len(op->outkeys)) {
             RAI_SetError(err, RAI_EDAGBUILDER,
                          "Number of keys given as OUTPUTS does not match model definition");
             return REDISMODULE_ERR;

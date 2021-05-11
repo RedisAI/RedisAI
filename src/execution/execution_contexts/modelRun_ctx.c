@@ -6,62 +6,36 @@
 #include "execution/run_info.h"
 #include "backends/backends.h"
 
-static int _Model_RunCtxAddParam(RAI_ModelCtxParam **paramArr, const char *name,
-                                 RAI_Tensor *tensor) {
-
-    RAI_ModelCtxParam param = {
-        .name = name,
-        .tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL,
-    };
-    *paramArr = array_append(*paramArr, param);
-    return 1;
-}
-
 RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
-#define PARAM_INITIAL_SIZE 10
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
+    mctx->base = RAI_ExecutionCtx_New(RAI_ModelRunCtxFree);
     mctx->model = RAI_ModelGetShallowCopy(model);
-    mctx->inputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
-    mctx->outputs = array_new(RAI_ModelCtxParam, PARAM_INITIAL_SIZE);
     return mctx;
-#undef PARAM_INITIAL_SIZE
 }
 
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor) {
-    return _Model_RunCtxAddParam(&mctx->inputs, inputName, inputTensor);
+    RAI_ExecutionCtx_AddInput(mctx->base, inputTensor);
+    return 1;
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
-    return _Model_RunCtxAddParam(&mctx->outputs, outputName, NULL);
+    RAI_ExecutionCtx_AddOutput(mctx->base, NULL);
 }
 
-size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) { return array_len(mctx->inputs); }
+inline size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) { return RAI_ExecutionCtx_InputsLen(mctx->base); }
 
-size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) { return array_len(mctx->outputs); }
+inline size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) { return RAI_ExecutionCtx_OutputsLen(mctx->base);}
 
-RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    assert(RAI_ModelRunCtxNumInputs(mctx) > index && index >= 0);
-    return mctx->inputs[index].tensor;
+inline RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index) {
+    return RAI_ExecutionCtx_GetInput(mctx->base, index);
 }
 
-RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    assert(RAI_ModelRunCtxNumOutputs(mctx) > index && index >= 0);
-    return mctx->outputs[index].tensor;
+inline RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index) {
+    return RAI_ExecutionCtx_GetOutput(mctx->base, index);
 }
 
 void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx) {
-    for (size_t i = 0; i < array_len(mctx->inputs); ++i) {
-        RAI_TensorFree(mctx->inputs[i].tensor);
-    }
-
-    for (size_t i = 0; i < array_len(mctx->outputs); ++i) {
-        if (mctx->outputs[i].tensor) {
-            RAI_TensorFree(mctx->outputs[i].tensor);
-        }
-    }
-
-    array_free(mctx->inputs);
-    array_free(mctx->outputs);
+    RAI_ExecutionCtx_Free(mctx->base);
 
     RAI_Error err = {0};
     RAI_ModelFree(mctx->model, &err);
@@ -171,7 +145,7 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
     RAI_InitDagOp(&op);
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
     op->devicestr = mctx->model->devicestr;
-    op->mctx = mctx;
+    op->ectx = (RAI_ExecutionCtx*)mctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
@@ -181,3 +155,5 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
     }
     return REDISMODULE_OK;
 }
+
+inline RAI_Model* RAI_ModelRunCtxGetModel(RAI_ModelRunCtx* mctx) { return mctx->model;}
