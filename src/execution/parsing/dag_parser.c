@@ -78,7 +78,7 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
 
 /**
  * DAGRUN Building Block to parse [PERSIST <nkeys> key1 key2... ]
- *
+ * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @param persistTensorsNames local hash table containing DAG's
@@ -87,8 +87,8 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
  * argument after the chaining operator is not considered
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-static int _ParseDAGPersistArgs(RedisModuleString **argv, int argc, AI_dict *persistTensorsNames,
-                                RAI_Error *err) {
+static int _ParseDAGPersistArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                AI_dict *persistTensorsNames, RAI_Error *err) {
     if (argc < 3) {
         RAI_SetError(err, RAI_EDAGBUILDER,
                      "ERR missing arguments after PERSIST keyword in DAG command");
@@ -106,9 +106,14 @@ static int _ParseDAGPersistArgs(RedisModuleString **argv, int argc, AI_dict *per
     // Go over the given args and save the tensor key names to persist.
     int number_keys_to_persist = 0;
     for (size_t argpos = 2; (argpos < argc) && (number_keys_to_persist < n_keys); argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (AI_dictFind(persistTensorsNames, (void *)argv[argpos]) != NULL) {
             RAI_SetError(err, RAI_EDAGBUILDER, "ERR PERSIST keys must be unique");
+            return -1;
+        }
+        if (!VerifyKeyInThisShard(ctx, argv[argpos])) { // Relevant for enterprise cluster.
+            RAI_SetError(
+                err, RAI_EDAGBUILDER,
+                "ERR Found keys to persist in DAG command that don't hash to the local shard");
             return -1;
         }
         AI_dictAdd(persistTensorsNames, (void *)argv[argpos], NULL);
@@ -267,7 +272,7 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             /* Store the keys to persist in persistTensors dict, these keys will
              * be mapped later to the indices in the dagSharedTensors array in which the
              * tensors to persist will be found by the end of the DAG run. */
-            const int parse_result = _ParseDAGPersistArgs(&argv[arg_pos], argc - arg_pos,
+            const int parse_result = _ParseDAGPersistArgs(ctx, &argv[arg_pos], argc - arg_pos,
                                                           rinfo->persistTensors, rinfo->err);
             if (parse_result <= 0)
                 return REDISMODULE_ERR;
