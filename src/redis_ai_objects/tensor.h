@@ -38,8 +38,6 @@ static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
 #define TENSOR_BLOB                (1 << 2)
 #define TENSOR_ILLEGAL_VALUES_BLOB (TENSOR_VALUES | TENSOR_BLOB)
 
-extern RedisModuleType *RedisAI_TensorType;
-
 /**
  * Helper method to register the tensor type exported by the module.
  *

@@ -31,22 +31,21 @@ print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
-def ensureSlaveSynced(con, env, timeout_ms=5000):
+
+def ensureSlaveSynced(con, env, timeout_ms=0):
     if env.useSlaves:
         # When WAIT returns, all the previous write commands
         # sent in the context of the current connection are
         # guaranteed to be received by the number of replicas returned by WAIT.
         wait_reply = con.execute_command('WAIT', '1', timeout_ms)
-        number_replicas = 0
         try:
             number_replicas = int(wait_reply)
-        # does not contain anything convertible to int
-        except ValueError as verr:
-            pass
-        # Exception occurred while converting to int
         except Exception as ex:
-            pass
-        env.assertTrue(number_replicas >= 1)
+            # Error in converting to int
+            env.debugPring(str(ex), force=True)
+            env.assertFalse(True)
+            return
+        env.assertEquals(number_replicas, 1)
 
 
 # Ensures command is sent and forced disconnect
@@ -202,3 +201,11 @@ def check_error_message(env, con, error_msg, *command):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(error_msg, str(exception))
+
+def check_error(env, con, *command):
+    try:
+        con.execute_command(*command)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)

@@ -1,12 +1,18 @@
+
 #include "deprecated.h"
-#include "modelRun_ctx.h"
-#include "command_parser.h"
-#include "util/string_utils.h"
-#include "execution/utils.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
-#include "execution/background_workers.h"
+#include "util/string_utils.h"
 #include "redis_ai_objects/stats.h"
+
+#include "execution/utils.h"
+#include "execution/DAG/dag_builder.h"
+#include "execution/DAG/dag_execute.h"
+#include "execution/background_workers.h"
+#include "execution/parsing/dag_parser.h"
+#include "execution/parsing/parse_utils.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
@@ -23,7 +29,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    RAI_HoldString(NULL, argv[argpos]);
+    RAI_HoldString(argv[argpos]);
     *runkey = argv[argpos];
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
@@ -47,7 +53,7 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
             is_input = false;
             is_output = true;
         } else {
-            RAI_HoldString(NULL, argv[argpos]);
+            RAI_HoldString(argv[argpos]);
             if (is_input) {
                 ninputs++;
                 *inkeys = array_append(*inkeys, argv[argpos]);
@@ -277,7 +283,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
                         bckstr);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "could not load %s default backend", bckstr);
+            RedisModule_Log(ctx, "warning", "could not load %s default backend", bckstr);
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -292,7 +298,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     if (err.code != RAI_OK) {
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -303,7 +309,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -316,11 +322,11 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ModelRedisType())) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -328,7 +334,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+    RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 
@@ -339,4 +345,266 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModule_ReplicateVerbatim(ctx);
 
     return REDISMODULE_OK;
+}
+
+static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                       RAI_Error *error, RedisModuleString ***inkeys,
+                                       RedisModuleString ***outkeys, long long *timeout,
+                                       size_t **listSizes) {
+
+    bool is_input = false;
+    bool is_output = false;
+    bool timeout_set = false;
+    bool inputs_done = false;
+    size_t ninputs = 0, noutputs = 0;
+    int varidic_start_pos = -1;
+    for (int argpos = 3; argpos < argc; argpos++) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+
+        // Parse timeout arg if given and store it in timeout
+        if (!strcasecmp(arg_string, "TIMEOUT")) {
+            if (timeout_set) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an TIMEOUT section in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            if (ParseTimeout(argv[++argpos], error, timeout) == REDISMODULE_ERR)
+                return REDISMODULE_ERR;
+            timeout_set = true;
+            continue;
+        }
+
+        if (!strcasecmp(arg_string, "INPUTS")) {
+            if (inputs_done) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS section in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            if (is_input) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an INPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            is_input = true;
+            is_output = false;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "OUTPUTS")) {
+            if (is_output) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered an OUTPUTS keyword in SCRIPTRUN");
+                return REDISMODULE_ERR;
+            }
+            is_input = false;
+            is_output = true;
+            inputs_done = true;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "$")) {
+            if (!is_input) {
+                RAI_SetError(
+                    error, RAI_ESCRIPTRUN,
+                    "ERR Encountered a variable size list of tensors outside of input section");
+                return REDISMODULE_ERR;
+            }
+            if (varidic_start_pos > -1) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already encountered a variable size list of tensors");
+                return REDISMODULE_ERR;
+            }
+            varidic_start_pos = ninputs;
+            continue;
+        }
+        // Parse argument name
+        if (is_input) {
+            ninputs++;
+            *inkeys = array_append(*inkeys, RAI_HoldString(argv[argpos]));
+        } else if (is_output) {
+            noutputs++;
+            *outkeys = array_append(*outkeys, RAI_HoldString(argv[argpos]));
+        } else {
+            RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Unrecongnized parameter to SCRIPTRUN");
+            return REDISMODULE_ERR;
+        }
+    }
+    if (varidic_start_pos != -1) {
+        *listSizes = array_append(*listSizes, ninputs - varidic_start_pos);
+    }
+
+    return REDISMODULE_OK;
+}
+
+int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModuleString **argv,
+                          int argc) {
+
+    if (argc < 3) {
+        RAI_SetError(rinfo->err, RAI_ESCRIPTRUN,
+                     "ERR wrong number of arguments for 'AI.SCRIPTRUN' command");
+        return REDISMODULE_ERR;
+    }
+
+    int res = REDISMODULE_ERR;
+    // Build a ScriptRunCtx from command.
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RAI_ScriptRunCtx *sctx = NULL;
+    RAI_Script *script = NULL;
+    RedisModuleString *scriptName = argv[1];
+    RAI_GetScriptFromKeyspace(ctx, scriptName, &script, REDISMODULE_READ, rinfo->err);
+    if (!script) {
+        goto cleanup;
+    }
+    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(argv[1]));
+
+    const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
+    if (!func_name) {
+        RAI_SetError(rinfo->err, RAI_ESCRIPTRUN, "ERR function name not specified");
+        goto cleanup;
+    }
+
+    sctx = RAI_ScriptRunCtxCreate(script, func_name);
+    long long timeout = 0;
+    if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
+                                    &currentOp->outkeys, &timeout,
+                                    &sctx->listSizes) == REDISMODULE_ERR) {
+        goto cleanup;
+    }
+    if (timeout > 0 && !rinfo->single_op_dag) {
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR TIMEOUT not allowed within a DAG command");
+        goto cleanup;
+    }
+
+    if (rinfo->single_op_dag) {
+        rinfo->timeout = timeout;
+        // Set params in ScriptRunCtx, bring inputs from key space.
+        if (ScriptRunCtx_SetParams(ctx, currentOp->inkeys, currentOp->outkeys, sctx, rinfo->err) ==
+            REDISMODULE_ERR)
+            goto cleanup;
+    }
+    currentOp->sctx = sctx;
+    currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
+    currentOp->devicestr = sctx->script->devicestr;
+    res = REDISMODULE_OK;
+    RedisModule_FreeThreadSafeContext(ctx);
+    return res;
+
+cleanup:
+    RedisModule_FreeThreadSafeContext(ctx);
+    if (sctx) {
+        RAI_ScriptRunCtxFree(sctx);
+    }
+    return res;
+}
+
+int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
+
+    for (long long i = 0; i < array_len(ops); i++) {
+        RAI_DagOp *currentOp = ops[i];
+        // The first op arg is the command name.
+        const char *arg_string = RedisModule_StringPtrLen(currentOp->argv[0], NULL);
+
+        if (!strcasecmp(arg_string, "AI.TENSORGET")) {
+            currentOp->commandType = REDISAI_DAG_CMD_TENSORGET;
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
+            currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
+            if (currentOp->fmt == TENSOR_NONE)
+                goto cleanup;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.TENSORSET")) {
+            currentOp->commandType = REDISAI_DAG_CMD_TENSORSET;
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
+            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
+                                       rinfo->err) == -1)
+                goto cleanup;
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.MODELRUN")) {
+            if (ParseModelRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
+                REDISMODULE_OK) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.SCRIPTRUN")) {
+            if (ParseScriptRunCommand(rinfo, currentOp, currentOp->argv, currentOp->argc) !=
+                REDISMODULE_OK) {
+                goto cleanup;
+            }
+            continue;
+        }
+        if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "AI.MODELEXECUTE"
+                         " cannot be used in a deprecated AI.DAGRUN command");
+            goto cleanup;
+        }
+        if (!strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "AI.SCRIPTEXECUTE"
+                         " cannot be used in a deprecated AI.DAGRUN command");
+            goto cleanup;
+        }
+        // If none of the cases match, we have an invalid op.
+        RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "Unsupported command within DAG");
+        goto cleanup;
+    }
+
+    // After validating all the ops, insert them to the DAG.
+    for (size_t i = 0; i < array_len(ops); i++) {
+        rinfo->dagOps = array_append(rinfo->dagOps, ops[i]);
+    }
+    rinfo->dagOpCount = array_len(rinfo->dagOps);
+    return REDISMODULE_OK;
+
+cleanup:
+    for (size_t i = 0; i < array_len(ops); i++) {
+        RAI_FreeDagOp(ops[i]);
+    }
+    return REDISMODULE_ERR;
+}
+
+int ParseDAGRunCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
+                       int argc, bool dag_ro) {
+
+    int res = REDISMODULE_ERR;
+    // This minimal possible command (syntactically) is: AI.DAGRUN(_RO) |> TENSORGET <key>.
+    if (argc < 4) {
+        if (dag_ro) {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN_RO' command");
+        } else {
+            RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
+                         "ERR wrong number of arguments for 'AI.DAGRUN' command");
+        }
+        return res;
+    }
+
+    // First we parse LOAD, PERSIST and TIMEOUT parts, and we collect the DAG ops' args.
+    array_new_on_stack(RAI_DagOp *, 10, dag_ops);
+    if (DAGInitialParsing(rinfo, ctx, argv, argc, dag_ro, &dag_ops) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+
+    if (ParseDAGRunOps(rinfo, dag_ops) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    if (MapTensorsKeysToIndices(rinfo, rinfo->tensorsNamesToIndices) != REDISMODULE_OK) {
+        goto cleanup;
+    }
+    if (ValidatePersistKeys(rinfo, rinfo->tensorsNamesToIndices, rinfo->persistTensors) !=
+        REDISMODULE_OK) {
+        goto cleanup;
+    }
+
+    AI_dictRelease(rinfo->tensorsNamesToIndices);
+    rinfo->tensorsNamesToIndices = NULL;
+    res = REDISMODULE_OK;
+
+cleanup:
+    array_free(dag_ops);
+    return res;
 }
