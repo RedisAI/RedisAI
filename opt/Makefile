@@ -79,7 +79,7 @@ device selection options (fetch, build, and test):
   JETSON=1      # build for Nvidia Jetson
 
 enterprise variant
-  LITE=1        # build RedisAI LITE
+  REDISAI_LITE=1        # build RedisAI LITE
 endef
 
 #----------------------------------------------------------------------------------------------
@@ -132,8 +132,8 @@ else
 USE_PROFILE=off
 endif
 
-ifeq ($(LITE),1)
-CMAKE_FLAGS += -DREDISAI_LITE=on
+ifeq ($(REDISAI_LITE),1)
+CMAKE_FLAGS += -DBUILD_REDISAI_LITE=on
 endif
 
 CMAKE_FLAGS += \
@@ -229,7 +229,7 @@ endif
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
-ifneq ($(LITE), 1)
+ifneq ($(REDISAI_LITE), 1)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) ./pack.sh
 else
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
