@@ -337,7 +337,7 @@ OK
 
 ## AI.MODELRUN
 
-_This command is deprecated and will not be available in future versions. consider using AI.MODELEXECUTE command instead._   
+_This command is deprecated and will not be available in future versions. consider using `AI.MODELEXECUTE` command instead._   
 
 The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
@@ -730,7 +730,110 @@ redis> > AI._SCRIPTSCAN
    2) "myscript:v0.1"
 ```
 
+## AI.DAGEXECUTE
+The **`AI.DAGEXECUTE`** command specifies a direct acyclic graph of operations to run within RedisAI.
+
+It accepts one or more operations, split by the pipe-forward operator (`|>`).
+
+By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
+
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify keys in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `KEYS`.  
+
+As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
+
+A `TIMEOUT t` argument can be specified to cause a request to be removed from the queue after it sits there `t` milliseconds, meaning that the client won't be interested in the result being computed after that time (`TIMEDOUT` is returned in that case). Note that individual `MODELEXECUTE` or `SCRIPTEXECUTE` commands within the DAG do not support `TIMEOUT`. `TIMEOUT` only applies to the `DAGEXECUTE` request as a whole.
+
+
+**Redis API**
+
+```
+AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
+          [PERSIST <n> <key-1> <key-2> ... <key-n>] |
+          [KEYS <n> <key-1> <key-2> ... <key-n>]]+
+          [TIMEOUT t]
+          |> <command> [|>  command ...]
+```
+
+_Arguments_
+
+* **LOAD**: denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
+* **PERSIST**: denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
+* **KEYS**: denotes the beginning of keys' list which are used within this command, followed by the number of keys, and one or more key names. Alternately, the keys names list can be replaced with a tag which all of those keys share. Redis will verify that all potential key accesses are done to the right shard.
+
+_While each of the LOAD, PERSIST and KEYS sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
+* **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+* **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
+    * `AI.TENSORSET`
+    * `AI.TENSORGET`
+    * `AI.MODELEXECUTE`
+    * `AI.SCRIPTEXECUTE`
+
+
+`AI.MODELEXECUTE` and `AI.SCRIPTEXECUTE` commands can run on models or scripts that were set on different devices. RedisAI will analyze the DAG and execute commands in parallel if they are located on different devices and their inputs are available.
+Note that KEYS should not be specified in `AI.SCRIPTEXECUTE` commands of the DAG. 
+
+_Return_
+
+An array with an entry per command's reply. Each entry format respects the specified command reply.
+In case the `DAGEXEUTE` request times out, a `TIMEDOUT` simple string is returned.
+
+**Examples**
+
+Assuming that running the model that's stored at 'mymodel', we define a temporary tensor 'mytensor' and use it as input, and persist only one of the two outputs - discarding 'classes' and persisting 'predictions'. In the same command return the tensor value of 'predictions'.  The following command does that:
+
+
+```
+redis> AI.DAGEXECUTE PERSIST 1 predictions{tag} |>
+          AI.TENSORSET mytensor FLOAT 1 2 VALUES 5 10 |>
+          AI.MODELEXECUTE mymodel{tag} INPUTS 1 mytensor OUTPUTS 2 classes predictions{tag} |>
+          AI.TENSORGET predictions{tag} VALUES
+1) OK
+2) OK
+3) 1) FLOAT
+   2) 1) (integer) 2
+      2) (integer) 2
+   3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+```
+
+A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+
+To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
+
+```
+redis> AI.DAGEXECUTE KEYS 1 {tag} |> 
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
+            AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
+            AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 
+            AI.SCRIPTEXECUTE imagenet_script{tag} post_process INPUTS 1 temp_key2 OUTPUTS 1 output |> 
+            AI.TENSORGET output VALUES
+1) OK
+2) OK
+3) OK
+4) OK
+5) 1) 1) (integer) 111
+```
+
+As visible on the array reply, the label position with higher classification was 111. 
+
+By combining DAG with multiple SCRIPTEXECUTE and MODELEXECUTE commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
+
+
+
+!!! warning "Intermediate memory overhead"
+    The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
+
+## AI.DAGEXECUTE_RO
+
+The **`AI.DAGEXEUTE_RO`** command is a read-only variant of `AI.DAGEXECUTE`.
+`AI.DAGEXECUTE` is flagged as a 'write' command in the Redis command table (as it provides the `PERSIST` option, for example). Hence, read-only cluster replicas will refuse to run the command and it will be redirected to the master even if the connection is using read-only mode.
+
+`AI.DAGEXECUTE_RO` behaves exactly like the original command, excluding the `PERSIST` option and `AI.SCRIPTEXECUTE` commands. It is a read-only command that can safely be with read-only replicas.
+
+!!! info "Further reference"
+    Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
+
 ## AI.DAGRUN
+_This command is deprecated and will not be available in future versions. consider using `AI.DAGEXECUTE` command instead._
 The **`AI.DAGRUN`** command specifies a direct acyclic graph of operations to run within RedisAI.
 
 It accepts one or more operations, split by the pipe-forward operator (`|>`).
@@ -817,7 +920,7 @@ By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantial
     The execution of models and scripts within the DAG may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI.DAGRUN_RO
-
+_This command is deprecated and will not be available in future versions. consider using `AI.DAGEXECUTE_RO` command instead._
 The **`AI.DAGRUN_RO`** command is a read-only variant of `AI.DAGRUN`.
 
 Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' command in the Redis command table. However, even when `PERSIST` isn't used, read-only cluster replicas will refuse to run the command and it will be redirected to the master even if the connection is using read-only mode.

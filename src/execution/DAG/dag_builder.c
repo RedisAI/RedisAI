@@ -163,7 +163,7 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
         }
     }
 
-    if (ParseDAGOps(rinfo, new_ops) != REDISMODULE_OK) {
+    if (ParseDAGExecuteOps(rinfo, new_ops, false) != REDISMODULE_OK) {
         RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
         goto cleanup;
     }
@@ -171,6 +171,12 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
     res = REDISMODULE_OK;
 
 cleanup:
+    if (res != REDISMODULE_OK) {
+        // Release the ops in case of an error (otherwise the ownership is given to run_info)
+        for (size_t i = 0; i < array_len(new_ops); i++) {
+            RAI_FreeDagOp(new_ops[i]);
+        }
+    }
     array_free(new_ops);
     for (size_t i = 0; i < argc; i++) {
         RedisModule_FreeString(NULL, argv[i]);

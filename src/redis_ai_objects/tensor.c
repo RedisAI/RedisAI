@@ -570,7 +570,7 @@ int RAI_GetTensorFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
     }
     if (RedisModule_ModuleTypeGetType(*key) != RedisAI_TensorType) {
         RedisModule_CloseKey(*key);
-        RedisModule_Log(ctx, "error", "%s is not a tensor",
+        RedisModule_Log(ctx, "warning", "%s is not a tensor",
                         RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_ETENSORGET, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;

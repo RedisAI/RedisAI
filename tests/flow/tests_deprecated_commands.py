@@ -6,6 +6,7 @@ from includes import *
 python -m RLTest --test tests_deprecated_commands.py --module path/to/redisai.so
 '''
 
+
 def test_modelset_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -316,7 +317,6 @@ def test_pytorch_scriptrun_errors(env):
         return
 
     con = env.getConnection()
-
     script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
@@ -361,6 +361,7 @@ def test_pytorch_scriptrun_errors(env):
 
     check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
 
+
 def test_pytorch_scriptrun_variadic_errors(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -395,3 +396,190 @@ def test_pytorch_scriptrun_variadic_errors(env):
     check_error(env, con, 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'OUTPUTS')
 
     check_error_message(env, con, "Already encountered a variable size list of tensors", 'AI.SCRIPTRUN', 'ket{$}', 'bar_variadic', 'INPUTS', '$', 'a{$}', '$', 'b{$}' 'OUTPUTS')
+
+
+def test_dagrun_common_errors(env):
+    con = env.getConnection()
+
+    model_pb = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSET', 'script{1}', DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    # ERR bad syntax
+    check_error_message(env, con, "Invalid DAG command. Unexpected argument:  BAD_ARG",
+                        "AI.DAGRUN PERSIST 1 a{1} BAD_ARG")
+
+    # ERR unsupported command within DAG
+    check_error_message(env, con, "Unsupported command within DAG",
+                        "AI.DAGRUN |> AI.NOCOMMAND a{1} FLOAT 1 2 VALUES 5 10")
+
+    # ERR wrong number of arguments for 'AI.DAGRUN' command
+    check_error_message(env, con, "wrong number of arguments for 'AI.DAGRUN' command", "AI.DAGRUN ")
+
+    # ERR DAG with no ops
+    command = "AI.TENSORSET volatile_tensor{1} FLOAT 2 2 VALUES 5 10 5 10"
+    ret = con.execute_command(command)
+    env.assertEqual(ret, b'OK')
+    check_error_message(env, con, "DAG is empty", "AI.DAGRUN LOAD 1 volatile_tensor{1}")
+
+    # ERR new commands in deprecated AI.DAGRUN
+    check_error_message(env, con, "AI.MODELEXECUTE cannot be used in a deprecated AI.DAGRUN command",
+                        "AI.DAGRUN LOAD 1 volatile_tensor{1} "
+                        "|> AI.MODELEXECUTE m{1} INPUTS 2 volatile_tensor{1} volatile_tensor{1} OUTPUTS 1 output_tensor{1}")
+
+    check_error_message(env, con, "AI.SCRIPTEXECUTE cannot be used in a deprecated AI.DAGRUN command",
+                        "AI.DAGRUN LOAD 1 volatile_tensor{1} "
+                        "|> AI.SCRIPTEXECUTE script{1} bar INPUTS 2 volatile_tensor{1} volatile_tensor{1} OUTPUTS 1 output_tensor{1}")
+
+    # ERR wrong number of arguments for 'AI.DAGEXECUTE_RO' command
+    check_error_message(env, con, "wrong number of arguments for 'AI.DAGRUN_RO' command", "AI.DAGRUN_RO ")
+
+    # ERR persist in not allowed in AI.DAGEXECUTE_RO
+    check_error_message(env, con, "PERSIST cannot be specified in a read-only DAG",
+                        "AI.DAGRUN_RO PERSIST 1 tensor1{1} |> AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10")
+
+
+def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
+    if (not TEST_TF or not TEST_PT):
+        return
+    con = env.getConnection()
+
+    model_name_0 = 'imagenet_model1:{1}'
+    model_name_1 = 'imagenet_model2:{1}'
+    script_name_0 = 'imagenet_script1:{1}'
+    script_name_1 = 'imagenet_script2:{1}'
+    inputvar = 'images'
+    outputvar = 'output'
+    image_key = 'image:{1}'
+    temp_key1 = 'temp_key1:{1}'
+    temp_key2_0 = 'temp_key2_0'
+    temp_key2_1 = 'temp_key2_1'
+    class_key_0 = 'output0:{1}'
+    class_key_1 = 'output1:{1}'
+
+    model_pb, script, labels, img = load_resnet_test_data()
+
+    device_0 = 'CPU:1'
+    device_1 = DEVICE
+
+    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
+                              'INPUTS', inputvar,
+                              'OUTPUTS', outputvar,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    # Cannot persist class_key_1
+    check_error_message(env, con, "PERSIST key cannot be found in DAG",
+                        'AI.DAGRUN',
+                        'PERSIST', '2', class_key_0, class_key_1, '|>',
+                        'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                        '|>',
+                        'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+                        'INPUTS', image_key,
+                        'OUTPUTS', temp_key1,
+                        '|>',
+                        'AI.MODELRUN', model_name_0,
+                        'INPUTS', temp_key1,
+                        'OUTPUTS', temp_key2_0,
+                        '|>',
+                        'AI.MODELRUN', model_name_1,
+                        'INPUTS', temp_key1,
+                        'OUTPUTS', temp_key2_1,
+                        '|>',
+                        'AI.SCRIPTRUN', script_name_1, 'ensemble',
+                        'INPUTS', temp_key2_0, temp_key2_1,
+                        'OUTPUTS', temp_key1,
+                        '|>',
+                        'AI.SCRIPTRUN', script_name_0, 'post_process',
+                        'INPUTS', temp_key1,
+                        'OUTPUTS', class_key_0)
+
+
+    try:
+        ret = con.execute_command(
+            'AI.DAGRUN',
+            'PERSIST', '1', class_key_0, '|>',
+            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+            '|>',
+            'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+            'INPUTS', image_key,
+            'OUTPUTS', temp_key1,
+            '|>',
+            'AI.MODELRUN', model_name_0,
+            'INPUTS', temp_key1,
+            'OUTPUTS', temp_key2_0,
+            '|>',
+            'AI.MODELRUN', model_name_1,
+            'INPUTS', temp_key1,
+            'OUTPUTS', temp_key2_1,
+            '|>',
+            'AI.SCRIPTRUN', script_name_0, 'ensemble',
+            'INPUTS', temp_key2_0,
+            'OUTPUTS', temp_key1,
+            '|>',
+            'AI.SCRIPTRUN', script_name_0, 'post_process',
+            'INPUTS', temp_key1,
+            'OUTPUTS', class_key_0,
+        )
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertTrue(exception.__str__().startswith("expected 2 inputs, but got only 1"))
+
+    ret = con.execute_command(
+        'AI.DAGRUN',
+        'PERSIST', '1', class_key_0,
+        '|>',
+        'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+        '|>',
+        'AI.SCRIPTRUN',  script_name_0, 'pre_process_3ch',
+        'INPUTS', image_key,
+        'OUTPUTS', temp_key1,
+        '|>',
+        'AI.MODELRUN', model_name_0,
+        'INPUTS', temp_key1,
+        'OUTPUTS', temp_key2_0,
+        '|>',
+        'AI.MODELRUN', model_name_1,
+        'INPUTS', temp_key1,
+        'OUTPUTS', temp_key2_1,
+        '|>',
+        'AI.SCRIPTRUN', script_name_0, 'ensemble',
+        'INPUTS', temp_key2_0, temp_key2_1,
+        'OUTPUTS', temp_key1,
+        '|>',
+        'AI.SCRIPTRUN', script_name_0, 'post_process',
+        'INPUTS', temp_key1,
+        'OUTPUTS', class_key_0,
+    )
+    env.assertEqual([b'OK', b'OK', b'OK', b'OK', b'OK', b'OK'], ret)
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.TENSORGET', class_key_0, 'VALUES' )
+    # tf model has 100 classes [0,999]
+    env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
