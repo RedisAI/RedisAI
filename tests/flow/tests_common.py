@@ -233,7 +233,7 @@ def test_common_tensorget_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty",exception.__str__())
+        env.assertEqual("tensor key is empty or in a different shard",exception.__str__())
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:

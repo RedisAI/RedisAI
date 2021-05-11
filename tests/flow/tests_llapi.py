@@ -101,23 +101,29 @@ def test_dag_build_and_run(env):
     ret = con.execute_command("RAI_llapi.DAGrun")
     env.assertEqual(ret, b'DAG run success')
 
+    # Run the DAG LLAPI test again with multi process test to ensure that there are no dead-locks
+    def run_dag_llapi(con):
+        con.execute_command("RAI_llapi.DAGrun")
+
+    run_test_multiproc(env, 500, run_dag_llapi)
+
 
 @with_test_module
 def test_dagrun_multidevice_resnet(env):
     con = env.getConnection()
 
-    model_name_0 = 'imagenet_model1:{{1}}'
-    model_name_1 = 'imagenet_model2:{{1}}'
-    script_name_0 = 'imagenet_script1:{{1}}'
-    script_name_1 = 'imagenet_script2:{{1}}'
+    model_name_0 = 'imagenet_model1:{1}'
+    model_name_1 = 'imagenet_model2:{1}'
+    script_name_0 = 'imagenet_script1:{1}'
+    script_name_1 = 'imagenet_script2:{1}'
     inputvar = 'images'
     outputvar = 'output'
-    image_key = 'image:{{1}}'
-    temp_key1 = 'temp_key1:{{1}}'
+    image_key = 'image:{1}'
+    temp_key1 = 'temp_key1:{1}'
     temp_key2_0 = 'temp_key2_0'
     temp_key2_1 = 'temp_key2_1'
-    class_key_0 = 'output0:{{1}}'
-    class_key_1 = 'output1:{{1}}'
+    class_key_0 = 'output0:{1}'
+    class_key_1 = 'output1:{1}'
 
     model_pb, script, labels, img = load_resnet_test_data()
 

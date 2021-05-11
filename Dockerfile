@@ -29,7 +29,7 @@ WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
-COPY ./tests/flow/test_requirements.txt tests/flow/
+ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
@@ -67,7 +67,7 @@ ARG REDIS_VER
 ARG PACK
 
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
-RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi 
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
 
 ENV REDIS_MODULES /usr/lib/redis/modules
 ENV LD_LIBRARY_PATH $REDIS_MODULES

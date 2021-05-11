@@ -180,7 +180,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
 
     ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function bad_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
 
 @skip_if_gears_not_loaded
@@ -245,7 +245,7 @@ async def DAGRun_addOpsFromString(record):
     tensors = redisAI.mgetTensorsFromKeyspace(keys)
     DAGRunner = redisAI.createDAGRunner()
     DAGRunner.Input('tensor_a', tensors[0]).Input('tensor_b', tensors[1])
-    DAGRunner.OpsFromString('|> AI.MODELRUN m{1} INPUTS tensor_a tensor_b OUTPUTS tensor_c |> AI.TENSORGET tensor_c')
+    DAGRunner.OpsFromString('|> AI.MODELEXECUTE m{1} INPUTS 2 tensor_a tensor_b OUTPUTS 1 tensor_c |> AI.TENSORGET tensor_c')
     res = await DAGRunner.Run()
     redisAI.setTensorInKey('test5_res{1}', res[0])
     return "test5_OK"
@@ -299,7 +299,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test4')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function no_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test5')
     env.assertEqual(ret[0], b'test5_OK')
