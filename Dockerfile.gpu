@@ -37,7 +37,7 @@ COPY --from=redis /usr/local/ /usr/local/
 RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
 
 COPY ./opt/ opt/
-COPY ./tests/flow/tests_setup/test_requirements.txt tests/flow/
+COPY ./tests/flow/tests_setup/test_requirements.txt tests/flow/tests_setup/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
