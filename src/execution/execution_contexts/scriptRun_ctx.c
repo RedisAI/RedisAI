@@ -9,7 +9,7 @@
 RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ScriptRunCtx *sctx = RedisModule_Calloc(1, sizeof(*sctx));
-    sctx->base = RAI_ExecutionCtx_New(RAI_ScriptRunCtxFree);
+    RAI_ExecutionCtx_Init(sctx, RAI_ScriptRunCtxFree);
     sctx->script = RAI_ScriptGetShallowCopy(script);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
@@ -21,7 +21,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
 
 // Deprecated.
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
-    RAI_ExecutionCtx_AddInput(sctx->base, inputTensor);
+    RAI_ExecutionCtx_AddInput(sctx, inputTensor);
     return 1;
 }
 
@@ -30,14 +30,14 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
                                  RAI_Error *err) {
     int res;
     for (size_t i = 0; i < len; i++) {
-           RAI_ExecutionCtx_AddInput(sctx->base, inputTensors[i]);
+        RAI_ExecutionCtx_AddInput(sctx, inputTensors[i]);
     }
     sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
 int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
-    RAI_ExecutionCtx_AddInput(sctx->base, inputTensor);
+    RAI_ExecutionCtx_AddInput(sctx, inputTensor);
     return 1;
 }
 
@@ -110,18 +110,20 @@ inline int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len) {
 }
 
 inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_AddOuputPlaceholder(sctx->base, NULL);
+    RAI_ExecutionCtx_AddOuputPlaceholder(sctx);
     return 1;
 }
 
-inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) { RAI_ExecutionCtx_OutputsLen(sctx->base); }
+inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) {
+    RAI_ExecutionCtx_NumOutputs(sctx);
+}
 
 RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
-    return RAI_ExecutionCtx_GetOutput(sctx->base, index);
+    return RAI_ExecutionCtx_GetOutput(sctx, index);
 }
 
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_Free(sctx->base);
+    RAI_ExecutionCtx_Free(sctx);
     for (size_t i = 0; i < array_len(sctx->stringInputs); ++i) {
         RedisModule_FreeString(NULL, sctx->stringInputs[i]);
     }
@@ -169,7 +171,7 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     op->devicestr = sctx->script->devicestr;
-    op->sctx = sctx;
+    op->ectx = sctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
@@ -180,8 +182,8 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
     return REDISMODULE_OK;
 }
 
-TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx) {
-    return AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
+inline TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx) {
+    return RAI_ScriptGetSignature(sctx->script, sctx->fnname);
 }
 
 size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index) {

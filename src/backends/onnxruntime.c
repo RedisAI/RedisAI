@@ -471,16 +471,16 @@ error:
     ort->ReleaseStatus(status);
 }
 
-int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
+int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    OrtSession *session = mctxs[0]->model->session;
+    OrtSession *session = RAI_ModelGetSession(model);
     if (session == NULL) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR ONNXRuntime session was not allocated");
         return REDISMODULE_ERR;
     }
 
-    const size_t nbatches = array_len(mctxs);
+    const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return REDISMODULE_ERR;
@@ -489,9 +489,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
     size_t total_batch_size = 0;
-    if (array_len(mctxs[0]->inputs) > 0) {
+    const size_t ninputs = RAI_ExecutionCtx_InputsLen(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_OutputsLen(ectxs[0]);
+    if (ninputs > 0) {
         for (size_t b = 0; b < nbatches; ++b) {
-            batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
+            batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
             total_batch_size += batch_sizes[b];
         }
         batch_offsets[0] = 0;
@@ -501,8 +503,6 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     OrtStatus *status = NULL;
-    const size_t ninputs = array_len(mctxs[0]->inputs);
-    const size_t noutputs = array_len(mctxs[0]->outputs);
     array_new_on_stack(const char *, 5, input_names);
     array_new_on_stack(const char *, 5, output_names);
     array_new_on_stack(OrtValue *, 5, inputs);
@@ -536,7 +536,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
             RAI_Tensor *batched_input_tensors[nbatches];
             for (size_t b = 0; b < nbatches; b++) {
-                batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
+                batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
             }
             OrtValue *input;
             if (RAI_OrtValueFromTensors(batched_input_tensors, nbatches, &input, &status) !=
@@ -589,8 +589,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                         goto error;
                     }
                     if (output_tensor) {
-                        mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-                        RAI_TensorFree(output_tensor);
+                        RAI_ExecutionCtx_SetOutput(ectxs[b], output_tensor, i);
                     } else {
                         RedisModule_Log(NULL, "warning",
                                         "non-tensor output from ONNX models, ignoring (currently "
@@ -603,8 +602,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                     goto error;
                 }
                 if (output_tensor) {
-                    mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-                    RAI_TensorFree(output_tensor);
+                    RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
                 } else {
                     RedisModule_Log(NULL, "warning",
                                     "non-tensor output from ONNX models, ignoring (currently "

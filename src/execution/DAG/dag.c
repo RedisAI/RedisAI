@@ -49,7 +49,7 @@
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
 
-static void Dag_LoadInputsToExecutionCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+static void Dag_LoadInputsToCurrentOp(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
     uint n_inkeys = array_len(currentOp->inkeys);
     uint n_outkeys = array_len(currentOp->outkeys);
 
@@ -75,12 +75,12 @@ static void Dag_LoadInputsToExecutionCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     }
 }
 
-static void Dag_StoreOutputsFromModelRunCtx(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
+static void Dag_StoreCurrentOpOutputs(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp) {
 
     RAI_ContextWriteLock(rinfo);
-    const size_t noutputs = RAI_ModelRunCtxNumOutputs(currentOp->mctx);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(currentOp->ectx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
-        RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(currentOp->mctx, outputNumber);
+        RAI_Tensor *tensor = RAI_ExecutionCtx_GetOutput(currentOp->ectx, outputNumber);
         Dag_SetTensorInGlobalCtx(rinfo, currentOp->outkeys_indices[outputNumber], tensor);
     }
     RAI_ContextUnlock(rinfo);
@@ -132,34 +132,12 @@ static int _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
     return REDISMODULE_OK;
 }
 
-static int _ModelSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op, RAI_Error *err) {
+static int _PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op, RAI_Error *err) {
 
-    const size_t noutputs = RAI_ModelRunCtxNumOutputs(op->mctx);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(op->ectx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
         RedisModuleString *persist_key_name = op->outkeys[outputNumber];
-        RAI_Tensor *tensor = RAI_ModelRunCtxOutputTensor(op->mctx, outputNumber);
-        tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
-        if (!tensor)
-            continue;
-
-        if (_StoreTensorInKeySpace(ctx, tensor, persist_key_name, err) == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning",
-                            "Could not persist tensor under the key (%s) after executing DAGRUN "
-                            "command, persist stopped",
-                            RedisModule_StringPtrLen(persist_key_name, NULL));
-            op->result = REDISMODULE_ERR;
-            return REDISMODULE_ERR;
-        }
-    }
-    return REDISMODULE_OK;
-}
-
-static int _ScriptSingleOp_PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op, RAI_Error *err) {
-
-    const size_t noutputs = RAI_ScriptRunCtxNumOutputs(op->sctx);
-    for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
-        RedisModuleString *persist_key_name = op->outkeys[outputNumber];
-        RAI_Tensor *tensor = RAI_ScriptRunCtxOutputTensor(op->sctx, outputNumber);
+        RAI_Tensor *tensor = RAI_ExecutionCtx_GetOutput(op->ectx, outputNumber);
         tensor = tensor ? RAI_TensorGetShallowCopy(tensor) : NULL;
         if (!tensor)
             continue;
@@ -189,7 +167,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     // Get the needed tensors from the DAG local context. If the DAG originated
     // from a model run command, we are ready to execute.
     if (rinfo->single_op_dag == 0)
-        Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
+        Dag_LoadInputsToCurrentOp(rinfo, currentOp);
 
     RAI_ModelRunCtx *mctxs[1];
     mctxs[0] = currentOp->mctx;
@@ -202,7 +180,7 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
     if (result == REDISMODULE_ERR)
         return;
     if (rinfo->single_op_dag == 0)
-        Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
+        Dag_StoreCurrentOpOutputs(rinfo, currentOp);
 }
 
 /**
@@ -226,7 +204,7 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
         // Get the needed tensors from the DAG local context. If the DAG originated
         // from a model run command, we are ready to execute.
         if (rinfo->single_op_dag == 0)
-            Dag_LoadInputsToModelRunCtx(rinfo, currentOp);
+            Dag_LoadInputsToCurrentOp(rinfo, currentOp);
         mctxs[i] = currentOp->mctx;
     }
 
@@ -248,7 +226,7 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
             continue;
         }
         if (rinfo->single_op_dag == 0)
-            Dag_StoreOutputsFromModelRunCtx(rinfo, currentOp);
+            Dag_StoreCurrentOpOutputs(rinfo, currentOp);
     }
     // Clear the result in case of an error.
     if (result == REDISMODULE_ERR)
@@ -645,10 +623,10 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
         persist_status = _DAG_PersistTensors(ctx, rinfo);
     } else {
         if (rinfo->dagOps[0]->commandType == REDISAI_DAG_CMD_MODELRUN) {
-            persist_status = _ModelSingleOp_PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
+            persist_status = _PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
         } else {
             RedisModule_Assert(rinfo->dagOps[0]->commandType == REDISAI_DAG_CMD_SCRIPTRUN);
-            persist_status = _ScriptSingleOp_PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
+            persist_status = _PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
         }
     }
     if (persist_status != REDISMODULE_OK) {

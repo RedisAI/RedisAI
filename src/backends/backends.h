@@ -11,8 +11,8 @@
 #include "config/config.h"
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/tensor.h"
-#include "redis_ai_objects/model_struct.h"
-#include "redis_ai_objects/script_struct.h"
+#include "redis_ai_objects/model.h"
+#include "redis_ai_objects/script.h"
 #include "execution/execution_contexts/execution_ctx.h"
 
 /*
@@ -57,7 +57,7 @@ typedef struct RAI_LoadedBackend {
 
     // ** model_run **:  A callback function pointer that runs a model given the
     // RAI_Model pointer and an array of RAI_ExecutionCtx pointers
-    int (*model_run)(RAI_Model*, RAI_ExecutionCtx **, RAI_Error *);
+    int (*model_run)(RAI_Model *, RAI_ExecutionCtx **, RAI_Error *);
 
     // ** model_serialize **:  A callback function pointer that serializes a model
     // given the RAI_Model pointer
@@ -72,7 +72,7 @@ typedef struct RAI_LoadedBackend {
 
     // ** script_run **:  A callback function pointer that runs a model given the
     // RAI_ScriptRunCtx pointer
-    int (*script_run)(RAI_Script *, RAI_ExecutionCtx*, RAI_Error *);
+    int (*script_run)(RAI_Script *, RAI_ExecutionCtx *, RAI_Error *);
 
     // Returns the backend version.
     const char *(*get_version)(void);

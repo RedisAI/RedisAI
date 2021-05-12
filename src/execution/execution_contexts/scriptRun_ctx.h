@@ -3,7 +3,7 @@
 #include "execution_ctx.h"
 
 typedef struct RAI_ScriptRunCtx {
-    RAI_ExecutionCtx* base;
+    RAI_ExecutionCtx base;
     size_t ctxtype;
     RAI_Script *script;
     char *fnname;

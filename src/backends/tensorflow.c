@@ -461,17 +461,17 @@ void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error) {
     TF_DeleteStatus(status);
 }
 
-int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
+int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
     TF_Status *status = TF_NewStatus();
 
-    const size_t nbatches = array_len(mctxs);
+    const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return 1;
     }
 
-    const size_t ninputs = RAI_ModelRunCtxNumInputs(mctxs[0]);
-    const size_t noutputs = RAI_ModelRunCtxNumOutputs(mctxs[0]);
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
     TF_Tensor *inputTensorsValues[ninputs];
     TF_Output inputs[ninputs];
     TF_Tensor *outputTensorsValues[noutputs];
@@ -482,7 +482,7 @@ int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     size_t total_batch_size = 0;
     if (ninputs > 0) {
         for (size_t b = 0; b < nbatches; ++b) {
-            batch_sizes[b] = RAI_TensorDim(RAI_ModelRunCtxInputTensor(mctxs[b], 0), 0);
+            batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
             total_batch_size += batch_sizes[b];
         }
         batch_offsets[0] = 0;
@@ -491,19 +491,18 @@ int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
     }
 
-    RAI_Model* referenceModel = RAI_ModelRunCtxGetModel(mctxs[0]);
-    void* tfGraph = RAI_ModelGetModel(referenceModel);
-    void* tfSession = RAI_ModelGetSession(referenceModel);
+    void *tfGraph = RAI_ModelGetModel(model);
+    void *tfSession = RAI_ModelGetSession(model);
 
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_Tensor *batched_input_tensors[nbatches];
 
         for (size_t b = 0; b < nbatches; ++b) {
-            batched_input_tensors[b] = RAI_ModelRunCtxInputTensor(mctxs[b], i);
+            batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
         }
         inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
         TF_Output port;
-        port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetInputName(referenceModel, i));
+        port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetInputName(model, i));
         port.index = 0;
         if (port.oper == NULL) {
             return 1;
@@ -513,7 +512,7 @@ int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
     for (size_t i = 0; i < noutputs; ++i) {
         TF_Output port;
-        port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetOutputName(referenceModel, i));
+        port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetOutputName(model, i));
         port.index = 0;
         if (port.oper == NULL) {
             return 1;
@@ -521,9 +520,9 @@ int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         outputs[i] = port;
     }
 
-    TF_SessionRun(tfSession, NULL /* run_options */, inputs, inputTensorsValues,
-                  ninputs, outputs, outputTensorsValues, noutputs, NULL /* target_opers */,
-                  0 /* ntargets */, NULL /* run_Metadata */, status);
+    TF_SessionRun(tfSession, NULL /* run_options */, inputs, inputTensorsValues, ninputs, outputs,
+                  outputTensorsValues, noutputs, NULL /* target_opers */, 0 /* ntargets */,
+                  NULL /* run_Metadata */, status);
 
     for (size_t i = 0; i < ninputs; ++i) {
         TF_DeleteTensor(inputTensorsValues[i]);
@@ -551,12 +550,15 @@ int RAI_ModelRunTF(RAIModel* RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             }
 
             for (size_t b = 0; b < nbatches; b++) {
-                mctxs[b]->outputs[i].tensor = RAI_TensorCreateFromTFTensor(
-                    outputTensorsValues[i], batch_offsets[b], batch_sizes[b]);
+                RAI_ExecutionCtx_SetOutput(ectxs[b],
+                                           RAI_TensorCreateFromTFTensor(outputTensorsValues[i],
+                                                                        batch_offsets[b],
+                                                                        batch_sizes[b]),
+                                           i);
             }
         } else {
-            mctxs[0]->outputs[i].tensor =
-                RAI_TensorCreateFromTFTensor(outputTensorsValues[i], 0, -1);
+            RAI_ExecutionCtx_SetOutput(
+                ectxs[0], RAI_TensorCreateFromTFTensor(outputTensorsValues[i], 0, -1), i);
         }
         TF_DeleteTensor(outputTensorsValues[i]);
     }

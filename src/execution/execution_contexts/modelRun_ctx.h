@@ -4,11 +4,10 @@
 #include "execution_ctx.h"
 
 typedef struct RAI_ModelRunCtx {
-    RAI_ExecutionCtx* base;
+    RAI_ExecutionCtx base;
     size_t ctxtype;
     RAI_Model *model;
 } RAI_ModelRunCtx;
-
 
 /**
  * Allocates the RAI_ModelRunCtx data structure required for async background
@@ -115,7 +114,7 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ModelRun(RAI_Model* model, RAI_ExecutionCtx **ectxs, long long n, RAI_Error *err);
+int RAI_ModelRun(RAI_Model *model, RAI_ExecutionCtx **ectxs, long long n, RAI_Error *err);
 
 /**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.
@@ -132,4 +131,4 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
 /**
  * @brief Returns the internal RAI_Model object of RAI_ModelRunCtx.
  */
-RAI_Model* RAI_ModelRunCtxGetModel(RAI_ModelRunCtx* mctx);
+RAI_Model *RAI_ModelRunCtxGetModel(RAI_ModelRunCtx *mctx);

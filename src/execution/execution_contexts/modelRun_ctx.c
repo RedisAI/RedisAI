@@ -8,13 +8,13 @@
 
 RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
-    mctx->base = RAI_ExecutionCtx_New(RAI_ModelRunCtxFree);
+    RAI_ExecutionCtx_Init(mctx, RAI_ModelRunCtxFree);
     mctx->model = RAI_ModelGetShallowCopy(model);
     return mctx;
 }
 
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor) {
-    RAI_ExecutionCtx_AddInput(mctx->base, inputTensor);
+    RAI_ExecutionCtx_AddInput(mctx, inputTensor);
     return 1;
 }
 
@@ -22,20 +22,24 @@ int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
     RAI_ExecutionCtx_AddOutput(mctx->base, NULL);
 }
 
-inline size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) { return RAI_ExecutionCtx_InputsLen(mctx->base); }
+inline size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) {
+    return RAI_ExecutionCtx_NumInputs(mctx->base);
+}
 
-inline size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) { return RAI_ExecutionCtx_OutputsLen(mctx->base);}
+inline size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) {
+    return RAI_ExecutionCtx_NumOutputs(mctx->base);
+}
 
 inline RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    return RAI_ExecutionCtx_GetInput(mctx->base, index);
+    return RAI_ExecutionCtx_GetInput(mctx, index);
 }
 
 inline RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    return RAI_ExecutionCtx_GetOutput(mctx->base, index);
+    return RAI_ExecutionCtx_GetOutput(mctx, index);
 }
 
 void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx) {
-    RAI_ExecutionCtx_Free(mctx->base);
+    RAI_ExecutionCtx_Free(mctx);
 
     RAI_Error err = {0};
     RAI_ModelFree(mctx->model, &err);
@@ -145,7 +149,7 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
     RAI_InitDagOp(&op);
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
     op->devicestr = mctx->model->devicestr;
-    op->ectx = (RAI_ExecutionCtx*)mctx;
+    op->ectx = (RAI_ExecutionCtx *)mctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;
@@ -156,4 +160,4 @@ int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, vo
     return REDISMODULE_OK;
 }
 
-inline RAI_Model* RAI_ModelRunCtxGetModel(RAI_ModelRunCtx* mctx) { return mctx->model;}
+inline RAI_Model *RAI_ModelRunCtxGetModel(RAI_ModelRunCtx *mctx) { return mctx->model; }
