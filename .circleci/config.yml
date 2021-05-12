@@ -127,89 +127,6 @@ commands:
       - store_artifacts:
           path: tests/logs
 
-  platforms-build-steps-cpu:
-    steps:
-      - abort_for_docs
-      - abort_for_noci
-      - early_return_for_forked_pull_requests
-      - setup_remote_docker
-      - checkout-all
-      - setup-automation
-      - run:
-          name: Build for platform
-          command: |
-            bash <(curl -fsSL https://get.docker.com)
-            pushd opt/build/docker
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            for osnick in bionic xenial; do
-                make CPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                make CPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                docker image prune -f
-            done
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
-          no_output_timeout: 40m
-      - persist_to_workspace:
-          root: bin/
-          paths:
-            - artifacts/*.zip
-            - artifacts/*.tgz
-            - artifacts/*.tar
-      - store_artifacts:
-          path: test/logs
-
-  platforms-build-steps-gpu:
-    steps:
-      - abort_for_docs
-      - abort_for_noci
-      - early_return_for_forked_pull_requests
-      - checkout-all
-      - setup-automation
-      - run:
-          name: Build for platform
-          command: |
-            pushd opt/build/docker
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            for osnick in bionic xenial; do
-                make GPU=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                make GPU=1 LITE=1 OSNICK=$osnick ARTIFACTS=1 VERBOSE=1 build publish
-                docker image prune -f
-            done
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
-          no_output_timeout: 40m
-      - persist_to_workspace:
-          root: bin/
-          paths:
-            - artifacts/*.zip
-            - artifacts/*.tgz
-            - artifacts/*.tar
-      - store_artifacts:
-          path: test/logs
-
-
-  deploy-steps:
-    parameters:
-      from:
-        type: string
-    steps:
-      - abort_for_docs
-      - abort_for_noci
-      - early_return_for_forked_pull_requests
-      - run:
-          name: Deploy to S3
-          command: |
-            du -ah --apparent-size artifacts/*
-            aws s3 cp artifacts/ s3://redismodules/$PACKAGE_NAME/ --acl public-read --recursive --exclude "*" --include "*.zip" --include "*.tgz"
-
 jobs:
   lint:
     docker:
@@ -231,24 +148,45 @@ jobs:
       - build-steps:
           platform: debian
 
-  # this build runs on a fixed machine, due to a storage need
-  # nothing about it necessitates the machine itself, other than the need for more disk.
-  platforms-build-gpu:
-    machine:
-      enabled: true
-      docker_layer_caching: true
-      resource_class: medium
-      image: ubuntu-2004:202101-01
-    steps:
-      - platforms-build-steps-gpu
-
-  # this build runs on a fixed machine, due to a storage need
-  # nothing about it necessitates the machine itself, other than the need for more disk.
-  platforms-build-cpu:
+  platforms-build:
+    parameters:
+      lite:  # LITE value during make
+        type: string
+      osnick:  # OSNICK value for the base platform of the docker
+        type: string
+      target:  # CPU|GPU
+        type: string
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - platforms-build-steps-cpu
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - setup_remote_docker
+      - checkout-all
+      - setup-automation
+      - run:
+          name: Build for platform
+          command: |
+            bash <(curl -fsSL https://get.docker.com)
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make <<parameters.target>> OSNICK=<<parameters.osnick>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+          no_output_timeout: 40m
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*.zip
+            - artifacts/*.tgz
+            - artifacts/*.tar
+      - store_artifacts:
+          path: test/logs
 
   coverage:
     docker:
@@ -569,25 +507,33 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    - platforms-build-cpu
-    - platforms-build-gpu
+    - platforms-build
 
 #### define workflows
 workflows:
   version: 2
   build_and_package:
     jobs:
+
       - lint:
           <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch-but-tags
           <<: *after-linter
-      - platforms-build-cpu:
+      - platforms-build:
           <<: *after-build-and-test
           <<: *on-master-and-version-tags
-      - platforms-build-gpu:
-          <<: *after-build-and-test
-          <<: *on-master-and-version-tags
+          matrix:
+            parameters:
+              osnick:
+                - xenial
+                - bionic
+              lite:
+                - "LITE=0"
+                - "LITE=1"
+              target:
+                - "CPU=1"
+                - "GPU=1"
       - coverage:
           context: common
           <<: *on-dev-branches
