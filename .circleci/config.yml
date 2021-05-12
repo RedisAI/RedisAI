@@ -148,7 +148,7 @@ commands:
             bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make <<parameters.target>> OSNICK=<<parameters.platform>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
+            make <<parameters.target>> OSNICK=<<parameters.osnick>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
