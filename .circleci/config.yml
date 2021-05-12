@@ -131,13 +131,10 @@ commands:
     parameters:
       lite:
         type: string
-        default: "LITE=1"
       platform:
         type: string
-        default: "bionic"
       target:
         type: string
-        default: "CPU=1"
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -304,7 +301,34 @@ jobs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - platforms-build-matrix-steps
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - setup_remote_docker
+      - checkout-all
+      - setup-automation
+      - run:
+          name: Build for platform
+          command: |
+            bash <(curl -fsSL https://get.docker.com)
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make <<parameters.target>> OSNICK=<<parameters.platform>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+          no_output_timeout: 40m
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*.zip
+            - artifacts/*.tgz
+            - artifacts/*.tar
+      - store_artifacts:
+          path: test/logs
 
   coverage:
     docker:
@@ -649,8 +673,8 @@ workflows:
                 - "LITE=0"
                 - "LITE=1"
               target:
-                - "CPU=0"
-                - "GPU=0"
+                - "CPU=1"
+                - "GPU=1"
               platform:
                 - xenial
                 - bionic
