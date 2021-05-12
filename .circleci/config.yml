@@ -131,7 +131,7 @@ commands:
     parameters:
       lite:
         type: string
-      platform:
+      osnick:
         type: string
       target:
         type: string
@@ -565,7 +565,7 @@ workflows:
           <<: *on-master-and-version-tags
           matrix:
             parameters:
-              platform:
+              osnic:
                 - xenial
                 - bionic
               lite:
