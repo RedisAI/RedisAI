@@ -127,6 +127,44 @@ commands:
       - store_artifacts:
           path: tests/logs
 
+  platforms-build-matrix-steps:
+    parameters:
+      lite:
+        type: string
+      platform:
+        type: string
+      target:
+        type: string
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - setup_remote_docker
+      - checkout-all
+      - setup-automation
+      - run:
+          name: Build for platform
+          command: |
+            bash <(curl -fsSL https://get.docker.com)
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make <<parameters.target>> OSNICK=<<parameters.platform>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-cpu.tgz
+            logsdir=tests/logs/cpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+          no_output_timeout: 40m
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*.zip
+            - artifacts/*.tgz
+            - artifacts/*.tar
+      - store_artifacts:
+          path: test/logs
+
 jobs:
   lint:
     docker:
@@ -148,13 +186,15 @@ jobs:
       - build-steps:
           platform: debian
 
+  # this build runs on a fixed machine, due to a storage need
+  # nothing about it necessitates the machine itself, other than the need for more disk.
   platforms-build:
     parameters:
-      lite:  # LITE value during make
+      lite:
         type: string
-      osnick:  # OSNICK value for the base platform of the docker
+      platform:
         type: string
-      target:  # CPU|GPU
+      target:
         type: string
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
@@ -171,7 +211,7 @@ jobs:
             bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make <<parameters.target>> OSNICK=<<parameters.osnick>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
+            make <<parameters.target>> OSNICK=<<parameters.platform>> <<parameters.lite>> ARTIFACTS=1 VERBOSE=1 build publish
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -525,12 +565,12 @@ workflows:
           <<: *on-master-and-version-tags
           matrix:
             parameters:
-              osnick:
+              platform:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0"
-                - "REDISAI_LITE=1"
+                - "LITE=0"
+                - "LITE=1"
               target:
                 - "CPU=1"
                 - "GPU=1"
