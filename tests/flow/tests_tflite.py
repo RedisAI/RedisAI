@@ -86,7 +86,6 @@ def test_run_tflite_model_autobatch(env):
     t = threading.Thread(target=run)
     t.start()
 
-    # TODO: enable me. CI is having issues on GPU asserts of TFLITE and CPU
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'c{1}')
     t.join()
 
