@@ -529,8 +529,8 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "LITE=0"
-                - "LITE=1"
+                - "REDISAI_LITE=0"
+                - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
                 - "GPU=1"
