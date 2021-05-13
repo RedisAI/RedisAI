@@ -57,7 +57,7 @@ def test_run_tflite_model_autobatch(env):
     _, _, _, img = load_resnet_test_data()
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU',
-                              'BATCHSIZE', 4, 'MINBATCHSIZE', 0,
+                              'BATCHSIZE', 4, 'MINBATCHSIZE', 2,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
