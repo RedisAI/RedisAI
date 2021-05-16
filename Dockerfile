@@ -12,6 +12,7 @@ ARG OS=debian:buster-slim
 ARG ARCH=x64
 
 ARG PACK=0
+ARG REDISAI_LITE=0
 ARG TEST=0
 
 #----------------------------------------------------------------------------------------------
@@ -43,11 +44,12 @@ ADD ./ /build
 RUN bash -l -c "make -C opt build $BUILD_ARGS SHOW=1"
 
 ARG PACK
+ARG REDISAI_LITE
 ARG TEST
 
 RUN mkdir -p bin/artifacts
 RUN set -e ;\
-    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack"; fi
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack REDISAI_LITE=$REDISAI_LITE"; fi
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \

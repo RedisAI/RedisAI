@@ -177,7 +177,7 @@ jobs:
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -529,8 +529,8 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "LITE=0"
-                - "LITE=1"
+                - "REDISAI_LITE=0"
+                - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
                 - "GPU=1"
