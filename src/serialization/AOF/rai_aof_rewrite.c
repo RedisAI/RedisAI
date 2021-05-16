@@ -41,23 +41,10 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         return;
     }
 
-    // AI.MODELSET model_key backend device [INPUTS name1 name2 ... OUTPUTS name1 name2 ...]
-    // model_blob
-
-    RedisModuleString **inputs_ = array_new(RedisModuleString *, model->ninputs);
-    RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);
-
-    RedisModuleCtx *ctx = RedisModule_GetContextFromIO(aof);
-
-    for (size_t i = 0; i < model->ninputs; i++) {
-        inputs_ = array_append(
-            inputs_, RedisModule_CreateString(ctx, model->inputs[i], strlen(model->inputs[i])));
-    }
-
-    for (size_t i = 0; i < model->noutputs; i++) {
-        outputs_ = array_append(
-            outputs_, RedisModule_CreateString(ctx, model->outputs[i], strlen(model->outputs[i])));
-    }
+    // AI.MODELSTORE model_key backend device [TAG tag]
+    // [BATCHSIZE n [MINBATCHSIZE m [MINBATCHTIMEOUT t]]]
+    // [INPUTS <input_count> name1 name2 ... OUTPUTS <output_count> name1 name2 ...]
+    // BLOB model_blob
 
     long long chunk_size = getModelChunkSize();
     const size_t n_chunks = len / chunk_size + 1;
@@ -66,7 +53,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
     for (size_t i = 0; i < n_chunks; i++) {
         size_t chunk_len = i < n_chunks - 1 ? chunk_size : len % chunk_size;
         buffers_ = array_append(buffers_,
-                                RedisModule_CreateString(ctx, buffer + i * chunk_size, chunk_len));
+                                RedisModule_CreateString(NULL, buffer + i * chunk_size, chunk_len));
     }
 
     if (buffer) {
@@ -75,23 +62,27 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
     const char *backendstr = RAI_BackendName(model->backend);
 
-    RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvcv", key, backendstr, model->devicestr,
-                        model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-                        model->opts.minbatchsize, "INPUTS", inputs_, model->ninputs, "OUTPUTS",
-                        outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
+    if (model->backend != RAI_BACKEND_TENSORFLOW) {
 
-    for (size_t i = 0; i < model->ninputs; i++) {
-        RedisModule_FreeString(ctx, inputs_[i]);
-    }
-    array_free(inputs_);
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccclclclcv", key,
+          backendstr, model->devicestr,
+          model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
+          model->opts.minbatchsize, "MINBATCHTIMEOUT",
+          model->opts.minbatchtimeout,
+          "BLOB", buffers_, n_chunks);
+    } else {
 
-    for (size_t i = 0; i < model->noutputs; i++) {
-        RedisModule_FreeString(ctx, outputs_[i]);
+        // For TF backend, the command should contain INPUTS and OUTPUTS names.
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "ccccclclclcvvv", "error_model",
+          backendstr, model->devicestr,
+          model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
+          model->opts.minbatchsize, "INPUTS", model->inputs, model->ninputs,
+          "OUTPUTS",
+          model->outputs, model->noutputs, "BLOB", buffers_, n_chunks);
     }
-    array_free(outputs_);
 
     for (size_t i = 0; i < n_chunks; i++) {
-        RedisModule_FreeString(ctx, buffers_[i]);
+        RedisModule_FreeString(NULL, buffers_[i]);
     }
     array_free(buffers_);
 }
