@@ -484,9 +484,6 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, "minbatchsize");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchsize);
 
-    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
-    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
-
     RedisModule_ReplyWithCString(ctx, "inputs");
     const size_t ninputs = array_len(mto->inputs);
     RedisModule_ReplyWithArray(ctx, (long)ninputs);
@@ -508,6 +505,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);
     }
+
+    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
+    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
     return REDISMODULE_OK;
 }
