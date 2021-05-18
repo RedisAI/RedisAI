@@ -4,7 +4,7 @@ email: support@redislabs.com
 description: Serving tensors and executing deep learning graphs
 homepage: https://oss.redislabs.com/redisai/
 license: Redis Source Available License v1.0
-command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/{MODULE_NAME}/{{NUMVER}}/deps"
+command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps"
 # command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps/backends"
 min_redis_version: "5.0.7"
 min_redis_pack_version: "5.4.14"
