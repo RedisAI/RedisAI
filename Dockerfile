@@ -41,7 +41,7 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN bash -l -c "make -C opt build $BUILD_ARGS SHOW=1"
+RUN bash -l -c "make -C opt build REDISAI_LITE=$REDISAI_LITE $BUILD_ARGS SHOW=1"
 
 ARG PACK
 ARG REDISAI_LITE
