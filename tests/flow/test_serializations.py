@@ -167,6 +167,8 @@ class TestAofRewrite:
 
     def __init__(self):
         self.env = Env(useAof=True)
+        con = self.env.getConnection()
+        con.execute_command('config', 'set', 'aof-use-rdb-preamble', 'no')
 
     def test_aof_rewrite_tf_model(self):
 
@@ -175,7 +177,6 @@ class TestAofRewrite:
         tf_model = load_file_content("graph.pb")
         con.execute_command('AI.MODELSTORE', key_name, 'TF', 'CPU', 'TAG', 'TF_GRAPH', 'batchsize', 2, 'minbatchsize', 4,
                             'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
-        x=input()
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
         self.env.restartAndReload()
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs = con.execute_command("AI.MODELGET", key_name, "META")

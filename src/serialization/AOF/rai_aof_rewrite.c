@@ -64,21 +64,44 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
     if (model->backend != RAI_BACKEND_TENSORFLOW) {
 
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccclclclcv", key,
-          backendstr, model->devicestr,
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclcv", key,
+          backendstr, model->devicestr, "TAG",
           model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
           model->opts.minbatchsize, "MINBATCHTIMEOUT",
           model->opts.minbatchtimeout,
           "BLOB", buffers_, n_chunks);
     } else {
-
         // For TF backend, the command should contain INPUTS and OUTPUTS names.
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "ccccclclclcvvv", "error_model",
-          backendstr, model->devicestr,
+        // Create RedisModuleString* arrays from the char* arrays, so we can send a proper vector
+        // to RedisModule_EmitAOF.
+        RedisModuleString **inputs_ = array_new(RedisModuleString *, model->ninputs);
+        RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);
+
+        for (size_t i = 0; i < model->ninputs; i++) {
+            inputs_ = array_append(
+              inputs_, RedisModule_CreateString(NULL, model->inputs[i], strlen(model->inputs[i])));
+        }
+        for (size_t i = 0; i < model->noutputs; i++) {
+            outputs_ = array_append(
+              outputs_, RedisModule_CreateString(NULL, model->outputs[i], strlen(model->outputs[i])));
+        }
+
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclcvcvcv", key,
+          backendstr, model->devicestr, "TAG",
           model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-          model->opts.minbatchsize, "INPUTS", model->inputs, model->ninputs,
+          model->opts.minbatchsize, "INPUTS", inputs_, model->ninputs,
           "OUTPUTS",
-          model->outputs, model->noutputs, "BLOB", buffers_, n_chunks);
+          outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
+
+        for (size_t i = 0; i < model->ninputs; i++) {
+            RedisModule_FreeString(NULL, inputs_[i]);
+        }
+        array_free(inputs_);
+
+        for (size_t i = 0; i < model->noutputs; i++) {
+            RedisModule_FreeString(NULL, outputs_[i]);
+        }
+        array_free(outputs_);
     }
 
     for (size_t i = 0; i < n_chunks; i++) {
