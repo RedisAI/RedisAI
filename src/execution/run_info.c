@@ -11,12 +11,12 @@
 #include "redismodule.h"
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/model.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
 #include "redis_ai_objects/model_struct.h"
 #include "util/arr.h"
-#include "util/dict.h"
+#include "util/dictionaries.h"
 #include "util/string_utils.h"
 
 static void RAI_TensorDictValFree(void *privdata, void *obj) {
@@ -31,36 +31,6 @@ AI_dictType AI_dictTypeTensorVals = {
     .keyDestructor = RAI_RStringsKeyDestructor,
     .valDestructor = RAI_TensorDictValFree,
 };
-
-/**
- * Allocate the memory and initialise the RAI_DagOp.
- * @param result Output parameter to capture allocated RAI_DagOp.
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
- * failed.
- */
-int RAI_InitDagOp(RAI_DagOp **result) {
-    RAI_DagOp *dagOp;
-    dagOp = (RAI_DagOp *)RedisModule_Calloc(1, sizeof(RAI_DagOp));
-
-    dagOp->commandType = REDISAI_DAG_CMD_NONE;
-    dagOp->runkey = NULL;
-    dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
-    dagOp->inkeys_indices = array_new(size_t, 1);
-    dagOp->outkeys_indices = array_new(size_t, 1);
-    dagOp->outTensor = NULL;
-    dagOp->mctx = NULL;
-    dagOp->sctx = NULL;
-    dagOp->devicestr = NULL;
-    dagOp->duration_us = 0;
-    dagOp->result = -1;
-    RAI_InitError(&dagOp->err);
-    dagOp->argv = NULL;
-    dagOp->argc = 0;
-
-    *result = dagOp;
-    return REDISMODULE_OK;
-}
 
 /**
  * Allocate the memory and initialise the RedisAI_RunInfo.
@@ -103,40 +73,6 @@ int RAI_ShallowCopyDagRunInfo(RedisAI_RunInfo **result, RedisAI_RunInfo *src) {
     rinfo->dagDeviceCompleteOpCount = 0;
     *result = rinfo;
     return REDISMODULE_OK;
-}
-
-void RAI_FreeDagOp(RAI_DagOp *dagOp) {
-
-    RAI_FreeError(dagOp->err);
-    if (dagOp->runkey)
-        RedisModule_FreeString(NULL, dagOp->runkey);
-
-    if (dagOp->outTensor)
-        RAI_TensorFree(dagOp->outTensor);
-
-    if (dagOp->mctx) {
-        RAI_ModelRunCtxFree(dagOp->mctx);
-    }
-    if (dagOp->sctx) {
-        RAI_ScriptRunCtxFree(dagOp->sctx);
-    }
-
-    if (dagOp->inkeys) {
-        for (size_t i = 0; i < array_len(dagOp->inkeys); i++) {
-            RedisModule_FreeString(NULL, dagOp->inkeys[i]);
-        }
-        array_free(dagOp->inkeys);
-    }
-    array_free(dagOp->inkeys_indices);
-
-    if (dagOp->outkeys) {
-        for (size_t i = 0; i < array_len(dagOp->outkeys); i++) {
-            RedisModule_FreeString(NULL, dagOp->outkeys[i]);
-        }
-        array_free(dagOp->outkeys);
-    }
-    array_free(dagOp->outkeys_indices);
-    RedisModule_Free(dagOp);
 }
 
 long long RAI_DagRunInfoFreeShallowCopy(RedisAI_RunInfo *rinfo) {
@@ -203,84 +139,6 @@ void RAI_ContextUnlock(RedisAI_RunInfo *rinfo) {
         return;
     }
     pthread_rwlock_unlock(rinfo->dagLock);
-}
-
-size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op) {
-    if (op->mctx == NULL) {
-        return -1;
-    }
-
-    size_t ninputs = RAI_ModelRunCtxNumInputs(op->mctx);
-
-    int batchsize = 0;
-
-    if (ninputs == 0) {
-        return batchsize;
-    }
-
-    for (size_t i = 0; i < ninputs; i++) {
-        RAI_Tensor *input = RAI_ModelRunCtxInputTensor(op->mctx, i);
-
-        if (i == 0) {
-            batchsize = RAI_TensorDim(input, 0);
-            continue;
-        }
-
-        if (batchsize != RAI_TensorDim(input, 0)) {
-            batchsize = 0;
-            break;
-        }
-    }
-
-    return batchsize;
-}
-
-int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2) {
-
-    if (op1->mctx == NULL || op2->mctx == NULL) {
-        return 0;
-    }
-
-    if (op1->mctx->model != op2->mctx->model) {
-        return 0;
-    }
-
-    const int ninputs1 = RAI_ModelRunCtxNumInputs(op1->mctx);
-    const int ninputs2 = RAI_ModelRunCtxNumInputs(op2->mctx);
-
-    if (ninputs1 != ninputs2) {
-        return 0;
-    }
-
-    for (int i = 0; i < ninputs1; i++) {
-        RAI_Tensor *input1 = RAI_ModelRunCtxInputTensor(op1->mctx, i);
-        RAI_Tensor *input2 = RAI_ModelRunCtxInputTensor(op2->mctx, i);
-
-        int ndims1 = RAI_TensorNumDims(input1);
-        int ndims2 = RAI_TensorNumDims(input2);
-
-        if (!RAI_TensorIsDataTypeEqual(input1, input2)) {
-            return 0;
-        }
-
-        if (ndims1 != ndims2) {
-            return 0;
-        }
-
-        if (ndims1 == 0) {
-            continue;
-        }
-
-        for (int j = 1; j < ndims1; j++) {
-            int dim1 = RAI_TensorDim(input1, j);
-            int dim2 = RAI_TensorDim(input2, j);
-            if (dim1 != dim2) {
-                return 0;
-            }
-        }
-    }
-
-    return 1;
 }
 
 RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {

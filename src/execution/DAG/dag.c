@@ -33,7 +33,6 @@
 #include <unistd.h>
 
 #include "redisai.h"
-#include "dag_parser.h"
 #include "rmutil/args.h"
 #include "rmutil/alloc.h"
 #include "util/arr.h"
@@ -41,8 +40,10 @@
 #include "util/queue.h"
 #include "util/string_utils.h"
 #include "execution/run_info.h"
-#include "execution/modelRun_ctx.h"
 #include "execution/background_workers.h"
+#include "execution/parsing/dag_parser.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/model.h"
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
@@ -100,7 +101,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, tensor) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RAI_TensorRedisType(), tensor) != REDISMODULE_OK) {
         RAI_SetError(err, RAI_EDAGRUN, "ERR could not save tensor");
         RedisModule_CloseKey(key);
         return REDISMODULE_ERR;
@@ -667,25 +668,36 @@ cleanup:
     return REDISMODULE_OK;
 }
 
-int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                                    int argc) {
-    for (size_t argpos = 1; argpos < argc; argpos++) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        if ((!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST")) &&
-            (argpos + 1 < argc)) {
+int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                        RedisModuleString **argv, int argc) {
+
+    size_t argpos = 1;
+    while (argpos < argc) {
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
+        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ||
+            !strcasecmp(arg_string, "KEYS")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
             long long n_keys;
-            argpos++;
-            const int retval = RedisModule_StringToLongLong(argv[argpos], &n_keys);
+            const int retval = RedisModule_StringToLongLong(argv[argpos++], &n_keys);
             if (retval != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
-            argpos++;
-            if (n_keys > 0) {
-                size_t last_persist_argpos = n_keys + argpos;
-                for (; argpos < last_persist_argpos && argpos < argc; argpos++) {
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
+            size_t last_argpos = n_keys + argpos;
+            if (last_argpos >= argc) {
+                return REDISMODULE_ERR;
             }
+            for (; argpos < last_argpos; argpos++) {
+                RedisModule_KeyAtPos(ctx, argpos);
+            }
+        } else if (!strcasecmp(arg_string, "AI.MODELEXECUTE") ||
+                   !strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
+            // After every AI.MODEL/SCRIPTEXECUTE arg comes the model/script key.
+            RedisModule_KeyAtPos(ctx, argpos++);
         }
     }
     return REDISMODULE_OK;

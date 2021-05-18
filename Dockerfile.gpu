@@ -14,11 +14,11 @@ ARG ARCH=x64
 ARG CUDA_VER=11.0-cudnn8
 
 ARG PACK=0
+ARG REDISAI_LITE=0
 ARG TEST=0
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:10.2-cudnn8-devel-${OS} AS cuda_10.2
 FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
 
 ARG OSNICK
@@ -35,13 +35,10 @@ ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
-COPY --from=cuda_10.2 /usr/local/cuda-10.2 /usr/local/cuda-10.2
-COPY --from=cuda_10.2 /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu/
-
-RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:/usr/local/cuda-10.2/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
+RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
 
 COPY ./opt/ opt/
-COPY ./tests/flow/test_requirements.txt tests/flow/
+ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
@@ -55,11 +52,12 @@ ADD ./ /build
 RUN bash -l -c "make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
 
 ARG PACK
+ARG REDISAI_LITE
 ARG TEST
 
 RUN mkdir -p bin/artifacts
 RUN set -e ;\
-    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack GPU=1"; fi
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack GPU=1 REDISAI_LITE=$REDISAI_LITE"; fi
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
@@ -75,13 +73,12 @@ FROM nvidia/cuda:${CUDA_VER}-runtime-${OS}
 ARG OS
 
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
-RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi 
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
 
 ENV REDIS_MODULES /usr/lib/redis/modules
 RUN mkdir -p $REDIS_MODULES/
 
 COPY --from=redis /usr/local/ /usr/local/
-COPY --from=builder /usr/local/cuda-10.2 /usr/local/cuda-10.2
 COPY --from=builder /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu/
 COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
 
