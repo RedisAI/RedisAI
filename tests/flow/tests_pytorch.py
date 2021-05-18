@@ -653,7 +653,7 @@ def test_pytorch_modelscan_scriptscan(env):
 
     model_pb = load_file_content('pt-minimal.pt')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v2', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELSTORE', 'm2', 'TORCH', DEVICE, 'BLOB', model_pb)
@@ -661,7 +661,7 @@ def test_pytorch_modelscan_scriptscan(env):
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v2', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'SOURCE', script)
@@ -766,6 +766,7 @@ def test_modelget_for_tuple_output(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 2)
 

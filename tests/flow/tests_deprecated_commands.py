@@ -172,6 +172,7 @@ def test_modelset_modelrun_pytorch(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     # assert there are no inputs or outputs
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 1)
