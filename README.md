@@ -1,6 +1,6 @@
 [![GitHub issues](https://img.shields.io/github/release/RedisAI/RedisAI.svg?sort=semver)](https://github.com/RedisAI/RedisAI/releases/latest)
 [![CircleCI](https://circleci.com/gh/RedisAI/RedisAI/tree/master.svg?style=svg)](https://circleci.com/gh/RedisAI/RedisAI/tree/master)
-[![Dockerhub](https://img.shields.io/badge/dockerhub-redislabs%2Fredisai-blue)](https://hub.docker.com/r/redislabs/redisai/tags/) 
+[![Dockerhub](https://img.shields.io/badge/dockerhub-redislabs%2Fredisai-blue)](https://hub.docker.com/r/redislabs/redisai/tags/)
 [![codecov](https://codecov.io/gh/RedisAI/RedisAI/branch/master/graph/badge.svg)](https://codecov.io/gh/RedisAI/RedisAI)
 [![Total alerts](https://img.shields.io/lgtm/alerts/g/RedisAI/RedisAI.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/RedisAI/RedisAI/alerts/)
 
@@ -69,7 +69,7 @@ redis-cli
 
 ## Building
 
-You should obtain the module's source code and submodule using git like so: 
+You should obtain the module's source code and submodule using git like so:
 
 ```sh
 git clone --recursive https://github.com/RedisAI/RedisAI
@@ -116,14 +116,21 @@ redis-server --loadmodule install-cpu/redisai.so
 
 Some languages have client libraries that provide support for RedisAI's commands:
 
-| Project | Language | License | Author | URL |
-| ------- | -------- | ------- | ------ | --- |
-| JRedisAI | Java | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/JRedisAI) |
-| redisai-py | Python | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-py) |
-| redisai-go | Go | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-go) |
-| redisai-js | Typescript/Javascript | BSD-3 | [RedisLabs](https://redislabs.com/) | [Github](https://github.com/RedisAI/redisai-js) |
-| redis-modules-sdk | TypeScript | BSD-3-Clause | [Dani Tseitlin](https://github.com/danitseitlin) | [Github](https://github.com/danitseitlin/redis-modules-sdk) |
-| redis-modules-java | Java | Apache-2.0 | [dengliming](https://github.com/dengliming) | [Github](https://github.com/dengliming/redis-modules-java) |
+| Project            | Language              | License      | Author                                           | URL                                                         |
+| -------            | --------              | -------      | ------                                           | ---                                                         |
+| JRedisAI           | Java                  | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/JRedisAI)               |
+| redisai-py         | Python                | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-py)             |
+| redisai-go         | Go                    | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-go)             |
+| redisai-js         | Typescript/Javascript | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-js)             |
+| redis-modules-sdk  | TypeScript            | BSD-3-Clause | [Dani Tseitlin](https://github.com/danitseitlin) | [Github](https://github.com/danitseitlin/redis-modules-sdk) |
+| redis-modules-java | Java                  | Apache-2.0   | [dengliming](https://github.com/dengliming)      | [Github](https://github.com/dengliming/redis-modules-java)  |
+| smartredis         | C++                   | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
+| smartredis         | C                     | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
+| smartredis         | Fortran               | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
+| smartredis         | Python                | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
+
+
+
 
 
 ## Backend Dependancy
