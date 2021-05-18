@@ -34,7 +34,7 @@ def test_pytorch_chunked_modelstore(env):
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
 
-    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[15]  # Extract the BLOB list from the result
+    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
 

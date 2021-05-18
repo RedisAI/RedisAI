@@ -500,14 +500,14 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         RedisModule_ReplyWithCString(ctx, mto->outputs[i]);
     }
 
+    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
+    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
+
     if (meta && blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);
     }
-
-    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
-    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
     return REDISMODULE_OK;
 }
