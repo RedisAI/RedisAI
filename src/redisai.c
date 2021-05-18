@@ -463,7 +463,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 16 : 14;
+    const int outentries = blob ? 18 : 16;
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
@@ -483,6 +483,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
     RedisModule_ReplyWithCString(ctx, "minbatchsize");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchsize);
+
+    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
+    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
     RedisModule_ReplyWithCString(ctx, "inputs");
     const size_t ninputs = array_len(mto->inputs);

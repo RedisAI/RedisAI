@@ -161,3 +161,68 @@ class test_v1_rdb_load:
         self.env.assertEqual([tensor_type, tensor_shape], [b"INT32", [2, 1]])
         values = con.execute_command('AI.TENSORGET', key_name, 'VALUES')
         self.env.assertEqual(values, [1, 2])
+
+
+class test_v2_rdb_load:
+
+    def __init__(self):
+        self.env = Env()
+
+    def test_v2_tf_model(self):
+        key_name = "tf_graph{1}"
+        con = self.env.getConnection()
+        tf_model = load_file_content('graph.pb')
+        con.execute_command('AI.MODELSTORE', key_name, 'TF', 'CPU', 'TAG', "TF_GRAPH_V2", 'BATCHSIZE', 4,
+                        'MINBATCHSIZE', 2, 'MINBATCHTIMEOUT', 1000, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul',
+                        'BLOB', tf_model)
+        model_rdb = con.execute_command('DUMP', key_name)
+        self.env.assertEqual(con.execute_command('FLUSHALL'), True)
+        con.restore(key_name, 0, model_rdb, True)
+        _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _, minbatchtimeout, _, inputs, _, outputs = con.execute_command("AI.MODELGET", key_name, "META")
+        self.env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs], [b"TF", b"CPU", b"TF_GRAPH_V2", 4, 2, 1000, [b"a", b"b"], [b"mul"]])
+        tf_model_run(self.env, key_name)
+
+    def test_v2_torch_model(self):
+        key_name = "pt_minimal{1}"
+        con = self.env.getConnection()
+        torch_model = load_file_content('pt-minimal.pt')
+        con.execute_command('AI.MODELSTORE', key_name, 'TORCH', 'CPU', 'TAG', "PT_MINIMAL_V2", 'BATCHSIZE', 4,
+                            'MINBATCHSIZE', 2, 'MINBATCHTIMEOUT', 1000, 'BLOB', torch_model)
+        model_rdb = con.execute_command('DUMP', key_name)
+        self.env.assertEqual(con.execute_command('FLUSHALL'), True)
+        con.restore(key_name, 0, model_rdb, True)
+        _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _, minbatchtimeout, _ , inputs, _, outputs = con.execute_command("AI.MODELGET", key_name, "META")
+        self.env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs], [b"TORCH", b"CPU", b"PT_MINIMAL_V2", 4, 2, 1000, [b'a', b'b'], [b'']])
+        torch_model_run(self.env, key_name)
+
+    def test_v2_troch_script(self):
+        key_name = "torch_script{1}"
+        con = self.env.getConnection()
+        script_rdb = b'\x07\x81\x00\x8f\xd2\t\x12\x0fL\x01\x05\x04CPU\x00\x05\x0fTORCH_SCRIPT_V1\x05\xc3@W@i\x0fdef bar(a, b):\n  \x00\x0ereturn a + b\n\nd\x80 \x08_variadic@)\x12args : List[Tensor]\xe0\x06;  \x02[0] A`\t\x031]\n\x00\x00\t\x00w\x87\r5\x02\x1b_\xfb'
+        con.restore(key_name, 0, script_rdb, True)
+        _, device, _, tag = con.execute_command("AI.SCRIPTGET", key_name, "META")
+        self.env.assertEqual([device, tag], [b"CPU", b"TORCH_SCRIPT_V1"])
+        torch_script_run(self.env, key_name)
+
+    def test_v2_onnx_model(self):
+        key_name = "linear_iris{1}"
+        con = self.env.getConnection()
+        onnx_model = load_file_content('linear_iris.onnx')
+        con.execute_command('AI.MODELSTORE', key_name, 'ONNX', 'CPU', 'TAG', "ONNX_LINEAR_IRIS_V2", 'BATCHSIZE', 4,
+                            'MINBATCHSIZE', 2, 'MINBATCHTIMEOUT', 1000, 'BLOB', onnx_model)
+        model_rdb = con.execute_command('DUMP', key_name)
+        self.env.assertEqual(con.execute_command('FLUSHALL'), True)
+        con.restore(key_name, 0, model_rdb, True)
+        _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _, minbatchtimeout, _ , inputs, _, outputs = con.execute_command("AI.MODELGET", key_name, "META")
+        self.env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs], [b"ONNX", b"CPU", b"ONNX_LINEAR_IRIS_V2", 4, 2, 1000, [b'float_input'], [b'variable']])
+        onnx_model_run(self.env, key_name)
+
+    def test_v2_tensor(self):
+        key_name = "tensor{1}"
+        con = self.env.getConnection()
+        tensor_rdb = b'\x07\x81\x00\x8f\xd3\x10\xd4\x8eD\x01\x02\x01\x02\x00\x02 \x02\x00\x02\x01\x02\x02\x02\x02\x02\x01\x02\x01\x02\x01\x02\x00\x05\x08\x01\x00\x00\x00\x02\x00\x00\x00\x00\t\x00\x94\x04\xfd\xf0\x89\x0b(\x03'
+        con.restore(key_name, 0, tensor_rdb, True)
+        _, tensor_type, _, tensor_shape = con.execute_command('AI.TENSORGET', key_name, 'META')
+        self.env.assertEqual([tensor_type, tensor_shape], [b"INT32", [2, 1]])
+        values = con.execute_command('AI.TENSORGET', key_name, 'VALUES')
+        self.env.assertEqual(values, [1, 2])
