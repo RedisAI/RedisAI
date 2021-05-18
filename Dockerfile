@@ -41,7 +41,7 @@ RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh cpu; else env $DEPS_ARGS ./get_
 
 ARG BUILD_ARGS=""
 ADD ./ /build
-RUN bash -l -c "make -C opt build REDISAI_LITE=$REDISAI_LITE $BUILD_ARGS SHOW=1"
+RUN bash -l -c "make -C opt build ${REDISAI_LITE} $BUILD_ARGS SHOW=1"
 
 ARG PACK
 ARG REDISAI_LITE
@@ -49,7 +49,7 @@ ARG TEST
 
 RUN mkdir -p bin/artifacts
 RUN set -e ;\
-    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack REDISAI_LITE=$REDISAI_LITE"; fi
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack ${REDISAI_LITE}"; fi
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
