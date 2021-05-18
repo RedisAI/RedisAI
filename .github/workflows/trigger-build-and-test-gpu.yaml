@@ -5,6 +5,8 @@ on:
   pull_request:
     types:
       - labeled
+      - synchronize
+      - assigned
 
 jobs:
   valgrind_general:

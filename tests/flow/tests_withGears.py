@@ -245,7 +245,7 @@ async def DAGRun_addOpsFromString(record):
     tensors = redisAI.mgetTensorsFromKeyspace(keys)
     DAGRunner = redisAI.createDAGRunner()
     DAGRunner.Input('tensor_a', tensors[0]).Input('tensor_b', tensors[1])
-    DAGRunner.OpsFromString('|> AI.MODELRUN m{1} INPUTS tensor_a tensor_b OUTPUTS tensor_c |> AI.TENSORGET tensor_c')
+    DAGRunner.OpsFromString('|> AI.MODELEXECUTE m{1} INPUTS 2 tensor_a tensor_b OUTPUTS 1 tensor_c |> AI.TENSORGET tensor_c')
     res = await DAGRunner.Run()
     redisAI.setTensorInKey('test5_res{1}', res[0])
     return "test5_OK"
