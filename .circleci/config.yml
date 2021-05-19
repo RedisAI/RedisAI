@@ -182,7 +182,7 @@ jobs:
       - persist_to_workspace:
           root: bin/
           paths:
-            - artifacts/snapshots/*
+            - artifacts/*
       - store_artifacts:
           path: test/logs
 
