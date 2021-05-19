@@ -1,6 +1,6 @@
-#include "encode_v1.h"
+#include "encode_v2.h"
 
-void RAI_RDBSaveTensor_v1(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveTensor_v2(RedisModuleIO *io, void *value) {
     RAI_Tensor *tensor = (RAI_Tensor *)value;
 
     size_t ndim = tensor->tensor.dl_tensor.ndim;
@@ -23,7 +23,7 @@ void RAI_RDBSaveTensor_v1(RedisModuleIO *io, void *value) {
     RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
 }
 
-void RAI_RDBSaveModel_v1(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveModel_v2(RedisModuleIO *io, void *value) {
     RAI_Model *model = (RAI_Model *)value;
     char *buffer = NULL;
     size_t len = 0;
@@ -46,6 +46,7 @@ void RAI_RDBSaveModel_v1(RedisModuleIO *io, void *value) {
     RedisModule_SaveString(io, model->tag);
     RedisModule_SaveUnsigned(io, model->opts.batchsize);
     RedisModule_SaveUnsigned(io, model->opts.minbatchsize);
+    RedisModule_SaveUnsigned(io, model->opts.minbatchtimeout);
     RedisModule_SaveUnsigned(io, model->ninputs);
     for (size_t i = 0; i < model->ninputs; i++) {
         RedisModule_SaveStringBuffer(io, model->inputs[i], strlen(model->inputs[i]) + 1);
@@ -68,7 +69,7 @@ void RAI_RDBSaveModel_v1(RedisModuleIO *io, void *value) {
     }
 }
 
-void RAI_RDBSaveScript_v1(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveScript_v2(RedisModuleIO *io, void *value) {
     RAI_Script *script = (RAI_Script *)value;
 
     size_t len = strlen(script->scriptdef) + 1;
