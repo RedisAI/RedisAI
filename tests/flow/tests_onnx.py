@@ -26,7 +26,7 @@ def test_onnx_modelrun_mnist(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'')
     env.assertEqual(len(ret[11]), 1)
     env.assertEqual(len(ret[13]), 1)
@@ -37,7 +37,7 @@ def test_onnx_modelrun_mnist(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of ONNX and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'ONNX')
@@ -102,7 +102,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of ONNX and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'ONNX')
@@ -112,6 +112,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     env.assertEqual(ret[9], 2)
     env.assertEqual(len(ret[11]), 1)
     env.assertEqual(len(ret[13]), 1)
+    env.assertEqual(ret[15], 0)
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     con.execute_command('AI.TENSORSET', 'c{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)

@@ -1,5 +1,5 @@
 #pragma once
-#include "../../../../serialization_include.h"
+#include "serialization/serialization_include.h"
 
 void *RAI_RDBLoadTensor_v1(RedisModuleIO *io);
 
