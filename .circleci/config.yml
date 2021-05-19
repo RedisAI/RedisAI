@@ -484,7 +484,7 @@ on-master-version-tags-and-dockertests: &on-master-version-tags-and-dockertests
     branches:
       only:
         - master
-        - /.*docker*/
+        - /.*dockertest$/
     tags:
       only: /^v[0-9].*/
 
