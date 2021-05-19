@@ -546,7 +546,7 @@ workflows:
       - deploy-snapshot:
           context: common
           <<: *after-platform-builds
-          <<: *on-integ-branch
+          <<: *on-master-version-tags-and-dockertests
       - deploy-release:
           context: common
           <<: *after-platform-builds
