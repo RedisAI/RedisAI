@@ -101,7 +101,7 @@ def test_modelset_modelrun_tf(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TF')
         env.assertEqual(ret[3], b'CPU')
@@ -131,14 +131,14 @@ def test_modelset_modelrun_tflite(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'asdf')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TFLITE')
         env.assertEqual(ret[3], b'CPU')
@@ -165,13 +165,14 @@ def test_modelset_modelrun_pytorch(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TORCH')
         env.assertEqual(ret[3], b'CPU')
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     # assert there are no inputs or outputs
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 1)
@@ -195,7 +196,7 @@ def test_modelset_modelrun_onnx(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'ONNX')
         env.assertEqual(ret[3], b'CPU')
