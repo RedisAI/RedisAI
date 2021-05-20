@@ -182,9 +182,7 @@ jobs:
       - persist_to_workspace:
           root: bin/
           paths:
-            - artifacts/*.zip
-            - artifacts/*.tgz
-            - artifacts/*.tar
+            - artifacts/*
       - store_artifacts:
           path: test/logs
 
@@ -384,14 +382,7 @@ jobs:
       - run:
           name: Deploy Snapshots to S3
           command: |
-            cd workspace/artifacts
-            for f in snapshots*.tar; do
-                echo "Extracting $f ..."
-                tar xf $f
-            done
-            echo "... done."
-            du -ah --apparent-size *
-            cd snapshots
+            cd workspace/artifacts/snapshots
             for f in `ls *.zip *.tgz`; do
               aws s3 cp --no-progress $f s3://redismodules/$PACKAGE_NAME/snapshots/ --acl public-read
             done
@@ -488,11 +479,12 @@ on-version-tags: &on-version-tags
     tags:
       only: /^v[0-9].*/
 
-on-master-and-version-tags: &on-master-and-version-tags
+on-master-version-tags-and-dockertests: &on-master-version-tags-and-dockertests
   filters:
     branches:
       only:
         - master
+        - /.*dockertest$/
     tags:
       only: /^v[0-9].*/
 
@@ -522,7 +514,7 @@ workflows:
           <<: *after-linter
       - platforms-build:
           <<: *after-build-and-test
-          <<: *on-master-and-version-tags
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -554,7 +546,7 @@ workflows:
       - deploy-snapshot:
           context: common
           <<: *after-platform-builds
-          <<: *on-integ-branch
+          <<: *on-master-version-tags-and-dockertests
       - deploy-release:
           context: common
           <<: *after-platform-builds
