@@ -230,12 +230,13 @@ class TestAofRewrite:
         key_name = "tf_graph{1}"
         con = self.env.getConnection()
         tf_model = load_file_content("graph.pb")
-        con.execute_command('AI.MODELSTORE', key_name, 'TF', 'CPU', 'TAG', 'TF_GRAPH', 'batchsize', 2, 'minbatchsize', 4,
-                            'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
+        con.execute_command('AI.MODELSTORE', key_name, 'TF', 'CPU', 'TAG', 'TF_GRAPH', 'batchsize', 4, 'minbatchsize', 2,
+                            'minbatchtimeout', 1000, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
+
         self.env.restartAndReload()
-        _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs = con.execute_command("AI.MODELGET", key_name, "META")
-        self.env.assertEqual([backend, device, tag, batchsize, minbatchsize, inputs, outputs], [b"TF", b"CPU", b"TF_GRAPH", 2, 4, [b"a", b"b"], [b"mul"]])
+        _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout = con.execute_command("AI.MODELGET", key_name, "META")
+        self.env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs], [b"TF", b"CPU", b"TF_GRAPH", 2, 4, [b"a", b"b"], [b"mul"]])
         tf_model_run(self.env, key_name)
 
 

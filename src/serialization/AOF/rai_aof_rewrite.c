@@ -64,7 +64,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
     if (model->backend != RAI_BACKEND_TENSORFLOW) {
 
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclcv", key,
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclcv", key,
           backendstr, model->devicestr, "TAG",
           model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
           model->opts.minbatchsize, "MINBATCHTIMEOUT",
@@ -86,10 +86,11 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
               outputs_, RedisModule_CreateString(NULL, model->outputs[i], strlen(model->outputs[i])));
         }
 
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclcvcvcv", key,
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclcvcvcv", key,
           backendstr, model->devicestr, "TAG",
           model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-          model->opts.minbatchsize, "INPUTS", inputs_, model->ninputs,
+          model->opts.minbatchsize, "MINBATCHTIMEOUT",
+          model->opts.minbatchtimeout, "INPUTS", inputs_, model->ninputs,
           "OUTPUTS",
           outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
 
