@@ -64,12 +64,10 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
     if (model->backend != RAI_BACKEND_TENSORFLOW) {
 
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclcv", key,
-          backendstr, model->devicestr, "TAG",
-          model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-          model->opts.minbatchsize, "MINBATCHTIMEOUT",
-          model->opts.minbatchtimeout,
-          "BLOB", buffers_, n_chunks);
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclcv", key, backendstr,
+                            model->devicestr, "TAG", model->tag, "BATCHSIZE", model->opts.batchsize,
+                            "MINBATCHSIZE", model->opts.minbatchsize, "MINBATCHTIMEOUT",
+                            model->opts.minbatchtimeout, "BLOB", buffers_, n_chunks);
     } else {
         // For TF backend, the command should contain INPUTS and OUTPUTS names.
         // Create RedisModuleString* arrays from the char* arrays, so we can send a proper vector
@@ -78,21 +76,20 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);
 
         for (size_t i = 0; i < model->ninputs; i++) {
-            inputs_ = array_append(
-              inputs_, RedisModule_CreateString(NULL, model->inputs[i], strlen(model->inputs[i])));
+            inputs_ = array_append(inputs_, RedisModule_CreateString(NULL, model->inputs[i],
+                                                                     strlen(model->inputs[i])));
         }
         for (size_t i = 0; i < model->noutputs; i++) {
-            outputs_ = array_append(
-              outputs_, RedisModule_CreateString(NULL, model->outputs[i], strlen(model->outputs[i])));
+            outputs_ = array_append(outputs_, RedisModule_CreateString(NULL, model->outputs[i],
+                                                                       strlen(model->outputs[i])));
         }
 
-        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclcvcvcv", key,
-          backendstr, model->devicestr, "TAG",
-          model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",
-          model->opts.minbatchsize, "MINBATCHTIMEOUT",
-          model->opts.minbatchtimeout, "INPUTS", inputs_, model->ninputs,
-          "OUTPUTS",
-          outputs_, model->noutputs, "BLOB", buffers_, n_chunks);
+        RedisModule_EmitAOF(aof, "AI.MODELSTORE", "scccsclclclclvclvcv", key, backendstr,
+                            model->devicestr, "TAG", model->tag, "BATCHSIZE", model->opts.batchsize,
+                            "MINBATCHSIZE", model->opts.minbatchsize, "MINBATCHTIMEOUT",
+                            model->opts.minbatchtimeout, "INPUTS", model->ninputs, inputs_,
+                            model->ninputs, "OUTPUTS", model->noutputs, outputs_, model->noutputs,
+                            "BLOB", buffers_, n_chunks);
 
         for (size_t i = 0; i < model->ninputs; i++) {
             RedisModule_FreeString(NULL, inputs_[i]);
@@ -113,6 +110,6 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
 void RAI_AOFRewriteScript(RedisModuleIO *aof, RedisModuleString *key, void *value) {
     RAI_Script *script = (RAI_Script *)value;
-    RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "scccc", key, script->devicestr, script->tag, "SOURCE",
-                        script->scriptdef);
+    RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccscc", key, script->devicestr, "TAG", script->tag,
+                        "SOURCE", script->scriptdef);
 }
