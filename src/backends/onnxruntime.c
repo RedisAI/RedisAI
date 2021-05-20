@@ -471,7 +471,7 @@ error:
     ort->ReleaseStatus(status);
 }
 
-int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
+int RAI_ModelRunORT(RAI_Model* model,  RAI_ExecutionCtx **ectxs, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
     OrtSession *session = RAI_ModelGetSession(model);
@@ -489,8 +489,8 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
     size_t total_batch_size = 0;
-    const size_t ninputs = RAI_ExecutionCtx_InputsLen(ectxs[0]);
-    const size_t noutputs = RAI_ExecutionCtx_OutputsLen(ectxs[0]);
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
     if (ninputs > 0) {
         for (size_t b = 0; b < nbatches; ++b) {
             batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
@@ -602,7 +602,7 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
                     goto error;
                 }
                 if (output_tensor) {
-                    RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
+                   RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
                 } else {
                     RedisModule_Log(NULL, "warning",
                                     "non-tensor output from ONNX models, ignoring (currently "

@@ -21,7 +21,7 @@ typedef struct RAI_DagOp {
     size_t *inkeys_indices;
     size_t *outkeys_indices;
     RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
-    RAI_ExecutionCtx *ectx;
+    RAI_ExecutionCtx* ectx;
     uint fmt; // This is relevant for TENSORGET op.
     char *devicestr;
     int result; // REDISMODULE_OK or REDISMODULE_ERR
@@ -54,3 +54,8 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp);
  * @param runkey Subject key name.
  */
 void RAI_DagOpSetRunKey(RAI_DagOp *dagOp, RedisModuleString *runkey);
+
+/**
+ * @brief Return if the current dag op is batchable
+ */
+bool RAI_DagOpBatchable(RAI_DagOp* dagop);
