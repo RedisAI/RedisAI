@@ -29,6 +29,7 @@ if [[ $1 == --help || $1 == help ]]; then
 fi
 
 export RS_MODULE=RedisAI
+export RS_MODULE_LC=${RS_MODULE,,}
 export RS_MODULE_FILE_PREFIX=redisai-cpu
 
 if [[ -z $QA_AUTOMATION_USERNAME && $NOP != 1 ]]; then
@@ -47,6 +48,7 @@ if [[ ! -f $HERE/$TEST.json ]]; then
 fi
 
 run_test() {
+    set -x
 	export RS_VERSION=$1
 
 	if [[ -z $MODULE_VERSION ]]; then
@@ -62,7 +64,7 @@ run_test() {
 	cd $HERE
 
 	json_in=$(mktemp /tmp/$TEST.json.XXXX)
-	$READIES/bin/xtx -e RS_MODULE -e RS_MODULE_FILE_PREFIX -e MODULE_VERSION -e RS_VERSION $TEST.json > $json_in
+	$READIES/bin/xtx -e RS_MODULE -e RS_MODULE_LC -e RS_MODULE_FILE_PREFIX -e MODULE_VERSION -e RS_VERSION $TEST.json > $json_in
 	(( VERBOSE >= 1 )) && cat $json_in
 
 	if [[ $NOP == 1 ]]; then
