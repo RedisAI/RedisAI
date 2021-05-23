@@ -21,7 +21,7 @@ DOCKER_OS.bionic=ubuntu:bionic
 DOCKER_OS.stretch=debian:stretch-slim
 DOCKER_OS.buster=debian:buster-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
- 
+
 TAR_ARCH.x64=x86_64
 TAR_ARCH.arm64v8=arm64
 TAR_ARCH.arm32v7=arm
@@ -60,9 +60,9 @@ CID_$(1)=$(1)_$(VERSION).cid
 
 build_native:
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
-		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
+		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) $(ROOT)
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
-	@docker cp `cat $$(CID_$(1))`:/build/dest/$(STEM)-$(DEVICE)-$(OS)-$(2)-$(VERSION).tar.gz .
+	@docker cp `cat $$(CID_$(1))`:/pytorch/dest/$(STEM)-$(DEVICE)-$(OS)-$(2)-$(VERSION).tar.gz .
 
 .PHONY: build_native
 endef
@@ -75,7 +75,7 @@ CID_$(1)=$(1)_$(VERSION).cid
 
 build_$(1):
 	@docker build --iidfile $$(IID_$(1)) -t redisfab/$(STEM):$(VERSION)-$(DEVICE)-$(1) -f Dockerfile.$(VARIANT) \
-		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) .
+		$(foreach A,$(DOCKER_BUILD_ARGS),--build-arg $(A)) ../../..
 	@docker create --cidfile $$(CID_$(1)) `cat $$(IID_$(1))`
 	@docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(2)-$(VERSION).tar.gz .
 
