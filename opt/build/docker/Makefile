@@ -12,9 +12,13 @@ REPO=redisai
 INT_BRANCHES=1.2
 
 REDIS_VER:=6.0.9
+REDISAI_LITE:=0
 
 export ART_DIR=$(ROOT)/bin/artifacts
 export ART_INT_DIR=/var/opt/redislabs/artifacts
+
+DOCKER_BUILD_ARGS=\
+	REDISAI_LITE=$(REDISAI_LITE)
 
 #----------------------------------------------------------------------------------------------
 

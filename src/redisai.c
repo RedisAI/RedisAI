@@ -463,7 +463,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 16 : 14;
+    const int outentries = blob ? 18 : 16;
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
@@ -499,6 +499,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     for (size_t i = 0; i < noutputs; i++) {
         RedisModule_ReplyWithCString(ctx, mto->outputs[i]);
     }
+
+    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
+    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
     if (meta && blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
@@ -1316,9 +1319,15 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
+#ifndef REDISAI_LITE
     if (RedisModule_Init(ctx, "ai", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
+#else
+    if (RedisModule_Init(ctx, "ai-lite", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
+        REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+#endif
 
     getRedisVersion();
     RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",

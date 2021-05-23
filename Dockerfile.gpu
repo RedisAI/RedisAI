@@ -14,6 +14,7 @@ ARG ARCH=x64
 ARG CUDA_VER=11.0-cudnn8
 
 ARG PACK=0
+ARG REDISAI_LITE=0
 ARG TEST=0
 
 #----------------------------------------------------------------------------------------------
@@ -51,11 +52,12 @@ ADD ./ /build
 RUN bash -l -c "make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
 
 ARG PACK
+ARG REDISAI_LITE
 ARG TEST
 
 RUN mkdir -p bin/artifacts
 RUN set -e ;\
-    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack GPU=1"; fi
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack GPU=1 REDISAI_LITE=$REDISAI_LITE"; fi
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \

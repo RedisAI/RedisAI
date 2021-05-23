@@ -8,7 +8,7 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 
-def test_pytorch_chunked_modelset(env):
+def test_pytorch_chunked_modelstore(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -34,7 +34,7 @@ def test_pytorch_chunked_modelset(env):
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
 
-    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]
+    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
 
@@ -61,7 +61,7 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TORCH')
@@ -69,6 +69,7 @@ def test_pytorch_modelrun(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     # assert there are no inputs or outputs
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 1)
@@ -79,7 +80,7 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'my:tag:v3')
     # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
     if DEVICE == "CPU":
@@ -765,6 +766,7 @@ def test_modelget_for_tuple_output(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 2)
 
