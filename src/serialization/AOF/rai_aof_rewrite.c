@@ -72,8 +72,8 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         // For TF backend, the command should contain INPUTS and OUTPUTS names.
         // Create RedisModuleString* arrays from the char* arrays, so we can send a proper vector
         // to RedisModule_EmitAOF.
-        RedisModuleString **inputs_ = array_new(RedisModuleString *, model->ninputs);
-        RedisModuleString **outputs_ = array_new(RedisModuleString *, model->noutputs);
+        array_new_on_stack(RedisModuleString *, 5, inputs_);
+        array_new_on_stack(RedisModuleString *, 5, outputs_);
 
         for (size_t i = 0; i < model->ninputs; i++) {
             inputs_ = array_append(inputs_, RedisModule_CreateString(NULL, model->inputs[i],
