@@ -9,7 +9,7 @@
 RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ScriptRunCtx *sctx = RedisModule_Calloc(1, sizeof(*sctx));
-    RAI_ExecutionCtx_Init(sctx, RAI_ScriptRunCtxFree);
+    RAI_ExecutionCtx_Init((RAI_ExecutionCtx*)sctx, (RAI_ExecutionCtx_Free_fn)RAI_ScriptRunCtxFree);
     sctx->script = RAI_ScriptGetShallowCopy(script);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
@@ -21,7 +21,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
 
 // Deprecated.
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
-    RAI_ExecutionCtx_AddInput(sctx, inputTensor);
+    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensor);
     return 1;
 }
 
@@ -30,14 +30,14 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
                                  RAI_Error *err) {
     int res;
     for (size_t i = 0; i < len; i++) {
-        RAI_ExecutionCtx_AddInput(sctx, inputTensors[i]);
+        RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensors[i]);
     }
     sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
 int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
-    RAI_ExecutionCtx_AddInput(sctx, inputTensor);
+    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensor);
     return 1;
 }
 
@@ -110,20 +110,20 @@ inline int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len) {
 }
 
 inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_AddOuputPlaceholder(sctx);
+    RAI_ExecutionCtx_AddOuputPlaceholder((RAI_ExecutionCtx*)sctx);
     return 1;
 }
 
 inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_NumOutputs(sctx);
+    RAI_ExecutionCtx_NumOutputs((RAI_ExecutionCtx*)sctx);
 }
 
 RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
-    return RAI_ExecutionCtx_GetOutput(sctx, index);
+    return RAI_ExecutionCtx_GetOutput((RAI_ExecutionCtx*)sctx, index);
 }
 
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_Free(sctx);
+    RAI_ExecutionCtx_Free((RAI_ExecutionCtx*)sctx);
     for (size_t i = 0; i < array_len(sctx->stringInputs); ++i) {
         RedisModule_FreeString(NULL, sctx->stringInputs[i]);
     }
@@ -152,8 +152,8 @@ int RAI_ScriptRun(RAI_ScriptRunCtx *sctx, RAI_Error *err) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return REDISMODULE_ERR;
     }
-
-    return RAI_backends.torch.script_run(sctx, err);
+    RAI_Script* script = sctx->script;
+    return RAI_backends.torch.script_run(script, sctx->fnname, (RAI_ExecutionCtx*)sctx, err);
 }
 
 int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
@@ -171,7 +171,7 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     op->devicestr = sctx->script->devicestr;
-    op->ectx = sctx;
+    op->ectx = (RAI_ExecutionCtx*)sctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;

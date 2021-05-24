@@ -143,8 +143,8 @@ int RAI_ModelRunTFLite(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *er
         return 1;
     }
 
-    const size_t ninputs = RAI_ExecutionCtx_InputsLen(ectxs[0]);
-    const size_t noutputs = RAI_ExecutionCtx_OutputsLen(ectxs[0]);
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
 
     RAI_Tensor *inputs[ninputs];
 

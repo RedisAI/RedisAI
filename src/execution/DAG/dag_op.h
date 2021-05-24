@@ -54,8 +54,3 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp);
  * @param runkey Subject key name.
  */
 void RAI_DagOpSetRunKey(RAI_DagOp *dagOp, RedisModuleString *runkey);
-
-/**
- * @brief Return if the current dag op is batchable
- */
-bool RAI_DagOpBatchable(RAI_DagOp* dagop);

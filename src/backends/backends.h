@@ -72,7 +72,7 @@ typedef struct RAI_LoadedBackend {
 
     // ** script_run **:  A callback function pointer that runs a model given the
     // RAI_ScriptRunCtx pointer
-    int (*script_run)(RAI_Script *, RAI_ExecutionCtx *, RAI_Error *);
+    int (*script_run)(RAI_Script *, const char* function, RAI_ExecutionCtx *, RAI_Error *);
 
     // Returns the backend version.
     const char *(*get_version)(void);

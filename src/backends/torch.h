@@ -21,6 +21,6 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 
-int RAI_ScriptRunTorch(RAI_Script *script, RAI_ExecutionCtx *ectx, RAI_Error *error);
+int RAI_ScriptRunTorch(RAI_Script *script,  const char *function, RAI_ExecutionCtx *ectx, RAI_Error *error);
 
 const char *RAI_GetBackendVersionTorch(void);

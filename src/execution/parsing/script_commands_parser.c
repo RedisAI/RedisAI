@@ -353,7 +353,7 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
     }
     res = REDISMODULE_OK;
     RedisModule_FreeThreadSafeContext(ctx);
-    currentOp->sctx = sctx;
+    currentOp->ectx = (RAI_ExecutionCtx*)sctx;
     currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     currentOp->devicestr = sctx->script->devicestr;
     return res;

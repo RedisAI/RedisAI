@@ -99,7 +99,7 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
                           RedisModuleString **outkeys, RAI_ModelRunCtx *mctx, RAI_Error *err);
 
 /**
- * Given a model and  the input array of ectxs, run the associated backend
+ * Given an array of mctxs, run the associated backend
  * session. If the length of the input context is larger than one, then
  * each backend's `model_run` is responsible for concatenating tensors, and run
  * the model in batches with the size of the input array. On success, the
@@ -114,7 +114,7 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
  * @return REDISMODULE_OK if the underlying backend `model_run` runned
  * successfully, or REDISMODULE_ERR if failed.
  */
-int RAI_ModelRun(RAI_Model *model, RAI_ExecutionCtx **ectxs, long long n, RAI_Error *err);
+int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
 
 /**
  * Insert the ModelRunCtx to the run queues so it will run asynchronously.

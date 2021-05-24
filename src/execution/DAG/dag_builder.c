@@ -59,7 +59,7 @@ RAI_DAGRunOp *RAI_DAGCreateModelRunOp(RAI_Model *model) {
     RAI_InitDagOp(&op);
 
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
-    op->mctx = mctx;
+    op->ectx = (RAI_ExecutionCtx*)mctx;
     op->devicestr = model->devicestr;
     op->runkey = RAI_HoldString((RedisModuleString *)model->infokey);
     return (RAI_DAGRunOp *)op;
@@ -71,7 +71,7 @@ RAI_DAGRunOp *RAI_DAGCreateScriptRunOp(RAI_Script *script, const char *func_name
     RAI_InitDagOp(&op);
 
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    op->sctx = sctx;
+    op->ectx = (RAI_ExecutionCtx*)sctx;
     op->devicestr = script->devicestr;
     op->runkey = RAI_HoldString((RedisModuleString *)script->infokey);
     return (RAI_DAGRunOp *)op;
@@ -95,8 +95,8 @@ int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err
 
     RAI_DagOp *op = (RAI_DagOp *)DAGop;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    if (op->mctx) {
-        RAI_Model *model = op->mctx->model;
+    if (op->commandType == REDISAI_DAG_CMD_MODELRUN) {
+        RAI_Model *model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx*)op->ectx);
         if (RAI_ModelGetNumInputs(model) != array_len(op->inkeys)) {
             RAI_SetError(err, RAI_EDAGBUILDER,
                          "Number of keys given as INPUTS does not match model definition");

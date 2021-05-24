@@ -62,6 +62,3 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     RedisModule_Free(dagOp);
 }
 
-bool RAI_DagOpBatchable(RAI_DagOp* dagop) {
-    return (dagop->commandType == REDISAI_DAG_CMD_MODELRUN) && currentOp_->mctx->model->opts.batchsize > 0;
-}
