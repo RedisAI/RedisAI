@@ -5,6 +5,8 @@ error() {
 	exit 1
 }
 
+set -x
+
 trap error ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -87,7 +89,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.4.0"
+TF_VERSION="2.4.1"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -209,12 +211,13 @@ if [[ $WITH_PT != 0 ]]; then
 			if [[ $GPU != 1 ]]; then
 				PT_BUILD=cpu
 			else
-				if [[ $JETSON == 1 ]]; then
-					PT_BUILD=cu102-jetson
-				else
-					PT_BUILD=cu110
-				fi
+                if [[ $JETSON != 1 ]]; then
+                    PT_BUILD=cu110
+                fi
 			fi
+            if [[ $JETSON == 1 ]]; then
+				PT_BUILD=cpu-jetson
+            fi
 			if [[ $ARCH == x64 ]]; then
 				PT_ARCH=x86_64
 				PT_REPACK=1
