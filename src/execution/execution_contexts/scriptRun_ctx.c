@@ -9,7 +9,7 @@
 RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ScriptRunCtx *sctx = RedisModule_Calloc(1, sizeof(*sctx));
-    RAI_ExecutionCtx_Init((RAI_ExecutionCtx*)sctx, (RAI_ExecutionCtx_Free_fn)RAI_ScriptRunCtxFree);
+    RAI_ExecutionCtx_Init(&sctx->base, (RAI_ExecutionCtx_Free_fn)RAI_ScriptRunCtxFree);
     sctx->script = RAI_ScriptGetShallowCopy(script);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->listSizes = array_new(size_t, PARAM_INITIAL_SIZE);
@@ -21,7 +21,7 @@ RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname)
 
 // Deprecated.
 int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RAI_Error *error) {
-    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensor);
+    RAI_ExecutionCtx_AddInput(&sctx->base, inputTensor);
     return 1;
 }
 
@@ -30,14 +30,14 @@ int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTenso
                                  RAI_Error *err) {
     int res;
     for (size_t i = 0; i < len; i++) {
-        RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensors[i]);
+        RAI_ExecutionCtx_AddInput(&sctx->base, inputTensors[i]);
     }
     sctx->listSizes = array_append(sctx->listSizes, len);
     return 1;
 }
 
 int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor) {
-    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)sctx, inputTensor);
+    RAI_ExecutionCtx_AddInput(&sctx->base, inputTensor);
     return 1;
 }
 
@@ -110,16 +110,16 @@ inline int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len) {
 }
 
 inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_AddOuputPlaceholder((RAI_ExecutionCtx*)sctx);
+    RAI_ExecutionCtx_AddOuputPlaceholder(&sctx->base);
     return 1;
 }
 
 inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_NumOutputs((RAI_ExecutionCtx*)sctx);
+    RAI_ExecutionCtx_NumOutputs(&sctx->base);
 }
 
 RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
-    return RAI_ExecutionCtx_GetOutput((RAI_ExecutionCtx*)sctx, index);
+    return RAI_ExecutionCtx_GetOutput(&sctx->base, index);
 }
 
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
@@ -153,7 +153,7 @@ int RAI_ScriptRun(RAI_ScriptRunCtx *sctx, RAI_Error *err) {
         return REDISMODULE_ERR;
     }
     RAI_Script* script = sctx->script;
-    return RAI_backends.torch.script_run(script, sctx->fnname, (RAI_ExecutionCtx*)sctx, err);
+    return RAI_backends.torch.script_run(script, sctx->fnname, &sctx->base, err);
 }
 
 int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
