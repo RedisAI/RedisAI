@@ -19,7 +19,7 @@ capabilities:
     - backup_restore
     - replica_of
     - flash
-    - resharding
+    - reshard_rebalance
 dependencies:
     {{NAME_tensorflow}}:
         url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_tensorflow}}
