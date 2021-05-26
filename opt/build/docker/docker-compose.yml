@@ -6,7 +6,7 @@ version: "3.8"
 services:
 
   bionic:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-x64-bionic
+    image: ${DOCKER_ORG:-redislabs}/${PRODUCT:-redisai}:${VERSION:-edge}-${VARIANT:-cpu}-x64-bionic
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -19,7 +19,7 @@ services:
         PACK: ${PACK:-0}
 
   xenial:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-x64-xenial
+    image: ${DOCKER_ORG:-redislabs}/${PRODUCT:-redisai}:${VERSION:-edge}-${VARIANT:-cpu}-x64-xenial
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
@@ -32,7 +32,7 @@ services:
         PACK: ${PACK:-0}
 
   jetson:
-    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-jetson
+    image: redislabs/redisai:${VERSION:-edge}-${VARIANT:-cpu}-jetson
     build:
       context: ../../../
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile.jetson}

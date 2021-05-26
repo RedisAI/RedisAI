@@ -6,9 +6,14 @@ MK:=${READIES}/mk
 
 # set defaults
 TEST:=0
-PACK:=0
 REDISAI_LITE:=0
 REDIS_VERSION:=6.0.9
+
+# by default, we compile only. But if we're gathering artifacts, then we need to pack them first
+PACK:=0
+ifdef ARTIFACTS
+PACK=1
+endif
 
 # default dockers to build with docker-compose
 DOCKER_SERVICES=\
@@ -17,9 +22,9 @@ DOCKER_SERVICES=\
 
 # find the right dockerfile to use, jetson variants end in jetson, gpu end in gpu
 DOCKERFILE_NAME=Dockerfile
-ifdef VARIANT
+VARIANT=cpu
+ifneq (${VARIANT},cpu)
 DOCKERFILE_NAME=Dockerfile.$(VARIANT)
-VARIANT:=cpu
 endif
 
 ARCH=${PLATFORM}
@@ -44,22 +49,20 @@ endif
 PRODUCT=redisai
 DOCKER_ORG=redislabs
 DOCKER_BUILD_ARGS=\
-	--build-arg REDIS_VER=${REDIS_VERSION} \
-	--build-arg VARIANT=${VARIANT} \
-	--build-arg REDISAI_LITE=${REDISAI_LITE} \
-	--build-arg VERSION=${VERSION} \
-	--build-arg TEST=${TEST} \
-	--build-arg PACK=${PACK} \
-	--build-arg DOCKER_ORG=${DOCKER_ORG}
-#	--build-arg PRODUCT=${PRODUCT} \
+	REDIS_VER=${REDIS_VERSION} \
+	VARIANT=${VARIANT} \
+	REDISAI_LITE=${REDISAI_LITE} \
+	VERSION=${VERSION} \
+	TEST=${TEST} \
+	PACK=${PACK} \
+	DOCKER_ORG=${DOCKER_ORG} \
+	PRODUCT=${PRODUCT}
 
 ###### TARGETS ######
-
 build:
-	docker-compose build --parallel --pull \
-		--build-arg DOCKERFILE_NAME=${DOCKERFILE_NAME} \
-		${DOCKER_BUILD_ARGS} \
-		${DOCKER_SERVICES}
+	$(shell echo ${DOCKER_BUILD_ARGS} | tr " " "\n" > .generated.env)
+	@cat .generated.env
+	docker-compose --env-file .generated.env build --parallel --pull ${DOCKER_SERVICES}
 # gather artifacts when artifacts is set (i.e circleci)
 ifeq ($(ARTIFACTS),1)
 	$(foreach var, ${DOCKER_SERVICES}, ART_DIR=${ROOT}/bin/artifacts ART_INT_DIR=/var/opt/redislabs/artifacts IMAGE=${DOCKER_ORG}/${PRODUCT}:${VERSION}-${VARIANT}-${ARCH}-${var} ${MK}/docker-collect-artifacts)
