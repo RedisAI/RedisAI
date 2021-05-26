@@ -16,6 +16,8 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/time.h>
+#include <sys/types.h>
+#include <bits/unistd_ext.h>
 #include "redisai.h"
 #include "run_info.h"
 #include "background_workers.h"

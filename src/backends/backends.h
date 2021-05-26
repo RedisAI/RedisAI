@@ -81,6 +81,9 @@ typedef struct RAI_LoadedBackend {
 
     // Returns the number of times that Redis accessed backend allocator.
     unsigned long long (*get_memory_access_num)(void);
+
+    // Kill run session (for stopping long runs).
+    void (*terminate_run_session)(void *);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {

@@ -5,6 +5,7 @@
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
+#include "execution/onnx_timeout.h"
 
 #include "onnxruntime_c_api.h"
 
@@ -554,10 +555,12 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             outputs = array_append(outputs, NULL);
         }
 
-        OrtRunOptions *run_options = NULL;
+        OrtRunOptions *run_options;
+        ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
+        //ReplaceRunSessionCtx()
 
         for (uint32_t i = 0; i < ninputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);

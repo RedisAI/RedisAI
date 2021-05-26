@@ -26,6 +26,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
+#include <execution/onnx_timeout.h>
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -1476,6 +1477,13 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU");
         return REDISMODULE_ERR;
     }
+    for (size_t i = 0; i < perqueueThreadPoolSize; i++) {
+        RedisModule_Log(ctx, "warning", "thread id in index %zu is %lu", i,
+          run_queue_info->threads[i]);
+    }
+    // Create a global array of onnx runSessions, with an entry for every working thread.
+    CreateGlobalOnnxRunSessions(run_queue_info->threads, perqueueThreadPoolSize);
+    RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_CronLoop, OnnxEnforceTimeoutCallback);
 
     run_stats = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
 
