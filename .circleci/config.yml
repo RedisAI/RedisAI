@@ -506,13 +506,13 @@ workflows:
   build_and_package:
     jobs:
 
-#      - lint:
-#          <<: *on-any-branch
-#      - build-and-test:
-#          <<: *on-any-branch-but-tags
-#          <<: *after-linter
+      - lint:
+          <<: *on-any-branch
+      - build-and-test:
+          <<: *on-any-branch-but-tags
+          <<: *after-linter
       - platforms-build:
-#          <<: *after-build-and-test
+          <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
@@ -520,42 +520,42 @@ workflows:
                 - xenial
                 - bionic
               lite:
-#                - "REDISAI_LITE=0 publish"  # DEBUG this is temporary to ensure I don't publish
+                - "REDISAI_LITE=0 publish"
                 - "REDISAI_LITE=1"
               variant:
                 - cpu
                 - gpu
-#      - coverage:
-#          context: common
-#          <<: *on-dev-branches
-#          <<: *after-linter
-#      - valgrind:
-#          name: valgrind-cluster
-#          test_args: GEN=0 AOF=0
-#          <<: *on-integ-branch
-#          <<: *after-linter
-#      - valgrind:
-#          name: valgrind-aof
-#          test_args: GEN=0 CLUSTER=0
-#          <<: *on-integ-branch
-#          <<: *after-linter
-#      - build-and-test-gpu:
-#          <<: *on-integ-branch
-#          <<: *after-linter
-#      - deploy-snapshot:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-master-version-tags-and-dockertests
-#      - deploy-release:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-version-tags
-#      - release-automation:
-#          context: common
-#          <<: *on-version-tags
-#          requires:
-#            - deploy-release
-#
+      - coverage:
+          context: common
+          <<: *on-dev-branches
+          <<: *after-linter
+      - valgrind:
+          name: valgrind-cluster
+          test_args: GEN=0 AOF=0
+          <<: *on-integ-branch
+          <<: *after-linter
+      - valgrind:
+          name: valgrind-aof
+          test_args: GEN=0 CLUSTER=0
+          <<: *on-integ-branch
+          <<: *after-linter
+      - build-and-test-gpu:
+          <<: *on-integ-branch
+          <<: *after-linter
+      - deploy-snapshot:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-master-version-tags-and-dockertests
+      - deploy-release:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
+
   nightly:
     triggers:
       - schedule:

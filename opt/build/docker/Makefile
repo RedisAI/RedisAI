@@ -34,8 +34,9 @@ endif
 # get the release version, unless one is defined
 # since in CI, branches with {d}.{d} push, we allow anything here
 # but, master is remapped to edge
+# if this is a tag (v1.2.3), we remove the v
 ifndef VERSION
-	VERSION=$(shell git branch --show-current)
+	VERSION=$(shell git branch --show-current|sed -e 's/v//g')
 	ifeq ($(VERSION),master)
 		VERSION=edge
 	endif
