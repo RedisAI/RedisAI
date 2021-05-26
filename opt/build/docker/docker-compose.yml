@@ -12,7 +12,7 @@ services:
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
       args:
         OSNICK: bionic
-        OS: ubuntu:bionic
+        OS: ${OS:-ubuntu:bionic}
         REDIS_VER: ${REDIS_VERSION:-6.0.9}
         REDISAI_LITE: ${REDISAI_LITE:-0}
         TEST: ${TEST:-0}
@@ -25,7 +25,7 @@ services:
       dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
       args:
         OSNICK: xenial
-        OS: ubuntu:xenial
+        OS: ${OS:-ubuntu:xenial}
         REDIS_VER: ${REDIS_VERSION:-6.0.9}
         REDISAI_LITE: ${REDISAI_LITE:-0}
         TEST: ${TEST:-0}

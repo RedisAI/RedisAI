@@ -16,9 +16,8 @@ PACK=1
 endif
 
 # default dockers to build with docker-compose
-DOCKER_SERVICES=\
-	xenial\
-	bionic
+DOCKER_SERVICE=\
+	xenial
 
 # find the right dockerfile to use, jetson variants end in jetson, gpu end in gpu
 DOCKERFILE_NAME=Dockerfile
@@ -28,8 +27,6 @@ DOCKERFILE_NAME=Dockerfile.$(VARIANT)
 endif
 
 ARCH=${PLATFORM}
-#r=($(findstring arm,${PLATFORM})
-#ifeq ($r,)
 ifneq ($(findstring arm,${PLATFORM}),)
 ARCH=jetson
 endif
@@ -44,8 +41,6 @@ ifndef VERSION
 	endif
 endif
 
-# FUTURE pass in the product and docker orgs as overrides. But this is dependant on the following fix to docker-compose.
-# https://github.com/docker/compose/issues/8346
 PRODUCT=redisai
 DOCKER_ORG=redislabs
 DOCKER_BUILD_ARGS=\
@@ -55,17 +50,27 @@ DOCKER_BUILD_ARGS=\
 	VERSION=${VERSION} \
 	TEST=${TEST} \
 	PACK=${PACK} \
+	DOCKERFILE_NAME=${DOCKERFILE_NAME} \
 	DOCKER_ORG=${DOCKER_ORG} \
 	PRODUCT=${PRODUCT}
+
+# Given the way nvidia maps their docker images in dockerhub, we need to optionally pass in this variable
+# only when building a gpu variant
+ifeq ($(VARIANT),gpu)
+OS.xenial=ubuntu16.04
+OS.bionic=ubuntu18.04
+OS=$(OS.$(DOCKER_SERVICE))
+DOCKER_BUILD_ARGS += OS=${OS}
+endif
 
 ###### TARGETS ######
 build:
 	$(shell echo ${DOCKER_BUILD_ARGS} | tr " " "\n" > .generated.env)
 	@cat .generated.env
-	docker-compose --env-file .generated.env build --parallel --pull ${DOCKER_SERVICES}
+	docker-compose --env-file .generated.env build --pull ${DOCKER_SERVICE}
 # gather artifacts when artifacts is set (i.e circleci)
 ifeq ($(ARTIFACTS),1)
-	$(foreach var, ${DOCKER_SERVICES}, ART_DIR=${ROOT}/bin/artifacts ART_INT_DIR=/var/opt/redislabs/artifacts IMAGE=${DOCKER_ORG}/${PRODUCT}:${VERSION}-${VARIANT}-${ARCH}-${var} ${MK}/docker-collect-artifacts)
+	$(foreach var, ${DOCKER_SERVICE}, ART_DIR=${ROOT}/bin/artifacts ART_INT_DIR=/var/opt/redislabs/artifacts IMAGE=${DOCKER_ORG}/${PRODUCT}:${VERSION}-${VARIANT}-${ARCH}-${var} ${MK}/docker-collect-artifacts)
 endif
 
 # publish our dockers - this assumes you're logged in to dockerhub
