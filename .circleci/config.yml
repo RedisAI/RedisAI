@@ -154,10 +154,10 @@ jobs:
         type: string
       osnick:  # OSNICK value for the base platform of the docker
         type: string
-      target:  # CPU|GPU
+      variant:  # cpu|gpu
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: cimg/python:3.9.4  # to allow for a pip install of docker-compose
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -168,16 +168,15 @@ jobs:
       - run:
           name: Build for platform
           command: |
-            bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
+            pip install -q docker-compose
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build <<parameters.target>> OSNICK=<<parameters.osnick>> ARTIFACTS=1 VERBOSE=1 <<parameters.lite>>
+            make build ARTIFACTS=1 VARIANT=<<parameters.variant>> DOCKER_SERVICES=<<parameters.osnick>> <<parameters.lite>>
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
             mkdir -p $logsdir
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
       - persist_to_workspace:
           root: bin/
@@ -507,13 +506,13 @@ workflows:
   build_and_package:
     jobs:
 
-      - lint:
-          <<: *on-any-branch
-      - build-and-test:
-          <<: *on-any-branch-but-tags
-          <<: *after-linter
+#      - lint:
+#          <<: *on-any-branch
+#      - build-and-test:
+#          <<: *on-any-branch-but-tags
+#          <<: *after-linter
       - platforms-build:
-          <<: *after-build-and-test
+#          <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
@@ -521,42 +520,42 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 publish"
+#                - "REDISAI_LITE=0 publish"  # DEBUG this is temporary to ensure I don't publish
                 - "REDISAI_LITE=1"
-              target:
-                - "CPU=1"
-                - "GPU=1"
-      - coverage:
-          context: common
-          <<: *on-dev-branches
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - build-and-test-gpu:
-          <<: *on-integ-branch
-          <<: *after-linter
-      - deploy-snapshot:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-master-version-tags-and-dockertests
-      - deploy-release:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-version-tags
-      - release-automation:
-          context: common
-          <<: *on-version-tags
-          requires:
-            - deploy-release
-
+              variant:
+                - cpu
+                - gpu
+#      - coverage:
+#          context: common
+#          <<: *on-dev-branches
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0 AOF=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-aof
+#          test_args: GEN=0 CLUSTER=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - build-and-test-gpu:
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - deploy-snapshot:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-master-version-tags-and-dockertests
+#      - deploy-release:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
+#      - release-automation:
+#          context: common
+#          <<: *on-version-tags
+#          requires:
+#            - deploy-release
+#
   nightly:
     triggers:
       - schedule:

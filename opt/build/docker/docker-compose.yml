@@ -1,0 +1,44 @@
+---
+
+# docker-compose on arm does not support 3.9
+version: "3.8"
+
+services:
+
+  bionic:
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-x64-bionic
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: bionic
+        OS: ubuntu:bionic
+        REDIS_VER: ${REDIS_VERSION:-6.0.9}
+        REDISAI_LITE: ${REDISAI_LITE:-0}
+        TEST: ${TEST:-0}
+        PACK: ${PACK:-0}
+
+  xenial:
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-x64-xenial
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile}
+      args:
+        OSNICK: xenial
+        OS: ubuntu:xenial
+        REDIS_VER: ${REDIS_VERSION:-6.0.9}
+        REDISAI_LITE: ${REDISAI_LITE:-0}
+        TEST: ${TEST:-0}
+        PACK: ${PACK:-0}
+
+  jetson:
+    image: ${DOCKER_ORG:-redislabs}/redisai:${VERSION:-edge}-${VARIANT:-cpu}-jetson
+    build:
+      context: ../../../
+      dockerfile: ${DOCKERFILE_NAME:-Dockerfile.jetson}
+      args:
+        OSNICK: bionic
+        REDIS_VER: ${REDIS_VERSION:-6.0.9}
+        REDISAI_LITE: ${REDISAI_LITE:-0}
+        TEST: ${TEST:-0}
+        PACK: ${PACK:-0}
