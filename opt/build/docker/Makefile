@@ -19,15 +19,14 @@ DOCKER_SERVICES=\
 DOCKERFILE_NAME=Dockerfile
 ifdef VARIANT
 DOCKERFILE_NAME=Dockerfile.$(VARIANT)
-ifeq($(VARIANT),jetson)
-ARCH=jetson
-else
-ARCH=x64
+VARIANT:=cpu
 endif
 
-# defaults to CPU
-ifndef VARIANT
-VARIANT:=cpu
+ARCH=${PLATFORM}
+#r=($(findstring arm,${PLATFORM})
+#ifeq ($r,)
+ifneq ($(findstring arm,${PLATFORM}),)
+ARCH=jetson
 endif
 
 # get the release version, unless one is defined
