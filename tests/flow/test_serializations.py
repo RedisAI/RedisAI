@@ -223,10 +223,6 @@ class TestAofRewrite:
 
     def __init__(self):
         self.env = Env(useAof=True)
-        con = self.env.getConnection()
-        con.execute_command("config", "set", "appendfsync", "no")
-        slave_con = self.env.getSlaveConnection()
-        slave_con.execute_command("config", "set", "appendfsync", "no")
 
     def test_aof_rewrite_tf_model(self):
         key_name = "tf_graph{1}"
