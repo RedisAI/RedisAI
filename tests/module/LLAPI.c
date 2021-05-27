@@ -294,64 +294,6 @@ int RAI_llapi_DAG_resnet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
     return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet success");
 }
 
-int RAI_llapi_DAGRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    REDISMODULE_NOT_USED(argv);
-
-    if(argc > 1) {
-        RedisModule_WrongArity(ctx);
-        return REDISMODULE_OK;
-    }
-
-    // Test the case a successful and failure tensor load input to DAG.
-    if(testLoadTensor(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "LOAD tensor test failed");
-    }
-    // Test the case of a failure due to addition of a non compatible MODELRUN op.
-    if(testModelRunOpError(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "MODELRUN op error test failed");
-    }
-    // Test the case of a failure due an empty DAG.
-    if(testEmptyDAGError(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
-    }
-    // Test the case of a failure due to an op within a DAG whose inkey does not exist in the DAG.
-    if(testKeysMismatchError(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "DAG keys mismatch error test failed");
-    }
-    // Test the case of building and running a DAG with LOAD, TENSORGET and MODELRUN ops.
-    if(testSimpleDAGRun(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run test failed");
-    }
-    // Test the case of building and running a DAG with TENSORSET, SCRIPTRUN and TENSORGET ops.
-    if(testSimpleDAGRun2(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 test failed");
-    }
-    // Test the case of building the same DAG as in previous test, but when this time it should return with an error.
-    if(testSimpleDAGRun2Error(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "Simple DAG run2 error test failed");
-    }
-    // Test the case of building DAG ops from string.
-    if(testBuildDAGFromString(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "Build DAG from string test failed");
-    }
-    return RedisModule_ReplyWithSimpleString(ctx, "DAG run success");
-}
-
-int RAI_llapi_DAG_resnet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    REDISMODULE_NOT_USED(argv);
-
-    if(argc > 1) {
-        RedisModule_WrongArity(ctx);
-        return REDISMODULE_OK;
-    }
-
-    if (testDAGResnet(ctx) != LLAPIMODULE_OK) {
-        return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet failed");
-    }
-    return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet success");
-}
-
-
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     REDISMODULE_NOT_USED(argv);
     REDISMODULE_NOT_USED(argc);
