@@ -76,3 +76,47 @@ RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index);
  * @return RAI_Tensor
  */
 RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index);
+
+/**
+ * Extract the params for the ModelCtxRun object from AI.MODELEXECUTE arguments.
+ *
+ * @param ctx Context in which Redis modules operate
+ * @param inkeys Model input tensors keys, as an array of strings
+ * @param outkeys Model output tensors keys, as an array of strings
+ * @param mctx Destination Model context to store the parsed data
+ * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise
+ */
+
+// TODO: Remove this once modelrunctx and scriptrunctx have common base struct.
+int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
+                          RedisModuleString **outkeys, RAI_ModelRunCtx *mctx, RAI_Error *err);
+
+/**
+ * Given the input array of mctxs, run the associated backend
+ * session. If the input array of model context runs is larger than one, then
+ * each backend's `model_run` is responsible for concatenating tensors, and run
+ * the model in batches with the size of the input array. On success, the
+ * tensors corresponding to outputs[0,noutputs-1] are placed in each
+ * RAI_ModelRunCtx output tensors array. Relies on each backend's `model_run`
+ * definition.
+ *
+ * @param mctxs array on input model contexts
+ * @param n length of input model contexts array
+ * @param error error data structure to store error message in the case of
+ * failures
+ * @return REDISMODULE_OK if the underlying backend `model_run` runned
+ * successfully, or REDISMODULE_ERR if failed.
+ */
+int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
+
+/**
+ * Insert the ModelRunCtx to the run queues so it will run asynchronously.
+ *
+ * @param mctx ModelRunCtx to execute
+ * @param ModelAsyncFinish A callback that will be called when the execution is finished.
+ * @param private_data This is going to be sent to to the ModelAsyncFinish.
+ * @return REDISMODULE_OK if the mctx was insert to the queues successfully, REDISMODULE_ERR
+ * otherwise.
+ */
+
+int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data);

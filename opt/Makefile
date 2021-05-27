@@ -77,6 +77,9 @@ device selection options (fetch, build, and test):
   GPU=1         # build for GPU
   CUDA=1        # build for GPU
   JETSON=1      # build for Nvidia Jetson
+
+enterprise variant
+  REDISAI_LITE=1        # build RedisAI LITE
 endef
 
 #----------------------------------------------------------------------------------------------
@@ -127,6 +130,10 @@ ifeq ($(PROFILE),1)
 USE_PROFILE=on
 else
 USE_PROFILE=off
+endif
+
+ifeq ($(REDISAI_LITE),1)
+CMAKE_FLAGS += -DBUILD_REDISAI_LITE=on
 endif
 
 CMAKE_FLAGS += \
@@ -222,9 +229,12 @@ endif
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
+ifneq ($(REDISAI_LITE), 1)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) ./pack.sh
+else
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
+endif
 
 #----------------------------------------------------------------------------------------------
 
@@ -248,7 +258,7 @@ MODULE=$(realpath $(INSTALLED_TARGET)) \
 CLUSTER=$(CLUSTER) \
 GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
-$(ROOT)/tests/flow/tests.sh
+$(ROOT)/tests/flow/tests_setup/tests.sh
 endef
 
 unit_tests: build
@@ -265,7 +275,7 @@ flow_tests: build
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_setup/tests.sh
 
 	$(COVERAGE_COLLECT_REPORT)
 
@@ -283,16 +293,16 @@ test: build
 		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_setup/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 #----------------------------------------------------------------------------------------------
 
 valgrind:
-	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/tests/flow/tests_setup/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/tests_setup/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 

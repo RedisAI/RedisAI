@@ -9,12 +9,15 @@
 #include "execution/command_parser.h"
 #include "backends/backends.h"
 #include "backends/util.h"
+#include "execution/utils.h"
 #include "execution/background_workers.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
+#include "execution/parsing/deprecated.h"
 #include "redis_ai_objects/model.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/stats.h"
 #include <pthread.h>
@@ -27,7 +30,7 @@
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
 #include "util/arr.h"
-#include "util/dict.h"
+#include "util/dictionaries.h"
 #include "util/string_utils.h"
 #include "util/queue.h"
 #include "version.h"
@@ -50,45 +53,14 @@
 #endif
 #endif
 
-int redisMajorVersion;
-int redisMinorVersion;
-int redisPatchVersion;
+extern int redisMajorVersion;
+extern int redisMinorVersion;
+extern int redisPatchVersion;
 
-int rlecMajorVersion;
-int rlecMinorVersion;
-int rlecPatchVersion;
-int rlecBuild;
-
-void getRedisVersion() {
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisModuleCallReply *reply = RedisModule_Call(ctx, "info", "c", "server");
-    assert(RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING);
-    size_t len;
-    const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
-
-    int n = sscanf(replyStr, "# Server\nredis_version:%d.%d.%d", &redisMajorVersion,
-                   &redisMinorVersion, &redisPatchVersion);
-
-    assert(n == 3);
-
-    rlecMajorVersion = -1;
-    rlecMinorVersion = -1;
-    rlecPatchVersion = -1;
-    rlecBuild = -1;
-    char *enterpriseStr = strstr(replyStr, "rlec_version:");
-    if (enterpriseStr) {
-        n = sscanf(enterpriseStr, "rlec_version:%d.%d.%d-%d", &rlecMajorVersion, &rlecMinorVersion,
-                   &rlecPatchVersion, &rlecBuild);
-        if (n != 4) {
-            RedisModule_Log(NULL, "warning", "Could not extract enterprise version");
-        }
-    }
-
-    RedisModule_FreeCallReply(reply);
-    RedisModule_FreeThreadSafeContext(ctx);
-}
-
-static inline int IsEnterprise() { return rlecMajorVersion != -1; }
+extern int rlecMajorVersion;
+extern int rlecMinorVersion;
+extern int rlecPatchVersion;
+extern int rlecBuild;
 
 /* ----------------------- RedisAI Module Commands ------------------------- */
 
@@ -120,7 +92,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    if (RedisModule_ModuleTypeSetValue(key, RedisAI_TensorType, t) != REDISMODULE_OK) {
+    if (RedisModule_ModuleTypeSetValue(key, RAI_TensorRedisType(), t) != REDISMODULE_OK) {
         RAI_TensorFree(t);
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, "ERR could not save tensor");
@@ -163,7 +135,19 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * [INPUTS name1 name2 ... OUTPUTS name1 name2 ...] BLOB model_blob
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc < 4)
+
+    RedisModule_Log(ctx, "warning",
+                    "AI.MODELSET command is deprecated and will"
+                    " not be available in future version, you can use AI.MODELSTORE instead");
+    return ModelSetCommand(ctx, argv, argc);
+}
+
+/**
+ * AI.MODELSTORE model_key backend device [TAG tag] [BATCHSIZE n [MINBATCHSIZE m]]
+ * [INPUTS input_count name1 name2 ... OUTPUTS output_count name1 name2 ...] BLOB model_blob
+ */
+int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (argc < 6)
         return RedisModule_WrongArity(ctx);
 
     ArgsCursor ac;
@@ -187,13 +171,25 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
     }
 
+    // Parse <backend> argument: check that the device string is "CPU", "GPU",
+    // "CPU:<n>" or "GPU:<n>, where <n> is a number (contains digits only).
     const char *devicestr;
     AC_GetString(&ac, &devicestr, NULL, 0);
-
-    if (strlen(devicestr) > 10 || strcasecmp(devicestr, "INPUTS") == 0 ||
-        strcasecmp(devicestr, "OUTPUTS") == 0 || strcasecmp(devicestr, "TAG") == 0 ||
-        strcasecmp(devicestr, "BATCHSIZE") == 0 || strcasecmp(devicestr, "MINBATCHSIZE") == 0 ||
-        strcasecmp(devicestr, "MINBATCHTIMEOUT") == 0 || strcasecmp(devicestr, "BLOB") == 0) {
+    bool valid_device = false;
+    if (strcasecmp(devicestr, "CPU") == 0 || strcasecmp(devicestr, "GPU") == 0) {
+        valid_device = true;
+    } else if ((strncasecmp(devicestr, "GPU:", 4) == 0 || strncasecmp(devicestr, "CPU:", 4) == 0) &&
+               strlen(devicestr) <= 10) {
+        bool digits_only = true;
+        for (size_t i = 5; i < strlen(devicestr); i++) {
+            if (devicestr[i] < '0' || devicestr[i] > '9') {
+                digits_only = false;
+                break;
+            }
+        }
+        valid_device = digits_only;
+    }
+    if (!valid_device) {
         return RedisModule_ReplyWithError(ctx, "ERR Invalid DEVICE");
     }
 
@@ -225,10 +221,6 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
 
     unsigned long long minbatchtimeout = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHTIMEOUT")) {
-        if (batchsize == 0) {
-            return RedisModule_ReplyWithError(ctx,
-                                              "ERR MINBATCHTIMEOUT specified without BATCHSIZE");
-        }
         if (minbatchsize == 0) {
             return RedisModule_ReplyWithError(ctx,
                                               "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
@@ -237,51 +229,6 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHTIMEOUT");
         }
     }
-
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
-    }
-
-    ArgsCursor optionsac;
-    const char *blob_matches[] = {"BLOB"};
-    AC_GetSliceUntilMatches(&ac, &optionsac, 1, blob_matches);
-
-    if (optionsac.argc == 0 && backend == RAI_BACKEND_TENSORFLOW) {
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Insufficient arguments, INPUTS and OUTPUTS not specified");
-    }
-
-    ArgsCursor inac = {0};
-    ArgsCursor outac = {0};
-    if (optionsac.argc > 0 && backend == RAI_BACKEND_TENSORFLOW) {
-        if (!AC_AdvanceIfMatch(&optionsac, "INPUTS")) {
-            return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified");
-        }
-
-        const char *matches[] = {"OUTPUTS"};
-        AC_GetSliceUntilMatches(&optionsac, &inac, 1, matches);
-
-        if (!AC_IsAtEnd(&optionsac)) {
-            if (!AC_AdvanceIfMatch(&optionsac, "OUTPUTS")) {
-                return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified");
-            }
-
-            AC_GetSliceToEnd(&optionsac, &outac);
-        }
-    }
-
-    size_t ninputs = inac.argc;
-    const char *inputs[ninputs];
-    for (size_t i = 0; i < ninputs; i++) {
-        AC_GetString(&inac, inputs + i, NULL, 0);
-    }
-
-    size_t noutputs = outac.argc;
-    const char *outputs[noutputs];
-    for (size_t i = 0; i < noutputs; i++) {
-        AC_GetString(&outac, outputs + i, NULL, 0);
-    }
-
     RAI_ModelOpts opts = {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
@@ -290,15 +237,63 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
     };
 
-    RAI_Model *model = NULL;
+    if (AC_IsAtEnd(&ac)) {
+        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
+    }
+    const char *arg_string;
+    AC_GetString(&ac, &arg_string, NULL, 0);
+    unsigned long long ninputs = 0, noutputs = 0;
 
-    AC_AdvanceUntilMatches(&ac, 1, blob_matches);
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        if (strcasecmp(arg_string, "INPUTS") != 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR INPUTS not specified for TF");
+        }
+        if (AC_GetUnsignedLongLong(&ac, &ninputs, 0) != AC_OK || ninputs == 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for input_count");
+        }
+        if (AC_NumRemaining(&ac) < ninputs) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR number of model inputs does not match the number of "
+                     "given arguments");
+        }
+    } else if (strcasecmp(arg_string, "INPUTS") == 0) {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR INPUTS argument should not be specified for this backend");
+    }
+    const char *inputs[ninputs];
+    for (size_t i = 0; i < ninputs; i++) {
+        AC_GetString(&ac, inputs + i, NULL, 0);
+    }
+
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        if (AC_GetString(&ac, &arg_string, NULL, 0) != AC_OK ||
+            strcasecmp(arg_string, "OUTPUTS") != 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR OUTPUTS not specified for TF");
+        }
+        if (AC_GetUnsignedLongLong(&ac, &noutputs, 0) != AC_OK || noutputs == 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for output_count");
+        }
+        if (AC_NumRemaining(&ac) < noutputs) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR number of model outputs does not match the number of "
+                     "given arguments");
+        }
+    }
+    const char *outputs[noutputs];
+    for (size_t i = 0; i < noutputs; i++) {
+        AC_GetString(&ac, outputs + i, NULL, 0);
+    }
+    if (backend == RAI_BACKEND_TENSORFLOW) {
+        AC_GetString(&ac, &arg_string, NULL, 0);
+    }
+
+    if (strcasecmp(arg_string, "BLOB") != 0) {
+        return RedisModule_ReplyWithError(ctx, "ERR Invalid argument, expected BLOB");
+    }
 
     if (AC_IsAtEnd(&ac)) {
         return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing model BLOB");
     }
-
-    AC_Advance(&ac);
 
     ArgsCursor blobsac;
     AC_GetSliceToEnd(&ac, &blobsac);
@@ -326,7 +321,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     RAI_Error err = {0};
-
+    RAI_Model *model = NULL;
     model = RAI_ModelCreate(backend, devicestr, tag, opts, ninputs, inputs, noutputs, outputs,
                             modeldef, modellen, &err);
 
@@ -335,7 +330,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
                         bckstr);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "could not load %s default backend", bckstr);
+            RedisModule_Log(ctx, "warning", "could not load %s default backend", bckstr);
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -350,7 +345,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     }
 
     if (err.code != RAI_OK) {
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -361,7 +356,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -374,11 +369,11 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ModelType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ModelRedisType())) {
         RedisModule_CloseKey(key);
         RAI_ModelFree(model, &err);
         if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "error", "%s", err.detail);
+            RedisModule_Log(ctx, "warning", "%s", err.detail);
             int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
             RAI_ClearError(&err);
             return ret;
@@ -386,7 +381,7 @@ int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ModelType, model);
+    RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
 
@@ -468,7 +463,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 16 : 14;
+    const int outentries = blob ? 18 : 16;
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
@@ -504,6 +499,9 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     for (size_t i = 0; i < noutputs; i++) {
         RedisModule_ReplyWithCString(ctx, mto->outputs[i]);
     }
+
+    RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
+    RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
     if (meta && blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
@@ -578,10 +576,42 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * client blocks until the computation finishes.
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        RedisModule_Log(ctx, "warning",
+                        "AI.MODELRUN command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.MODELEXECUTE instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.MODELRUN command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.MODELEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.MODELRUN command is deprecated and will"
+                        " not be available in future version, you can use AI.MODELEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELRUN, false);
+}
+
+/**
+ * AI.MODELEXECUTE <key>
+ * INPUTS <input_count> <input> [input ...]
+ * OUTPUTS <output_count> <output> [output ...]
+ * [TIMEOUT <time>]
+ *
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_ModelExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+
+    // This is called only in cluster mode (not enterprise), to ensure that all
+    // keys are located at the same shard.
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return ModelExecute_ReportKeysPositions(ctx, argv, argc);
+    }
+
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_MODELEXECUTE, false);
 }
 
 /**
@@ -595,6 +625,22 @@ int RedisAI_ScriptRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     // Convert The script run command into a DAG command that contains a single op.
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTRUN, false);
+}
+
+/**
+ * AI.SCRIPTEXECUTE <key> <function>
+ * KEYS <keys_count> <key> [key ...]
+ * [INPUTS <input_count> <input> [input ...] | INPUTS_LIST <list_len> <input> [input ...]]*
+ * [OUTPUTS <output_count> <output> [output ...]]
+ * [TIMEOUT <time>]
+ */
+int RedisAI_ScriptExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+
+    // Convert The script run command into a DAG command that contains a single op.
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_SCRIPTEXECUTE, false);
 }
 
 /**
@@ -716,7 +762,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
                         "Backend TORCH not loaded, will try loading default backend");
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load TORCH default backend");
+            RedisModule_Log(ctx, "warning", "Could not load TORCH default backend");
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
             return ret;
@@ -754,12 +800,12 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     int type = RedisModule_KeyType(key);
     if (type != REDISMODULE_KEYTYPE_EMPTY &&
         !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RedisAI_ScriptType)) {
+          RedisModule_ModuleTypeGetType(key) == RAI_ScriptRedisType())) {
         RedisModule_CloseKey(key);
         return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
     }
 
-    RedisModule_ModuleTypeSetValue(key, RedisAI_ScriptType, script);
+    RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
     script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
 
@@ -971,10 +1017,40 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  * client blocks until the computation finishes.
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.DAGEXECUTE instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.DAGRUN command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.DAGEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN command is deprecated and will"
+                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
-        return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, false);
+}
+
+/**
+ * AI.DAGEXECUTE
+ * [[KEYS <keys_count> <key> [key ...]] |
+ * [LOAD <nkeys> <key> [key... ]] |
+ * [PERSIST <nkeys> <key> [key2...]]]+
+ * [TIMEOUT t]
+ * [|> <COMMAND1>]+
+ *
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_DagExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGEXECUTE, false);
 }
 
 /**
@@ -986,13 +1062,42 @@ int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  * client blocks until the computation finishes.
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (IsEnterprise()) {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN_RO command is deprecated and cannot be used in "
+                        "enterprise cluster, use AI.DAGEXECUTE_RO instead");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR AI.DAGRUN_RO command is deprecated and cannot be used in "
+                 "enterprise cluster, use AI.DAGEXECUTE instead");
+    } else {
+        RedisModule_Log(ctx, "warning",
+                        "AI.DAGRUN_RO command is deprecated and will"
+                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+    }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
-        return RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
     }
     return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGRUN, true);
 }
 
-#define EXECUTION_PLAN_FREE_MSG 100
+/**
+ * AI.DAGEXECUTE_RO
+ * [[KEYS <keys_count> <key> [key ...]] |
+ * [LOAD <nkeys> key [key ... ]]]+
+ * [TIMEOUT t]
+ * [|> <COMMAND>]+
+ *
+ * Read-only (no PERSIST) DAG execution. AI.SCRIPTEXEXUTE is not allowed
+ * within RO context.
+ * The request is queued and evaded asynchronously from a separate thread. The
+ * client blocks until the computation finishes.
+ */
+int RedisAI_DagExecuteRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (RedisModule_IsKeysPositionRequest(ctx)) {
+        return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
+    }
+    return RedisAI_ExecuteCommand(ctx, argv, argc, CMD_DAGEXECUTE, true);
+}
 
 #define REGISTER_API(name, ctx)                                                                    \
     if (RedisModule_ExportSharedAPI) {                                                             \
@@ -1061,7 +1166,17 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptFree, ctx);
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
+    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);
@@ -1204,9 +1319,15 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
+#ifndef REDISAI_LITE
     if (RedisModule_Init(ctx, "ai", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
+#else
+    if (RedisModule_Init(ctx, "ai-lite", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
+        REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+#endif
 
     getRedisVersion();
     RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
@@ -1266,6 +1387,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                                   "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
+    if (RedisModule_CreateCommand(ctx, "ai.modelstore", RedisAI_ModelStore_RedisCommand,
+                                  "write deny-oom", 1, 1, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
     if (RedisModule_CreateCommand(ctx, "ai.modelget", RedisAI_ModelGet_RedisCommand, "readonly", 1,
                                   1, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
@@ -1276,6 +1401,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "ai.modelrun", RedisAI_ModelRun_RedisCommand,
                                   "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.modelexecute", RedisAI_ModelExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly",
@@ -1298,6 +1427,10 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                                   "write deny-oom getkeys-api", 4, 4, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
+    if (RedisModule_CreateCommand(ctx, "ai.scriptexecute", RedisAI_ScriptExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 5, 5, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
     if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand,
                                   "readonly", 1, 1, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
@@ -1314,7 +1447,15 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                                   "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
+    if (RedisModule_CreateCommand(ctx, "ai.dagexecute", RedisAI_DagExecute_RedisCommand,
+                                  "write deny-oom getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
     if (RedisModule_CreateCommand(ctx, "ai.dagrun_ro", RedisAI_DagRunRO_RedisCommand,
+                                  "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
+
+    if (RedisModule_CreateCommand(ctx, "ai.dagexecute_ro", RedisAI_DagExecuteRO_RedisCommand,
                                   "readonly getkeys-api", 3, 3, 1) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
