@@ -3,6 +3,7 @@
 #include "backends/util.h"
 #include <stdatomic.h>
 #include <execution/onnx_timeout.h>
+#include "execution/background_workers.h"
 #include <pthread.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
@@ -26,9 +27,8 @@ OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
 unsigned long long OnnxMemoryAccessCounter = 0;
 
-// Globals from RedisAI to use for handling sessions timeouts/
-long long perqueueThreadPoolSize = 4;
-pthread_key_t tls_id_key;
+pthread_key_t (*RedisAI_ThreadIdKey)(void);
+long long (*RedisAI_NumThreadsPerQueue)(void);
 
 const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
     (void)allocator;
@@ -83,7 +83,9 @@ unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
 
 unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
-int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *),
+  int (*get_api_fn_rai)(const char *, void *)) {
+    // Export redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
@@ -94,9 +96,12 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
 
+    // Export RedisAI callbacks.
+    get_api_fn_rai("ThreadIdKey",  ((void **)&RedisAI_ThreadIdKey));
+    get_api_fn_rai("NumThreadsPerQueue",  ((void **)&RedisAI_NumThreadsPerQueue));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
-    long long size = perqueueThreadPoolSize;
+    long long size = RedisAI_NumThreadsPerQueue();
     CreateGlobalOnnxRunSessions(size);
 
     return REDISMODULE_OK;
@@ -568,7 +573,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
 
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
-        int *thread_ind = (int *)pthread_getspecific(tls_id_key);
+        int *thread_ind = (int *)pthread_getspecific(RedisAI_ThreadIdKey());
         SetRunSessionCtx(*thread_ind, run_options);
 
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,

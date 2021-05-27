@@ -19,6 +19,18 @@
 
 #include "redismodule.h"
 
+int RAI_GetApi(const char *funcname, void **targetPtrPtr) {
+
+   if (strcmp("ThreadIdKey", funcname) == 0) {
+       *targetPtrPtr = ThreadIdKey;
+   } else if (strcmp("NumThreadsPerQueue", funcname) == 0) {
+       *targetPtrPtr = NumThreadsPerQueue;
+   } else {
+       return REDISMODULE_ERR;
+   }
+   return REDISMODULE_OK;
+}
+
 RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
     Dl_info info;
     RedisModuleString *module_path = NULL;
@@ -384,9 +396,9 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
 
     RAI_LoadedBackend backend = {0};
 
-    int (*init_backend)(int (*)(const char *, void *));
+    int (*init_backend)(int (*)(const char *, void *), int (*)(const char *, void *));
     init_backend =
-        (int (*)(int (*)(const char *, void *)))(unsigned long)dlsym(handle, "RAI_InitBackendORT");
+        (int (*)(int (*)(const char *, void *), int (*)(const char *, void *)))(unsigned long)dlsym(handle, "RAI_InitBackendORT");
     if (init_backend == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -395,7 +407,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
                         path);
         return REDISMODULE_ERR;
     }
-    init_backend(RedisModule_GetApi);
+    init_backend(RedisModule_GetApi, (int (*)(const char*, void*)) RAI_GetApi);
 
     backend.model_create =
         (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,

@@ -38,6 +38,7 @@ typedef struct RunQueueInfo {
     pthread_cond_t queue_condition_var;
     queue *run_queue;
     pthread_t *threads;
+    pthread_key_t thread_id_key;  // A key for getting the thread id from its local storage.
     char *devicestr;
 } RunQueueInfo;
 
@@ -51,3 +52,7 @@ int freeRunQueueInfo(RunQueueInfo *info);
 /* Ensure that the the run queue for the device exists.
  * If not, create it. */
 int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info);
+
+pthread_key_t ThreadIdKey(void);
+
+long long NumThreadsPerQueue(void);

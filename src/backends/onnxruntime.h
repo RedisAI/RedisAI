@@ -5,12 +5,12 @@
 #include "redis_ai_objects/tensor_struct.h"
 #include "redis_ai_objects/model_struct.h"
 
-
 unsigned long long RAI_GetMemoryInfoORT(void);
 
 unsigned long long RAI_GetMemoryAccessORT(void);
 
-int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *));
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *),
+  int (*get_api_fn_rai)(const char *, void *));
 
 RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_ModelOpts opts,
                               const char *modeldef, size_t modellen, RAI_Error *err);

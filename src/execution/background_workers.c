@@ -40,7 +40,7 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-pthread_key_t tls_id_key;
+pthread_key_t *tls_id_keys; // tls_id_keys[0] is CPU threads
 
 int freeRunQueueInfo(RunQueueInfo *info) {
     int result = REDISMODULE_OK;
@@ -96,6 +96,9 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
         pthread_mutex_init(&(*run_queue_info)->run_queue_mutex, NULL);
         (*run_queue_info)->threads =
             (pthread_t *)RedisModule_Alloc(sizeof(pthread_t) * perqueueThreadPoolSize);
+        pthread_key_t thread_id_key;
+        pthread_key_create(&thread_id_key, RedisModule_Free);
+        (*run_queue_info)->thread_id_key = thread_id_key;
         /* create threads */
         for (int i = 0; i < perqueueThreadPoolSize; i++) {
             WorkerThreadInfo *thread_info = RedisModule_Alloc(sizeof(WorkerThreadInfo));
@@ -116,12 +119,21 @@ int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
     return result;
 }
 
+pthread_key_t ThreadIdKey() {
+    return tls_id_key;
+}
+
+long long NumThreadsPerQueue() {
+    return perqueueThreadPoolSize;
+}
+
 void _SaveThreadId(int id) {
-    pthread_key_create(&tls_id_key, RedisModule_Free);
     int *id_value = RedisModule_Alloc(sizeof(int));
     *id_value = id;
     pthread_setspecific(tls_id_key, id_value);
 }
+
+
 
 /**
  * @brief In case a DAG Op can express a MINBATCHSIZE > 0 with a MINBATCHTIMEOUT
