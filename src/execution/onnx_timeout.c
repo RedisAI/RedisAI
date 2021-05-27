@@ -3,7 +3,7 @@
 #include <sys/time.h>
 
 // Gets the current time in milliseconds.
-long long _mstime(void) {
+static long long _mstime(void) {
     struct timeval tv;
     long long ust;
 
@@ -13,10 +13,11 @@ long long _mstime(void) {
     return ust/1000;
 }
 
-int CreateGlobalOnnxRunSessions(pthread_t *working_thread_ids, size_t size) {
-    OnnxRunSessions = array_new(onnxRunSessionCtx *, size);
+int CreateGlobalOnnxRunSessions(long long size) {
+    OnnxRunSessions = array_new(OnnxRunSessionCtx *, size);
     for (size_t i = 0; i < size; i++) {
-        OnnxRunSessions = array_append(OnnxRunSessions, NULL);
+        OnnxRunSessionCtx *entry = RedisModule_Calloc(1, sizeof(OnnxRunSessionCtx));
+        OnnxRunSessions = array_append(OnnxRunSessions, entry);
     }
     return REDISMODULE_OK;
 }
@@ -27,23 +28,26 @@ void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid,
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     size_t len = array_len(OnnxRunSessions);
     for (size_t i = 0; i < len; i++) {
-        if (OnnxRunSessions[i] == NULL) {
+        if (OnnxRunSessions[i]->runOptions == NULL) {
             continue;
         }
-        long long currTime = _mstime();
-        if (currTime - OnnxRunSessions[i]->queuingTime > ONNX_MAX_RUNTIME) {
+        long long curr_time = _mstime();
+        if (curr_time - OnnxRunSessions[i]->queuingTime > ONNX_MAX_RUNTIME) {
             ort->RunOptionsSetTerminate(OnnxRunSessions[i]->runOptions);
         }
     }
 }
 
-void ReplaceRunSessionCtx(size_t index, OrtRunOptions *newRunOptions) {
-    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    if (OnnxRunSessions[index] != NULL) {
-        ort->ReleaseRunOptions(OnnxRunSessions[index]->runOptions);
-        RedisModule_Free(OnnxRunSessions[index]);
-    }
-    onnxRunSessionCtx *runSessionCtx = RedisModule_Alloc(sizeof(onnxRunSessionCtx));
+void SetRunSessionCtx(size_t index, OrtRunOptions *newRunOptions) {
+    OnnxRunSessionCtx *runSessionCtx = OnnxRunSessions[index];
+    RedisModule_Assert(runSessionCtx->runOptions == NULL);
     runSessionCtx->runOptions = newRunOptions;
     runSessionCtx->queuingTime = _mstime();
+}
+
+void ClearRunSessionCtx(size_t index) {
+    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
+    OnnxRunSessionCtx *runSessionCtx = OnnxRunSessions[index];
+    ort->ReleaseRunOptions(runSessionCtx->runOptions);
+    runSessionCtx->runOptions = NULL;
 }

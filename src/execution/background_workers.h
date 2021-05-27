@@ -41,6 +41,11 @@ typedef struct RunQueueInfo {
     char *devicestr;
 } RunQueueInfo;
 
+typedef struct WorkerThreadInfo {
+    RunQueueInfo *run_queue_info;
+    int id;
+} WorkerThreadInfo;
+
 int freeRunQueueInfo(RunQueueInfo *info);
 
 /* Ensure that the the run queue for the device exists.

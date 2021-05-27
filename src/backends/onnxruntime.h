@@ -5,6 +5,7 @@
 #include "redis_ai_objects/tensor_struct.h"
 #include "redis_ai_objects/model_struct.h"
 
+
 unsigned long long RAI_GetMemoryInfoORT(void);
 
 unsigned long long RAI_GetMemoryAccessORT(void);

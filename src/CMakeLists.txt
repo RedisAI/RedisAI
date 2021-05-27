@@ -83,8 +83,10 @@ ENDIF()
 IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
             backends/onnxruntime.c
+            execution/onnx_timeout.c
             ${BACKEND_COMMON_SRC}
 )
+    SET_PROPERTY(TARGET redisai_onnxruntime_obj PROPERTY ENABLE_EXPORTS 1)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})

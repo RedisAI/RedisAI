@@ -6,16 +6,18 @@
 // The maximum time in milliseconds before killing onnx run session.
 #define ONNX_MAX_RUNTIME 5000
 
-typedef struct onnxRunSessionCtx {
+typedef struct OnnxRunSessionCtx {
     long long queuingTime;
     OrtRunOptions* runOptions;
-} onnxRunSessionCtx;
+} OnnxRunSessionCtx;
 
-onnxRunSessionCtx **OnnxRunSessions;
+OnnxRunSessionCtx **OnnxRunSessions;
 
-int CreateGlobalOnnxRunSessions(pthread_t *working_thread_ids, size_t size)
+int CreateGlobalOnnxRunSessions(long long size);
 
 void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid,
   uint64_t subevent, void *data);
 
-void ReplaceRunSessionCtx(size_t index, OrtRunOptions *runOptions);
+void SetRunSessionCtx(size_t index, OrtRunOptions *newRunOptions);
+
+void ClearRunSessionCtx(size_t index);

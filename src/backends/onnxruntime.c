@@ -2,10 +2,11 @@
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
+#include <execution/onnx_timeout.h>
+#include <pthread.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
-#include "execution/onnx_timeout.h"
 
 #include "onnxruntime_c_api.h"
 
@@ -24,6 +25,10 @@ OrtMemoryInfo *mem_info = NULL;
 OrtAllocator *global_allocator = NULL;
 unsigned long long OnnxMemory = 0;
 unsigned long long OnnxMemoryAccessCounter = 0;
+
+// Globals from RedisAI to use for handling sessions timeouts/
+long long perqueueThreadPoolSize = 4;
+pthread_key_t tls_id_key;
 
 const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
     (void)allocator;
@@ -88,6 +93,12 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
+
+
+    // Create a global array of onnx runSessions, with an entry for every working thread.
+    long long size = perqueueThreadPoolSize;
+    CreateGlobalOnnxRunSessions(size);
+
     return REDISMODULE_OK;
 }
 
@@ -508,6 +519,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     array_new_on_stack(const char *, 5, output_names);
     array_new_on_stack(OrtValue *, 5, inputs);
     array_new_on_stack(OrtValue *, 5, outputs);
+    OrtRunOptions *run_options = NULL;
     OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
@@ -555,12 +567,15 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             outputs = array_append(outputs, NULL);
         }
 
-        OrtRunOptions *run_options;
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
+        int *thread_ind = (int *)pthread_getspecific(tls_id_key);
+        SetRunSessionCtx(*thread_ind, run_options);
+
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
-        //ReplaceRunSessionCtx()
+        ClearRunSessionCtx(*thread_ind);
+        run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
@@ -647,6 +662,9 @@ error:
     array_free(outputs);
     if (info) {
         ort->ReleaseTensorTypeAndShapeInfo(info);
+    }
+    if (run_options) {
+        ort->ReleaseRunOptions(run_options);
     }
     return REDISMODULE_ERR;
 }

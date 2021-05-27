@@ -14,6 +14,7 @@
 #include <dlfcn.h>
 #include <libgen.h>
 #include <string.h>
+#include <execution/background_workers.h>
 #include "execution/onnx_timeout.h"
 
 #include "redismodule.h"
@@ -470,15 +471,18 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
                         "not loaded from %s",
                         path);
     }
-    backend.terminate_run_session =
-      (void (*)(void *))(unsigned long)dlsym(handle, "RAI_TerminateRunSessionORT");
-    if (backend.terminate_run_session == NULL) {
+
+    backend.enforce_runtime_duration =
+    (void (*)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *))(unsigned long)dlsym(handle, "OnnxEnforceTimeoutCallback");
+    if (backend.enforce_runtime_duration == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
-          "Backend does not export RAI_TerminateRunSessionORT. ONNX backend "
+          "Backend does not export OnnxEnforceTimeoutCallback. ONNX backend "
           "not loaded from %s",
           path);
     }
+
+    RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_CronLoop, backend.enforce_runtime_duration);
 
     RAI_backends.onnx = backend;
     RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);
