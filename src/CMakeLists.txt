@@ -17,8 +17,12 @@ file (GLOB BACKEND_COMMON_SRC
         util/dict.c
         util/dictionaries.c
         redis_ai_objects/tensor.c
+        redis_ai_objects/model.c
+        redis_ai_objects/stats.c
+        redis_ai_objects/script.c
         util/string_utils.c
         execution/utils.c
+        execution/execution_contexts/execution_ctx.c
         serialization/ai_datatypes.c)
 
 ADD_LIBRARY(redisai_obj OBJECT

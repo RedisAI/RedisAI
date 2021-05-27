@@ -4,6 +4,7 @@
 #include "util/arr.h"
 #include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
+#include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
