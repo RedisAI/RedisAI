@@ -55,18 +55,6 @@ commands:
             sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
             sudo systemctl start docker
 
-  relocate-docker-storage:
-    steps:
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-
   setup-automation:
     steps:
       - run:
