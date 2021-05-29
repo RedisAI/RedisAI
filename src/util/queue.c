@@ -90,7 +90,7 @@ queueItem *queueEvict(queue *queue, queueItem *item) {
     return item;
 }
 
-long long queueLength(queue *queue) { return queue->len; }
+long queueLength(queue *queue) { return queue->len; }
 
 void queueRelease(queue *queue) {
     unsigned long len;

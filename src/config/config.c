@@ -147,11 +147,11 @@ int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
 int RedisAI_Config_QueueThreads(RedisModuleString *num_threads_string) {
-    int result = RedisModule_StringToLongLong(num_threads_string, &perqueueThreadPoolSize);
+    int result = RedisModule_StringToLongLong(num_threads_string, &ThreadPoolSizePerQueue);
     // make sure the number of threads is a positive integer
     // if not set the value to the default
-    if (result == REDISMODULE_OK && perqueueThreadPoolSize < 1) {
-        perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+    if (result == REDISMODULE_OK && ThreadPoolSizePerQueue < 1) {
+        ThreadPoolSizePerQueue = REDISAI_DEFAULT_THREADS_PER_QUEUE;
         result = REDISMODULE_ERR;
     }
     return result;

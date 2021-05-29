@@ -28,5 +28,5 @@ queueItem *queuePop(queue *queue);
 queueItem *queueFront(queue *queue);
 queueItem *queueNext(queueItem *item);
 queueItem *queueEvict(queue *queue, queueItem *item);
-long long queueLength(queue *queue);
+long queueLength(queue *queue);
 void queueRelease(queue *queue);

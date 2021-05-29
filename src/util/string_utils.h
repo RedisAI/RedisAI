@@ -2,6 +2,7 @@
 #include "dict.h"
 
 RedisModuleString *RAI_HoldString(RedisModuleString *str);
+void String_ToUpper(const char *str, char *upper, size_t *upper_len);
 
 uint64_t RAI_StringsHashFunction(const void *key);
 int RAI_StringsKeyCompare(void *privdata, const void *key1, const void *key2);

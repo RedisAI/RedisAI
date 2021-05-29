@@ -19,16 +19,16 @@
 
 #include "redismodule.h"
 
-int RAI_GetApi(const char *funcname, void **targetPtrPtr) {
+int RAI_GetApi(const char *func_name, void **targetPtrPtr) {
 
-   if (strcmp("ThreadIdKey", funcname) == 0) {
-       *targetPtrPtr = ThreadIdKey;
-   } else if (strcmp("NumThreadsPerQueue", funcname) == 0) {
-       *targetPtrPtr = NumThreadsPerQueue;
-   } else {
-       return REDISMODULE_ERR;
-   }
-   return REDISMODULE_OK;
+    if (strcmp("ThreadIdKey", func_name) == 0) {
+        *targetPtrPtr = GetQueueThreadIdKey;
+    } else if (strcmp("NumThreadsPerQueue", func_name) == 0) {
+        *targetPtrPtr = GetNumThreadsPerQueue;
+    } else {
+        return REDISMODULE_ERR;
+    }
+    return REDISMODULE_OK;
 }
 
 RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
@@ -397,8 +397,8 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     RAI_LoadedBackend backend = {0};
 
     int (*init_backend)(int (*)(const char *, void *), int (*)(const char *, void *));
-    init_backend =
-        (int (*)(int (*)(const char *, void *), int (*)(const char *, void *)))(unsigned long)dlsym(handle, "RAI_InitBackendORT");
+    init_backend = (int (*)(int (*)(const char *, void *), int (*)(const char *, void *)))(
+        unsigned long)dlsym(handle, "RAI_InitBackendORT");
     if (init_backend == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
@@ -407,7 +407,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
                         path);
         return REDISMODULE_ERR;
     }
-    init_backend(RedisModule_GetApi, (int (*)(const char*, void*)) RAI_GetApi);
+    init_backend(RedisModule_GetApi, (int (*)(const char *, void *))RAI_GetApi);
 
     backend.model_create =
         (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,
@@ -485,16 +485,28 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.enforce_runtime_duration =
-    (void (*)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *))(unsigned long)dlsym(handle, "OnnxEnforceTimeoutCallback");
+        (void (*)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *))(unsigned long)dlsym(
+            handle, "OnnxEnforceTimeoutCallback");
     if (backend.enforce_runtime_duration == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",
-          "Backend does not export OnnxEnforceTimeoutCallback. ONNX backend "
-          "not loaded from %s",
-          path);
+                        "Backend does not export OnnxEnforceTimeoutCallback. ONNX backend "
+                        "not loaded from %s",
+                        path);
     }
 
-    RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_CronLoop, backend.enforce_runtime_duration);
+    backend.add_new_device =
+        (int (*)(const char *))(unsigned long)dlsym(handle, "AddDeviceToGlobalRunSessions");
+    if (backend.add_new_device == NULL) {
+        dlclose(handle);
+        RedisModule_Log(ctx, "warning",
+                        "Backend does not export AddDeviceToGlobalRunSessions. ONNX backend "
+                        "not loaded from %s",
+                        path);
+    }
+
+    RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_CronLoop,
+                                       backend.enforce_runtime_duration);
 
     RAI_backends.onnx = backend;
     RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);

@@ -105,9 +105,8 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
 
     RunQueueInfo **run_queues_info = array_new(RunQueueInfo *, ndevices);
     for (long long i = 0; i < ndevices; i++) {
-        const char *devicestr = devices[i];
-        RunQueueInfo *run_queue_info = NULL;
-        if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
+        const char *device_str = devices[i];
+        if (!IsRunQueueExists(device_str) == REDISMODULE_ERR) {
             // A device run queue was not created properly, so we free everything,
             // set an error and finish.
             array_free(devices);
@@ -119,6 +118,12 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
             RAI_SetError(rinfo->err, RAI_EDAGRUN, "ERR Queue not initialized for device");
             return REDISMODULE_ERR;
         }
+
+        size_t device_str_len = strlen(device_str);
+        char upper_device_str[device_str_len + 1];
+        String_ToUpper(device_str, upper_device_str, &device_str_len);
+        RunQueueInfo *run_queue_info =
+            raxFind(RunQueues, (unsigned char *)upper_device_str, device_str_len);
         run_queues_info = array_append(run_queues_info, run_queue_info);
     }
     for (long long i = 0; i < ndevices; i++) {

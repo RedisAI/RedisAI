@@ -2,22 +2,28 @@
 
 #include "backends/onnxruntime.h"
 #include "onnxruntime_c_api.h"
+#include "util/rax.h"
 
 // The maximum time in milliseconds before killing onnx run session.
+// todo: make it a load time config
 #define ONNX_MAX_RUNTIME 5000
 
 typedef struct OnnxRunSessionCtx {
     long long queuingTime;
-    OrtRunOptions* runOptions;
+    OrtRunOptions *runOptions;
 } OnnxRunSessionCtx;
 
-OnnxRunSessionCtx **OnnxRunSessions;
+// This is a global rax that holds an array of OnnxRunSessionCtx for every device
+// that onnx models may run on.
+rax *OnnxRunSessions;
 
-int CreateGlobalOnnxRunSessions(long long size);
+int CreateGlobalOnnxRunSessions(void);
 
-void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid,
-  uint64_t subevent, void *data);
+int AddDeviceToGlobalRunSessions(const char *device);
 
-void SetRunSessionCtx(size_t index, OrtRunOptions *newRunOptions);
+void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
+                                void *data);
 
-void ClearRunSessionCtx(size_t index);
+OnnxRunSessionCtx *SetGetRunSessionCtx(const char *device, OrtRunOptions *new_run_options);
+
+void ClearRunSessionCtx(OnnxRunSessionCtx *run_session_ctx);

@@ -305,17 +305,12 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
-        RAI_ModelFree(model, &err);
-        if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "warning", "%s", err.detail);
-            int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-            RAI_ClearError(&err);
-            return ret;
+    if (!IsRunQueueExists(devicestr)) {
+        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ModelFree(model, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
         }
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR Could not initialize queue on requested device");
     }
 
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);

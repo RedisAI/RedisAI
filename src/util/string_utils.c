@@ -1,6 +1,7 @@
 #include "string_utils.h"
 #include "dict.h"
 #include <string.h>
+#include <ctype.h>
 #include "util/redisai_memory.h"
 
 RedisModuleString *RAI_HoldString(RedisModuleString *str) {
@@ -51,4 +52,18 @@ void RAI_RStringsKeyDestructor(void *privdata, void *key) {
 
 void *RAI_RStringsKeyDup(void *privdata, const void *key) {
     return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
+}
+
+void String_ToUpper(const char *str, char *upper, size_t *upper_len) {
+    size_t str_len = strlen(str);
+    // Avoid overflow
+    RedisModule_Assert(*upper_len >= str_len);
+
+    // Update the upper string buffer len.
+    *upper_len = str_len;
+
+    for (size_t i = 0; i < str_len; i++) {
+        upper[i] = (char)toupper(str[i]);
+    }
+    upper[str_len] = 0;
 }

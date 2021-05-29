@@ -82,9 +82,11 @@ typedef struct RAI_LoadedBackend {
     // Returns the number of times that Redis accessed backend allocator.
     unsigned long long (*get_memory_access_num)(void);
 
+    // A callback for to use whenever a new device is introduced.
+    int (*add_new_device)(const char *);
+
     // Kill run session callback (for stopping long runs).
-    void (*enforce_runtime_duration)(RedisModuleCtx *, RedisModuleEvent,
-      uint64_t, void *);
+    void (*enforce_runtime_duration)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {

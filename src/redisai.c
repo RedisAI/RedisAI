@@ -54,7 +54,6 @@
 #endif
 #endif
 
-
 extern int redisMajorVersion;
 extern int redisMinorVersion;
 extern int redisPatchVersion;
@@ -354,17 +353,12 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
-        RAI_ModelFree(model, &err);
-        if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "warning", "%s", err.detail);
-            int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-            RAI_ClearError(&err);
-            return ret;
+    if (!IsRunQueueExists(devicestr)) {
+        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ModelFree(model, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
         }
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR Could not initialize queue on requested device");
     }
 
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
@@ -782,20 +776,12 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return ret;
     }
 
-    RunQueueInfo *run_queue_info = NULL;
-    // If the queue does not exist, initialize it
-    if (ensureRunQueue(devicestr, &run_queue_info) == REDISMODULE_ERR) {
-        RAI_ScriptFree(script, &err);
-        if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-            printf("ERR: %s\n", err.detail);
-#endif
-            int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-            RAI_ClearError(&err);
-            return ret;
+    if (!IsRunQueueExists(devicestr)) {
+        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ScriptFree(script, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
         }
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR Could not initialize queue on requested device");
     }
 
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
@@ -1215,7 +1201,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddSection(ctx, "git");
     RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
     RedisModule_InfoAddSection(ctx, "load_time_configs");
-    RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", perqueueThreadPoolSize);
+    RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", ThreadPoolSizePerQueue);
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
     RedisModule_InfoAddSection(ctx, "memory_usage");
@@ -1278,45 +1264,42 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_FreeString(NULL, main_thread_used_cpu_sys);
     RedisModule_FreeString(NULL, main_thread_used_cpu_user);
 
-    AI_dictIterator *iter = AI_dictGetSafeIterator(run_queues);
-    AI_dictEntry *entry = AI_dictNext(iter);
-    while (entry) {
-        char *queue_name = (char *)AI_dictGetKey(entry);
-        RunQueueInfo *run_queue_info = (RunQueueInfo *)AI_dictGetVal(entry);
-        if (run_queue_info) {
-            for (int i = 0; i < perqueueThreadPoolSize; i++) {
-                pthread_t current_bg_threads = run_queue_info->threads[i];
-                struct timespec ts;
-                clockid_t cid;
-                RedisModuleString *queue_used_cpu_total = RedisModule_CreateStringPrintf(
-                    NULL, "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
-                RedisModuleString *bthread_used_cpu_total = NULL;
+    raxIterator rax_it;
+    raxStart(&rax_it, RunQueues);
+    raxSeek(&rax_it, "^", NULL, 0);
+    while (raxNext(&rax_it)) {
+        char *queue_name = (char *)rax_it.key;
+        RunQueueInfo *run_queue_info = (RunQueueInfo *)rax_it.data;
+        for (int i = 0; i < ThreadPoolSizePerQueue; i++) {
+            pthread_t current_bg_threads = run_queue_info->threads[i];
+            struct timespec ts;
+            clockid_t cid;
+            RedisModuleString *queue_used_cpu_total = RedisModule_CreateStringPrintf(
+                NULL, "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
+            RedisModuleString *bthread_used_cpu_total = NULL;
 #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) ||         \
     defined(__cplusplus)
-                const int status = -1;
+            const int status = -1;
 #else
-                const int status = pthread_getcpuclockid(current_bg_threads, &cid);
+            const int status = pthread_getcpuclockid(current_bg_threads, &cid);
 #endif
-                if (status != 0) {
+            if (status != 0) {
+                bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
+            } else {
+                if (clock_gettime(cid, &ts) == -1) {
                     bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
                 } else {
-                    if (clock_gettime(cid, &ts) == -1) {
-                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
-                    } else {
-                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(
-                            NULL, "%ld.%06ld", (long)ts.tv_sec, (long)(ts.tv_nsec / 1000));
-                    }
+                    bthread_used_cpu_total = RedisModule_CreateStringPrintf(
+                        NULL, "%ld.%06ld", (long)ts.tv_sec, (long)(ts.tv_nsec / 1000));
                 }
-                RedisModule_InfoAddFieldString(
-                    ctx, (char *)RedisModule_StringPtrLen(queue_used_cpu_total, NULL),
-                    bthread_used_cpu_total);
-                RedisModule_FreeString(NULL, queue_used_cpu_total);
-                RedisModule_FreeString(NULL, bthread_used_cpu_total);
             }
+            RedisModule_InfoAddFieldString(
+                ctx, (char *)RedisModule_StringPtrLen(queue_used_cpu_total, NULL),
+                bthread_used_cpu_total);
+            RedisModule_FreeString(NULL, queue_used_cpu_total);
+            RedisModule_FreeString(NULL, bthread_used_cpu_total);
         }
-        entry = AI_dictNext(iter);
     }
-    AI_dictReleaseIterator(iter);
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -1465,24 +1448,19 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     // Default configs
     RAI_BackendsPath = NULL;
-    perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
+    ThreadPoolSizePerQueue = REDISAI_DEFAULT_THREADS_PER_QUEUE;
     setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
     setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
     setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
 
     RAI_loadTimeConfig(ctx, argv, argc);
 
-    run_queues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue("CPU", &run_queue_info) != REDISMODULE_OK) {
-        RedisModule_Log(ctx, "warning", "Queue not initialized for device CPU");
+    RunQueues = raxNew();
+    RunQueueInfo *cpu_run_queue_info = CreateRunQueue("CPU");
+    if (cpu_run_queue_info == NULL) {
+        RedisModule_Log(ctx, "warning", "RedisAI could not initialize run queue for CPU");
         return REDISMODULE_ERR;
     }
-    for (size_t i = 0; i < perqueueThreadPoolSize; i++) {
-        RedisModule_Log(ctx, "warning", "thread id in index %zu is %lu", i,
-          run_queue_info->threads[i]);
-    }
-
     run_stats = AI_dictCreate(&AI_dictTypeHeapRStrings, NULL);
 
     return REDISMODULE_OK;

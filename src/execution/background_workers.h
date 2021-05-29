@@ -27,19 +27,19 @@
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
 #include "util/arr.h"
-#include "util/dict.h"
+#include "util/rax.h"
 #include "util/queue.h"
 
-AI_dict *run_queues;
-long long perqueueThreadPoolSize;
+rax *RunQueues;
+long long ThreadPoolSizePerQueue;
 
 typedef struct RunQueueInfo {
     pthread_mutex_t run_queue_mutex;
     pthread_cond_t queue_condition_var;
     queue *run_queue;
     pthread_t *threads;
-    pthread_key_t thread_id_key;  // A key for getting the thread id from its local storage.
-    char *devicestr;
+    pthread_key_t thread_id_key; // A key for getting the thread id from its local storage.
+    char *device_str;
 } RunQueueInfo;
 
 typedef struct WorkerThreadInfo {
@@ -47,12 +47,12 @@ typedef struct WorkerThreadInfo {
     int id;
 } WorkerThreadInfo;
 
-int freeRunQueueInfo(RunQueueInfo *info);
+void RunQueueInfoFree(RunQueueInfo *info);
 
-/* Ensure that the the run queue for the device exists.
- * If not, create it. */
-int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info);
+RunQueueInfo *CreateRunQueue(const char *device_str);
 
-pthread_key_t ThreadIdKey(void);
+bool IsRunQueueExists(const char *device_str);
 
-long long NumThreadsPerQueue(void);
+pthread_key_t GetQueueThreadIdKey(const char *device_str);
+
+long long GetNumThreadsPerQueue(void);
