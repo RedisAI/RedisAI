@@ -75,5 +75,6 @@ ifeq ($(ARTIFACTS),1)
 endif
 
 # publish our dockers - this assumes you're logged in to dockerhub
+# unfortunately docker-compose ignores the tags it creates during a build.
 publish:
-	docker-compose push
+	$(foreach var, ${DOCKER_SERVICE}, docker push ${DOCKER_ORG}/${PRODUCT}:${VERSION}-${VARIANT}-${ARCH}-${var})
