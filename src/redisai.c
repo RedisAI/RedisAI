@@ -463,7 +463,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
-    const char *backendstr = RAI_BackendName(mto->backend);
+    const char *backendstr = GetBackendName(mto->backend);
     RedisModule_ReplyWithCString(ctx, backendstr);
 
     RedisModule_ReplyWithCString(ctx, "device");
@@ -938,7 +938,7 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
         RedisModule_ReplyWithCString(ctx, "SCRIPT");
     }
     RedisModule_ReplyWithCString(ctx, "backend");
-    RedisModule_ReplyWithCString(ctx, RAI_BackendName(rstats->backend));
+    RedisModule_ReplyWithCString(ctx, GetBackendName(rstats->backend));
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, rstats->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");

@@ -73,7 +73,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         RedisModule_Free(buffer);
     }
 
-    const char *backendstr = RAI_BackendName(model->backend);
+    const char *backendstr = GetBackendName(model->backend);
 
     RedisModule_EmitAOF(aof, "AI.MODELSET", "slccclclcvcvcv", key, backendstr, model->devicestr,
                         model->tag, "BATCHSIZE", model->opts.batchsize, "MINBATCHSIZE",

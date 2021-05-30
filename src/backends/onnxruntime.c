@@ -80,8 +80,7 @@ unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
 
 unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
-int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *),
-                       int (*get_api_fn_rai)(const char *, void *)) {
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     // Export redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
@@ -94,8 +93,8 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *),
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
 
     // Export RedisAI callbacks.
-    get_api_fn_rai("ThreadIdKey", ((void **)&RedisAI_ThreadId));
-    get_api_fn_rai("NumThreadsPerQueue", ((void **)&RedisAI_NumThreadsPerQueue));
+    get_api_fn("ThreadIdKey", ((void **)&RedisAI_ThreadId));
+    get_api_fn("NumThreadsPerQueue", ((void **)&RedisAI_NumThreadsPerQueue));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
     CreateGlobalOnnxRunSessions();

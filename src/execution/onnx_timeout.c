@@ -22,10 +22,10 @@ int CreateGlobalOnnxRunSessions() {
       array_new(OnnxRunSessionCtx *, RedisAI_NumThreadsPerQueue());
     onnx_global_run_sessions->OnnxRunSessions = onnx_run_sessions;
     pthread_rwlock_init(&(onnx_global_run_sessions->rwlock), NULL);
-    return ExtendGlobalRunSessions("CPU");  // Add entries for CPU threads.
+    return RAI_AddNewDeviceORT("CPU");  // Add entries for CPU threads.
 }
 
-int ExtendGlobalRunSessions(const char *device_str) {
+int RAI_AddNewDeviceORT(const char *device_str) {
 
     // Acquire write lock, as we might reallocate the array while extending it.
     pthread_rwlock_wrlock(&(onnx_global_run_sessions->rwlock));
@@ -41,7 +41,7 @@ int ExtendGlobalRunSessions(const char *device_str) {
     return REDISMODULE_OK;
 }
 
-void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
+void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
                                 void *data) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));

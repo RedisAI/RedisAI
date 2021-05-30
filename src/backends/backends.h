@@ -102,4 +102,7 @@ char *RAI_BackendsPath;
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 
-const char *RAI_BackendName(int backend);
+/**
+ * @brief Returns the backend name as string.
+ */
+const char *GetBackendName(RAI_Backend backend);
