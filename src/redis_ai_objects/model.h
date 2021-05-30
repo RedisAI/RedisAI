@@ -17,16 +17,6 @@
 #include "util/dict.h"
 #include "execution/run_info.h"
 
-extern RedisModuleType *RedisAI_ModelType;
-
-/**
- * Helper method to register the RedisModuleType type exported by the module.
- *
- * @param ctx Context in which Redis modules operate
- * @return
- */
-int RAI_ModelInit(RedisModuleCtx *ctx);
-
 /**
  * Helper method to allocated and initialize a RAI_Model. Depending on the
  * backend it relies on either `model_create_with_nodes` or `model_create`
@@ -61,24 +51,6 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
  * failures
  */
 void RAI_ModelFree(RAI_Model *model, RAI_Error *err);
-
-/**
- * Given the input array of mctxs, run the associated backend
- * session. If the input array of model context runs is larger than one, then
- * each backend's `model_run` is responsible for concatenating tensors, and run
- * the model in batches with the size of the input array. On success, the
- * tensors corresponding to outputs[0,noutputs-1] are placed in each
- * RAI_ModelRunCtx output tensors array. Relies on each backend's `model_run`
- * definition.
- *
- * @param mctxs array on input model contexts
- * @param n length of input model contexts array
- * @param error error data structure to store error message in the case of
- * failures
- * @return REDISMODULE_OK if the underlying backend `model_run` runned
- * successfully, or REDISMODULE_ERR if failed.
- */
-int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err);
 
 /**
  * Every call to this function, will make the RAI_Model 'model' requiring an
@@ -136,10 +108,11 @@ int RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, Redis
                                                       int argc);
 
 /**
- * @brief  Returns the redis module type representing a model.
- * @return redis module type representing a model.
+ * See "RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys" above. While this function
+ * is used for AI.MODELEXECUTE command, RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys"
+ * is used for the deprecated AI.MODELRUN command syntax.
  */
-RedisModuleType *RAI_ModelRedisType(void);
+int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
  * @brief  Returns the number of inputs in the model definition.
@@ -150,14 +123,9 @@ size_t ModelGetNumInputs(RAI_Model *model);
  * @brief  Returns the number of outputs in the model definition.
  */
 size_t ModelGetNumOutputs(RAI_Model *model);
-/**
- * Insert the ModelRunCtx to the run queues so it will run asynchronously.
- *
- * @param mctx ModelRunCtx to execute
- * @param ModelAsyncFinish A callback that will be called when the execution is finished.
- * @param private_data This is going to be sent to to the ModelAsyncFinish.
- * @return REDISMODULE_OK if the mctx was insert to the queues successfully, REDISMODULE_ERR
- * otherwise.
- */
 
-int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data);
+/**
+ * @brief  Returns the redis module type representing a model.
+ * @return redis module type representing a model.
+ */
+RedisModuleType *RAI_ModelRedisType(void);

@@ -77,14 +77,10 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
 
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
+    model_pb = load_file_content('graph.pb')
 
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -184,7 +180,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
 
     ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function bad_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
 
 @skip_if_gears_not_loaded
@@ -249,7 +245,7 @@ async def DAGRun_addOpsFromString(record):
     tensors = redisAI.mgetTensorsFromKeyspace(keys)
     DAGRunner = redisAI.createDAGRunner()
     DAGRunner.Input('tensor_a', tensors[0]).Input('tensor_b', tensors[1])
-    DAGRunner.OpsFromString('|> AI.MODELRUN m{1} INPUTS tensor_a tensor_b OUTPUTS tensor_c |> AI.TENSORGET tensor_c')
+    DAGRunner.OpsFromString('|> AI.MODELEXECUTE m{1} INPUTS 2 tensor_a tensor_b OUTPUTS 1 tensor_c |> AI.TENSORGET tensor_c')
     res = await DAGRunner.Run()
     redisAI.setTensorInKey('test5_res{1}', res[0])
     return "test5_OK"
@@ -280,8 +276,8 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'DAGRun_test2')
     env.assertEqual(ret[0], b'test2_OK')
@@ -303,7 +299,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test4')
     # This should raise an exception
-    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function no_func"))
+    env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
     ret = con.execute_command('rg.trigger', 'DAGRun_test5')
     env.assertEqual(ret[0], b'test5_OK')

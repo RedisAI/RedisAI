@@ -19,6 +19,7 @@ capabilities:
     - backup_restore
     - intershard_tls
 exclude_commands:
+    - ai.modelstore
     - ai.modelset
     - ai.modeldel
     - ai.scriptset

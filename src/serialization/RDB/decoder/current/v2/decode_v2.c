@@ -1,4 +1,4 @@
-#include "decode_v1.h"
+#include "decode_v2.h"
 #include "assert.h"
 
 /**
@@ -8,7 +8,7 @@
  * So only when it is necessary check for IO errors.
  */
 
-void *RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadTensor_v2(RedisModuleIO *io) {
     int64_t *shape = NULL;
     int64_t *strides = NULL;
 
@@ -69,7 +69,7 @@ cleanup:
     return NULL;
 }
 
-void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadModel_v2(RedisModuleIO *io) {
 
     char *devicestr = NULL;
     RedisModuleString *tag = NULL;
@@ -85,6 +85,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     const size_t batchsize = RedisModule_LoadUnsigned(io);
     const size_t minbatchsize = RedisModule_LoadUnsigned(io);
+    const size_t minbatchtimeout = RedisModule_LoadUnsigned(io);
 
     ninputs = RedisModule_LoadUnsigned(io);
     if (RedisModule_IsIOError(io))
@@ -109,6 +110,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     RAI_ModelOpts opts = {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
+        .minbatchtimeout = minbatchtimeout,
         .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
         .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
     };
@@ -138,7 +140,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default backend");
+            RedisModule_Log(ctx, "warning", "Could not load default backend");
             RAI_ClearError(&err);
             goto cleanup;
         }
@@ -149,7 +151,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     if (err.code != RAI_OK) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         RAI_ClearError(&err);
         goto cleanup;
     }
@@ -201,7 +203,7 @@ cleanup:
     return NULL;
 }
 
-void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadScript_v2(RedisModuleIO *io) {
     RedisModuleString *tag = NULL;
     char *devicestr = NULL;
     char *scriptdef = NULL;
@@ -221,7 +223,7 @@ void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default TORCH backend\n");
+            RedisModule_Log(ctx, "warning", "Could not load default TORCH backend\n");
             RAI_ClearError(&err);
             goto cleanup;
         }

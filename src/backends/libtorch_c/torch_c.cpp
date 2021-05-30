@@ -192,58 +192,7 @@ struct ModuleContext {
     int64_t device_id;
 };
 
-void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long nInputs,
-                    DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs) {
-    // Checks device, if GPU then move input to GPU before running
-    // TODO: This will need to change at some point, as individual tensors will have their placement
-    // and script will only make sure that placement is correct
-
-    torch::DeviceType device_type;
-    switch (ctx->device) {
-    case kDLCPU:
-        device_type = torch::kCPU;
-        break;
-    case kDLGPU:
-        device_type = torch::kCUDA;
-        break;
-    default:
-        throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
-    }
-
-    torch::Device device(device_type, ctx->device_id);
-
-    torch::jit::Stack stack;
-
-    for (int i = 0; i < nInputs; i++) {
-        if (i == variadic) {
-            break;
-        }
-        DLTensor *input = &(inputs[i]->dl_tensor);
-        torch::Tensor tensor = fromDLPack(input);
-        stack.push_back(tensor.to(device));
-    }
-
-    if (variadic != -1) {
-        std::vector<torch::Tensor> args;
-        for (int i = variadic; i < nInputs; i++) {
-            DLTensor *input = &(inputs[i]->dl_tensor);
-            torch::Tensor tensor = fromDLPack(input);
-            tensor.to(device);
-            args.emplace_back(tensor);
-        }
-        stack.push_back(args);
-    }
-
-    if (ctx->module) {
-        torch::NoGradGuard guard;
-        torch::jit::script::Method method = ctx->module->get_method(fnName);
-        method.run(stack);
-    } else {
-        torch::NoGradGuard guard;
-        torch::jit::Function &fn = ctx->cu->get_function(fnName);
-        fn.run(stack);
-    }
-
+static void torchHandlOutputs(torch::jit::Stack& stack, const char* fnName, long nOutputs, DLManagedTensor **outputs) {
     torch::DeviceType output_device_type = torch::kCPU;
     torch::Device output_device(output_device_type, -1);
 
@@ -284,30 +233,25 @@ void torchRunModule(ModuleContext *ctx, const char *fnName, int variadic, long n
     }
 }
 
+void torchRunModule(ModuleContext *ctx, const char *fnName, torch::jit::Stack& stack, long nOutputs, DLManagedTensor **outputs){
+
+    if (ctx->module) {
+        torch::NoGradGuard guard;
+        torch::jit::script::Method method = ctx->module->get_method(fnName);
+        method.run(stack);
+    } else {
+        torch::NoGradGuard guard;
+        torch::jit::Function &fn = ctx->cu->get_function(fnName);
+        fn.run(stack);
+    }
+
+    torchHandlOutputs(stack, fnName, nOutputs, outputs);
+}
+
 } // namespace
 
-extern "C" void torchBasicTest() {
-    torch::Tensor mat = torch::rand({3, 3});
-    std::cout << mat << std::endl;
-}
-
-extern "C" DLManagedTensor *torchNewTensor(DLDataType dtype, long ndims, int64_t *shape,
-                                           int64_t *strides, char *data) {
-    // at::DeviceType device_type = getATenDeviceType(kDLCPU);
-    at::ScalarType stype = toScalarType(dtype);
-    torch::Device device(getATenDeviceType(kDLCPU), -1);
-    torch::Tensor tensor =
-        torch::from_blob(data, at::IntArrayRef(shape, ndims), at::IntArrayRef(strides, ndims),
-                         // torch::device(at::DeviceType::CPU).dtype(stype));
-                         torch::device(device).dtype(stype));
-
-    DLManagedTensor *dl_tensor = toManagedDLPack(tensor);
-
-    return dl_tensor;
-}
-
 extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int64_t device_id,
-                                    char **error, void* (*alloc)(size_t))
+                                    char **error)
 {
   ModuleContext* ctx = new ModuleContext();
   ctx->device = device;
@@ -329,10 +273,7 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
 
   }
   catch(std::exception& e) {
-    size_t len = strlen(e.what()) +1;
-    *error = (char*)alloc(len * sizeof(char));
-    strcpy(*error, e.what());
-    (*error)[len-1] = '\0';
+    *error = RedisModule_Strdup(e.what());
     delete ctx;
     return NULL;
   }
@@ -340,7 +281,7 @@ extern "C" void* torchCompileScript(const char* script, DLDeviceType device, int
 }
 
 extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType device,
-                                int64_t device_id, char **error, void *(*alloc)(size_t)) {
+                                int64_t device_id, char **error) {
     std::string graphstr(graph, graphlen);
     std::istringstream graph_stream(graphstr, std::ios_base::binary);
     ModuleContext *ctx = new ModuleContext();
@@ -358,59 +299,234 @@ extern "C" void *torchLoadModel(const char *graph, size_t graphlen, DLDeviceType
         ctx->module = module;
         ctx->cu = nullptr;
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+       *error = RedisModule_Strdup(e.what());
         delete ctx;
         return NULL;
     }
     return ctx;
 }
 
-extern "C" void torchRunScript(void *scriptCtx, const char *fnName, int variadic, long nInputs,
-                               DLManagedTensor **inputs, long nOutputs, DLManagedTensor **outputs,
-                               char **error, void *(*alloc)(size_t)) {
+static torch::DeviceType getDeviceType(ModuleContext *ctx) {
+    switch (ctx->device) {
+        case kDLCPU:
+            return torch::kCPU;
+        case kDLGPU:
+            return torch::kCUDA;
+        default:
+            throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));
+    }
+}
+
+extern "C" bool torchMatchScriptSchema(TorchScriptFunctionArgumentType *schema ,size_t nArguments, TorchFunctionInputCtx* inputsCtx, char **error) {
+    char* buf; 
+    int schemaListCount = 0;
+    size_t schemaTensorCount = 0;
+    size_t schemaIntCount = 0;
+    size_t schemaFloatCount = 0;
+    size_t schemaStringCount = 0;
+    size_t totalInputsCount = inputsCtx->tensorCount + inputsCtx->intCount + inputsCtx->floatCount + inputsCtx->stringCount;
+    if((totalInputsCount) < nArguments) {
+        asprintf(&buf, "Wrong number of inputs. Expected %ld but was %ld", nArguments, totalInputsCount);
+        goto cleanup;
+    }
+    for (size_t i = 0; i < nArguments; i++) {
+        switch (schema[i]) {
+            case TENSOR:
+                schemaTensorCount++;
+                break;
+            case INT:
+                schemaIntCount++;
+                break;
+            case FLOAT:
+                schemaFloatCount++;
+                break;
+            case STRING:
+                schemaStringCount++;
+                break;
+            case TENSOR_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaTensorCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case INT_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaIntCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case FLOAT_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaFloatCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            case STRING_LIST:
+                schemaListCount++;
+                if(schemaListCount > inputsCtx->listCount) {
+                     asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+                     goto cleanup;
+                }
+                schemaStringCount+=inputsCtx->listSizes[schemaListCount-1];
+                break;
+            default:
+                asprintf(&buf, "Unkown type in script schema validation.");
+                goto cleanup;
+        }
+    } 
+    if(schemaListCount != inputsCtx->listCount) {
+        asprintf(&buf, "Wrong number of lists. Expected %d but was %ld", schemaListCount, inputsCtx->listCount);
+        goto cleanup;
+    }
+    if(schemaTensorCount != inputsCtx->tensorCount || schemaIntCount != inputsCtx->intCount || schemaFloatCount != inputsCtx->floatCount || schemaStringCount!= inputsCtx->stringCount) {
+        asprintf(&buf, "Wrong number of parameters");
+        goto cleanup;
+    }
+
+    return true;
+
+    cleanup:
+    *error = RedisModule_Strdup(buf);
+    free(buf);
+    return false;
+}
+
+extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
+                                TorchScriptFunctionArgumentType* schema, size_t nArguments,
+                                TorchFunctionInputCtx* inputsCtx,
+                                DLManagedTensor **outputs,long nOutputs,
+                                char **error) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     try {
-        torchRunModule(ctx, fnName, variadic, nInputs, inputs, nOutputs, outputs);
+        torch::DeviceType device_type = getDeviceType(ctx);
+        torch::Device device(device_type, ctx->device_id);
+
+        torch::jit::Stack stack;
+
+        size_t listsIdx = 0;
+        size_t tensorIdx = 0;
+        size_t intIdx = 0;
+        size_t floatIdx = 0;
+        size_t stringIdx = 0;
+        for(size_t i= 0; i < nArguments; i++) {
+            // In case of tensor.
+            switch (schema[i]) {
+                case TENSOR: {
+                    DLTensor *input = &(inputsCtx->tensorInputs[tensorIdx++]->dl_tensor);
+                    torch::Tensor tensor = fromDLPack(input);
+                    stack.push_back(tensor.to(device));
+                    break;
+                }
+                case TENSOR_LIST: {
+                    std::vector<torch::Tensor> args;
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        DLTensor *input = &(inputsCtx->tensorInputs[tensorIdx++]->dl_tensor);
+                        torch::Tensor tensor = fromDLPack(input);
+                        tensor.to(device);
+                        args.emplace_back(tensor);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case STRING_LIST: {
+                    std::vector<torch::string> args;
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        const char* cstr = RedisModule_StringPtrLen(inputsCtx->stringsInputs[stringIdx++], NULL);
+                        torch::string str = torch::string(cstr);
+                        args.emplace_back(str);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case INT_LIST: {
+                    std::vector<int> args;
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        int32_t val = inputsCtx->intInputs[intIdx++];
+                        args.emplace_back(val);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+                case FLOAT_LIST: {
+                    std::vector<float> args;
+                    size_t argumentSize = inputsCtx->listSizes[listsIdx++];
+                    for (size_t j = 0; j < argumentSize; j++) {
+                        float val = inputsCtx->floatInputs[floatIdx++];
+                        args.emplace_back(val);
+                    }
+                    stack.push_back(args);
+                    break;
+                }
+
+                case INT: {
+                    int32_t val = inputsCtx->intInputs[intIdx++];
+                    stack.push_back(val);
+                    break;
+                }
+                case FLOAT: {
+                    float val = inputsCtx->floatInputs[floatIdx++];
+                    stack.push_back(val);
+                    break;
+                }
+                case STRING: {
+                    const char* cstr = RedisModule_StringPtrLen(inputsCtx->stringsInputs[stringIdx++], NULL);
+                    torch::string str = torch::string(cstr);
+                    stack.push_back(str);
+                    break;
+                }
+                default: {
+                    *error = RedisModule_Strdup("Unkown script input type");
+                    break;
+                }
+            }
+        }
+
+        torchRunModule(ctx, fnName, stack, nOutputs, outputs);
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
 extern "C" void torchRunModel(void *modelCtx, long nInputs, DLManagedTensor **inputs, long nOutputs,
-                              DLManagedTensor **outputs, char **error, void *(*alloc)(size_t)) {
+                              DLManagedTensor **outputs, char **error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     try {
-        torchRunModule(ctx, "forward", -1, nInputs, inputs, nOutputs, outputs);
+        torch::DeviceType device_type = getDeviceType(ctx);
+        torch::Device device(device_type, ctx->device_id);
+
+        torch::jit::Stack stack;
+        for (int i = 0; i < nInputs; i++) {
+            DLTensor *input = &(inputs[i]->dl_tensor);
+            torch::Tensor tensor = fromDLPack(input);
+            stack.push_back(tensor.to(device));
+        }
+        torchRunModule(ctx, "forward", stack, nOutputs, outputs);
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
-extern "C" void torchSerializeModel(void *modelCtx, char **buffer, size_t *len, char **error,
-                                    void *(*alloc)(size_t)) {
+extern "C" void torchSerializeModel(void *modelCtx, char **buffer, size_t *len, char **error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     std::ostringstream out;
     try {
         ctx->module->save(out);
         auto out_str = out.str();
         int size = out_str.size();
-        *buffer = (char *)alloc(size);
+        *buffer = (char *)RedisModule_Alloc(size);
         memcpy(*buffer, out_str.c_str(), size);
         *len = size;
     } catch (std::exception &e) {
-        size_t len = strlen(e.what()) + 1;
-        *error = (char *)alloc(len * sizeof(char));
-        strcpy(*error, e.what());
-        (*error)[len - 1] = '\0';
+        *error = RedisModule_Strdup(e.what());
     }
 }
 
@@ -421,7 +537,7 @@ extern "C" void torchDeallocContext(void *ctx) {
     }
 }
 
-extern "C" void torchSetInterOpThreads(int num_threads, char **error, void *(*alloc)(size_t)) {
+extern "C" void torchSetInterOpThreads(int num_threads, char **error) {
     int current_num_interop_threads = torch::get_num_interop_threads();
     if (current_num_interop_threads != num_threads) {
         try {
@@ -429,15 +545,12 @@ extern "C" void torchSetInterOpThreads(int num_threads, char **error, void *(*al
         } catch (std::exception) {
             std::string error_msg =
                 "Cannot set number of inter-op threads after parallel work has started";
-            size_t len = error_msg.length() + 1;
-            *error = (char *)alloc(len * sizeof(char));
-            strcpy(*error, error_msg.c_str());
-            (*error)[len - 1] = '\0';
+            *error = RedisModule_Strdup(error_msg.c_str());
         }
     }
 }
 
-extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*alloc)(size_t)) {
+extern "C" void torchSetIntraOpThreads(int num_threads, char **error) {
     int current_num_threads = torch::get_num_threads();
     if (current_num_threads != num_threads) {
         try {
@@ -445,10 +558,7 @@ extern "C" void torchSetIntraOpThreads(int num_threads, char **error, void *(*al
         } catch (std::exception) {
             std::string error_msg =
                 "Cannot set number of intra-op threads after parallel work has started";
-            size_t len = error_msg.length() + 1;
-            *error = (char *)alloc(len * sizeof(char));
-            strcpy(*error, error_msg.c_str());
-            (*error)[len - 1] = '\0';
+            *error = RedisModule_Strdup(error_msg.c_str());
         }
     }
 }
@@ -491,6 +601,37 @@ static int getArgumentTensorCount(const c10::Argument& arg){
     }
 }
 
+static TorchScriptFunctionArgumentType  getArgumentType(const c10::Argument& arg){
+    switch (arg.type()->kind())
+    {
+    case c10::TypeKind::TensorType:
+        return TENSOR;
+    case c10::TypeKind::IntType: 
+        return INT;
+    case c10::TypeKind::FloatType:
+        return FLOAT;
+    case c10::TypeKind::StringType: 
+        return STRING;
+    case c10::TypeKind::ListType: {
+        c10::ListTypePtr lt = arg.type()->cast<c10::ListType>();
+        switch(lt->getElementType()->kind()) {
+            case c10::TypeKind::TensorType:
+                return TENSOR_LIST;
+            case c10::TypeKind::IntType: 
+                return INT_LIST;
+            case c10::TypeKind::FloatType:
+                return FLOAT_LIST;
+            case c10::TypeKind::StringType: 
+                 return STRING_LIST;
+            default:
+                return UNKOWN;
+        }
+    }
+    default:
+        return UNKOWN;
+    }
+}
+
 extern "C" size_t torchModelNumOutputs(void *modelCtx, char** error) {
     ModuleContext *ctx = (ModuleContext *)modelCtx;
     size_t noutputs = 0;
@@ -517,4 +658,27 @@ extern "C" const char* torchModelInputNameAtIndex(void* modelCtx, size_t index, 
        int printed = asprintf(error, "Erorr while trying to retrive model intput at index %ld: %s", index, ex.what());
     }
     return ret;
+}
+
+extern "C" size_t torchScript_FunctionCount(void* scriptCtx) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    return ctx->cu->get_functions().size();
+}
+
+extern "C" const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return functions[fn_index]->name().c_str();
+}
+
+extern "C" size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return functions[fn_index]->getSchema().arguments().size();
+}
+
+extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void* scriptCtx, size_t fn_index, size_t arg_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
+    return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index]);
 }

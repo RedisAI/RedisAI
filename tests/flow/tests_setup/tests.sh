@@ -12,7 +12,7 @@ error() {
 [[ -z $_Dbg_DEBUGGER_LEVEL ]] && trap 'error $LINENO' ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-export ROOT=$(cd $HERE/../..; pwd)
+export ROOT=$(cd $HERE/../../..; pwd)
 . $ROOT/opt/readies/shibumi/functions
 
 cd $HERE
@@ -136,7 +136,7 @@ fi
 
 #----------------------------------------------------------------------------------------------
 
-cd $ROOT/tests/flow
+cd $ROOT/tests/flow/tests_setup
 
 install_git_lfs
 check_redis_server

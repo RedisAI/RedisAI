@@ -44,8 +44,8 @@ def test_model_run_async(env):
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
 
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -88,8 +88,8 @@ def test_dag_build_and_run(env):
 
     with open(model_filename, 'rb') as f:
         model_pb = f.read()
-    ret = con.execute_command('AI.MODELSET', 'm{1}', 'TF', DEVICE,
-                              'INPUTS', 'a', 'b', 'OUTPUTS', 'mul', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script_filename = os.path.join(test_data_path, 'script.txt')
@@ -101,38 +101,44 @@ def test_dag_build_and_run(env):
     ret = con.execute_command("RAI_llapi.DAGrun")
     env.assertEqual(ret, b'DAG run success')
 
+    # Run the DAG LLAPI test again with multi process test to ensure that there are no dead-locks
+    def run_dag_llapi(con):
+        con.execute_command("RAI_llapi.DAGrun")
+
+    run_test_multiproc(env, 500, run_dag_llapi)
+
 
 @with_test_module
 def test_dagrun_multidevice_resnet(env):
     con = env.getConnection()
 
-    model_name_0 = 'imagenet_model1:{{1}}'
-    model_name_1 = 'imagenet_model2:{{1}}'
-    script_name_0 = 'imagenet_script1:{{1}}'
-    script_name_1 = 'imagenet_script2:{{1}}'
+    model_name_0 = 'imagenet_model1:{1}'
+    model_name_1 = 'imagenet_model2:{1}'
+    script_name_0 = 'imagenet_script1:{1}'
+    script_name_1 = 'imagenet_script2:{1}'
     inputvar = 'images'
     outputvar = 'output'
-    image_key = 'image:{{1}}'
-    temp_key1 = 'temp_key1:{{1}}'
+    image_key = 'image:{1}'
+    temp_key1 = 'temp_key1:{1}'
     temp_key2_0 = 'temp_key2_0'
     temp_key2_1 = 'temp_key2_1'
-    class_key_0 = 'output0:{{1}}'
-    class_key_1 = 'output1:{{1}}'
+    class_key_0 = 'output0:{1}'
+    class_key_1 = 'output1:{1}'
 
     model_pb, script, labels, img = load_resnet_test_data()
 
     device_0 = 'CPU:1'
     device_1 = DEVICE
 
-    ret = con.execute_command('AI.MODELSET', model_name_0, 'TF', device_0,
-                              'INPUTS', inputvar,
-                              'OUTPUTS', outputvar,
+    ret = con.execute_command('AI.MODELSTORE', model_name_0, 'TF', device_0,
+                              'INPUTS', 1, inputvar,
+                              'OUTPUTS', 1, outputvar,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSET', model_name_1, 'TF', device_1,
-                              'INPUTS', inputvar,
-                              'OUTPUTS', outputvar,
+    ret = con.execute_command('AI.MODELSTORE', model_name_1, 'TF', device_1,
+                              'INPUTS', 1, inputvar,
+                              'OUTPUTS', 1, outputvar,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)

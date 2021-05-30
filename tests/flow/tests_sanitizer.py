@@ -20,9 +20,9 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
     model_name = 'mobilenet_v1{s}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v1_test_data()
 
-    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-                              'INPUTS', input_var,
-                              'OUTPUTS', output_var,
+    ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
+                              'INPUTS', 1, input_var,
+                              'OUTPUTS', 1, output_var,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -56,9 +56,9 @@ def test_sanitizer_modelrun_mobilenet_v1(env):
     model_name = 'mobilenet_v1{s}'
     model_pb, input_var, output_var, labels, img = load_mobilenet_v1_test_data()
 
-    ret = con.execute_command('AI.MODELSET', model_name, 'TF', DEVICE,
-                              'INPUTS', input_var,
-                              'OUTPUTS', output_var,
+    ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
+                              'INPUTS', 1, input_var,
+                              'OUTPUTS', 1, output_var,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
@@ -73,15 +73,13 @@ def test_sanitizer_modelrun_mobilenet_v1(env):
         env.assertEqual(b'OK', ret)
 
         ret = con.execute_command(
-            'AI.MODELRUN', model_name,
-            'INPUTS', image_key,
-            'OUTPUTS', class_key
+            'AI.MODELEXECUTE', model_name,
+            'INPUTS', 1, image_key,
+            'OUTPUTS', 1, class_key
         )
 
         env.assertEqual(b'OK', ret)
 
-        ret = con.execute_command(
-            'AI.TENSORGET',  class_key, 'blob'
-        )
+        ret = con.execute_command('AI.TENSORGET',  class_key, 'blob')
 
         env.assertEqual(1001.0, len(ret)/4)

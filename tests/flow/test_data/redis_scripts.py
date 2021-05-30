@@ -22,45 +22,53 @@ def redis_hash_to_tensor(redis_value: Any):
     l  = [torch.tensor(int(str(v))).reshape(1,1) for v in values]
     return torch.cat(l, dim=0)
 
-def test_redis_error():
-    redis.execute("SET", "x")
+def test_redis_error(key:str):
+    redis.execute("SET", key)
 
-def test_int_set_get():
-    redis.execute("SET", "x", "1")
-    res = redis.execute("GET", "x",)
-    redis.execute("DEL", "x")
+def test_int_set_get(key:str, value:int):
+    redis.execute("SET", key, str(value))
+    res = redis.execute("GET", key)
+    redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_int_set_incr():
-    redis.execute("SET", "x", "1")
-    res = redis.execute("INCR", "x")
-    redis.execute("DEL", "x")
+def test_int_set_incr(key:str, value:int):
+    redis.execute("SET", key, str(value))
+    res = redis.execute("INCR", key)
+    redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_float_set_get():
-    redis.execute("SET", "x", "1.1")
-    res = redis.execute("GET", "x",)
-    redis.execute("DEL", "x")
+def test_float_set_get(key:str, value:float):
+    redis.execute("SET", key, str(value))
+    res = redis.execute("GET", key)
+    redis.execute("DEL", key)
     return redis_string_float_to_tensor(res)
 
-def test_int_list():
-    redis.execute("RPUSH", "x", "1")
-    redis.execute("RPUSH", "x", "2")
-    res = redis.execute("LRANGE", "x", "0", "2")
-    redis.execute("DEL", "x")
+def test_int_list(key:str, l:List[str]):
+    for value in l:
+        redis.execute("RPUSH", key, value)
+    res = redis.execute("LRANGE", key, "0", str(len(l)))
+    redis.execute("DEL", key)
     return redis_int_list_to_tensor(res)
 
 
-def test_hash():
-    redis.execute("HSET", "x", "field1", "1", "field2", "2")
-    res = redis.execute("HVALS", "x")
-    redis.execute("DEL", "x")
+def test_str_list(key:str, l:List[str]):
+    for value in l:
+        redis.execute("RPUSH", key, value)
+
+
+def test_hash(key:str, l:List[str]):
+    args = [key]
+    for s in l:
+        args.append(s)
+    redis.execute("HSET", args)
+    res = redis.execute("HVALS", key)
+    redis.execute("DEL", key)
     return redis_hash_to_tensor(res)
 
 
-def test_set_key():
-    redis.execute("SET", ["x{1}", "1"])
+def test_set_key(key:str, value:str):
+    redis.execute("SET", [key, value])
 
 
-def test_del_key():
-    redis.execute("DEL", ["x"])
+def test_del_key(key:str):
+    redis.execute("DEL", [key])
