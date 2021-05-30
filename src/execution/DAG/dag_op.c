@@ -42,7 +42,7 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     if (dagOp->outTensor)
         RAI_TensorFree(dagOp->outTensor);
 
-    if(dagOp->ectx) {
+    if (dagOp->ectx) {
         dagOp->ectx->freeFn(dagOp->ectx);
     }
 
@@ -63,4 +63,3 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     array_free(dagOp->outkeys_indices);
     RedisModule_Free(dagOp);
 }
-

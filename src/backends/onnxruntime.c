@@ -471,7 +471,7 @@ error:
     ort->ReleaseStatus(status);
 }
 
-int RAI_ModelRunORT(RAI_Model* model,  RAI_ExecutionCtx **ectxs, RAI_Error *error) {
+int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
     OrtSession *session = RAI_ModelGetSession(model);
@@ -602,7 +602,7 @@ int RAI_ModelRunORT(RAI_Model* model,  RAI_ExecutionCtx **ectxs, RAI_Error *erro
                     goto error;
                 }
                 if (output_tensor) {
-                   RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
+                    RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
                 } else {
                     RedisModule_Log(NULL, "warning",
                                     "non-tensor output from ONNX models, ignoring (currently "

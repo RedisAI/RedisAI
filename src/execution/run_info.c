@@ -149,7 +149,7 @@ RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
-    RAI_ModelRunCtx *mctx = (RAI_ModelRunCtx*)op->ectx;
+    RAI_ModelRunCtx *mctx = (RAI_ModelRunCtx *)op->ectx;
     op->ectx = NULL;
     RAI_FreeRunInfo(rinfo);
     return mctx;
@@ -163,7 +163,7 @@ RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) 
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
-    RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx*)op->ectx;
+    RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)op->ectx;
     op->ectx = NULL;
     RAI_FreeRunInfo(rinfo);
     return sctx;

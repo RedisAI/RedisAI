@@ -22,7 +22,7 @@ void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
 
 inline size_t RAI_ExecutionCtx_NumInputs(RAI_ExecutionCtx *ctx) { return array_len(ctx->inputs); }
 inline void RAI_ExecutionCtx_AddInput(RAI_ExecutionCtx *ctx, RAI_Tensor *t) {
-    if(t != NULL) {
+    if (t != NULL) {
         t = RAI_TensorGetShallowCopy(t);
     }
     ctx->inputs = array_append(ctx->inputs, t);

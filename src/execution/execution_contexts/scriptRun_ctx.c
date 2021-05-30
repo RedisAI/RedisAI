@@ -123,7 +123,7 @@ RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
 }
 
 void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_Free((RAI_ExecutionCtx*)sctx);
+    RAI_ExecutionCtx_Free((RAI_ExecutionCtx *)sctx);
     for (size_t i = 0; i < array_len(sctx->stringInputs); ++i) {
         RedisModule_FreeString(NULL, sctx->stringInputs[i]);
     }
@@ -152,7 +152,7 @@ int RAI_ScriptRun(RAI_ScriptRunCtx *sctx, RAI_Error *err) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return REDISMODULE_ERR;
     }
-    RAI_Script* script = sctx->script;
+    RAI_Script *script = sctx->script;
     return RAI_backends.torch.script_run(script, sctx->fnname, &sctx->base, err);
 }
 
@@ -171,7 +171,7 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
 
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     op->devicestr = sctx->script->devicestr;
-    op->ectx = (RAI_ExecutionCtx*)sctx;
+    op->ectx = (RAI_ExecutionCtx *)sctx;
 
     rinfo->dagOps = array_append(rinfo->dagOps, op);
     rinfo->dagOpCount = 1;

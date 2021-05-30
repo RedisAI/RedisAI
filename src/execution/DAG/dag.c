@@ -171,9 +171,9 @@ void RedisAI_DagRunSession_ModelRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *curr
 
     RAI_ExecutionCtx *ectxs[1];
     ectxs[0] = currentOp->ectx;
-    RAI_Model* model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx*)ectxs[0]);
+    RAI_Model *model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)ectxs[0]);
     const long long start = ustime();
-    int result = RAI_ModelRun((RAI_ModelRunCtx**)ectxs, 1, currentOp->err);
+    int result = RAI_ModelRun((RAI_ModelRunCtx **)ectxs, 1, currentOp->err);
     const long long end = ustime();
 
     currentOp->duration_us = end - start;
@@ -210,9 +210,9 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     }
 
     RAI_Error err = {0};
-    RAI_Model* model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx*)ectxs[0]);
+    RAI_Model *model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)ectxs[0]);
     const long long start = ustime();
-    int result = RAI_ModelRun((RAI_ModelRunCtx**)ectxs, n_rinfo, &err);
+    int result = RAI_ModelRun((RAI_ModelRunCtx **)ectxs, n_rinfo, &err);
     const long long end = ustime();
 
     long long duration = end - start;
@@ -265,7 +265,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
     }
 
     const long long start = ustime();
-    int result = RAI_ScriptRun((RAI_ScriptRunCtx*)currentOp->ectx, currentOp->err);
+    int result = RAI_ScriptRun((RAI_ScriptRunCtx *)currentOp->ectx, currentOp->err);
     const long long end = ustime();
 
     currentOp->result = result;
@@ -319,10 +319,12 @@ size_t RAI_DagOpBatchSize(RAI_DagOp *op, RedisAI_RunInfo *rinfo) {
 bool RAI_DagOpBatchable(RAI_DagOp *op1, RedisAI_RunInfo *rinfo1, RAI_DagOp *op2,
                         RedisAI_RunInfo *rinfo2) {
 
-    RedisModule_Assert(op1->commandType == REDISAI_DAG_CMD_MODELRUN && op2->commandType == REDISAI_DAG_CMD_MODELRUN);
-    RAI_ExecutionCtx* ectx1 = op1->ectx;
-    RAI_ExecutionCtx* ectx2 = op2->ectx;
-    if (RAI_ModelRunCtxGetModel((RAI_ModelRunCtx*)ectx1) != RAI_ModelRunCtxGetModel((RAI_ModelRunCtx*)ectx2)) {
+    RedisModule_Assert(op1->commandType == REDISAI_DAG_CMD_MODELRUN &&
+                       op2->commandType == REDISAI_DAG_CMD_MODELRUN);
+    RAI_ExecutionCtx *ectx1 = op1->ectx;
+    RAI_ExecutionCtx *ectx2 = op2->ectx;
+    if (RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)ectx1) !=
+        RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)ectx2)) {
         return false;
     }
     const int ninputs1 = array_len(op1->inkeys);
@@ -397,11 +399,11 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
     *currentOpReady = false;
     *currentOpBatchable = false;
     RedisModule_Assert(currentOp);
-    if(currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
-        RAI_ModelRunCtx* mctx = (RAI_ModelRunCtx*) currentOp->ectx;
-        RAI_Model* model = RAI_ModelRunCtxGetModel(mctx);
+    if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
+        RAI_ModelRunCtx *mctx = (RAI_ModelRunCtx *)currentOp->ectx;
+        RAI_Model *model = RAI_ModelRunCtxGetModel(mctx);
         // TODO: Remove abstraction break
-        if(model->opts.batchsize >0) {
+        if (model->opts.batchsize > 0) {
             *currentOpBatchable = true;
         }
     }
@@ -432,8 +434,8 @@ void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op, size_t *batch
     *inbatchsize = 0;
     if (op->commandType != REDISAI_DAG_CMD_MODELRUN)
         return;
-    RAI_ModelRunCtx* mctx = (RAI_ModelRunCtx*)op->ectx;
-    RAI_Model* model = RAI_ModelRunCtxGetModel(mctx);
+    RAI_ModelRunCtx *mctx = (RAI_ModelRunCtx *)op->ectx;
+    RAI_Model *model = RAI_ModelRunCtxGetModel(mctx);
 
     // TODO: clear abstraction breaks.
     *batchsize = model->opts.batchsize;

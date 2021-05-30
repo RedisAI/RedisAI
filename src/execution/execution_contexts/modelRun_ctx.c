@@ -8,38 +8,38 @@
 
 RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
-    RAI_ExecutionCtx_Init((RAI_ExecutionCtx*)mctx, (RAI_ExecutionCtx_Free_fn)RAI_ModelRunCtxFree);
+    RAI_ExecutionCtx_Init((RAI_ExecutionCtx *)mctx, (RAI_ExecutionCtx_Free_fn)RAI_ModelRunCtxFree);
     mctx->model = RAI_ModelGetShallowCopy(model);
     return mctx;
 }
 
 int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Tensor *inputTensor) {
-    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx*)mctx, inputTensor);
+    RAI_ExecutionCtx_AddInput((RAI_ExecutionCtx *)mctx, inputTensor);
     return 1;
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
-    RAI_ExecutionCtx_AddOuputPlaceholder((RAI_ExecutionCtx*)mctx);
+    RAI_ExecutionCtx_AddOuputPlaceholder((RAI_ExecutionCtx *)mctx);
 }
 
 inline size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) {
-    return RAI_ExecutionCtx_NumInputs((RAI_ExecutionCtx*)mctx);
+    return RAI_ExecutionCtx_NumInputs((RAI_ExecutionCtx *)mctx);
 }
 
 inline size_t RAI_ModelRunCtxNumOutputs(RAI_ModelRunCtx *mctx) {
-    return RAI_ExecutionCtx_NumOutputs((RAI_ExecutionCtx*)mctx);
+    return RAI_ExecutionCtx_NumOutputs((RAI_ExecutionCtx *)mctx);
 }
 
 inline RAI_Tensor *RAI_ModelRunCtxInputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    return RAI_ExecutionCtx_GetInput((RAI_ExecutionCtx*)mctx, index);
+    return RAI_ExecutionCtx_GetInput((RAI_ExecutionCtx *)mctx, index);
 }
 
 inline RAI_Tensor *RAI_ModelRunCtxOutputTensor(RAI_ModelRunCtx *mctx, size_t index) {
-    return RAI_ExecutionCtx_GetOutput((RAI_ExecutionCtx*)mctx, index);
+    return RAI_ExecutionCtx_GetOutput((RAI_ExecutionCtx *)mctx, index);
 }
 
 void RAI_ModelRunCtxFree(RAI_ModelRunCtx *mctx) {
-    RAI_ExecutionCtx_Free((RAI_ExecutionCtx*)mctx);
+    RAI_ExecutionCtx_Free((RAI_ExecutionCtx *)mctx);
 
     RAI_Error err = {0};
     RAI_ModelFree(mctx->model, &err);
@@ -94,9 +94,9 @@ int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err) {
 
     RAI_ExecutionCtx **ectxs_arr = array_newlen(RAI_ExecutionCtx *, n);
     for (int i = 0; i < n; i++) {
-        ectxs_arr[i] = (RAI_ExecutionCtx*)mctxs[i];
+        ectxs_arr[i] = (RAI_ExecutionCtx *)mctxs[i];
     }
-    RAI_Model* model = RAI_ModelRunCtxGetModel(mctxs[0]);
+    RAI_Model *model = RAI_ModelRunCtxGetModel(mctxs[0]);
     switch (model->backend) {
     case RAI_BACKEND_TENSORFLOW:
         if (!RAI_backends.tf.model_run) {
