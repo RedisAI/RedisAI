@@ -42,7 +42,9 @@ void RAI_FreeDagOp(RAI_DagOp *dagOp) {
     if (dagOp->outTensor)
         RAI_TensorFree(dagOp->outTensor);
 
-    dagOp->ectx->freeFn(dagOp->ectx);
+    if(dagOp->ectx) {
+        dagOp->ectx->freeFn(dagOp->ectx);
+    }
 
     if (dagOp->inkeys) {
         for (size_t i = 0; i < array_len(dagOp->inkeys); i++) {
