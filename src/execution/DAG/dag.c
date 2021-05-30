@@ -397,6 +397,15 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
     *currentOpReady = false;
     *currentOpBatchable = false;
     RedisModule_Assert(currentOp);
+    if(currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
+        RAI_ModelRunCtx* mctx = (RAI_ModelRunCtx*) currentOp->ectx;
+        RAI_Model* model = RAI_ModelRunCtxGetModel(mctx);
+        // TODO: Remove abstraction break
+        if(model->opts.batchsize >0) {
+            *currentOpBatchable = true;
+        }
+    }
+
     *currentOpReady = true;
     // If this is a single op dag, the op is definitely ready.
     if (rinfo->single_op_dag)
@@ -413,15 +422,6 @@ void RedisAI_DagCurrentOpInfo(RedisAI_RunInfo *rinfo, bool *currentOpReady,
         }
     }
     RAI_ContextUnlock(rinfo);
-
-    if(currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
-        RAI_ModelRunCtx* mctx = (RAI_ModelRunCtx*) currentOp->ectx;
-        RAI_Model* model = RAI_ModelRunCtxGetModel(mctx);
-        // TODO: Remove abstraction break
-        if(model->opts.batchsize >0) {
-            *currentOpBatchable = true;
-        }
-    }
 }
 
 void RedisAI_DagOpBatchInfo(RedisAI_RunInfo *rinfo, RAI_DagOp *op, size_t *batchsize,
