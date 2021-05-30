@@ -401,7 +401,7 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
         return 1;
     }
 
-    torchRunScript(script, function, arguments, array_len(arguments), &inputsCtx, outputs, nOutputs,
+    torchRunScript(script->script, function, arguments, array_len(arguments), &inputsCtx, outputs, nOutputs,
                    &error_descr);
 
     if (error_descr) {
