@@ -189,7 +189,7 @@ int RAI_ModelRunTFLite(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *er
     }
 
     char *error_descr = NULL;
-    tfliteRunModel(model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
+    tfliteRunModel(RAI_ModelGetModel(model), ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
     // Always free input tensors after run.
     for (size_t i = 0; i < ninputs; ++i) {
