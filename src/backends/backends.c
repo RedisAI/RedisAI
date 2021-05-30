@@ -22,7 +22,7 @@
 int RAI_GetApi(const char *func_name, void **targetPtrPtr) {
 
     if (strcmp("ThreadIdKey", func_name) == 0) {
-        *targetPtrPtr = GetQueueThreadIdKey;
+        *targetPtrPtr = GetThreadId;
     } else if (strcmp("NumThreadsPerQueue", func_name) == 0) {
         *targetPtrPtr = GetNumThreadsPerQueue;
     } else {
@@ -496,7 +496,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.add_new_device =
-        (int (*)(const char *))(unsigned long)dlsym(handle, "AddDeviceToGlobalRunSessions");
+        (int (*)(const char *))(unsigned long)dlsym(handle, "ExtendGlobalRunSessions");
     if (backend.add_new_device == NULL) {
         dlclose(handle);
         RedisModule_Log(ctx, "warning",

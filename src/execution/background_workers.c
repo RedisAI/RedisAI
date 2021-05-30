@@ -59,25 +59,18 @@ RunQueueInfo *CreateRunQueue(const char *device_str) {
     pthread_mutex_init(&(run_queue_info->run_queue_mutex), NULL);
     run_queue_info->threads =
         (pthread_t *)RedisModule_Alloc(sizeof(pthread_t) * ThreadPoolSizePerQueue);
-    pthread_key_create(&(run_queue_info->thread_id_key), RedisModule_Free);
 
-    // Save device with its associate run queue info in rax.
-    /*todo: this should be protected from parallel writs. can add a lock,
-    or calling this function from main thread only in modelstore command.*/
-    if (raxInsert(RunQueues, (unsigned char *)upper_device_str, device_str_len, run_queue_info,
-                  NULL) != 1) {
+    // Save device with its associate run queue info in the dictionary.
+    if (AI_dictAdd(RunQueues, upper_device_str, run_queue_info) != DICT_OK) {
         RunQueueInfoFree(run_queue_info);
         return NULL;
     }
 
     // Create worker threads.
     for (int i = 0; i < ThreadPoolSizePerQueue; i++) {
-        WorkerThreadInfo *thread_info = RedisModule_Alloc(sizeof(WorkerThreadInfo));
-        thread_info->run_queue_info = run_queue_info;
-        thread_info->id = i;
         if (pthread_create(&(run_queue_info->threads[i]), NULL, RedisAI_Run_ThreadMain,
-                           thread_info) != 0) {
-            raxRemove(RunQueues, (unsigned char *)upper_device_str, device_str_len, NULL);
+                           run_queue_info) != 0) {
+            AI_dictDelete(RunQueues, upper_device_str);
             RunQueueInfoFree(run_queue_info);
             return NULL;
         }
@@ -90,25 +83,27 @@ RunQueueInfo *CreateRunQueue(const char *device_str) {
     return run_queue_info;
 }
 
+RunQueueInfo *GetRunQueueInfo(const char *device_str) {
+    size_t device_str_len = strlen(device_str);
+    char upper_device_str[device_str_len + 1];
+    String_ToUpper(device_str, upper_device_str, &device_str_len);
+    AI_dictEntry *entry = AI_dictFind(RunQueues, upper_device_str);
+    RedisModule_Assert(entry != NULL);
+    return AI_dictGetVal(entry);
+}
+
 bool IsRunQueueExists(const char *device_str) {
     size_t device_str_len = strlen(device_str);
     char upper_device_str[device_str_len + 1];
     String_ToUpper(device_str, upper_device_str, &device_str_len);
-    if (raxFind(RunQueues, (unsigned char *)upper_device_str, device_str_len) == raxNotFound) {
+    if (AI_dictFind(RunQueues, upper_device_str) == NULL) {
         return false;
     }
     return true;
 }
 
-pthread_key_t GetQueueThreadIdKey(const char *device_str) {
-    size_t device_str_len = strlen(device_str);
-    char upper_device_str[device_str_len + 1];
-    String_ToUpper(device_str, upper_device_str, &device_str_len);
-
-    RunQueueInfo *run_queue_info =
-        (RunQueueInfo *)raxFind(RunQueues, (unsigned char *)upper_device_str, device_str_len);
-    RedisModule_Assert(run_queue_info != raxNotFound);
-    return run_queue_info->thread_id_key;
+uintptr_t GetThreadId() {
+    return *(uintptr_t *)pthread_getspecific(thread_id_key);
 }
 
 long long GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
@@ -125,18 +120,16 @@ void RunQueueInfoFree(RunQueueInfo *run_queue_info) {
     }
     pthread_mutex_destroy(&(run_queue_info->run_queue_mutex));
     pthread_cond_destroy(&(run_queue_info->queue_condition_var));
-    pthread_key_delete(run_queue_info->thread_id_key);
     RedisModule_Free(run_queue_info);
 }
 
 /**
- * @brief Save the id for some working thread in thread local storage. Every
- * device has a designated id key saved within its run_queue_info, which is used
- * for storing and retrieving the id in the thread local storage.
+ * @brief Save the id for some working thread in thread local storage.
  */
-static void _SaveThreadId(pthread_key_t thread_id_key, int id) {
-    int *id_value = RedisModule_Alloc(sizeof(int));
-    *id_value = id;
+static void _SaveThreadId() {
+    uintptr_t *id_value = RedisModule_Alloc(sizeof(uintptr_t));
+    // Let the current thread have the next available id, and increase the counter.
+    *id_value = __atomic_fetch_add(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
     pthread_setspecific(thread_id_key, id_value);
 }
 
@@ -330,10 +323,8 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
 }
 
 void *RedisAI_Run_ThreadMain(void *arg) {
-    WorkerThreadInfo *thread_info = (WorkerThreadInfo *)arg;
-    RunQueueInfo *run_queue_info = thread_info->run_queue_info;
-    _SaveThreadId(run_queue_info->thread_id_key, thread_info->id);
-    RedisModule_Free(thread_info);
+    _SaveThreadId();
+    RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
 
     RedisAI_RunInfo **batch_rinfo = array_new(RedisAI_RunInfo *, 1);
     pthread_mutex_lock(&run_queue_info->run_queue_mutex);

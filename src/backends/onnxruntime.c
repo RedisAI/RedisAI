@@ -94,7 +94,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *),
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
 
     // Export RedisAI callbacks.
-    get_api_fn_rai("ThreadIdKey", ((void **)&RedisAI_ThreadIdKey));
+    get_api_fn_rai("ThreadIdKey", ((void **)&RedisAI_ThreadId));
     get_api_fn_rai("NumThreadsPerQueue", ((void **)&RedisAI_NumThreadsPerQueue));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
@@ -569,13 +569,13 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
 
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
-        // Set the created run option in the global RunSessions and return it.
-        OnnxRunSessionCtx *run_session_ctx =
-            SetGetRunSessionCtx(mctxs[0]->model->devicestr, run_options);
+        // Set the created run option in the global RunSessions and save its index.
+        size_t run_session_index;
+        SetRunSessionCtx(run_options, &run_session_index);
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
-        ClearRunSessionCtx(run_session_ctx);
+        ClearRunSessionCtx(run_session_index);
         run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {

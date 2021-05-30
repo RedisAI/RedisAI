@@ -1264,42 +1264,45 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_FreeString(NULL, main_thread_used_cpu_sys);
     RedisModule_FreeString(NULL, main_thread_used_cpu_user);
 
-    raxIterator rax_it;
-    raxStart(&rax_it, RunQueues);
-    raxSeek(&rax_it, "^", NULL, 0);
-    while (raxNext(&rax_it)) {
-        char *queue_name = (char *)rax_it.key;
-        RunQueueInfo *run_queue_info = (RunQueueInfo *)rax_it.data;
-        for (int i = 0; i < ThreadPoolSizePerQueue; i++) {
-            pthread_t current_bg_threads = run_queue_info->threads[i];
-            struct timespec ts;
-            clockid_t cid;
-            RedisModuleString *queue_used_cpu_total = RedisModule_CreateStringPrintf(
-                NULL, "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
-            RedisModuleString *bthread_used_cpu_total = NULL;
+    AI_dictIterator *iter = AI_dictGetSafeIterator(RunQueues);
+    AI_dictEntry *entry = AI_dictNext(iter);
+    while (entry) {
+        char *queue_name = (char *)AI_dictGetKey(entry);
+        RunQueueInfo *run_queue_info = (RunQueueInfo *)AI_dictGetVal(entry);
+        if (run_queue_info) {
+            for (int i = 0; i < ThreadPoolSizePerQueue; i++) {
+                pthread_t current_bg_threads = run_queue_info->threads[i];
+                struct timespec ts;
+                clockid_t cid;
+                RedisModuleString *queue_used_cpu_total = RedisModule_CreateStringPrintf(
+                    NULL, "queue_%s_bthread_n%d_used_cpu_total", queue_name, i + 1);
+                RedisModuleString *bthread_used_cpu_total = NULL;
 #if (!defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)) || defined(_DARWIN_C_SOURCE) ||         \
     defined(__cplusplus)
-            const int status = -1;
+                const int status = -1;
 #else
-            const int status = pthread_getcpuclockid(current_bg_threads, &cid);
+                const int status = pthread_getcpuclockid(current_bg_threads, &cid);
 #endif
-            if (status != 0) {
-                bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
-            } else {
-                if (clock_gettime(cid, &ts) == -1) {
+                if (status != 0) {
                     bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
                 } else {
-                    bthread_used_cpu_total = RedisModule_CreateStringPrintf(
-                        NULL, "%ld.%06ld", (long)ts.tv_sec, (long)(ts.tv_nsec / 1000));
+                    if (clock_gettime(cid, &ts) == -1) {
+                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(NULL, "N/A");
+                    } else {
+                        bthread_used_cpu_total = RedisModule_CreateStringPrintf(
+                            NULL, "%ld.%06ld", (long)ts.tv_sec, (long)(ts.tv_nsec / 1000));
+                    }
                 }
+                RedisModule_InfoAddFieldString(
+                    ctx, (char *)RedisModule_StringPtrLen(queue_used_cpu_total, NULL),
+                    bthread_used_cpu_total);
+                RedisModule_FreeString(NULL, queue_used_cpu_total);
+                RedisModule_FreeString(NULL, bthread_used_cpu_total);
             }
-            RedisModule_InfoAddFieldString(
-                ctx, (char *)RedisModule_StringPtrLen(queue_used_cpu_total, NULL),
-                bthread_used_cpu_total);
-            RedisModule_FreeString(NULL, queue_used_cpu_total);
-            RedisModule_FreeString(NULL, bthread_used_cpu_total);
         }
+        entry = AI_dictNext(iter);
     }
+    AI_dictReleaseIterator(iter);
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -1455,7 +1458,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     RAI_loadTimeConfig(ctx, argv, argc);
 
-    RunQueues = raxNew();
+    RunQueues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    pthread_key_create(&thread_id_key, RedisModule_Free);
     RunQueueInfo *cpu_run_queue_info = CreateRunQueue("CPU");
     if (cpu_run_queue_info == NULL) {
         RedisModule_Log(ctx, "warning", "RedisAI could not initialize run queue for CPU");

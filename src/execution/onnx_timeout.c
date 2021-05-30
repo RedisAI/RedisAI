@@ -17,74 +17,70 @@ static long long _mstime(void) {
 }
 
 int CreateGlobalOnnxRunSessions() {
-    OnnxRunSessions = raxNew();
-    if (OnnxRunSessions == NULL) {
-        return REDISMODULE_ERR;
-    }
-    return AddDeviceToGlobalRunSessions("CPU");
+    onnx_global_run_sessions = RedisModule_Alloc(sizeof(struct OnnxGlobalRunSessions));
+    OnnxRunSessionCtx **onnx_run_sessions =
+      array_new(OnnxRunSessionCtx *, RedisAI_NumThreadsPerQueue());
+    onnx_global_run_sessions->OnnxRunSessions = onnx_run_sessions;
+    pthread_rwlock_init(&(onnx_global_run_sessions->rwlock), NULL);
+    return ExtendGlobalRunSessions("CPU");  // Add entries for CPU threads.
 }
 
-int AddDeviceToGlobalRunSessions(const char *device) {
+int ExtendGlobalRunSessions(const char *device_str) {
 
+    // Acquire write lock, as we might reallocate the array while extending it.
+    pthread_rwlock_wrlock(&(onnx_global_run_sessions->rwlock));
+    OnnxRunSessionCtx **run_sessions_array = onnx_global_run_sessions->OnnxRunSessions;
+
+    // Extend the array with an entry for every working thread on the new device, initialized to NULL.
     size_t size = RedisAI_NumThreadsPerQueue();
-    // Create array with an entry for every working thread, initialized to NULL.
-    OnnxRunSessionCtx **device_run_sessions = array_new(OnnxRunSessionCtx *, size);
     for (size_t i = 0; i < size; i++) {
         OnnxRunSessionCtx *entry = RedisModule_Calloc(1, sizeof(OnnxRunSessionCtx));
-        device_run_sessions = array_append(device_run_sessions, entry);
+        run_sessions_array = array_append(run_sessions_array, entry);
     }
-    // Add the array to the global rax that holds onnx run sessions per device.
-    size_t device_str_len = strlen(device);
-    char upper_device_str[device_str_len + 1];
-    String_ToUpper(device, upper_device_str, &device_str_len);
-    if (raxInsert(OnnxRunSessions, (unsigned char *)upper_device_str, device_str_len,
-                  device_run_sessions, NULL) != 1) {
-        return REDISMODULE_ERR;
-    }
+    pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
     return REDISMODULE_OK;
 }
 
 void OnnxEnforceTimeoutCallback(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
                                 void *data) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-
-    raxIterator rax_it;
-    raxStart(&rax_it, OnnxRunSessions);
-    raxSeek(&rax_it, "^", NULL, 0);
-
-    // Go over all the possible existing run sessions for every device.
-    while (raxNext(&rax_it)) {
-        OnnxRunSessionCtx **onnx_run_sessions_per_device = rax_it.data;
-        size_t threads_per_device = array_len(onnx_run_sessions_per_device);
-        for (size_t i = 0; i < threads_per_device; i++) {
-            if (onnx_run_sessions_per_device[i]->runOptions == NULL) {
-                continue;
-            }
-            long long curr_time = _mstime();
-            // Check if a sessions is running for too long, and kill it if so.
-            if (curr_time - onnx_run_sessions_per_device[i]->queuingTime > ONNX_MAX_RUNTIME) {
-                ort->RunOptionsSetTerminate(onnx_run_sessions_per_device[i]->runOptions);
-            }
+    pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
+    OnnxRunSessionCtx **run_sessions_ctx = onnx_global_run_sessions->OnnxRunSessions;
+    size_t len = array_len(run_sessions_ctx);
+    for (size_t i = 0; i < len; i++) {
+        if (run_sessions_ctx[i]->runOptions == NULL) {
+            continue;
+        }
+        long long curr_time = _mstime();
+        // Check if a sessions is running for too long, and kill it if so.
+        if (curr_time - run_sessions_ctx[i]->queuingTime > ONNX_MAX_RUNTIME) {
+            ort->RunOptionsSetTerminate(run_sessions_ctx[i]->runOptions);
         }
     }
+    pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-OnnxRunSessionCtx *SetGetRunSessionCtx(const char *device, OrtRunOptions *new_run_options) {
+void SetRunSessionCtx(OrtRunOptions *new_run_options,
+  size_t *run_session_index) {
 
-    int *thread_ind = (int *)pthread_getspecific(RedisAI_ThreadIdKey());
+    pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
+    // Get the thread index (which is the correspondent index in the global sessions array).
+    *run_session_index = (size_t)RedisAI_ThreadId();
+    OnnxRunSessionCtx *entry =
+      onnx_global_run_sessions->OnnxRunSessions[*run_session_index];
+    RedisModule_Assert(entry->runOptions == NULL);
 
-    OnnxRunSessionCtx **device_run_sessions =
-        raxFind(OnnxRunSessions, (unsigned char *)device, strlen(device));
-    RedisModule_Assert(device_run_sessions != raxNotFound);
-    RedisModule_Assert(device_run_sessions[*thread_ind]->runOptions == NULL);
-
-    device_run_sessions[*thread_ind]->runOptions = new_run_options;
-    device_run_sessions[*thread_ind]->queuingTime = _mstime();
-    return device_run_sessions[*thread_ind];
+    // Update the entry with the current session data.
+    entry->runOptions = new_run_options;
+    entry->queuingTime = _mstime();
+    pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void ClearRunSessionCtx(OnnxRunSessionCtx *run_session_ctx) {
+void ClearRunSessionCtx(size_t run_session_index) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    ort->ReleaseRunOptions(run_session_ctx->runOptions);
-    run_session_ctx->runOptions = NULL;
+    pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
+    OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[run_session_index];
+    ort->ReleaseRunOptions(entry->runOptions);
+    entry->runOptions = NULL;
+    pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }

@@ -30,22 +30,18 @@
 #include "util/rax.h"
 #include "util/queue.h"
 
-rax *RunQueues;
+AI_dict *RunQueues;
 long long ThreadPoolSizePerQueue;
+uintptr_t BGWorkersCounter;
+pthread_key_t thread_id_key; // A key for getting the thread id from its local storage.
 
 typedef struct RunQueueInfo {
     pthread_mutex_t run_queue_mutex;
     pthread_cond_t queue_condition_var;
     queue *run_queue;
     pthread_t *threads;
-    pthread_key_t thread_id_key; // A key for getting the thread id from its local storage.
     char *device_str;
 } RunQueueInfo;
-
-typedef struct WorkerThreadInfo {
-    RunQueueInfo *run_queue_info;
-    int id;
-} WorkerThreadInfo;
 
 void RunQueueInfoFree(RunQueueInfo *info);
 
@@ -53,6 +49,8 @@ RunQueueInfo *CreateRunQueue(const char *device_str);
 
 bool IsRunQueueExists(const char *device_str);
 
-pthread_key_t GetQueueThreadIdKey(const char *device_str);
+RunQueueInfo *GetRunQueueInfo(const char *device_str);
+
+uintptr_t GetThreadId(void);
 
 long long GetNumThreadsPerQueue(void);
