@@ -115,7 +115,7 @@ inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
 }
 
 inline size_t RAI_ScriptRunCtxNumOutputs(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_NumOutputs(&sctx->base);
+    return RAI_ExecutionCtx_NumOutputs(&sctx->base);
 }
 
 RAI_Tensor *RAI_ScriptRunCtxOutputTensor(RAI_ScriptRunCtx *sctx, size_t index) {
