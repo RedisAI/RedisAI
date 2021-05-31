@@ -8,7 +8,7 @@ python -m RLTest --test tests_common.py --module path/to/redisai.so
 
 
 def test_common_tensorset(env):
-    con = get_dedicated_connection(env, '{0}')
+    con = env.getConnection()
 
     tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
     for datatype in tested_datatypes:
@@ -36,20 +36,20 @@ def test_common_tensorset(env):
 
 
 def test_common_tensorset_error_replies(env):
-    con = get_dedicated_connection(env, '{1}')
+    con = env.getConnection()
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     sample_filename = os.path.join(test_data_path, 'one.raw')
 
     with open(sample_filename, 'rb') as f:
         sample_raw = f.read()
 
-    ret = con.execute_command('AI.TENSORSET', 'sample_raw_ok{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'sample_raw_ok', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:
-        con.execute_command('SET','non-tensor{1}','value')
-        con.execute_command('AI.TENSORSET', 'non-tensor{1}', 'INT32', 2, 'unsupported', 2, 3)
+        con.execute_command('SET','non-tensor','value')
+        con.execute_command('AI.TENSORSET', 'non-tensor', 'INT32', 2, 'unsupported', 2, 3)
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -58,7 +58,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR invalid data type
     try:
-        con.execute_command('AI.TENSORSET', 'z{1}', 'INT128', 2, 'VALUES', 2, 3)
+        con.execute_command('AI.TENSORSET', 'z', 'INT128', 2, 'VALUES', 2, 3)
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -67,7 +67,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR invalid or negative value found in tensor shape
     try:
-        con.execute_command('AI.TENSORSET', 'z{1}', 'INT32', -1, 'VALUES', 2, 3)
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', -1, 'VALUES', 2, 3)
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -76,7 +76,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR invalid argument found in tensor shape
     try:
-        con.execute_command('AI.TENSORSET', 'z{1}', 'INT32', 2, 'unsupported', 2, 3)
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'unsupported', 2, 3)
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -85,7 +85,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR invalid value
     try:
-        con.execute_command('AI.TENSORSET', 'z{1}', 'FLOAT', 2, 'VALUES', 2, 'A')
+        con.execute_command('AI.TENSORSET', 'z', 'FLOAT', 2, 'VALUES', 2, 'A')
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -94,7 +94,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR invalid value
     try:
-        con.execute_command('AI.TENSORSET', 'z{1}', 'INT32', 2, 'VALUES', 2, 'A')
+        con.execute_command('AI.TENSORSET', 'z', 'INT32', 2, 'VALUES', 2, 'A')
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -109,35 +109,35 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.TENSORSET', 'y{1}', 'FLOAT')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT')
         env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.TENSORSET', 'y{1}', 'FLOAT', 2, 'VALUES')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES')
         env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.TENSORSET', 'y{1}', 'FLOAT', 2, 'VALUES', 1)
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', 1)
         env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.TENSORSET', 'y{1}', 'FLOAT', 2, 'VALUES', '1')
+        con.execute_command('AI.TENSORSET', 'y', 'FLOAT', 2, 'VALUES', '1')
         env.assertFalse(True)
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
 
     try:
-        con.execute_command('AI.TENSORSET', 'blob_tensor_moreargs{1}', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
+        con.execute_command('AI.TENSORSET', 'blob_tensor_moreargs', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -145,7 +145,7 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command", exception.__str__())
 
     try:
-        con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs{1}', 'FLOAT', 2, 'BLOB')
+        con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs', 'FLOAT', 2, 'BLOB')
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -154,7 +154,7 @@ def test_common_tensorset_error_replies(env):
 
     # ERR data length does not match tensor shape and type
     try:
-        con.execute_command('AI.TENSORSET', 'sample_raw_wrong_blob_for_dim{1}', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
+        con.execute_command('AI.TENSORSET', 'sample_raw_wrong_blob_for_dim', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
         env.assertFalse(True)
     except Exception as e:
         exception = e
@@ -163,7 +163,7 @@ def test_common_tensorset_error_replies(env):
 
 
 def test_common_tensorget(env):
-    con = get_dedicated_connection(env, '{0}')
+    con = env.getConnection()
     tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
     tested_datatypes_fp = ["FLOAT", "DOUBLE"]
     tested_datatypes_int = ["INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
@@ -225,11 +225,11 @@ def test_common_tensorget(env):
 
 
 def test_common_tensorget_error_replies(env):
-    con = get_dedicated_connection(env, '{1}')
+    con = env.getConnection()
 
     # ERR tensor key is empty
     try:
-        con.execute_command('AI.TENSORGET', 'empty{1}', 'unsupported')
+        con.execute_command('AI.TENSORGET', 'empty', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -237,18 +237,18 @@ def test_common_tensorget_error_replies(env):
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
     try:
-        con.execute_command('SET', 'non-tensor{1}', 'value')
-        con.execute_command('AI.TENSORGET', 'non-tensor{1}', 'unsupported')
+        con.execute_command('SET', 'non-tensor', 'value')
+        con.execute_command('AI.TENSORGET', 'non-tensor', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
 
     # ERR unsupported data format
-    ret = con.execute_command('AI.TENSORSET{1}', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)
+    ret = con.execute_command('AI.TENSORSET', "T_FLOAT", "FLOAT", 2, 'VALUES', 1, 1)
     env.assertEqual(ret, b'OK')
     try:
-        con.execute_command('AI.TENSORGET{1}', 'T_FLOAT', 'unsupported')
+        con.execute_command('AI.TENSORGET', 'T_FLOAT', 'unsupported')
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
@@ -256,13 +256,12 @@ def test_common_tensorget_error_replies(env):
 
 
 def test_common_tensorset_multiproc(env):
-    
     run_test_multiproc(env, 10,
-                       lambda env: env.execute_command('AI.TENSORSET', 'x{1}', 'FLOAT', 2, 'VALUES', 2, 3))
+                       lambda env: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
 
-    con = get_dedicated_connection(env, '{1}')
+    con = env.getConnection()
     ensureSlaveSynced(con, env)
-    values = con.execute_command('AI.TENSORGET', 'x{1}', 'VALUES')
+    values = con.execute_command('AI.TENSORGET', 'x', 'VALUES')
     env.assertEqual(values, [b'2', b'3'])
 
 
