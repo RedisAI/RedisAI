@@ -25,18 +25,17 @@
 
 extern RedisModuleType *RedisAI_TensorType;
 
-
 // Check if the given value is in the range of the tensor type.
 bool _ValOverflow(long long val, RAI_Tensor *t) {
     DLDataType dtype = t->tensor.dl_tensor.dtype;
     if (dtype.code == kDLInt) {
-        uint max_abs_val = (uint) 1 << (uint) (dtype.bits - 1);
-        if (val >= (long long)max_abs_val || val <= (long long) -1 * max_abs_val) {
+        uint max_abs_val = (uint)1 << (uint)(dtype.bits - 1);
+        if (val >= (long long)max_abs_val || val <= (long long)-1 * max_abs_val) {
             return true;
         }
     } else if (dtype.code == kDLUInt) {
-        uint max_val = (uint) 1 << dtype.bits;
-        if(val >= max_val || val < 0) {
+        uint max_val = (uint)1 << dtype.bits;
+        if (val >= max_val || val < 0) {
             return true;
         }
     }
@@ -443,7 +442,7 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         case 1:
             // If the val is 1, set the corresponding bit.
             if (val % 2) {
-                ((uint8_t *)data)[i/8] |= ((uint)val << (uint)(i%8));
+                ((uint8_t *)data)[i / 8] |= ((uint)val << (uint)(i % 8));
             }
             break;
         case 8:
@@ -536,7 +535,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
         case 1:
-            *val = (((uint8_t *)data)[i/8] >> (uint)(i%8)) % 2;
+            *val = (((uint8_t *)data)[i / 8] >> (uint)(i % 8)) % 2;
             break;
         case 8:
             *val = ((uint8_t *)data)[i];

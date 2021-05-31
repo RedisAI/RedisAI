@@ -101,6 +101,24 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(exception.__str__(), "invalid value")
 
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'BOOL', 2, 'VALUES', 1, 2)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT8', 2, 'VALUES', -1, -128)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
     try:
         con.execute_command('AI.TENSORSET', 1)
         env.assertFalse(True)
@@ -205,10 +223,7 @@ def test_common_tensorget(env):
         if datatype in tested_datatypes_fp:
             env.assertEqual([b'1', b'1'], tensor_values)
         if datatype in tested_datatypes_int:
-            if datatype == "BOOL":
-                env.assertEqual([1, 1], tensor_values)
-            else:
-                env.assertEqual([1, 1], tensor_values)
+            env.assertEqual([1, 1], tensor_values)
 
     # Confirm that the output is the expected for BLOB
     for datatype in tested_datatypes:
