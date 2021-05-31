@@ -510,7 +510,7 @@ workflows:
       - lint:
           <<: *on-any-branch
       - build-and-test:
-          <<: *on-any-branch-but-tags
+          <<: *on-any-branch
           <<: *after-linter
       - platforms-build:
           <<: *after-build-and-test
