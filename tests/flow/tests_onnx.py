@@ -463,3 +463,15 @@ def test_onnx_use_custom_allocator_with_GPU(env):
                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 11)
 
+
+def test_onnx_kill_switch(env):
+    con = env.getConnection()
+    model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
+    env.assertEqual(ret, b'OK')
+    model = con.execute_command('AI.MODELGET', 'm{1}', 'META', 'BLOB')
+    env.debugPrint(str(model), force=True)
+
+    # Set tensors according to the model inputs
+
+    ret = con.execute_command('AI.TENSORSET', 'in{1}', 'int64', DEVICE, 'BLOB', model_with_inf_loop)
