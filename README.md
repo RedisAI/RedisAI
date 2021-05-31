@@ -96,6 +96,8 @@ ALL=1 make -C opt clean build
 
 Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
 
+[See this document](docs/developer-backends.md) for building AI backends.
+
 ### Running the server
 
 You will need a redis-server version 5.0.7 or greater. This should be

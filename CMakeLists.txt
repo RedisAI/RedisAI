@@ -141,14 +141,25 @@ ENDIF()
 #----------------------------------------------------------------------------------------------
 
 IF(BUILD_TFLITE)
-    FIND_LIBRARY(TFLITE_LIBRARIES_1 NAMES tensorflow-lite
+    FIND_LIBRARY(TFLITE_LIBRARIES_1 NAMES tensorflowlite
             PATHS ${depsAbs}/libtensorflow-lite/lib)
-    FIND_LIBRARY(TFLITE_LIBRARIES_2 NAMES benchmark-lib.a
+    IF (${DEVICE} STREQUAL "gpu")
+        FIND_LIBRARY(TFLITE_LIBRARIES_2 NAMES tensorflowlite_gpu_delegate
             PATHS ${depsAbs}/libtensorflow-lite/lib)
-    SET(TFLITE_LIBRARIES ${TFLITE_LIBRARIES_1} ${TFLITE_LIBRARIES_2})
-    MESSAGE(STATUS "Found TensorFlow Lite Libraries: \"${TFLITE_LIBRARIES}\")")
+        IF (NOT APPLE)
+	    FIND_LIBRARY(OPENGL_LIBRARIES NAMES GL
+		PATHS /usr/lib/${MACH}-linux-gnu)
+	    FIND_LIBRARY(EGL_LIBRARIES NAMES EGL
+		PATHS /usr/lib/${MACH}-linux-gnu)
+        ELSE()
+		MESSAGE(FATAL_ERROR "Build for TensorFlow Lite GPU backend on Apple machines.")
+        ENDIF()
+    ENDIF()
+    SET(TFLITE_LIBRARIES ${TFLITE_LIBRARIES_1} ${TFLITE_LIBRARIES_2} ${OPENGL_LIBRARIES} ${EGL_LIBRARIES})
     IF (NOT TFLITE_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find TensorFlow Lite")
+    ELSE()
+        MESSAGE(STATUS "Found TensorFlow Lite Libraries: \"${TFLITE_LIBRARIES}\")")
     ENDIF()
     IF (${DEVICE} STREQUAL "gpu")
         ADD_DEFINITIONS(-DRAI_TFLITE_USE_CUDA)
@@ -205,6 +216,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(src)
 ADD_SUBDIRECTORY(tests/module)
+
 ADD_LIBRARY(redisai SHARED $<TARGET_OBJECTS:redisai_obj>)
 
 TARGET_LINK_LIBRARIES(redisai ${CMAKE_DL_LIBS})

@@ -145,7 +145,7 @@ fi # WITH_TF
 
 ################################################################################# LIBTFLITE
 
-TFLITE_VERSION="2.0.0"
+TFLITE_VERSION="2.4.1"
 
 if [[ $WITH_TFLITE != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTFLITE
@@ -156,18 +156,16 @@ if [[ $WITH_TFLITE != 0 ]]; then
 		LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 		if [[ $OS == linux ]]; then
 			TFLITE_OS="linux"
-			# if [[ $GPU != 1 ]]; then
-			# 	TFLITE_BUILD="cpu"
-			# else
-			# 	TFLITE_BUILD="gpu"
-			# fi
+			 if [[ $GPU != 1 ]]; then
+			 	TFLITE_PLATFORM="cpu"
+			 else
+			 	TFLITE_PLATFORM="cuda"
+			 fi
 
 			if [[ $ARCH == x64 ]]; then
 				TFLITE_ARCH=x86_64
 			elif [[ $ARCH == arm64v8 ]]; then
 				TFLITE_ARCH=arm64
-			elif [[ $ARCH == arm32v7 ]]; then
-				TFLITE_ARCH=arm
 			fi
 		elif [[ $OS == macos ]]; then
 			TFLITE_OS=darwin
@@ -175,7 +173,7 @@ if [[ $WITH_TFLITE != 0 ]]; then
 			TFLITE_ARCH=x86_64
 		fi
 
-		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
+		LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_PLATFORM}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 
 		[[ ! -f $LIBTFLITE_ARCHIVE || $FORCE == 1 ]] && wget -q $LIBTF_URL_BASE/$LIBTFLITE_ARCHIVE
 
