@@ -30,7 +30,7 @@ fi
 export RS_MODULE=RedisAI
 export RS_MODULE_LC=${RS_MODULE,,}
 export RS_MODULE_FILE_PREFIX=redisai-cpu
-export VARIANT=${VARIANT}
+export VARIANT=${VARIANT}  # for variants such as RedisAILite. We append -lite (see circleci for an example)
 
 if [[ -z $QA_AUTOMATION_TOKEN && $NOP != 1 ]]; then
 	echo "Variable QA_AUTOMATION_TOKEN is undefined." >&2
@@ -90,10 +90,12 @@ run_test() {
 }
 
 rc=0
+# By default we use RS_VERSIONS, but with variants they may need to specify their own redis verisons, hence this file
+VERSIONFILE=${HERE}/RS_VERSIONS${VARIANT}
 if [[ $QUICK == 1 ]]; then
-	RS_VERSIONS=$(cat $HERE/RS_VERSIONS | head -1)
+	RS_VERSIONS=$(cat $VERSIONFILE | head -1)
 else
-	RS_VERSIONS=$(cat $HERE/RS_VERSIONS)
+    RS_VERSIONS=$(cat $VERSIONFILE)
 fi
 for RS_VERSION in $RS_VERSIONS; do
 	run_test $RS_VERSION
