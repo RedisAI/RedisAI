@@ -5,6 +5,7 @@
 #include <execution/onnx_timeout.h>
 #include "execution/background_workers.h"
 #include <pthread.h>
+#include <math.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
@@ -157,6 +158,8 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
+        case 1:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
         case 8:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8;
         case 16:
@@ -186,6 +189,8 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
         return (DLDataType){.code = kDLUInt, .bits = 8, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
+        return (DLDataType){.code = kDLUInt, .bits = 1, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
@@ -293,7 +298,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         size_t elem_count;
         ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
 
-        const size_t len = dtype.bits * elem_count / 8;
+        const size_t len = ceil((double)dtype.bits * elem_count / 8);
         const size_t total_bytesize = len * sizeof(char);
         const size_t sample_bytesize = total_bytesize / total_batch_size;
         const size_t batch_bytesize = sample_bytesize * batch_size;
@@ -520,6 +525,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     array_new_on_stack(OrtValue *, 5, inputs);
     array_new_on_stack(OrtValue *, 5, outputs);
     OrtRunOptions *run_options = NULL;
+    size_t run_session_index;
     OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
@@ -569,7 +575,6 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
         // Set the created run option in the global RunSessions and save its index.
-        size_t run_session_index;
         SetRunSessionCtx(run_options, &run_session_index);
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
@@ -664,7 +669,7 @@ error:
         ort->ReleaseTensorTypeAndShapeInfo(info);
     }
     if (run_options) {
-        ort->ReleaseRunOptions(run_options);
+        ClearRunSessionCtx(run_session_index);
     }
     return REDISMODULE_ERR;
 }

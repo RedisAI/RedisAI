@@ -29,8 +29,8 @@ extern RedisModuleType *RedisAI_TensorType;
 bool _ValOverflow(long long val, RAI_Tensor *t) {
     DLDataType dtype = t->tensor.dl_tensor.dtype;
     if (dtype.code == kDLInt) {
-        uint max_abs_val = (uint)1 << (uint)(dtype.bits - 1);
-        if (val >= (long long)max_abs_val || val <= (long long)-1 * max_abs_val) {
+        unsigned long long max_abs_val = (unsigned long long)1 << (uint)(dtype.bits - 1);
+        if (val >= max_abs_val || val <= -1 * (long long) max_abs_val) {
             return true;
         }
     } else if (dtype.code == kDLUInt) {
