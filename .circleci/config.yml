@@ -43,6 +43,19 @@ commands:
               circleci step halt
             fi
 
+  only_run_if_forked_pull_request:
+    description: >-
+      If this build is from an internal (i.e not a forked) pull request, then end early.
+      This is required when we want different behaviours for external, versus internal PRs.
+    steps:
+      - run:
+          name: Return early if not a forked pull request
+          command: |
+            if [[ ! -n "$CIRCLE_PR_NUMBER" ]]; then
+              echo "Not a forked PR so marking as successfull and exiting"
+              circleci step halt
+            fi
+
   relocate-docker-storage:
     steps:
       - run:
@@ -126,6 +139,64 @@ commands:
             - artifacts/*.tar
       - store_artifacts:
           path: tests/logs
+
+  valgrind-general-steps:
+    parameters:
+      test_args:
+        type: string
+        default: "CLUSTER=0 AOF=0"
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - checkout-all
+      - restore_cache:
+          keys:
+          - build-dependencies-{{ checksum "get_deps.sh" }}
+          # If no exact match is found will get dependencies from source
+      - setup-build-system
+      - run:
+          name: Install dependencies
+          command: |
+            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
+            ./get_deps.sh cpu
+      - run:
+          name: Build for valgrind
+          command: |
+            make -C opt all VALGRIND=1 SHOW=1
+      - run:
+          name: Test with valgrind
+          command: |
+            make -C opt test VALGRIND=1 <<parameters.test_args>>
+          no_output_timeout: 120m
+
+  build-and-test-gpu-steps:
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - checkout-all
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
+      - run:
+          name: Build
+          command: |
+            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
+      - run:
+          name: Test
+          command: |
+            mkdir -p $HOME/tests
+            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
+          no_output_timeout: 40m
+      - store_artifacts:
+          path: tests/logs
+
+
 
 jobs:
   lint:
@@ -245,37 +316,18 @@ jobs:
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
 
-  valgrind-general:
-    parameters:
-      test_args:
-        type: string
-        default: "CLUSTER=0 AOF=0"
+  valgrind-general-for-forked-prs:
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
-      - abort_for_docs
-      - abort_for_noci
-      - early_return_for_forked_pull_requests
-      - checkout-all
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-build-system
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind
-          command: |
-            make -C opt test VALGRIND=1 <<parameters.test_args>>
-          no_output_timeout: 120m
+      - only_run_if_forked_pull_request
+      - valgrind-general-steps
+
+  valgrind-general:
+    docker:
+      - image: redisfab/rmbuilder:6.2.1-x64-buster
+    steps:
+      - valgrind-general-steps
 
 #  build-macos:
 #    macos:
@@ -316,6 +368,8 @@ jobs:
 #            make build
 #            sudo make publish
 
+  # internal PRs execute build-and-test either in a workflow or
+  # via a github action trigger
   build-and-test-gpu:
     machine:
       enabled: true
@@ -324,30 +378,20 @@ jobs:
       image: ubuntu-1604-cuda-11.1:202012-01
 
     steps:
-      - abort_for_docs
-      - abort_for_noci
-      - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-      - run:
-          name: Build
-          command: |
-            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
-      - run:
-          name: Test
-          command: |
-            mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 40m
-      - store_artifacts:
-          path: tests/logs
+      - build-and-test-gpu-steps
+
+  # in the case of a forked PR, we want to run the GPU steps
+  # hence we check if we're forked, explicitly
+  build-and-test-gpu-for-forked-prs:
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: gpu.nvidia.small
+      image: ubuntu-1604-cuda-11.1:202012-01
+
+    steps:
+      - only_run_if_forked_pull_request
+      - build-and-test-gpu-steps
 
   deploy-artifacts:
     parameters:
@@ -414,6 +458,10 @@ jobs:
       - run:
           name: Run QA Automation
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
+      - run:
+          name: Run QA Automation (AILite)
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
+
 
   nightly-automation:
     docker:
@@ -424,7 +472,9 @@ jobs:
       - run:
           name: Run QA Automation
           command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
-
+      - run:
+          name: Run QA Automation (AILite)
+          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly VARIANT=lite QUICK=1 ./tests/qa/run
 
 on-any-branch: &on-any-branch
   filters:
@@ -512,6 +562,12 @@ workflows:
       - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
+      - build-and-test-gpu:
+          <<: *on-integ-branch
+          <<: *after-linter
+      - build-and-test-gpu-for-forked-prs:
+          <<: *on-any-branch
+          <<: *after-linter
       - platforms-build:
           <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
@@ -530,6 +586,9 @@ workflows:
           context: common
           <<: *on-dev-branches
           <<: *after-linter
+      - valgrind-general-for-forked-prs:
+          <<: *on-any-branch
+          <<: *after-linter
       - valgrind:
           name: valgrind-cluster
           test_args: GEN=0 AOF=0
@@ -538,9 +597,6 @@ workflows:
       - valgrind:
           name: valgrind-aof
           test_args: GEN=0 CLUSTER=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - build-and-test-gpu:
           <<: *on-integ-branch
           <<: *after-linter
       - deploy-snapshot:
