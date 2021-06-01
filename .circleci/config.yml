@@ -414,6 +414,10 @@ jobs:
       - run:
           name: Run QA Automation
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
+      - run:
+          name: Run QA Automation (AILite)
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
+
 
   nightly-automation:
     docker:
@@ -424,7 +428,9 @@ jobs:
       - run:
           name: Run QA Automation
           command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
-
+      - run:
+          name: Run QA Automation (AILite)
+          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly VARIANT=lite QUICK=1 ./tests/qa/run
 
 on-any-branch: &on-any-branch
   filters:
