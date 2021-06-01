@@ -106,28 +106,67 @@ Within the `backends` folder you will find the implementations code required to 
 * **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
 
 ## Building and Testing
+
 You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that.
 
-**Configuring the build environment**
+### Configring your system
 
-Detailed instructions on configuring your build environment can be found in the [system-setup.py file](https://github.com/RedisAI/RedisAI/blob/master/opt/system-setup.py).  This script will install dependencies for building RedisAI - and is the recommended way of installing build dependencies.
+**Building in a docker (x86_64)**
 
-Alternatively, the RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. As per the example below, try running an Ubuntu 18.04 docker, with the RedisAI source code mounted in /build, run the following command. Note: This should be run from the root of the repository, and it is assumed that docker is installed.
+The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules.
 
-```docker run -v `pwd`:/build -t ubuntu:bionic bash```
+```
+git clone --recursive https://github.com/RedisAI/RedisAI
+cd RedisAI
+docker build -t redisai:latest -f Dockerfile --build-arg OSNICK=bionic OS=ubuntu:18.04 .
+```
 
-On x86 based Linuxes, RedisAI builds on Ubuntu 16.04, Ubuntu 18.04, and Debian buster. On Arm-based Linuxes, the Nvidia dockers from the [nvidia cuda project](https://hub.docker.com/r/nvidia/cuda) are the baseline.
+After this, you can run the create docker and mount your source code with the following command, from within the RedisAI folder.
 
-Currently, the following dependencies are required:
+```
+docker run `pwd`:/build -it redisai:latest bash
+```
 
-* [CMake > 3.15](https://github.com/Kitware/CMake/releases)
-* GCC > 6.x , but < 10
-* unzip and patch - These are needed by get_deps as documented in the [quickstart](quickstart.md#building-and-running)
-* [NetworkX](https://networkx.org/)
-* [numpy](https://pypi.org/project/numpy/)
-* [OpenBLAS](https://www.openblas.net/)
+Continue to edit files on your local machine, and rebuild as needed within the docker, by running the command below, from */build* in the docker:
 
-If you intend on running memory tests, please install valgrind.
+```make -C opt```
+
+**Building on bare metal**
+
+The instructions below apply to **Ubuntu 18.04 only**. RedisAI can be built on other platforms, as documented is the [system-setup.py file](https://github.com/RedisAI/RedisAI/blob/master/opt/system-setup.py).  This assumes that you're cloning the RedisAI repository.
+
+```
+git clone --recursive https://github.com/RedisAI/RedisAI
+cd RedisAI
+sudo apt-get -qq update -y
+sudo apt-get -qq install -y \
+    build-essential \
+     ca-certificates curl wget unzip patchelf  \
+    coreutils gawk libssl-dev python3-regex \
+    python3-networks python3-numpy libopenblas-dev libmpich-dev \
+sudo /usr/bin/python3  -m pip install --disable-pip-version-check wheel
+set -e; d=$(mktemp -d /tmp/git-lfs.XXXXXX); mkdir -p $d; wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.12.1/git-lfs-linux-amd64-v2.12.1.tar.gz -O $d/git-lfs.tar.gz; (cd $d; tar xf git-lfs.tar.gz); $d/install.sh; rm -rf $d
+sudo apt-get -qq install -y valgrind
+wget -q -O /usr/local/bin/clang-format-10 https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-22538c65/clang-format-10_linux-amd64
+sudo chmod +x /usr/local/bin/clang-format-10
+sudo ln -sf /usr/local/bin/clang-format-10 /usr/local/bin/clang-format
+url=https://github.com/Kitware/CMake/releases/download/v3.19.5/cmake-3.19.5-`uname`-`uname -m`.sh; wget -q -O /tmp/cmake.sh $url; sudo sh /tmp/cmake.sh --skip-license --prefix=/usr/local; rm -f /tmp/cmake.s
+```
+**Building on bare metal, with build scripts**
+
+These instructions apply to **Ubuntu 16.04 and 18.04**. RedisAI can be built on other platforms, but these ar ethe supported Platforms. This assumes you're cloning the RedisAI repository.
+
+```
+git clone --recursive https://github.com/RedisAI/RedisAI
+cd RedisAI
+sudo ./opt/system-setup.py
+```
+
+**Building**
+
+To compile RedisAI, run *make -C opt*, from the root of the repository.
+
+### Testing
 
 **Running Tests**
 
