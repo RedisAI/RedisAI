@@ -18,7 +18,10 @@ long long backends_intra_op_parallelism; //  number of threads used within an
                                          //  individual op for parallelism.
 long long backends_inter_op_parallelism; //  number of threads used for parallelism
                                          //  between independent operations.
-long long model_chunk_size;              // size of chunks used to break up model payloads.
+long long model_chunk_size;              //  size of chunks used to break up model payloads.
+
+long long onnx_max_runtime;              //  The maximum time in milliseconds
+                                         //  before killing onnx run session.
 
 /**
  *
@@ -81,6 +84,17 @@ int setModelChunkSize(long long size) {
     int result = 1;
     if (size > 0) {
         model_chunk_size = size;
+        result = 0;
+    }
+    return result;
+}
+
+long long GetOnnxTimeout () { return onnx_max_runtime; }
+
+int SetOnnxTimeout(long long timeout) {
+    int result = 1;
+    if (timeout > 0) {
+        onnx_max_runtime = timeout;
         result = 0;
     }
     return result;
@@ -209,6 +223,18 @@ int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string) {
     return result;
 }
 
+int RedisAI_Config_OnnxTimeout(RedisModuleString *onnx_timeout) {
+    long long temp;
+    int result = RedisModule_StringToLongLong(onnx_timeout, &temp);
+    // make sure that the timeout is a positive integer, if not set the value to the default.
+    if (result == REDISMODULE_OK && temp < 1) {
+        temp = ONNX_DEFAULT_MAX_RUNTIME;
+        result = REDISMODULE_ERR;
+    }
+    result = SetOnnxTimeout(temp);
+    return result;
+}
+
 /**
  *
  * @param ctx Context in which Redis modules operate
@@ -252,6 +278,12 @@ int RAI_configParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
         if (ret == REDISMODULE_OK) {
             RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
                             getModelChunkSize());
+        }
+    } else if (strcasecmp((key), "ONNX_TIMEOUT") == 0) {
+        ret = RedisAI_Config_OnnxTimeout(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
+              GetOnnxTimeout());
         }
     } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
         // already taken care of

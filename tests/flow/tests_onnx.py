@@ -505,7 +505,7 @@ def test_onnx_kill_switch_multiple_working_threads():
     # Load another onnx model only on CPU (to test multiple devices when DEVICE = GPU
     model_pb = load_file_content('mnist.onnx')
     sample_raw = load_file_content('one.raw')
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU:1', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 

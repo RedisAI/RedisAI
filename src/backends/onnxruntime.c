@@ -96,6 +96,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     // Export RedisAI callbacks.
     get_api_fn("ThreadIdKey", ((void **)&RedisAI_ThreadId));
     get_api_fn("NumThreadsPerQueue", ((void **)&RedisAI_NumThreadsPerQueue));
+    get_api_fn("OnnxTimeout", ((void **)&RedisAI_OnnxTimeout));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
     CreateGlobalOnnxRunSessions();

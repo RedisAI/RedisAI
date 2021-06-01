@@ -53,7 +53,7 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
         }
         long long curr_time = _mstime();
         // Check if a sessions is running for too long, and kill it if so.
-        if (curr_time - run_sessions_ctx[i]->queuingTime > ONNX_MAX_RUNTIME) {
+        if (curr_time - run_sessions_ctx[i]->queuingTime > RedisAI_OnnxTimeout()) {
             ort->RunOptionsSetTerminate(run_sessions_ctx[i]->runOptions);
         }
     }

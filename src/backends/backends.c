@@ -32,6 +32,8 @@ int RAI_GetApi(const char *func_name, void **targetPtrPtr) {
         *targetPtrPtr = GetThreadId;
     } else if (strcmp("NumThreadsPerQueue", func_name) == 0) {
         *targetPtrPtr = GetNumThreadsPerQueue;
+    } else if (strcmp("OnnxTimeout", func_name) == 0) {
+        *targetPtrPtr = GetOnnxTimeout;
     } else {
         return RedisModule_GetApi(func_name, targetPtrPtr);
     }

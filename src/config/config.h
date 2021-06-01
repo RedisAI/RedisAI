@@ -23,6 +23,7 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define REDISAI_DEFAULT_INTRA_OP_PARALLELISM  0
 #define REDISAI_DEFAULT_INTER_OP_PARALLELISM  0
 #define REDISAI_DEFAULT_MODEL_CHUNK_SIZE      535822336 // (511 * 1024 * 1024)
+#define ONNX_DEFAULT_MAX_RUNTIME              5000
 #define REDISAI_ERRORMSG_PROCESSING_ARG       "ERR error processing argument"
 #define REDISAI_ERRORMSG_THREADS_PER_QUEUE    "ERR error setting THREADS_PER_QUEUE to"
 #define REDISAI_ERRORMSG_INTRA_OP_PARALLELISM "ERR error setting INTRA_OP_PARALLELISM to"
@@ -91,6 +92,11 @@ int setModelChunkSize(long long size);
  * @param argc Redis command number of arguments
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
  */
+
+long long GetOnnxTimeout(void);
+
+int SetOnnxTimeout(long long timeout);
+
 int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
@@ -138,6 +144,13 @@ int RedisAI_Config_IntraOperationParallelism(RedisModuleString *num_threads_stri
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
 int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string);
+
+/**
+ * Set the maximum time in ms that onnx backend allow running a model.
+ * @param onnx_max_runtime - string containing the max runtime (in ms)
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int RedisAI_Config_OnnxTimeout(RedisModuleString *onnx_timeout);
 
 /**
  *
