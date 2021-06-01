@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-cpu-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=6.0.9
+ARG REDIS_VER=6.2.3
 
 # OSNICK=bionic|stretch|buster
 ARG OSNICK=buster
@@ -37,6 +37,9 @@ ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
+RUN apt-get update -qq
+RUN apt-get upgrade -yqq
+RUN rm -rf /var/cache/apt
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
