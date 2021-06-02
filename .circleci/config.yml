@@ -559,15 +559,12 @@ workflows:
           <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch
-<<<<<<< HEAD
-=======
           <<: *after-linter
       - build-and-test-gpu:
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
->>>>>>> master
           <<: *after-linter
       - platforms-build:
           <<: *after-build-and-test
@@ -587,22 +584,13 @@ workflows:
           context: common
           <<: *on-dev-branches
           <<: *after-linter
-<<<<<<< HEAD
       - valgrind:
           name: valgrind-cluster
           test_args: GEN=0
           <<: *on-integ-branch
           <<: *after-linter
-      - build-and-test-gpu:
-=======
       - valgrind-general-for-forked-prs:
           <<: *on-any-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0
->>>>>>> master
-          <<: *on-integ-branch
           <<: *after-linter
       - deploy-snapshot:
           context: common
