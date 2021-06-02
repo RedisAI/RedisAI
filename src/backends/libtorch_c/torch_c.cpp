@@ -41,8 +41,7 @@ static DLDataType getDLDataType(const at::Tensor &t) {
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
     case at::ScalarType::Bool:
-        dtype.code = DLDataTypeCode::kDLUInt;
-        dtype.bits = 1;
+        dtype.code = DLDataTypeCode::kDLOpaqueHandle;
         break;
     case at::ScalarType::BFloat16:
         throw std::logic_error("BFloat16 is not supported by dlpack");
@@ -103,9 +102,6 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
         case 8:
             stype = at::ScalarType::Byte;
             break;
-        case 1:
-            stype = at::ScalarType::Bool;
-            break;
         default:
             throw std::logic_error("Unsupported kUInt bits " + std::to_string(dtype.bits));
         }
@@ -141,6 +137,15 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
             break;
         default:
             throw std::logic_error("Unsupported kFloat bits " + std::to_string(dtype.bits));
+        }
+        break;
+    case DLDataTypeCode::kDLOpaqueHandle:
+        switch (dtype.bits) {
+        case 8:
+            stype = at::ScalarType::Bool;
+            break;
+        default:
+            throw std::logic_error("Unsupported kOpaque bits " + std::to_string(dtype.bits));
         }
         break;
     default:

@@ -42,6 +42,10 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
         dtype.bits = 16;
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
+    case kTfLiteBool:
+        dtype.bits = 8;
+        dtype.code = DLDataTypeCode::kDLOpaqueHandle;
+        break;
     default:
         break;
     }
@@ -114,7 +118,6 @@ void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tf
         memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as input tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported input data type");
     }
