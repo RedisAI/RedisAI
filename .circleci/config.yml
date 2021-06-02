@@ -289,7 +289,7 @@ jobs:
     parameters:
       test_args:
         type: string
-        default: "CLUSTER=0 AOF=0"
+        default: "CLUSTER=0"
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
@@ -588,12 +588,7 @@ workflows:
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
+          test_args: GEN=0
           <<: *on-integ-branch
           <<: *after-linter
       - deploy-snapshot:
