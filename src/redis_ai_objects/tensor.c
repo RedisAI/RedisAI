@@ -29,8 +29,8 @@ extern RedisModuleType *RedisAI_TensorType;
 bool _ValOverflow(long long val, RAI_Tensor *t) {
     DLDataType dtype = t->tensor.dl_tensor.dtype;
     if (dtype.code == kDLInt) {
-        uint max_abs_val = (uint)1 << (uint)(dtype.bits - 1);
-        if (val >= (long long)max_abs_val || val <= (long long)-1 * max_abs_val) {
+        unsigned long long max_abs_val = ((unsigned long long)1 << (uint)(dtype.bits - 1)) - 1;
+        if (val > max_abs_val || val <= -1 * (long long) max_abs_val) {
             return true;
         }
     } else if (dtype.code == kDLUInt) {
@@ -154,9 +154,8 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
     // issues. Otherwise, we only allocate without initializing (for better performance).
-    // Also, for boolean tensors we should initialize data with zeros.
     void *data;
-    if (empty || dtype.bits == 1) {
+    if (empty) {
         data = RedisModule_Calloc(len, dtypeSize);
     } else {
         data = RedisModule_Alloc(len * dtypeSize);
@@ -441,8 +440,8 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         switch (dtype.bits) {
         case 1:
             // If the val is 1, set the corresponding bit.
-            if (val % 2) {
-                ((uint8_t *)data)[i / 8] |= ((uint)val << (uint)(i % 8));
+            if (val == 1) {
+                ((uint8_t *)data)[i / 8] |= (1UL << (uint)(i % 8));
             }
             break;
         case 8:

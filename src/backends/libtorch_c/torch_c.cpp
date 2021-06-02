@@ -41,7 +41,9 @@ static DLDataType getDLDataType(const at::Tensor &t) {
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
     case at::ScalarType::Bool:
-        throw std::logic_error("Bool is not supported by dlpack");
+        dtype.code = DLDataTypeCode::kDLUInt;
+        dtype.bits = 1;
+        break;
     case at::ScalarType::BFloat16:
         throw std::logic_error("BFloat16 is not supported by dlpack");
     case at::ScalarType::QInt8:
@@ -100,6 +102,9 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
         switch (dtype.bits) {
         case 8:
             stype = at::ScalarType::Byte;
+            break;
+        case 1:
+            stype = at::ScalarType::Bool;
             break;
         default:
             throw std::logic_error("Unsupported kUInt bits " + std::to_string(dtype.bits));

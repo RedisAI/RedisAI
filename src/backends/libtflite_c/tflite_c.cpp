@@ -110,6 +110,8 @@ void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tf
     case kTfLiteFloat32:
         memcpy(interpreter->typed_tensor<float>(tflite_input), input->dl_tensor.data, nbytes);
         break;
+    case kTfLiteBool:
+        memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as input tensor data type");
         break;
@@ -174,9 +176,11 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     case kTfLiteFloat32:
         memcpy(dl_tensor.data, interpreter->typed_tensor<float>(tflite_output), tensor->bytes);
         break;
+    case kTfLiteBool:
+        memcpy(dl_tensor.data, interpreter->typed_tensor<bool>(tflite_output), tensor->bytes);
+        break;
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as output tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported output data type");
     }
