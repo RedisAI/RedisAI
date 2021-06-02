@@ -37,6 +37,7 @@ int RAI_AddNewDeviceORT(const char *device_str) {
         OnnxRunSessionCtx *entry = RedisModule_Calloc(1, sizeof(OnnxRunSessionCtx));
         run_sessions_array = array_append(run_sessions_array, entry);
     }
+    onnx_global_run_sessions->OnnxRunSessions = run_sessions_array;
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
     return REDISMODULE_OK;
 }
@@ -52,8 +53,9 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
             continue;
         }
         long long curr_time = _mstime();
+        long long timeout = RedisAI_OnnxTimeout();
         // Check if a sessions is running for too long, and kill it if so.
-        if (curr_time - run_sessions_ctx[i]->queuingTime > RedisAI_OnnxTimeout()) {
+        if (curr_time - run_sessions_ctx[i]->queuingTime > timeout) {
             ort->RunOptionsSetTerminate(run_sessions_ctx[i]->runOptions);
         }
     }

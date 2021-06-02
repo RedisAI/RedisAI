@@ -1455,6 +1455,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
     setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
     setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
+    SetOnnxTimeout(ONNX_DEFAULT_MAX_RUNTIME);
 
     RAI_loadTimeConfig(ctx, argv, argc);
 
