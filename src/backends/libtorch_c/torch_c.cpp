@@ -41,7 +41,7 @@ static DLDataType getDLDataType(const at::Tensor &t) {
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
     case at::ScalarType::Bool:
-        dtype.code = DLDataTypeCode::kDLOpaqueHandle;
+        dtype.code = DLDataTypeCode::kDLBool;
         break;
     case at::ScalarType::BFloat16:
         throw std::logic_error("BFloat16 is not supported by dlpack");
@@ -69,7 +69,7 @@ static DLDevice getDLDevice(const at::Tensor &tensor, const int64_t &device_id) 
     DLDevice device;
     device.device_id = device_id;
     if (tensor.is_cuda()) {
-        device.device_type = DLDeviceType::kDLGPU;
+        device.device_type = DLDeviceType::kDLCUDA;
     } else {
         device.device_type = DLDeviceType::kDLCPU;
     }
@@ -80,7 +80,7 @@ static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
     switch (device_type) {
     case DLDeviceType::kDLCPU:
         return at::DeviceType::CPU;
-    case DLDeviceType::kDLGPU:
+    case DLDeviceType::kDLCUDA:
         return at::DeviceType::CUDA;
     case DLDeviceType::kDLOpenCL:
         return at::DeviceType::OPENCL;
@@ -139,7 +139,7 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
             throw std::logic_error("Unsupported kFloat bits " + std::to_string(dtype.bits));
         }
         break;
-    case DLDataTypeCode::kDLOpaqueHandle:
+    case DLDataTypeCode::kDLBool:
         switch (dtype.bits) {
         case 8:
             stype = at::ScalarType::Bool;
@@ -320,7 +320,7 @@ static torch::DeviceType getDeviceType(ModuleContext *ctx) {
     switch (ctx->device) {
         case kDLCPU:
             return torch::kCPU;
-        case kDLGPU:
+        case kDLCUDA:
             return torch::kCUDA;
         default:
             throw std::runtime_error(std::string("Unsupported device ") + std::to_string(ctx->device));

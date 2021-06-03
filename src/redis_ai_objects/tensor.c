@@ -38,7 +38,7 @@ bool _ValOverflow(long long val, RAI_Tensor *t) {
         if (val >= max_val || val < 0) {
             return true;
         }
-    } else if (dtype.code == kDLOpaqueHandle) { // this means BOOL type
+    } else if (dtype.code == kDLBool) {
         if (val < 0 || val > 1) {
             return true;
         }
@@ -78,7 +78,7 @@ DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
         }
     }
     if (strcasecmp(typestr, "BOOL") == 0) {
-        return (DLDataType){.code = kDLOpaqueHandle, .bits = 8, .lanes = 1};
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     }
     return (DLDataType){.bits = 0};
 }
@@ -118,7 +118,7 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
             strcpy(dtypestr, RAI_DATATYPE_STR_UINT16);
             result = REDISMODULE_OK;
         }
-    } else if (dtype.code == kDLOpaqueHandle && dtype.bits == 8) {
+    } else if (dtype.code == kDLBool && dtype.bits == 8) {
         strcpy(dtypestr, RAI_DATATYPE_STR_BOOL);
         result = REDISMODULE_OK;
     }
@@ -457,7 +457,7 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         default:
             return 0;
         }
-    } else if (dtype.code == kDLOpaqueHandle) {
+    } else if (dtype.code == kDLBool) {
         if (dtype.bits == 8) {
             ((uint8_t *)data)[i] = val;
         } else {
@@ -550,7 +550,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
         default:
             return 0;
         }
-    } else if (dtype.code == kDLOpaqueHandle) {
+    } else if (dtype.code == kDLBool) {
         if (dtype.bits == 8) {
             *val = ((uint8_t *)data)[i];
         } else {

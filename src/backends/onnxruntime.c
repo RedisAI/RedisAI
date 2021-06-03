@@ -153,7 +153,7 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         default:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
         }
-    } else if (dtype.code == kDLOpaqueHandle) {
+    } else if (dtype.code == kDLBool) {
         switch (dtype.bits) {
         case 8:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
@@ -184,7 +184,7 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
-        return (DLDataType){.code = kDLOpaqueHandle, .bits = 8, .lanes = 1};
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }

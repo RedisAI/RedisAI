@@ -51,7 +51,7 @@ TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
         default:
             return 0;
         }
-    } else if (dtype.code == kDLOpaqueHandle) {
+    } else if (dtype.code == kDLBool) {
         switch (dtype.bits) {
         case 1:
             return TF_BOOL;
@@ -81,7 +81,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
     case TF_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     case TF_BOOL:
-        return (DLDataType){.code = kDLOpaqueHandle, .bits = 8, .lanes = 1};
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }

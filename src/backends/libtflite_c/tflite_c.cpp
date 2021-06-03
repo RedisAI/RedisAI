@@ -44,7 +44,7 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
         break;
     case kTfLiteBool:
         dtype.bits = 8;
-        dtype.code = DLDataTypeCode::kDLOpaqueHandle;
+        dtype.code = DLDataTypeCode::kDLBool;
         break;
     default:
         break;
@@ -64,7 +64,7 @@ static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
   switch (device_type) {
     case DLDeviceType::kDLCPU:
       return at::DeviceType::CPU;
-    case DLDeviceType::kDLGPU:
+    case DLDeviceType::kDLCUDA:
       return at::DeviceType::CUDA;
     case DLDeviceType::kDLOpenCL:
       return at::DeviceType::OPENCL;
@@ -238,7 +238,7 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     }
 
 #if RAI_TFLITE_USE_CUDA
-    if (device == DLDeviceType::kDLGPU) {
+    if (device == DLDeviceType::kDLCUDA) {
         tflite::Interpreter::TfLiteDelegatePtr delegate =
             tflite::evaluation::CreateGPUDelegate(model.get());
         if (interpreter_->ModifyGraphWithDelegate(std::move(delegate)) != kTfLiteOk) {
