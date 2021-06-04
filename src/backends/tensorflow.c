@@ -43,7 +43,6 @@ TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
-
         case 8:
             return TF_UINT8;
         case 16:
@@ -53,7 +52,7 @@ TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
         }
     } else if (dtype.code == kDLBool) {
         switch (dtype.bits) {
-        case 1:
+        case 8:
             return TF_BOOL;
         default:
             return 0;

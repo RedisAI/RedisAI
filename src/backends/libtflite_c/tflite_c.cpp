@@ -59,23 +59,6 @@ static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id
     return device;
 }
 
-#if 0
-static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
-  switch (device_type) {
-    case DLDeviceType::kDLCPU:
-      return at::DeviceType::CPU;
-    case DLDeviceType::kDLCUDA:
-      return at::DeviceType::CUDA;
-    case DLDeviceType::kDLOpenCL:
-      return at::DeviceType::OPENCL;
-    case DLDeviceType::kDLROCM:
-      return at::DeviceType::HIP;
-    default:
-      throw std::logic_error("Unsupported device_type: " + std::to_string(device_type));
-  }
-  return at::DeviceType::CPU; // impossible
-}
-#endif
 
 size_t dltensorBytes(DLManagedTensor *t) {
     int64_t *shape = t->dl_tensor.shape;
