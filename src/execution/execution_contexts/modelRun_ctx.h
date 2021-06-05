@@ -5,7 +5,6 @@
 
 typedef struct RAI_ModelRunCtx {
     RAI_ExecutionCtx base;
-    size_t ctxtype;
     RAI_Model *model;
 } RAI_ModelRunCtx;
 
