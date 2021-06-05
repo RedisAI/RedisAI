@@ -132,7 +132,7 @@ static int _DAG_PersistTensors(RedisModuleCtx *ctx, RedisAI_RunInfo *rinfo) {
     return REDISMODULE_OK;
 }
 
-static int _PersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op, RAI_Error *err) {
+static int _Dag_SingleOpPersistTensors(RedisModuleCtx *ctx, RAI_DagOp *op, RAI_Error *err) {
 
     const size_t noutputs = RAI_ExecutionCtx_NumOutputs(op->ectx);
     for (size_t outputNumber = 0; outputNumber < noutputs; outputNumber++) {
@@ -636,12 +636,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
     if (!rinfo->single_op_dag) {
         persist_status = _DAG_PersistTensors(ctx, rinfo);
     } else {
-        if (rinfo->dagOps[0]->commandType == REDISAI_DAG_CMD_MODELRUN) {
-            persist_status = _PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
-        } else {
-            RedisModule_Assert(rinfo->dagOps[0]->commandType == REDISAI_DAG_CMD_SCRIPTRUN);
-            persist_status = _PersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
-        }
+        persist_status = _Dag_SingleOpPersistTensors(ctx, rinfo->dagOps[0], rinfo->err);
     }
     if (persist_status != REDISMODULE_OK) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(rinfo->err));
