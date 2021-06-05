@@ -22,6 +22,7 @@ exclude_commands:
     - ai.modelstore
     - ai.modelset
     - ai.modeldel
+    - ai.scriptstore
     - ai.scriptset
     - ai.scriptdel
 dependencies:
