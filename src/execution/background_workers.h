@@ -42,7 +42,6 @@ typedef struct RunQueueInfo {
     char *device_str;
 } RunQueueInfo;
 
-
 /**
  * @brief Terminate all working threads and free the run queue with its inner fields.
  */
@@ -69,8 +68,3 @@ RunQueueInfo *GetRunQueueInfo(const char *device_str);
  * saved under ThreadIdKey.
  */
 uintptr_t GetThreadId(void);
-
-/**
- * @brief Return the number of working threads per device in RedisAI.
- */
-long long GetNumThreadsPerQueue(void);

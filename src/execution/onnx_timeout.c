@@ -18,10 +18,10 @@ static long long _mstime(void) {
 int CreateGlobalOnnxRunSessions() {
     onnx_global_run_sessions = RedisModule_Alloc(sizeof(struct OnnxGlobalRunSessions));
     OnnxRunSessionCtx **onnx_run_sessions =
-      array_new(OnnxRunSessionCtx *, RedisAI_NumThreadsPerQueue());
+        array_new(OnnxRunSessionCtx *, RedisAI_NumThreadsPerQueue());
     onnx_global_run_sessions->OnnxRunSessions = onnx_run_sessions;
     pthread_rwlock_init(&(onnx_global_run_sessions->rwlock), NULL);
-    return RAI_AddNewDeviceORT("CPU");  // Add entries for CPU threads.
+    return RAI_AddNewDeviceORT("CPU"); // Add entries for CPU threads.
 }
 
 int RAI_AddNewDeviceORT(const char *device_str) {
@@ -30,7 +30,8 @@ int RAI_AddNewDeviceORT(const char *device_str) {
     pthread_rwlock_wrlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx **run_sessions_array = onnx_global_run_sessions->OnnxRunSessions;
 
-    // Extend the array with an entry for every working thread on the new device, initialized to NULL.
+    // Extend the array with an entry for every working thread on the new device, initialized to
+    // NULL.
     size_t size = RedisAI_NumThreadsPerQueue();
     for (size_t i = 0; i < size; i++) {
         OnnxRunSessionCtx *entry = RedisModule_Calloc(1, sizeof(OnnxRunSessionCtx));
@@ -42,7 +43,7 @@ int RAI_AddNewDeviceORT(const char *device_str) {
 }
 
 void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
-                                void *data) {
+                           void *data) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx **run_sessions_ctx = onnx_global_run_sessions->OnnxRunSessions;
@@ -61,14 +62,12 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void SetRunSessionCtx(OrtRunOptions *new_run_options,
-  size_t *run_session_index) {
+void SetRunSessionCtx(OrtRunOptions *new_run_options, size_t *run_session_index) {
 
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     // Get the thread index (which is the correspondent index in the global sessions array).
     *run_session_index = (size_t)RedisAI_ThreadId();
-    OnnxRunSessionCtx *entry =
-      onnx_global_run_sessions->OnnxRunSessions[*run_session_index];
+    OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[*run_session_index];
     RedisModule_Assert(entry->runOptions == NULL);
 
     // Update the entry with the current session data.

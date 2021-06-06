@@ -93,7 +93,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         RedisModule_Log(ctx, "warning", "Could not load TF backend from %s: %s", path, dlerror());
         return REDISMODULE_ERR;
     }
-    RAI_LoadedBackend backend = {0};   // Initialize all the callbacks to NULL.
+    RAI_LoadedBackend backend = {0}; // Initialize all the callbacks to NULL.
 
     int (*init_backend)(int (*)(const char *, void *));
     init_backend =
@@ -118,7 +118,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
-      unsigned long)dlsym(handle, "RAI_ModelRunTF");
+        unsigned long)dlsym(handle, "RAI_ModelRunTF");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTF")) {
         goto error;
     }
@@ -139,7 +139,7 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
     RedisModule_Log(ctx, "notice", "TF backend loaded from %s", path);
     return REDISMODULE_OK;
 
-    error:
+error:
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "TF backend not loaded from %s", path);
     return REDISMODULE_ERR;
@@ -158,7 +158,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
                         dlerror());
         return REDISMODULE_ERR;
     }
-    RAI_LoadedBackend backend = {0};   // Initialize all the callbacks to NULL.
+    RAI_LoadedBackend backend = {0}; // Initialize all the callbacks to NULL.
 
     int (*init_backend)(int (*)(const char *, void *));
     init_backend = (int (*)(int (*)(const char *, void *)))(unsigned long)dlsym(
@@ -182,7 +182,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
-      unsigned long)dlsym(handle, "RAI_ModelRunTFLite");
+        unsigned long)dlsym(handle, "RAI_ModelRunTFLite");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTFLite")) {
         goto error;
     }
@@ -203,7 +203,7 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
     RedisModule_Log(ctx, "notice", "TFLITE backend loaded from %s", path);
     return REDISMODULE_OK;
 
-    error:
+error:
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "TFLITE backend not loaded from %s", path);
     return REDISMODULE_ERR;
@@ -222,7 +222,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         return REDISMODULE_ERR;
     }
 
-    RAI_LoadedBackend backend = {0};  // Initialize all the callbacks to NULL.
+    RAI_LoadedBackend backend = {0}; // Initialize all the callbacks to NULL.
 
     int (*init_backend)(int (*)(const char *, void *));
     init_backend = (int (*)(int (*)(const char *, void *)))(unsigned long)dlsym(
@@ -246,7 +246,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
-      unsigned long)dlsym(handle, "RAI_ModelRunTorch");
+        unsigned long)dlsym(handle, "RAI_ModelRunTorch");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTorch")) {
         goto error;
     }
@@ -270,7 +270,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.script_run = (int (*)(RAI_Script *, const char *, RAI_ExecutionCtx *, RAI_Error *))(
-      unsigned long)dlsym(handle, "RAI_ScriptRunTorch");
+        unsigned long)dlsym(handle, "RAI_ScriptRunTorch");
     if (!_ValidateAPICreated(ctx, backend.script_run, "RAI_ScriptRunTorch")) {
         goto error;
     }
@@ -285,7 +285,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     RedisModule_Log(ctx, "notice", "TORCH backend loaded from %s", path);
     return REDISMODULE_OK;
 
-    error:
+error:
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "TORCH backend not loaded from %s", path);
     return REDISMODULE_ERR;
@@ -306,8 +306,8 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     RAI_LoadedBackend backend = {0};
 
     int (*init_backend)(int (*)(const char *, void **));
-    init_backend = (int (*) (int (*)(const char *, void **)))(
-        unsigned long)dlsym(handle, "RAI_InitBackendORT");
+    init_backend =
+        (int (*)(int (*)(const char *, void **)))(unsigned long)dlsym(handle, "RAI_InitBackendORT");
     if (!_ValidateAPICreated(ctx, init_backend, "RAI_InitBackendORT")) {
         goto error;
     }
@@ -327,7 +327,7 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     }
 
     backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
-      unsigned long)dlsym(handle, "RAI_ModelRunORT");
+        unsigned long)dlsym(handle, "RAI_ModelRunORT");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunORT")) {
         goto error;
     }
@@ -370,12 +370,12 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     }
 
     RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_CronLoop,
-      backend.enforce_runtime_duration);
+                                       backend.enforce_runtime_duration);
     RAI_backends.onnx = backend;
     RedisModule_Log(ctx, "notice", "ONNX backend loaded from %s", path);
     return REDISMODULE_OK;
 
-    error:
+error:
     dlclose(handle);
     RedisModule_Log(ctx, "warning", "ONNX backend not loaded from %s", path);
     return REDISMODULE_ERR;

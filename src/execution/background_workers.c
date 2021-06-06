@@ -102,11 +102,7 @@ bool IsRunQueueExists(const char *device_str) {
     return true;
 }
 
-uintptr_t GetThreadId() {
-    return *(uintptr_t *)pthread_getspecific(ThreadIdKey);
-}
-
-long long GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
+uintptr_t GetThreadId() { return *(uintptr_t *)pthread_getspecific(ThreadIdKey); }
 
 void RunQueueInfoFree(RunQueueInfo *run_queue_info) {
     RedisModule_Assert(queueLength(run_queue_info->run_queue) == 0);

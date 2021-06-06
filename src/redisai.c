@@ -986,7 +986,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
     if (!strcasecmp(subcommand, "BACKENDSPATH")) {
         if (argc > 2) {
-            return RedisAI_Config_BackendsPath(ctx, RedisModule_StringPtrLen(argv[2], NULL));
+            return RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else {
             return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: missing path argument");
         }
@@ -994,8 +994,11 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
     if (!strcasecmp(subcommand, "MODEL_CHUNK_SIZE")) {
         if (argc > 2) {
-            RedisAI_Config_ModelChunkSize(argv[2]);
-            return RedisModule_ReplyWithSimpleString(ctx, "OK");
+            if (RedisAI_Config_ModelChunkSize(argv[2]) == REDISMODULE_OK) {
+                return RedisModule_ReplyWithSimpleString(ctx, "OK");
+            } else {
+                return RedisModule_ReplyWithError(ctx, "ERR MODEL_CHUNK_SIZE: invalid chunk size");
+            }
         } else {
             return RedisModule_ReplyWithError(ctx, "ERR MODEL_CHUNK_SIZE: missing chunk size");
         }
@@ -1211,6 +1214,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", ThreadPoolSizePerQueue);
     RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "timeout_for_onnxruntime_sessions", GetOnnxTimeout());
     RedisModule_InfoAddSection(ctx, "memory_usage");
     if (RAI_backends.onnx.get_memory_info) {
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
@@ -1468,7 +1472,9 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
     SetOnnxTimeout(ONNX_DEFAULT_MAX_RUNTIME);
 
-    RAI_loadTimeConfig(ctx, argv, argc);
+    if (RAI_loadTimeConfig(ctx, argv, argc) != REDISMODULE_OK) {
+        return REDISMODULE_ERR;
+    }
 
     RunQueues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
     pthread_key_create(&ThreadIdKey, RedisModule_Free);

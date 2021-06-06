@@ -39,7 +39,7 @@ int RAI_AddNewDeviceORT(const char *device_str);
  * those that exceeds the timeout.
  */
 void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
-                                void *data);
+                           void *data);
 
 /**
  * @brief Set a new OrtRunOptions in the global structure, to allow us to
