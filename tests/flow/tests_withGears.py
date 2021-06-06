@@ -297,13 +297,13 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    def parallel_execution(con):
+    def multiple_executions(con):
         ret = con.execute_command('rg.trigger', 'DAGRun_test2')
         env.assertEqual(ret[0], b'test2_OK')
         values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
         env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    run_test_multiproc(env, 500, parallel_execution)
+    run_test_multiproc(env, 500, multiple_executions)
 
     script_filename = os.path.join(test_data_path, 'script.txt')
     with open(script_filename, 'rb') as f:
