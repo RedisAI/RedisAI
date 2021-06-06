@@ -159,12 +159,18 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
-        case 1:
-            return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
         case 8:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT8;
         case 16:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16;
+        default:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+        }
+    } else if (dtype.code == kDLBool) {
+        switch (dtype.bits) {
+        case 8:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
+            break;
         default:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
         }
@@ -191,7 +197,7 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
-        return (DLDataType){.code = kDLUInt, .bits = 1, .lanes = 1};
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
@@ -299,7 +305,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         size_t elem_count;
         ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
 
-        const size_t len = ceil((double)dtype.bits * elem_count / 8);
+        const size_t len = dtype.bits * elem_count / 8;
         const size_t total_bytesize = len * sizeof(char);
         const size_t sample_bytesize = total_bytesize / total_batch_size;
         const size_t batch_bytesize = sample_bytesize * batch_size;

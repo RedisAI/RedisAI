@@ -14,7 +14,6 @@
 #include "tensor.h"
 #include "err.h"
 #include "arr.h"
-#include "math.h"
 #include "redisai.h"
 #include "version.h"
 #include "tensor_struct.h"
@@ -29,13 +28,17 @@ extern RedisModuleType *RedisAI_TensorType;
 bool _ValOverflow(long long val, RAI_Tensor *t) {
     DLDataType dtype = t->tensor.dl_tensor.dtype;
     if (dtype.code == kDLInt) {
-        unsigned long long max_abs_val = (unsigned long long)1 << (uint)(dtype.bits - 1);
-        if (val >= max_abs_val || val <= -1 * (long long) max_abs_val) {
+        unsigned long long max_abs_val = ((unsigned long long)1 << (uint)(dtype.bits - 1));
+        if ((unsigned long long)val >= max_abs_val || val < -1 * (long long)max_abs_val) {
             return true;
         }
     } else if (dtype.code == kDLUInt) {
         uint max_val = (uint)1 << dtype.bits;
         if (val >= max_val || val < 0) {
+            return true;
+        }
+    } else if (dtype.code == kDLBool) {
+        if (val < 0 || val > 1) {
             return true;
         }
     }
@@ -74,12 +77,12 @@ DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
         }
     }
     if (strcasecmp(typestr, "BOOL") == 0) {
-        return (DLDataType){.code = kDLUInt, .bits = 1, .lanes = 1};
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     }
     return (DLDataType){.bits = 0};
 }
 
-static size_t Tensor_DataTypeSize(DLDataType dtype) { return ceil((double)dtype.bits / 8); }
+static size_t Tensor_DataTypeSize(DLDataType dtype) { return dtype.bits / 8; }
 
 int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
     int result = REDISMODULE_ERR;
@@ -113,10 +116,10 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
         } else if (dtype.bits == 16) {
             strcpy(dtypestr, RAI_DATATYPE_STR_UINT16);
             result = REDISMODULE_OK;
-        } else if (dtype.bits == 1) {
-            strcpy(dtypestr, RAI_DATATYPE_STR_BOOL);
-            result = REDISMODULE_OK;
         }
+    } else if (dtype.code == kDLBool && dtype.bits == 8) {
+        strcpy(dtypestr, RAI_DATATYPE_STR_BOOL);
+        result = REDISMODULE_OK;
     }
     return result;
 }
@@ -154,9 +157,8 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
     // issues. Otherwise, we only allocate without initializing (for better performance).
-    // Also, for boolean tensors we should initialize data with zeros.
     void *data;
-    if (empty || dtype.bits == 1) {
+    if (empty) {
         data = RedisModule_Calloc(len, dtypeSize);
     } else {
         data = RedisModule_Alloc(len * dtypeSize);
@@ -439,12 +441,6 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
-        case 1:
-            // If the val is 1, set the corresponding bit.
-            if (val % 2) {
-                ((uint8_t *)data)[i / 8] |= ((uint)val << (uint)(i % 8));
-            }
-            break;
         case 8:
             ((uint8_t *)data)[i] = val;
             break;
@@ -460,8 +456,12 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         default:
             return 0;
         }
-    } else {
-        return 0;
+    } else if (dtype.code == kDLBool) {
+        if (dtype.bits == 8) {
+            ((uint8_t *)data)[i] = val;
+        } else {
+            return 0;
+        }
     }
     return 1;
 }
@@ -534,9 +534,6 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
         }
     } else if (dtype.code == kDLUInt) {
         switch (dtype.bits) {
-        case 1:
-            *val = (((uint8_t *)data)[i / 8] >> (uint)(i % 8)) % 2;
-            break;
         case 8:
             *val = ((uint8_t *)data)[i];
             break;
@@ -552,8 +549,12 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
         default:
             return 0;
         }
-    } else {
-        return 0;
+    } else if (dtype.code == kDLBool) {
+        if (dtype.bits == 8) {
+            *val = ((uint8_t *)data)[i];
+        } else {
+            return 0;
+        }
     }
     return 1;
 }

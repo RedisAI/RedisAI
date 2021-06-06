@@ -32,7 +32,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");

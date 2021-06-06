@@ -53,7 +53,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
@@ -304,7 +304,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_ESCRIPTCONFIGURE,
