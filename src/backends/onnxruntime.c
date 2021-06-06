@@ -2,6 +2,7 @@
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
+#include <math.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
@@ -152,6 +153,14 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         default:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
         }
+    } else if (dtype.code == kDLBool) {
+        switch (dtype.bits) {
+        case 8:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
+            break;
+        default:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+        }
     }
     return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 }
@@ -174,6 +183,8 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
         return (DLDataType){.code = kDLUInt, .bits = 8, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
@@ -281,7 +292,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         size_t elem_count;
         ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
 
-        const size_t len = dtype.bits * elem_count / 8;
+        const size_t len = ceil((double)dtype.bits * elem_count / 8);
         const size_t total_bytesize = len * sizeof(char);
         const size_t sample_bytesize = total_bytesize / total_batch_size;
         const size_t batch_bytesize = sample_bytesize * batch_size;
