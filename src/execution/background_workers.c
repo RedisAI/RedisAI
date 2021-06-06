@@ -19,7 +19,6 @@
 #include <sys/types.h>
 #include "string_utils.h"
 #include "backends/backends.h"
-#include <bits/unistd_ext.h>
 #include "redisai.h"
 #include "run_info.h"
 #include "background_workers.h"
