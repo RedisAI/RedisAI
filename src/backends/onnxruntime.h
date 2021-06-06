@@ -2,8 +2,8 @@
 
 #include "config/config.h"
 #include "redis_ai_objects/err.h"
-#include "redis_ai_objects/tensor_struct.h"
-#include "redis_ai_objects/model_struct.h"
+#include "redis_ai_objects/model.h"
+#include "execution/execution_contexts/execution_ctx.h"
 
 unsigned long long RAI_GetMemoryInfoORT(void);
 
@@ -20,7 +20,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
 
 void RAI_ModelFreeORT(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error);
+int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error);
 
 int RAI_ModelSerializeORT(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 

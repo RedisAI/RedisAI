@@ -117,8 +117,8 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_run =
-        (int (*)(RAI_ModelRunCtx **, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelRunTF");
+    backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
+      unsigned long)dlsym(handle, "RAI_ModelRunTF");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTF")) {
         goto error;
     }
@@ -181,8 +181,8 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_run = (int (*)(RAI_ModelRunCtx **, RAI_Error *))(unsigned long)dlsym(
-        handle, "RAI_ModelRunTFLite");
+    backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
+      unsigned long)dlsym(handle, "RAI_ModelRunTFLite");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTFLite")) {
         goto error;
     }
@@ -245,8 +245,8 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_run =
-        (int (*)(RAI_ModelRunCtx **, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelRunTorch");
+    backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
+      unsigned long)dlsym(handle, "RAI_ModelRunTorch");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunTorch")) {
         goto error;
     }
@@ -269,8 +269,8 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.script_run = (int (*)(RAI_ScriptRunCtx *, RAI_Error *))(unsigned long)dlsym(
-        handle, "RAI_ScriptRunTorch");
+    backend.script_run = (int (*)(RAI_Script *, const char *, RAI_ExecutionCtx *, RAI_Error *))(
+      unsigned long)dlsym(handle, "RAI_ScriptRunTorch");
     if (!_ValidateAPICreated(ctx, backend.script_run, "RAI_ScriptRunTorch")) {
         goto error;
     }
@@ -326,8 +326,8 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_run =
-        (int (*)(RAI_ModelRunCtx **, RAI_Error *))(unsigned long)dlsym(handle, "RAI_ModelRunORT");
+    backend.model_run = (int (*)(RAI_Model * model, RAI_ExecutionCtx * *ectxs, RAI_Error * error))(
+      unsigned long)dlsym(handle, "RAI_ModelRunORT");
     if (!_ValidateAPICreated(ctx, backend.model_run, "RAI_ModelRunORT")) {
         goto error;
     }

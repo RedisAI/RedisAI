@@ -177,3 +177,7 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 }
 
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
+
+TorchScriptFunctionArgumentType *RAI_ScriptGetSignature(RAI_Script *script, const char *function) {
+    return AI_dictFetchValue(script->functionData, function);
+}
