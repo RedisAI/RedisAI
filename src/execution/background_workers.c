@@ -103,7 +103,7 @@ bool IsRunQueueExists(const char *device_str) {
 }
 
 uintptr_t GetThreadId() {
-    return *(uintptr_t *)pthread_getspecific(thread_id_key);
+    return *(uintptr_t *)pthread_getspecific(ThreadIdKey);
 }
 
 long long GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
@@ -130,7 +130,7 @@ static void _SaveThreadId() {
     uintptr_t *id_value = RedisModule_Alloc(sizeof(uintptr_t));
     // Let the current thread have the next available id, and increase the counter.
     *id_value = __atomic_fetch_add(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
-    pthread_setspecific(thread_id_key, id_value);
+    pthread_setspecific(ThreadIdKey, id_value);
 }
 
 /**

@@ -1471,7 +1471,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     RAI_loadTimeConfig(ctx, argv, argc);
 
     RunQueues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-    pthread_key_create(&thread_id_key, RedisModule_Free);
+    pthread_key_create(&ThreadIdKey, RedisModule_Free);
     RunQueueInfo *cpu_run_queue_info = CreateRunQueue("CPU");
     if (cpu_run_queue_info == NULL) {
         RedisModule_Log(ctx, "warning", "RedisAI could not initialize run queue for CPU");

@@ -2,7 +2,6 @@
 #include "util/arr.h"
 #include <sys/time.h>
 #include <pthread.h>
-#include "util/rax.h"
 #include "util/string_utils.h"
 
 // Gets the current time in milliseconds.

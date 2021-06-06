@@ -27,13 +27,12 @@
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
 #include "util/arr.h"
-#include "util/rax.h"
 #include "util/queue.h"
 
 AI_dict *RunQueues;
-long long ThreadPoolSizePerQueue;
-uintptr_t BGWorkersCounter;
-pthread_key_t thread_id_key; // A key for getting the thread id from its local storage.
+long long ThreadPoolSizePerQueue; // Number of working threads for device.
+uintptr_t BGWorkersCounter;       // Total number of BG threads running currently.
+pthread_key_t ThreadIdKey;        // Holds the thread id in its local storage.
 
 typedef struct RunQueueInfo {
     pthread_mutex_t run_queue_mutex;
@@ -43,14 +42,35 @@ typedef struct RunQueueInfo {
     char *device_str;
 } RunQueueInfo;
 
+
+/**
+ * @brief Terminate all working threads and free the run queue with its inner fields.
+ */
 void RunQueueInfoFree(RunQueueInfo *info);
 
+/**
+ * @brief Create a new run queue for a device.
+ */
 RunQueueInfo *CreateRunQueue(const char *device_str);
 
+/**
+ * @brief Return true if a ru queue exists for this particular device.
+ */
 bool IsRunQueueExists(const char *device_str);
 
+/**
+ * @brief Return the RunQueueInfo saved in the global RunQueues dict for a certain
+ * device name, or NULL if doesn't exist.
+ */
 RunQueueInfo *GetRunQueueInfo(const char *device_str);
 
+/**
+ * @brief Return the thread id from its local storage by accessing the value
+ * saved under ThreadIdKey.
+ */
 uintptr_t GetThreadId(void);
 
+/**
+ * @brief Return the number of working threads per device in RedisAI.
+ */
 long long GetNumThreadsPerQueue(void);

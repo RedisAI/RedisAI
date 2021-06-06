@@ -30,7 +30,6 @@ ADD_LIBRARY(redisai_obj OBJECT
         util/dictionaries.c
         util/queue.c
         util/string_utils.c
-        util/rax.c
         redisai.c
         execution/command_parser.c
         execution/parsing/deprecated.c
@@ -90,10 +89,8 @@ IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
             backends/onnxruntime.c
             execution/onnx_timeout.c
-            util/rax.c
             ${BACKEND_COMMON_SRC}
 )
-    SET_PROPERTY(TARGET redisai_onnxruntime_obj PROPERTY ENABLE_EXPORTS 1)
 ENDIF()
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
