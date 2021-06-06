@@ -32,15 +32,3 @@ typedef struct RAI_Model {
     long long datalen;
     void *infokey;
 } RAI_Model;
-
-typedef struct RAI_ModelCtxParam {
-    const char *name;
-    RAI_Tensor *tensor;
-} RAI_ModelCtxParam;
-
-typedef struct RAI_ModelRunCtx {
-    size_t ctxtype;
-    RAI_Model *model;
-    RAI_ModelCtxParam *inputs;
-    RAI_ModelCtxParam *outputs;
-} RAI_ModelRunCtx;

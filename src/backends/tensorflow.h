@@ -2,8 +2,8 @@
 
 #include "config/config.h"
 #include "redis_ai_objects/err.h"
-#include "redis_ai_objects/tensor_struct.h"
-#include "redis_ai_objects/model_struct.h"
+#include "redis_ai_objects/model.h"
+#include "execution/execution_contexts/execution_ctx.h"
 
 int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *));
 
@@ -14,7 +14,7 @@ RAI_Model *RAI_ModelCreateTF(RAI_Backend backend, const char *devicestr, RAI_Mod
 
 void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error);
 
-int RAI_ModelRunTF(RAI_ModelRunCtx **mctxs, RAI_Error *error);
+int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error);
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 

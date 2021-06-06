@@ -98,7 +98,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
     currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
+    currentOp->ectx = (RAI_ExecutionCtx *)mctx;
     currentOp->devicestr = mctx->model->devicestr;
 
     if (rinfo->single_op_dag) {
@@ -480,7 +480,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
-    currentOp->sctx = sctx;
+    currentOp->ectx = (RAI_ExecutionCtx *)sctx;
     currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     currentOp->devicestr = sctx->script->devicestr;
     res = REDISMODULE_OK;
