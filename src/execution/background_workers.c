@@ -165,7 +165,9 @@ static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunI
         if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo)) {
             _BGThread_RinfoFinish(rinfo);
         } else {
+            pthread_mutex_lock(&run_queue_info->run_queue_mutex);
             queuePushFront(run_queue_info->run_queue, rinfo);
+            pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
         }
     }
 }
@@ -317,13 +319,10 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
             RedisModule_Free(item);
             // In case of timeout.
-            if (_BGThread_IsRInfoTimedOut(rinfo)) {
+            if (_BGThread_IsRInfoTimedOut(rinfo) || RedisAI_DagError(rinfo)) {
+                pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
                 _BGThread_RinfoFinish(rinfo);
-                continue;
-            }
-
-            if (RedisAI_DagError(rinfo)) {
-                _BGThread_RinfoFinish(rinfo);
+                pthread_mutex_lock(&run_queue_info->run_queue_mutex);
                 continue;
             }
 
@@ -359,9 +358,12 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // to this worker.
             pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
             _BGThread_Execute(run_queue_info, batch_rinfo);
-            // Lock the queue again: we're done operating on evicted items only.
-            pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+            // For every DAG in the batch: if the entire DAG run is complete,
+            // call the on finish callback (without locking, to avoid deadlocks).
+            // Otherwise, reinsert the DAG to the queue after acquiring the
+            // queue lock, and release the lock again.
             _BGThread_ExecutionFinish(run_queue_info, batch_rinfo);
+            pthread_mutex_lock(&run_queue_info->run_queue_mutex);
         }
     }
     array_free(batch_rinfo);
