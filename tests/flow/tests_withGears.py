@@ -58,6 +58,17 @@ async def ModelRun_Async(record):
     redisAI.setTensorInKey('c{1}', res[0])
     return "ModelRun_Async_OK"
 
+async def ModelRun_AsyncIgnroreInputNames(record):
+    keys = ['a{1}', 'b{1}']
+    tensors = redisAI.mgetTensorsFromKeyspace(keys)
+    modelRunner = redisAI.createModelRunner('m{1}')
+    redisAI.modelRunnerAddInput(modelRunner, 'input_name_in_model_definition_is_a', tensors[0])
+    redisAI.modelRunnerAddInput(modelRunner, 'input_name_in_model_definition_is_b', tensors[1])
+    redisAI.modelRunnerAddOutput(modelRunner, 'output_name_in_model_definition_is_c')
+    res = await redisAI.modelRunnerRunAsync(modelRunner)
+    redisAI.setTensorInKey('c_2{1}', res[0])
+    return "ModelRun_Async_OK"
+
 async def ModelRun_AsyncRunError(record):
     try:
         keys = ['a{1}', 'b{1}']
@@ -70,7 +81,8 @@ async def ModelRun_AsyncRunError(record):
         
 GB("CommandReader").map(ModelRun_oldAPI).register(trigger="ModelRun_oldAPI_test1")
 GB("CommandReader").map(ModelRun_Async).register(trigger="ModelRun_Async_test2")
-GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_AsyncRunError_test3")
+GB("CommandReader").map(ModelRun_AsyncIgnroreInputNames).register(trigger="ModelRun_Async_test3")
+GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_AsyncRunError_test4")
     '''
 
     con = env.getConnection()
@@ -98,7 +110,12 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    ret = con.execute_command('rg.trigger', 'ModelRun_AsyncRunError_test3')
+    ret = con.execute_command('rg.trigger', 'ModelRun_Async_test3')
+    env.assertEqual(ret[0], b'ModelRun_Async_OK')
+    values = con.execute_command('AI.TENSORGET', 'c_2{1}', 'VALUES')
+    env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+
+    ret = con.execute_command('rg.trigger', 'ModelRun_AsyncRunError_test4')
     # This should raise an exception
     env.assertEqual(ret[0].__str__(), "b'Must specify at least one target to fetch or execute.'")
 

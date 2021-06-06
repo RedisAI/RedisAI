@@ -1,5 +1,16 @@
 #pragma once
 #include "redis_ai_objects/script.h"
+#include "execution_ctx.h"
+
+typedef struct RAI_ScriptRunCtx {
+    RAI_ExecutionCtx base;
+    RAI_Script *script;
+    char *fnname;
+    size_t *listSizes;
+    int32_t *intInputs;
+    float *floatInputs;
+    RedisModuleString **stringInputs;
+} RAI_ScriptRunCtx;
 
 /**
  * Allocates the RAI_ScriptRunCtx data structure required for async background
