@@ -141,20 +141,23 @@ cd RedisAI
 sudo apt-get -qq update -y
 sudo apt-get -qq install -y \
     build-essential \
-     ca-certificates curl wget unzip patchelf  \
-    coreutils gawk libssl-dev python3-regex \
-    python3-networks python3-numpy libopenblas-dev libmpich-dev \
-sudo /usr/bin/python3  -m pip install --disable-pip-version-check wheel
-set -e; d=$(mktemp -d /tmp/git-lfs.XXXXXX); mkdir -p $d; wget -q https://github.com/git-lfs/git-lfs/releases/download/v2.12.1/git-lfs-linux-amd64-v2.12.1.tar.gz -O $d/git-lfs.tar.gz; (cd $d; tar xf git-lfs.tar.gz); $d/install.sh; rm -rf $d
-sudo apt-get -qq install -y valgrind
-wget -q -O /usr/local/bin/clang-format-10 https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-22538c65/clang-format-10_linux-amd64
-sudo chmod +x /usr/local/bin/clang-format-10
-sudo ln -sf /usr/local/bin/clang-format-10 /usr/local/bin/clang-format
-url=https://github.com/Kitware/CMake/releases/download/v3.19.5/cmake-3.19.5-`uname`-`uname -m`.sh; wget -q -O /tmp/cmake.sh $url; sudo sh /tmp/cmake.sh --skip-license --prefix=/usr/local; rm -f /tmp/cmake.s
+    ca-certificates curl wget unzip \
+    gawk \
+    libopenblas-dev libmpich-dev \
+    git-lfs clang-format-10
 ```
+
+Ensure that clang-format points to clang-format-10:
+
+```
+sudo update-alternatives --install /usr/bin/clang-format clang-format /usr/bin/clang-format-10 10
+```
+
+Install cmake v3.19.5 [from the cmake repository](https://github.com/Kitware/CMake/releases/tag/v3.19.5).
+
 **Building on bare metal, with build scripts**
 
-These instructions apply to **Ubuntu 16.04 and 18.04**. RedisAI can be built on other platforms, but these ar ethe supported Platforms. This assumes you're cloning the RedisAI repository.
+These instructions apply to **Ubuntu 16.04 and 18.04**. RedisAI can be built on other platforms, but these are the supported Platforms. This assumes you're cloning the RedisAI repository.
 
 ```
 git clone --recursive https://github.com/RedisAI/RedisAI
