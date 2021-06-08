@@ -575,7 +575,7 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 publish"
+                - "REDISAI_LITE=0 publish PUSH_GENERAL=1 OFFICIAL=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
