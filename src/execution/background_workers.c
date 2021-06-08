@@ -157,8 +157,7 @@ static bool _BGThread_IsRInfoTimedOut(RedisAI_RunInfo *rinfo) {
     return timedOut;
 }
 
-static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo,
-                                      bool dag_timeout) {
+static int *_BGThread_ExecutionFinish(RedisAI_RunInfo **batch_rinfo, bool dag_timeout) {
     int *unfinished_rinfos_indices = array_new(int, array_len(batch_rinfo));
     for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
         RedisAI_RunInfo *rinfo = batch_rinfo[i];
@@ -170,14 +169,7 @@ static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunI
             unfinished_rinfos_indices = array_append(unfinished_rinfos_indices, i);
         }
     }
-
-    // Reinsert the unfinished DAG's run info to the queue.
-    pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-    for (size_t i = 0; i < array_len(unfinished_rinfos_indices); i++) {
-        queuePushFront(run_queue_info->run_queue, batch_rinfo[unfinished_rinfos_indices[i]]);
-    }
-    pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-    array_free(unfinished_rinfos_indices);
+    return unfinished_rinfos_indices;
 }
 
 static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo) {
@@ -377,11 +369,17 @@ void *RedisAI_Run_ThreadMain(void *arg) {
                 _BGThread_Execute(run_queue_info, batch_rinfo);
             }
             // For every DAG in the batch: if the entire DAG run is complete,
-            // call the on finish callback (without locking, to avoid deadlocks).
-            // Otherwise, reinsert the DAG to the queue after acquiring the
-            // queue lock, and release the lock again.
-            _BGThread_ExecutionFinish(run_queue_info, batch_rinfo, timed_out);
+            // call the on finish callback. Otherwise, save the DAG index in
+            // the batch_rinfo array, so we reinsert the DAG to the queue
+            // (after acquiring the queue lock).
+            int *unfinished_rinfo_indices = _BGThread_ExecutionFinish(batch_rinfo, timed_out);
             pthread_mutex_lock(&run_queue_info->run_queue_mutex);
+
+            // Reinsert the unfinished DAG's run info to the queue.
+            for (size_t i = 0; i < array_len(unfinished_rinfo_indices); i++) {
+                queuePushFront(run_queue_info->run_queue, batch_rinfo[unfinished_rinfo_indices[i]]);
+            }
+            array_free(unfinished_rinfo_indices);
         }
     }
     array_free(batch_rinfo);
