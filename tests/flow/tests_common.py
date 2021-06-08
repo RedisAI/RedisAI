@@ -10,7 +10,7 @@ python -m RLTest --test tests_common.py --module path/to/redisai.so
 def test_common_tensorset(env):
     con = env.getConnection()
 
-    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     for datatype in tested_datatypes:
         ret = con.execute_command('AI.TENSORSET', 'tensor_{0}'.format(datatype), datatype, 2, 'VALUES', 1, 1)
         env.assertEqual(ret, b'OK')
@@ -101,6 +101,24 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(exception.__str__(), "invalid value")
 
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'BOOL', 2, 'VALUES', 1, 2)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT8', 2, 'VALUES', -1, -128)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
     try:
         con.execute_command('AI.TENSORSET', 1)
         env.assertFalse(True)
@@ -164,9 +182,9 @@ def test_common_tensorset_error_replies(env):
 
 def test_common_tensorget(env):
     con = env.getConnection()
-    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     tested_datatypes_fp = ["FLOAT", "DOUBLE"]
-    tested_datatypes_int = ["INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes_int = ["INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     for datatype in tested_datatypes:
         ret = con.execute_command('AI.TENSORSET', 'tensor_{0}'.format(datatype), datatype, 2, 'VALUES', 1, 1)
         env.assertEqual(ret, b'OK')

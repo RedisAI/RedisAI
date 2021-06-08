@@ -31,6 +31,7 @@ static const char *RAI_DATATYPE_STR_INT32 = "INT32";
 static const char *RAI_DATATYPE_STR_INT64 = "INT64";
 static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
 static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
+static const char *RAI_DATATYPE_STR_BOOL = "BOOL";
 
 #define TENSOR_NONE                0
 #define TENSOR_VALUES              (1 << 0)

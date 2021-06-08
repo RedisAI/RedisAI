@@ -289,7 +289,7 @@ jobs:
     parameters:
       test_args:
         type: string
-        default: "CLUSTER=0 AOF=0"
+        default: "CLUSTER=0"
     docker:
       - image: redisfab/rmbuilder:6.2.1-x64-buster
     steps:
@@ -463,18 +463,15 @@ jobs:
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
 
 
-  nightly-automation:
-    docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
-    steps:
-      - checkout
-      - setup-automation
-      - run:
-          name: Run QA Automation
-          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
-      - run:
-          name: Run QA Automation (AILite)
-          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly VARIANT=lite QUICK=1 ./tests/qa/run
+  #nightly-automation:
+  #  docker:
+  #    - image: redisfab/rmbuilder:6.2.1-x64-buster
+  #  steps:
+  #    - checkout
+  #    - setup-automation
+  #    - run:
+  #        name: Run QA Automation
+  #        command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
 
 on-any-branch: &on-any-branch
   filters:
@@ -569,6 +566,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - platforms-build:
+          context: common
           <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
           matrix:
@@ -591,12 +589,7 @@ workflows:
           <<: *after-linter
       - valgrind:
           name: valgrind-cluster
-          test_args: GEN=0 AOF=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-aof
-          test_args: GEN=0 CLUSTER=0
+          test_args: GEN=0
           <<: *on-integ-branch
           <<: *after-linter
       - deploy-snapshot:
@@ -613,15 +606,15 @@ workflows:
           requires:
             - deploy-release
 
-  nightly:
-    triggers:
-      - schedule:
-          cron: "20 17 * * *"
-          filters:
-            branches:
-              only: master
-    jobs:
+#  nightly:
+#    triggers:
+#      - schedule:
+#          cron: "20 17 * * *"
+#          filters:
+#            branches:
+#              only: master
+#    jobs:
 #      - build-macos:
 #          <<: *never # temporarily disabled
-      - nightly-automation:
-          context: common
+#      - nightly-automation:
+#          context: common

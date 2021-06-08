@@ -245,8 +245,18 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     return REDISMODULE_OK;
 }
 
-size_t ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
+inline size_t RAI_ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
 
-size_t ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+inline size_t RAI_ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+
+inline const char *RAI_ModelGetInputName(RAI_Model *model, size_t index) {
+    return model->inputs[index];
+}
+
+const char *RAI_ModelGetOutputName(RAI_Model *model, size_t index) { return model->outputs[index]; }
+
+inline void *RAI_ModelGetSession(RAI_Model *model) { return model->session; }
+
+inline void *RAI_ModelGetModel(RAI_Model *model) { return model->model; }
 
 RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
