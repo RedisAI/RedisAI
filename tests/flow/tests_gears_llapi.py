@@ -19,8 +19,8 @@ def verify_gears_loaded(env):
     redisgears_path = os.path.join(redisgears_dir, 'redisgears.so')
     python_plugin_path = os.path.join(redisgears_dir, 'plugin/gears_python.so')
     try:
-        ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv',
-                                    0, 'PythonInstallationDir', redisgears_dir)
+        ret = con.execute_command('MODULE', 'LOAD', redisgears_path, 'Plugin', python_plugin_path, 'CreateVenv', 0,
+                                  'PythonInstallationDir', redisgears_dir)
         env.assertEqual(ret, b'OK')
     except Exception as e:
         env.debugPrint("RedisGears not loaded: "+str(e), force=True)
@@ -111,12 +111,11 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
     def test_async_run(self):
         if not verify_gears_loaded(self.env):
             return
-        for i in range(1000):
-            con = self.env.getConnection()
-            ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
-            self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
-            values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
-            self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
+        con = self.env.getConnection()
+        ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
+        self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
+        values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
+        self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_tf_ignore_inputs_names(self):
         if not verify_gears_loaded(self.env):
@@ -191,11 +190,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
-        test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-        script_filename = os.path.join(test_data_path, 'script.txt')
-        with open(script_filename, 'rb') as f:
-            script = f.read()
-
+        script = load_file_content("script.txt")
         ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
         ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
