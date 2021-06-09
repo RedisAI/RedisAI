@@ -233,7 +233,7 @@ jobs:
             bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
+            make build DOCKER_SUFFIX=".<<parameters.osnick>>" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
