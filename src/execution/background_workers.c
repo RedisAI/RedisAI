@@ -138,32 +138,31 @@ static void _BGThread_RinfoFinish(RedisAI_RunInfo *rinfo) {
 }
 
 static bool _BGThread_IsRInfoTimedOut(RedisAI_RunInfo *rinfo) {
-    bool timedOut = false;
+
+    if (RedisAI_DagTimeout(rinfo)) {
+        return true;
+    }
     if (rinfo->timeout > 0) {
-        timedOut = __atomic_load_n(rinfo->timedOut, __ATOMIC_RELAXED);
-
-        if (!timedOut) {
-            struct timeval now, sub;
-            gettimeofday(&now, NULL);
-            timersub(&now, &rinfo->queuingTime, &sub);
-            size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
-
-            if (time_msec > rinfo->timeout) {
-                timedOut = true;
-                __atomic_store_n(rinfo->timedOut, timedOut, __ATOMIC_RELAXED);
-            }
+        struct timeval now, sub;
+        gettimeofday(&now, NULL);
+        timersub(&now, &rinfo->queuingTime, &sub);
+        size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+        if (time_msec > rinfo->timeout) {
+            RedisAI_DagSetTimeout(rinfo);
+            return true;
         }
     }
-    return timedOut;
+    return false;
 }
 
-static int *_BGThread_ExecutionFinish(RedisAI_RunInfo **batch_rinfo, bool dag_timeout) {
+static int *_BGThread_ExecutionFinish(RedisAI_RunInfo **batch_rinfo) {
     int *unfinished_rinfos_indices = array_new(int, array_len(batch_rinfo));
     for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
         RedisAI_RunInfo *rinfo = batch_rinfo[i];
         rinfo->dagDeviceCompleteOpCount += 1;
         __atomic_add_fetch(rinfo->dagCompleteOpCount, 1, __ATOMIC_RELAXED);
-        if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo) || dag_timeout) {
+        if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo) ||
+            RedisAI_DagTimeout(rinfo)) {
             _BGThread_RinfoFinish(rinfo);
         } else {
             unfinished_rinfos_indices = array_append(unfinished_rinfos_indices, i);
@@ -347,12 +346,7 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
             RedisModule_Free(item);
             // In case of timeout or error - skip execution.
-            bool skip_execution = false;
-            bool timed_out = _BGThread_IsRInfoTimedOut(rinfo);
-            if (timed_out || RedisAI_DagError(rinfo)) {
-                skip_execution = true;
-                batch_rinfo = array_append(batch_rinfo, rinfo);
-            }
+            bool skip_execution = _BGThread_IsRInfoTimedOut(rinfo) || RedisAI_DagError(rinfo);
             // Prepare to execution, if the op or the batch is not ready, exit
             // the loop, give a chance to new tasks to submit.
             if (!skip_execution &&
@@ -367,12 +361,16 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
             if (!skip_execution) {
                 _BGThread_Execute(run_queue_info, batch_rinfo);
+            } else {
+                // If we are skipping the execution due to dag error or timeout,
+                // we consider the batch as contains this single dag when finish.
+                batch_rinfo = array_append(batch_rinfo, rinfo);
             }
             // For every DAG in the batch: if the entire DAG run is complete,
             // call the on finish callback. Otherwise, save the DAG index in
             // the batch_rinfo array, so we reinsert the DAG to the queue
             // (after acquiring the queue lock).
-            int *unfinished_rinfo_indices = _BGThread_ExecutionFinish(batch_rinfo, timed_out);
+            int *unfinished_rinfo_indices = _BGThread_ExecutionFinish(batch_rinfo);
             pthread_mutex_lock(&run_queue_info->run_queue_mutex);
 
             // Reinsert the unfinished DAG's run info to the queue.

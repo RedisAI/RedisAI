@@ -33,6 +33,7 @@ class TestModelExecuteFromGears:
     def __init__(self):
         self.env = Env()
         if not verify_gears_loaded(self.env):
+            self.env.skip()
             return
         script = '''
 
@@ -100,8 +101,6 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     def test_old_api(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ModelRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ModelRun_oldAPI_OK')
@@ -109,8 +108,6 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_async_run(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
@@ -118,8 +115,6 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_tf_ignore_inputs_names(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test3')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
@@ -127,20 +122,18 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_runtime_error(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ModelRun_AsyncRunError_test4')
         # This should raise an exception
         self.env.assertEqual(str(ret[0]), "b'Must specify at least one target to fetch or execute.'")
 
 
-# @skip_if_gears_not_loaded
 class TestScriptExecuteFromGears:
 
     def __init__(self):
         self.env = Env()
         if not verify_gears_loaded(self.env):
+            self.env.skip()
             return
         script = '''
 
@@ -199,8 +192,6 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(ret, b'OK')
 
     def test_old_api(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ScriptRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ScriptRun_oldAPI_OK')
@@ -208,8 +199,6 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_async_execution(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ScriptRun_Async_test2')
         self.env.assertEqual(ret[0], b'ScriptRun_Async_OK')
@@ -217,8 +206,6 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_runtime_error(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
         # This should raise an exception
@@ -230,6 +217,7 @@ class TestDAGRunExecution:
     def __init__(self):
         self.env = Env()
         if not verify_gears_loaded(self.env):
+            self.env.skip()
             return
         script = '''
 
@@ -320,8 +308,6 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(ret, b'OK')
 
     def test_modelset_modelget_ops(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test1')
         self.env.assertEqual(ret[0], b'test1_OK')
@@ -329,8 +315,6 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(values, [b'2', b'3', b'2', b'3'])
 
     def test_modelexecute_op(self):
-        if not verify_gears_loaded(self.env):
-            return
 
         def multiple_executions(con):
             ret = con.execute_command('rg.trigger', 'DAGRun_test2')
@@ -341,8 +325,6 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         run_test_multiproc(self.env, 500, multiple_executions)
 
     def test_scriptexecute_op(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test3')
         self.env.assertEqual(ret[0], b'test3_OK')
@@ -350,16 +332,12 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_scriptexecute_op_runtime_error(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test4')
         # This should raise an exception
         self.env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
 
     def test_build_dag_from_string(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test5')
         self.env.assertEqual(ret[0], b'test5_OK')
@@ -372,6 +350,7 @@ class TestTensorCreate:
     def __init__(self):
         self.env = Env()
         if not verify_gears_loaded(self.env):
+            self.env.skip()
             return
         script = '''
 
@@ -397,8 +376,6 @@ GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_Fr
         self.env.assertEqual(ret, b'OK')
 
     def test_create_tensor_from_values(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'TensorCreate_FromValues_test1')
         self.env.assertEqual(ret[0], b'test1_OK')
@@ -406,8 +383,6 @@ GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_Fr
         self.env.assertEqual(values, [b'1', b'2', b'3', b'4'])
 
     def test_create_tensor_from_blob(self):
-        if not verify_gears_loaded(self.env):
-            return
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'TensorCreate_FromBlob_test2')
         self.env.assertEqual(ret[0], b'test2_OK')
@@ -417,6 +392,7 @@ GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_Fr
 
 def test_flatten_tensor_via_gears(env):
     if not verify_gears_loaded(env):
+        env.skip()
         return
     script = '''
 
