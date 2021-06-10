@@ -566,6 +566,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - platforms-build:
+          context: common
           <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
           matrix:
