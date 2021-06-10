@@ -88,6 +88,9 @@ typedef struct RAI_LoadedBackend {
 
     // Kill run session callback (for stopping long runs).
     void (*enforce_runtime_duration)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
+
+    // Get the length of the global run sessions array (with entry per working thread).
+    size_t (*get_global_run_sessions_len)(void);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {
@@ -100,9 +103,10 @@ typedef struct RAI_LoadedBackends {
 RAI_LoadedBackends RAI_backends;
 
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
+
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 
 /**
  * @brief Returns the backend name as string.
  */
-const char *GetBackendName(RAI_Backend backend);
+const char *RAI_GetBackendName(RAI_Backend backend);

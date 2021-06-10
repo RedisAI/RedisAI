@@ -60,7 +60,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         RedisModule_Free(buffer);
     }
 
-    const char *backendstr = GetBackendName(model->backend);
+    const char *backendstr = RAI_GetBackendName(model->backend);
 
     if (model->backend != RAI_BACKEND_TENSORFLOW) {
 

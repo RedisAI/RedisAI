@@ -71,7 +71,7 @@ RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
     return backends_path;
 }
 
-const char *GetBackendName(RAI_Backend backend) {
+const char *RAI_GetBackendName(RAI_Backend backend) {
     switch (backend) {
     case RAI_BACKEND_TENSORFLOW:
         return "TF";
@@ -369,6 +369,13 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
     backend.add_new_device =
         (int (*)(const char *))(unsigned long)dlsym(handle, "RAI_AddNewDeviceORT");
     if (!_ValidateAPICreated(ctx, backend.add_new_device, "RAI_AddNewDeviceORT")) {
+        goto error;
+    }
+
+    backend.get_global_run_sessions_len =
+        (size_t(*)(void))(unsigned long)dlsym(handle, "RAI_GetGlobalRunSessionsLenORT");
+    if (!_ValidateAPICreated(ctx, backend.get_global_run_sessions_len,
+                             "RAI_GetGlobalRunSessionsLenORT")) {
         goto error;
     }
 

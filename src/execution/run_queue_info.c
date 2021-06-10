@@ -7,7 +7,7 @@ RunQueueInfo *RunQueue_Create(const char *device_str) {
 
     size_t device_str_len = strlen(device_str);
     char upper_device_str[device_str_len + 1];
-    String_ToUpper(device_str, upper_device_str, &device_str_len);
+    RAI_StringToUpper(device_str, upper_device_str, device_str_len + 1);
 
     // Create new run queue and initialize its inner fields.
     RunQueueInfo *run_queue_info = RedisModule_Alloc(sizeof(RunQueueInfo));
@@ -44,7 +44,7 @@ RunQueueInfo *RunQueue_Create(const char *device_str) {
 RunQueueInfo *RunQueue_GetInfo(const char *device_str) {
     size_t device_str_len = strlen(device_str);
     char upper_device_str[device_str_len + 1];
-    String_ToUpper(device_str, upper_device_str, &device_str_len);
+    RAI_StringToUpper(device_str, upper_device_str, device_str_len + 1);
     AI_dictEntry *entry = AI_dictFind(RunQueues, upper_device_str);
     RedisModule_Assert(entry != NULL);
     return AI_dictGetVal(entry);
@@ -53,7 +53,7 @@ RunQueueInfo *RunQueue_GetInfo(const char *device_str) {
 bool RunQueue_IsExists(const char *device_str) {
     size_t device_str_len = strlen(device_str);
     char upper_device_str[device_str_len + 1];
-    String_ToUpper(device_str, upper_device_str, &device_str_len);
+    RAI_StringToUpper(device_str, upper_device_str, device_str_len + 1);
     if (AI_dictFind(RunQueues, upper_device_str) == NULL) {
         return false;
     }

@@ -464,60 +464,67 @@ def test_onnx_use_custom_allocator_with_GPU(env):
     env.assertEqual(int(ai_memory_config["ai_onnxruntime_memory_access_num"]), 11)
 
 
-def test_onnx_kill_switch_basic(env):
-    con = env.getConnection()
-    model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
-    env.assertEqual(ret, b'OK')
+class TestOnnxKillSwitch:
 
-    # Set tensors according to the model inputs. This model consists of two operations to type 'Identity'
-    # (i.e., just output the input), where the second op is wrapped with another op of type 'Loop'. Overall, this model
-    # runs a very large number of iterations without doing anything, until it is caught with the kill switch.
-    con.execute_command('AI.TENSORSET', 'iterations{1}', 'INT64', 1, 'VALUES', 9223372036854775807)
-    con.execute_command('AI.TENSORSET', 'loop_cond{1}', 'BOOL', 1, 'VALUES', 1)
-    con.execute_command('AI.TENSORSET', 'loop_input{1}', 'FLOAT', 1, 'VALUES', 42)
-    con.execute_command('AI.TENSORSET', 'outer_scope_input{1}', 'FLOAT', 1, 'VALUES', 42)
+    def __init__(self):
+        self.env = Env(moduleArgs='THREADS_PER_QUEUE 8 MODEL_EXECUTION_TIMEOUT 1000')
+        con = self.env.getConnection()
+        model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
+        ret = con.execute_command('AI.MODELSTORE', 'inf_loop_model{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
+        self.env.assertEqual(ret, b'OK')
 
-    try:
-        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
-        env.assertTrue(False)
-    except Exception as exception:
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+        # Set tensors according to the model inputs. This model consists of two operations to type 'Identity'
+        # (i.e., just output the input), where the second op is wrapped with another op of type 'Loop'. Overall, this model
+        # runs a very large number of iterations without doing anything, until it is caught with the kill switch.
+        con.execute_command('AI.TENSORSET', 'iterations{1}', 'INT64', 1, 'VALUES', 9223372036854775807)
+        con.execute_command('AI.TENSORSET', 'loop_cond{1}', 'BOOL', 1, 'VALUES', 1)
+        con.execute_command('AI.TENSORSET', 'loop_input{1}', 'FLOAT', 1, 'VALUES', 42)
+        con.execute_command('AI.TENSORSET', 'outer_scope_input{1}', 'FLOAT', 1, 'VALUES', 42)
 
-
-def test_onnx_kill_switch_multiple_working_threads():
-    env = Env(moduleArgs='THREADS_PER_QUEUE 8 MODEL_EXECUTION_TIMEOUT 1000')
-    con = env.getConnection()
-    model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
-    ret = con.execute_command('AI.MODELSTORE', 'inf_loop_model{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
-    env.assertEqual(ret, b'OK')
-
-    # Set tensors according to the model inputs. This model consists of two operations to type 'Identity'
-    # (i.e., just output the input), where the second op is wrapped with another op of type 'Loop'. Overall, this model
-    # runs a very large number of iterations without doing anything, until it is caught with the kill switch.
-    con.execute_command('AI.TENSORSET', 'iterations{1}', 'INT64', 1, 'VALUES', 9223372036854775807)
-    con.execute_command('AI.TENSORSET', 'loop_cond{1}', 'BOOL', 1, 'VALUES', 1)
-    con.execute_command('AI.TENSORSET', 'loop_input{1}', 'FLOAT', 1, 'VALUES', 42)
-    con.execute_command('AI.TENSORSET', 'outer_scope_input{1}', 'FLOAT', 1, 'VALUES', 42)
-
-    # Load another onnx model as if it runs on a different device (to test existence of multiple queues)
-    model_pb = load_file_content('mnist.onnx')
-    sample_raw = load_file_content('one.raw')
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU:1', 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-
-    def run_parallel_onnx_sessions(con):
-        ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-        env.assertEqual(ret, b'OK')
+    def test_basic(self):
         try:
+            con = self.env.getConnection()
             con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
+                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
+            self.env.assertTrue(False)
         except Exception as exception:
-            env.assertEqual(type(exception), redis.exceptions.ResponseError)
-            env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
-        ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-        env.assertEqual(ret, b'OK')
-    run_test_multiproc(env, 8, run_parallel_onnx_sessions)
+            self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
+            self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+
+    def test_multiple_working_threads(self):
+        con = self.env.getConnection()
+
+        # Load another onnx model that will be executed on the same threads that use the kill switch
+        model_pb = load_file_content('mnist.onnx')
+        sample_raw = load_file_content('one.raw')
+        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+        self.env.assertEqual(ret, b'OK')
+        con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+        def run_parallel_onnx_sessions(con):
+            ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+            self.env.assertEqual(ret, b'OK')
+            try:
+                con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
+                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
+            except Exception as exception:
+                self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
+                self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+            ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+            self.env.assertEqual(ret, b'OK')
+        run_test_multiproc(self.env, 8, run_parallel_onnx_sessions)
+
+    def test_multiple_devices(self):
+        con = self.env.getConnection()
+        memory_config = {k.split(":")[0]: k.split(":")[1]
+                            for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+        self.env.assertEqual(memory_config['ai_onnxruntime_global_run_sessions_length'], '8')
+
+        # Load another onnx model as if it runs on a different device (to test existence of multiple queues, and
+        # the extension of the global onnx run sessions array as a consequence.)
+        model_pb = load_file_content('mnist.onnx')
+        ret = con.execute_command('AI.MODELSTORE', 'mnist_{1}', 'ONNX', 'CPU:1', 'BLOB', model_pb)
+        self.env.assertEqual(ret, b'OK')
+        memory_config = {k.split(":")[0]: k.split(":")[1]
+                         for k in con.execute_command("INFO MODULES").decode().split("#")[4].split()[1:]}
+        self.env.assertEqual(memory_config['ai_onnxruntime_global_run_sessions_length'], '16')

@@ -7,8 +7,8 @@
 #include "util/string_utils.h"
 #include "redis_ai_objects/stats.h"
 
-int CreateGlobalOnnxRunSessions() {
-    onnx_global_run_sessions = RedisModule_Alloc(sizeof(struct OnnxGlobalRunSessions));
+int RAI_InitGlobalRunSessionsORT() {
+    onnx_global_run_sessions = RedisModule_Alloc(sizeof(OnnxGlobalRunSessions));
 
     // Initialize the array with entries number equals to the number of currently
     // working threads in RedisAI (note that CPU threads must exist form the start).
@@ -23,6 +23,13 @@ int CreateGlobalOnnxRunSessions() {
     pthread_rwlock_init(&(onnx_global_run_sessions->rwlock), NULL);
 
     return REDISMODULE_OK;
+}
+
+size_t RAI_GetGlobalRunSessionsLenORT() {
+    pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
+    size_t len = array_len(onnx_global_run_sessions->OnnxRunSessions);
+    pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
+    return len;
 }
 
 int RAI_AddNewDeviceORT(const char *device_str) {
@@ -45,6 +52,7 @@ int RAI_AddNewDeviceORT(const char *device_str) {
 
 void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent,
                            void *data) {
+    RedisModule_Assert(eid.id == REDISMODULE_EVENT_CRON_LOOP);
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx **run_sessions_ctx = onnx_global_run_sessions->OnnxRunSessions;
@@ -63,7 +71,7 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void SetRunSessionCtx(OrtRunOptions *new_run_options, size_t *run_session_index) {
+void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session_index) {
 
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     // Get the thread index (which is the correspondent index in the global sessions array).
@@ -77,7 +85,7 @@ void SetRunSessionCtx(OrtRunOptions *new_run_options, size_t *run_session_index)
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void InvalidateRunSessionCtx(size_t run_session_index) {
+void RAI_InvalidateRunSessionCtxORT(size_t run_session_index) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[run_session_index];

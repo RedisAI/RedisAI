@@ -466,7 +466,7 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithArray(ctx, outentries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
-    const char *backendstr = GetBackendName(mto->backend);
+    const char *backendstr = RAI_GetBackendName(mto->backend);
     RedisModule_ReplyWithCString(ctx, backendstr);
 
     RedisModule_ReplyWithCString(ctx, "device");
@@ -854,25 +854,25 @@ void _RedisAI_Info(RedisModuleCtx *ctx) {
         RedisModule_CreateStringPrintf(ctx, "%d", REDISAI_LLAPI_VERSION);
     RedisModuleString *rdb_version = RedisModule_CreateStringPrintf(ctx, "%llu", REDISAI_ENC_VER);
 
-    int reponse_len = 6;
+    int response_len = 6;
 
     if (RAI_backends.tf.get_version) {
-        reponse_len += 2;
+        response_len += 2;
     }
 
     if (RAI_backends.torch.get_version) {
-        reponse_len += 2;
+        response_len += 2;
     }
 
     if (RAI_backends.tflite.get_version) {
-        reponse_len += 2;
+        response_len += 2;
     }
 
     if (RAI_backends.onnx.get_version) {
-        reponse_len += 2;
+        response_len += 2;
     }
 
-    RedisModule_ReplyWithArray(ctx, reponse_len);
+    RedisModule_ReplyWithArray(ctx, response_len);
 
     RedisModule_ReplyWithSimpleString(ctx, "Version");
     RedisModule_ReplyWithString(ctx, rai_version);
@@ -948,7 +948,7 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
         RedisModule_ReplyWithCString(ctx, "SCRIPT");
     }
     RedisModule_ReplyWithCString(ctx, "backend");
-    RedisModule_ReplyWithCString(ctx, GetBackendName(rstats->backend));
+    RedisModule_ReplyWithCString(ctx, RAI_GetBackendName(rstats->backend));
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, rstats->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
@@ -960,7 +960,7 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
     RedisModule_ReplyWithCString(ctx, "duration");
     RedisModule_ReplyWithLongLong(ctx, rstats->duration_us);
     RedisModule_ReplyWithCString(ctx, "samples");
-    if (rstats->type == 0) {
+    if (rstats->type == RAI_MODEL) {
         RedisModule_ReplyWithLongLong(ctx, rstats->samples);
     } else {
         RedisModule_ReplyWithLongLong(ctx, -1);
@@ -1228,9 +1228,12 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                                           RAI_backends.onnx.get_memory_info());
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
                                           RAI_backends.onnx.get_memory_access_num());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_global_run_sessions_length",
+                                          RAI_backends.onnx.get_global_run_sessions_len());
     } else {
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory", 0);
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num", 0);
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_global_run_sessions_length", 0);
     }
 
     struct rusage self_ru, c_ru;

@@ -99,7 +99,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
     get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
     // Create a global array of onnx runSessions, with an entry for every working thread.
-    CreateGlobalOnnxRunSessions();
+    RAI_InitGlobalRunSessionsORT();
 
     return REDISMODULE_OK;
 }
@@ -582,11 +582,11 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
 
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
         // Set the created run option in the global RunSessions and save its index.
-        SetRunSessionCtx(run_options, &run_session_index);
+        RAI_SetRunSessionCtxORT(run_options, &run_session_index);
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
-        InvalidateRunSessionCtx(run_session_index);
+        RAI_InvalidateRunSessionCtxORT(run_session_index);
         run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
@@ -674,7 +674,7 @@ error:
         ort->ReleaseTensorTypeAndShapeInfo(info);
     }
     if (run_options) {
-        InvalidateRunSessionCtx(run_session_index);
+        RAI_InvalidateRunSessionCtxORT(run_session_index);
     }
     return REDISMODULE_ERR;
 }
