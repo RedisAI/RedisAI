@@ -55,4 +55,4 @@ void SetRunSessionCtx(OrtRunOptions *new_run_options, size_t *run_session_index)
  * reset the corresponding entry in the global structure.
  * @param run_session_index - The entry index where OrtRunOptions was stored.
  */
-void ClearRunSessionCtx(size_t run_session_index);
+void InvalidateRunSessionCtx(size_t run_session_index);

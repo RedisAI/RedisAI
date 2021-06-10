@@ -26,7 +26,8 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <execution/onnx_timeout.h>
+#include <backends/onnx_timeout.h>
+#include <execution/run_queue_info.h>
 
 #include "rmutil/alloc.h"
 #include "rmutil/args.h"
@@ -62,6 +63,8 @@ extern int rlecMajorVersion;
 extern int rlecMinorVersion;
 extern int rlecPatchVersion;
 extern int rlecBuild;
+
+extern pthread_key_t ThreadIdKey;
 
 /* ----------------------- RedisAI Module Commands ------------------------- */
 
@@ -234,8 +237,8 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     if (AC_IsAtEnd(&ac)) {
@@ -353,8 +356,8 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    if (!IsRunQueueExists(devicestr)) {
-        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
         if (run_queue_info == NULL) {
             RAI_ModelFree(model, &err);
             RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
@@ -391,7 +394,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 }
 
 void RAI_ReplyWithChunks(RedisModuleCtx *ctx, const char *buffer, long long len) {
-    long long chunk_size = getModelChunkSize();
+    long long chunk_size = Config_GetModelChunkSize();
     const size_t n_chunks = len / chunk_size + 1;
     if (n_chunks > 1) {
         RedisModule_ReplyWithArray(ctx, (long)n_chunks);
@@ -776,8 +779,8 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return ret;
     }
 
-    if (!IsRunQueueExists(devicestr)) {
-        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
         if (run_queue_info == NULL) {
             RAI_ScriptFree(script, &err);
             RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
@@ -981,11 +984,12 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
     const char *subcommand = RedisModule_StringPtrLen(argv[1], NULL);
     if (!strcasecmp(subcommand, "LOADBACKEND")) {
-        return RedisAI_Config_LoadBackend(ctx, argv + 1, argc - 1);
+        return Config_LoadBackend(ctx, argv + 1, argc - 1);
     }
 
     if (!strcasecmp(subcommand, "BACKENDSPATH")) {
         if (argc > 2) {
+            Config_SetBackendsPath(RedisModule_StringPtrLen(argv[2], NULL));
             return RedisModule_ReplyWithSimpleString(ctx, "OK");
         } else {
             return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: missing path argument");
@@ -994,7 +998,7 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
     if (!strcasecmp(subcommand, "MODEL_CHUNK_SIZE")) {
         if (argc > 2) {
-            if (RedisAI_Config_ModelChunkSize(argv[2]) == REDISMODULE_OK) {
+            if (Config_SetModelChunkSize(argv[2]) == REDISMODULE_OK) {
                 return RedisModule_ReplyWithSimpleString(ctx, "OK");
             } else {
                 return RedisModule_ReplyWithError(ctx, "ERR MODEL_CHUNK_SIZE: invalid chunk size");
@@ -1211,10 +1215,10 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddSection(ctx, "git");
     RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
     RedisModule_InfoAddSection(ctx, "load_time_configs");
-    RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", ThreadPoolSizePerQueue);
-    RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", getBackendsInterOpParallelism());
-    RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", getBackendsIntraOpParallelism());
-    RedisModule_InfoAddFieldLongLong(ctx, "timeout_for_onnxruntime_sessions", GetOnnxTimeout());
+    RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", Config_GetNumThreadsPerQueue());
+    RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", Config_GetBackendsInterOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", Config_GetBackendsIntraOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "model_execution_timeout", Config_GetModelExecutionTimeout());
     RedisModule_InfoAddSection(ctx, "memory_usage");
     if (RAI_backends.onnx.get_memory_info) {
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
@@ -1281,7 +1285,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
         char *queue_name = (char *)AI_dictGetKey(entry);
         RunQueueInfo *run_queue_info = (RunQueueInfo *)AI_dictGetVal(entry);
         if (run_queue_info) {
-            for (int i = 0; i < ThreadPoolSizePerQueue; i++) {
+            for (int i = 0; i < Config_GetNumThreadsPerQueue(); i++) {
                 pthread_t current_bg_threads = run_queue_info->threads[i];
                 struct timespec ts;
                 clockid_t cid;
@@ -1464,21 +1468,13 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     RedisModule_SetModuleOptions(ctx, REDISMODULE_OPTIONS_HANDLE_IO_ERRORS);
 
-    // Default configs
-    RAI_BackendsPath = NULL;
-    ThreadPoolSizePerQueue = REDISAI_DEFAULT_THREADS_PER_QUEUE;
-    setBackendsInterOpParallelism(REDISAI_DEFAULT_INTER_OP_PARALLELISM);
-    setBackendsIntraOpParallelism(REDISAI_DEFAULT_INTRA_OP_PARALLELISM);
-    setModelChunkSize(REDISAI_DEFAULT_MODEL_CHUNK_SIZE);
-    SetOnnxTimeout(ONNX_DEFAULT_MAX_RUNTIME);
-
-    if (RAI_loadTimeConfig(ctx, argv, argc) != REDISMODULE_OK) {
+    if (Config_SetLoadTimeParams(ctx, argv, argc) != REDISMODULE_OK) {
         return REDISMODULE_ERR;
     }
 
     RunQueues = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
-    pthread_key_create(&ThreadIdKey, RedisModule_Free);
-    RunQueueInfo *cpu_run_queue_info = CreateRunQueue("CPU");
+    pthread_key_create(&ThreadIdKey, NULL);
+    RunQueueInfo *cpu_run_queue_info = RunQueue_Create("CPU");
     if (cpu_run_queue_info == NULL) {
         RedisModule_Log(ctx, "warning", "RedisAI could not initialize run queue for CPU");
         return REDISMODULE_ERR;

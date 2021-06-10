@@ -1,4 +1,5 @@
 
+#include <execution/run_queue_info.h>
 #include "deprecated.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
@@ -236,8 +237,8 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     RAI_Model *model = NULL;
@@ -305,8 +306,8 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    if (!IsRunQueueExists(devicestr)) {
-        RunQueueInfo *run_queue_info = CreateRunQueue(devicestr);
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
         if (run_queue_info == NULL) {
             RAI_ModelFree(model, &err);
             RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");

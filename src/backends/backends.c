@@ -14,9 +14,11 @@
 #include <dlfcn.h>
 #include <libgen.h>
 #include <string.h>
-#include <execution/background_workers.h>
-
 #include "redismodule.h"
+#include "config/config.h"
+#include "execution/background_workers.h"
+
+
 
 static bool _ValidateAPICreated(RedisModuleCtx *ctx, void *func_ptr, const char *func_name) {
     if (func_ptr == NULL) {
@@ -28,12 +30,14 @@ static bool _ValidateAPICreated(RedisModuleCtx *ctx, void *func_ptr, const char 
 
 int RAI_GetApi(const char *func_name, void **targetPtrPtr) {
 
-    if (strcmp("ThreadIdKey", func_name) == 0) {
-        *targetPtrPtr = GetThreadId;
-    } else if (strcmp("NumThreadsPerQueue", func_name) == 0) {
-        *targetPtrPtr = GetNumThreadsPerQueue;
-    } else if (strcmp("OnnxTimeout", func_name) == 0) {
-        *targetPtrPtr = GetOnnxTimeout;
+    if (strcmp("GetThreadId", func_name) == 0) {
+        *targetPtrPtr = BGWorker_GetThreadId;
+    } else if (strcmp("GetNumThreadsPerQueue", func_name) == 0) {
+        *targetPtrPtr = Config_GetNumThreadsPerQueue;
+    } else if (strcmp("GetModelExecutionTimeout", func_name) == 0) {
+        *targetPtrPtr = Config_GetModelExecutionTimeout;
+    } else if (strcmp("GetThreadsCount", func_name) == 0) {
+        *targetPtrPtr = BGWorker_GetThreadsCount;
     } else {
         return RedisModule_GetApi(func_name, targetPtrPtr);
     }
@@ -56,8 +60,8 @@ RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
 RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
     Dl_info info;
     RedisModuleString *backends_path = NULL;
-    if (RAI_BackendsPath != NULL) {
-        backends_path = RedisModule_CreateString(ctx, RAI_BackendsPath, strlen(RAI_BackendsPath));
+    if (Config_GetBackendsPath() != NULL) {
+        backends_path = RedisModule_CreateString(ctx, Config_GetBackendsPath(), strlen(Config_GetBackendsPath()));
     } else {
         RedisModuleString *module_path = RAI_GetModulePath(ctx);
         backends_path = RedisModule_CreateStringPrintf(ctx, "%s/backends",

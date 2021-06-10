@@ -1,31 +1,27 @@
 #include "config.h"
-
-#include <stdbool.h>
 #include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
-
 #include "redismodule.h"
-#include "rmutil/alloc.h"
-#include "backends/util.h"
 #include "backends/backends.h"
-#include "util/dict.h"
-#include "util/queue.h"
-#include "util/arr.h"
-#include "execution/background_workers.h"
 
-long long backends_intra_op_parallelism; //  number of threads used within an
-                                         //  individual op for parallelism.
-long long backends_inter_op_parallelism; //  number of threads used for parallelism
-                                         //  between independent operations.
-long long model_chunk_size;              //  size of chunks used to break up model payloads.
+// Default configs
+char *BackendsPath = NULL;                   //  Path to backends dir.
 
-long long onnx_max_runtime; //  The maximum time in milliseconds
-                            //  before killing onnx run session.
+long long BackendsIntraOpParallelism = 0;    //  number of threads used within an
+                                             //  individual op for parallelism.
+long long BackendsInterOpParallelism = 0;    //  number of threads used for parallelism
+                                             //  between independent operations.
+long long ModelChunkSize = 535822336;        //  size of chunks used to break up model payloads.
+                                             //  default is 511 * 1024 * 1024
+long long ThreadPoolSizePerQueue = 1;        //  Number of working threads for device.
 
-static int _RAIConfig_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
+long long ModelExecutionTimeout = 5000;      //  The maximum time in milliseconds
+                                             //  before killing onnx run session.
+
+
+static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                                          RedisModuleString *rsval) {
     int ret = REDISMODULE_OK;
+    long long param_val;
     if (strcasecmp((key), "TF") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, (val));
     } else if (strcasecmp((key), "TFLITE") == 0) {
@@ -38,33 +34,33 @@ static int _RAIConfig_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, c
     // enable configuring the main thread to create a fixed number of worker
     // threads up front per device. by default we'll use 1
     else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
-        ret = RedisAI_Config_QueueThreads(rsval);
+        ret = Config_SetQueueThreadsNum(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_THREADS_PER_QUEUE, (param_val));
         }
     } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
-        ret = RedisAI_Config_IntraOperationParallelism(rsval);
+        ret = Config_SetIntraOperationParallelism(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-                            getBackendsIntraOpParallelism());
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
+              val);
         }
     } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
-        ret = RedisAI_Config_InterOperationParallelism(rsval);
+        ret = Config_SetInterOperationParallelism(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-                            getBackendsInterOpParallelism());
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
+              val);
         }
     } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
-        ret = RedisAI_Config_ModelChunkSize(rsval);
+        ret = Config_SetModelChunkSize(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
-                            getModelChunkSize());
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
+              val);
         }
-    } else if (strcasecmp((key), "ONNX_TIMEOUT") == 0) {
-        ret = RedisAI_Config_OnnxTimeout(rsval);
+    } else if (strcasecmp((key), "MODEL_EXECUTION_TIMEOUT") == 0) {
+        ret = Config_SetModelExecutionTimeout(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_ONNX_TIMEOUT,
-                            GetOnnxTimeout());
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT,
+              val);
         }
     } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
         // already taken care of
@@ -74,59 +70,19 @@ static int _RAIConfig_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, c
     return ret;
 }
 
-long long getBackendsInterOpParallelism() { return backends_inter_op_parallelism; }
+long long Config_GetBackendsInterOpParallelism() { return BackendsInterOpParallelism; }
 
-int setBackendsInterOpParallelism(long long num_threads) {
-    if (num_threads <= 0) {
-        return REDISMODULE_ERR;
-    }
-    backends_inter_op_parallelism = num_threads;
-    return REDISMODULE_OK;
-}
+long long Config_GetBackendsIntraOpParallelism() { return BackendsIntraOpParallelism; }
 
-long long getBackendsIntraOpParallelism() { return backends_intra_op_parallelism; }
+long long Config_GetModelChunkSize() { return ModelChunkSize; }
 
-int setBackendsIntraOpParallelism(long long num_threads) {
-    if (num_threads <= 0) {
-        return REDISMODULE_ERR;
-    }
-    backends_intra_op_parallelism = num_threads;
-    return REDISMODULE_OK;
-}
+long long Config_GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
 
-long long getModelChunkSize() { return model_chunk_size; }
+long long Config_GetModelExecutionTimeout() { return ModelExecutionTimeout; }
 
-int setModelChunkSize(long long size) {
-    if (size <= 0) {
-        return REDISMODULE_ERR;
-    }
-    model_chunk_size = size;
-    return REDISMODULE_OK;
-}
+char *Config_GetBackendsPath() { return BackendsPath; }
 
-long long GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
-
-int SetNumThreadsPerQueue(long long num_threads) {
-    if (num_threads <= 0) {
-        return REDISMODULE_ERR;
-    }
-    ThreadPoolSizePerQueue = num_threads;
-    return REDISMODULE_OK;
-}
-
-long long GetOnnxTimeout() { return onnx_max_runtime; }
-
-int SetOnnxTimeout(long long timeout) {
-    // Timeout should not be lower than the time passing between two consecutive
-    // runs of Redis cron callback, that is no more than (1/CONFIG_MIN_HZ)
-    if (timeout < 1000) {
-        return REDISMODULE_ERR;
-    }
-    onnx_max_runtime = timeout;
-    return REDISMODULE_OK;
-}
-
-int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (argc < 3)
         return RedisModule_WrongArity(ctx);
 
@@ -151,59 +107,66 @@ int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, in
     return RedisModule_ReplyWithError(ctx, "ERR error loading backend");
 }
 
-void RedisAI_Config_BackendsPath(const char *path) {
-    if (RAI_BackendsPath != NULL) {
-        RedisModule_Free(RAI_BackendsPath);
+void Config_SetBackendsPath(const char *path) {
+    if (BackendsPath != NULL) {
+        RedisModule_Free(BackendsPath);
     }
-    RAI_BackendsPath = RedisModule_Strdup(path);
+    BackendsPath = RedisModule_Strdup(path);
 }
 
-int RedisAI_Config_QueueThreads(RedisModuleString *num_threads_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(num_threads_string, &temp);
-    if (result != REDISMODULE_OK) {
+int Config_SetQueueThreadsNum(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
         return REDISMODULE_ERR;
     }
-    return SetNumThreadsPerQueue(temp);
+    ThreadPoolSizePerQueue = val;
+    return REDISMODULE_OK;
 }
 
-int RedisAI_Config_InterOperationParallelism(RedisModuleString *num_threads_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(num_threads_string, &temp);
-    if (result != REDISMODULE_OK) {
+int Config_SetInterOperationParallelism(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
         return REDISMODULE_ERR;
     }
-    return setBackendsInterOpParallelism(temp);
+    BackendsInterOpParallelism = val;
+    return REDISMODULE_OK;
 }
 
-int RedisAI_Config_IntraOperationParallelism(RedisModuleString *num_threads_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(num_threads_string, &temp);
-    if (result != REDISMODULE_OK) {
+int Config_SetIntraOperationParallelism(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
         return REDISMODULE_ERR;
     }
-    return setBackendsIntraOpParallelism(temp);
+    BackendsIntraOpParallelism = val;
+    return REDISMODULE_OK;
 }
 
-int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(chunk_size_string, &temp);
-    if (result != REDISMODULE_OK) {
+int Config_SetModelChunkSize(RedisModuleString *chunk_size_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(chunk_size_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
         return REDISMODULE_ERR;
     }
-    return setModelChunkSize(temp);
+    ModelChunkSize = val;
+    return REDISMODULE_OK;
 }
 
-int RedisAI_Config_OnnxTimeout(RedisModuleString *onnx_timeout) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(onnx_timeout, &temp);
-    if (result != REDISMODULE_OK) {
+int Config_SetModelExecutionTimeout(RedisModuleString *timeout) {
+    long long val;
+    int result = RedisModule_StringToLongLong(timeout, &val);
+    // Timeout should not be lower than the time passing between two consecutive
+    // runs of Redis cron callback, that is no more than (1/CONFIG_MIN_HZ)
+    if (result != REDISMODULE_OK || val < 1000) {
         return REDISMODULE_ERR;
     }
-    return SetOnnxTimeout(temp);
+    ModelExecutionTimeout = val;
+    return REDISMODULE_OK;
 }
 
-int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc) {
+int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc) {
     if (argc > 0 && argc % 2 != 0) {
         RedisModule_Log(ctx, "warning",
                         "Even number of arguments provided to module. Please "
@@ -216,14 +179,14 @@ int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int 
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
         if (strcasecmp(key, "BACKENDSPATH") == 0) {
-            RedisAI_Config_BackendsPath(val);
+            Config_SetBackendsPath(val);
         }
     }
 
     for (int i = 0; i < argc / 2; i++) {
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
-        int ret = _RAIConfig_LoadTimeParamParse(ctx, key, val, argv[2 * i + 1]);
+        int ret = _Config_LoadTimeParamParse(ctx, key, val, argv[2 * i + 1]);
 
         if (ret == REDISMODULE_ERR) {
             char *buffer = RedisModule_Alloc(
@@ -235,6 +198,5 @@ int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int 
             return ret;
         }
     }
-
     return REDISMODULE_OK;
 }

@@ -488,7 +488,7 @@ def test_onnx_kill_switch_basic(env):
 
 
 def test_onnx_kill_switch_multiple_working_threads():
-    env = Env(moduleArgs='THREADS_PER_QUEUE 8 ONNX_TIMEOUT 1000')
+    env = Env(moduleArgs='THREADS_PER_QUEUE 8 MODEL_EXECUTION_TIMEOUT 1000')
     con = env.getConnection()
     model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
     ret = con.execute_command('AI.MODELSTORE', 'inf_loop_model{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)

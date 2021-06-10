@@ -4,6 +4,7 @@
 #include "redis_ai_objects/model_struct.h"
 #include "redis_ai_objects/err.h"
 #include <stdbool.h>
+#include <util/dict.h>
 
 /** Use this to check if a command is given a key whose hash slot is not on the current
  *  shard, when using enterprise cluster.

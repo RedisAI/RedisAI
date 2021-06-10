@@ -2,7 +2,7 @@
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
-#include <execution/onnx_timeout.h>
+#include <backends/onnx_timeout.h>
 #include "execution/background_workers.h"
 #include <pthread.h>
 #include <math.h>
@@ -94,10 +94,10 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
 
     // Export RedisAI callbacks.
-    get_api_fn("ThreadIdKey", ((void **)&RedisAI_ThreadId));
-    get_api_fn("NumThreadsPerQueue", ((void **)&RedisAI_NumThreadsPerQueue));
-    get_api_fn("OnnxTimeout", ((void **)&RedisAI_OnnxTimeout));
-
+    get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
+    get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
+    get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
     // Create a global array of onnx runSessions, with an entry for every working thread.
     CreateGlobalOnnxRunSessions();
 
@@ -586,7 +586,7 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
-        ClearRunSessionCtx(run_session_index);
+        InvalidateRunSessionCtx(run_session_index);
         run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
@@ -674,7 +674,7 @@ error:
         ort->ReleaseTensorTypeAndShapeInfo(info);
     }
     if (run_options) {
-        ClearRunSessionCtx(run_session_index);
+        InvalidateRunSessionCtx(run_session_index);
     }
     return REDISMODULE_ERR;
 }

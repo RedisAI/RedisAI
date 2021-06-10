@@ -39,6 +39,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         execution/parsing/parse_utils.c
         execution/run_info.c
         execution/background_workers.c
+        execution/run_queue_info.c
         execution/utils.c
         config/config.c
         execution/DAG/dag.c
@@ -88,7 +89,7 @@ ENDIF()
 IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime_obj OBJECT
             backends/onnxruntime.c
-            execution/onnx_timeout.c
+            backends/onnx_timeout.c
             ${BACKEND_COMMON_SRC}
 )
 ENDIF()

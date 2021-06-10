@@ -1,4 +1,5 @@
 #include <sys/time.h>
+#include <execution/run_queue_info.h>
 #include "dag_execute.h"
 #include "util/string_utils.h"
 #include "execution/run_info.h"
@@ -106,7 +107,7 @@ int DAG_InsertDAGToQueue(RedisAI_RunInfo *rinfo) {
     RunQueueInfo **run_queues_info = array_new(RunQueueInfo *, ndevices);
     for (long long i = 0; i < ndevices; i++) {
         const char *device_str = devices[i];
-        RunQueueInfo *run_queue_info = GetRunQueueInfo(device_str);
+        RunQueueInfo *run_queue_info = RunQueue_GetInfo(device_str);
         run_queues_info = array_append(run_queues_info, run_queue_info);
     }
     for (long long i = 0; i < ndevices; i++) {

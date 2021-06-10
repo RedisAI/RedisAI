@@ -9,9 +9,10 @@ unsigned long long RAI_GetMemoryInfoORT(void);
 
 unsigned long long RAI_GetMemoryAccessORT(void);
 
-pthread_key_t (*RedisAI_ThreadId)(void);
-long long (*RedisAI_NumThreadsPerQueue)(void);
-long long (*RedisAI_OnnxTimeout)(void);
+uintptr_t (*RedisAI_GetThreadId)(void);
+uintptr_t (*RedisAI_GetThreadsCount)(void);
+long long (*RedisAI_GetNumThreadsPerQueue)(void);
+long long (*RedisAI_GetModelExecutionTimeout)(void);
 
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **));
 
