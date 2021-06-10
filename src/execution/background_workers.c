@@ -252,7 +252,6 @@ static bool _BGThread_PrepareExecution(RunQueueInfo *run_queue_info, RedisAI_Run
     return true;
 }
 
-
 uintptr_t BGWorker_GetThreadId() { return (uintptr_t)pthread_getspecific(ThreadIdKey); }
 
 uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
