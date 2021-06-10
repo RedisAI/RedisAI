@@ -2,7 +2,6 @@
 #include "background_workers.h"
 #include "redis_ai_objects/model.h"
 
-
 int redisMajorVersion;
 int redisMinorVersion;
 int redisPatchVersion;

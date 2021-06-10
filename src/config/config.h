@@ -19,7 +19,7 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define RAI_COPY_RUN_OUTPUT
 #define RAI_PRINT_BACKEND_ERRORS
 
-#define REDISAI_ERRORMSG_PROCESSING_ARG         "ERR error processing argument"
+#define REDISAI_ERRORMSG_PROCESSING_ARG "ERR error processing argument"
 
 #define REDISAI_INFOMSG_THREADS_PER_QUEUE       "Setting THREADS_PER_QUEUE parameter to"
 #define REDISAI_INFOMSG_INTRA_OP_PARALLELISM    "Setting INTRA_OP_PARALLELISM parameter to"

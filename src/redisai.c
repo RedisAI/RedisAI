@@ -1216,9 +1216,12 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
     RedisModule_InfoAddSection(ctx, "load_time_configs");
     RedisModule_InfoAddFieldLongLong(ctx, "threads_per_queue", Config_GetNumThreadsPerQueue());
-    RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism", Config_GetBackendsInterOpParallelism());
-    RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism", Config_GetBackendsIntraOpParallelism());
-    RedisModule_InfoAddFieldLongLong(ctx, "model_execution_timeout", Config_GetModelExecutionTimeout());
+    RedisModule_InfoAddFieldLongLong(ctx, "inter_op_parallelism",
+                                     Config_GetBackendsInterOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "intra_op_parallelism",
+                                     Config_GetBackendsIntraOpParallelism());
+    RedisModule_InfoAddFieldLongLong(ctx, "model_execution_timeout",
+                                     Config_GetModelExecutionTimeout());
     RedisModule_InfoAddSection(ctx, "memory_usage");
     if (RAI_backends.onnx.get_memory_info) {
         RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",

@@ -18,8 +18,6 @@
 #include "config/config.h"
 #include "execution/background_workers.h"
 
-
-
 static bool _ValidateAPICreated(RedisModuleCtx *ctx, void *func_ptr, const char *func_name) {
     if (func_ptr == NULL) {
         RedisModule_Log(ctx, "warning", "Backend does not export %s", func_name);
@@ -61,7 +59,8 @@ RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
     Dl_info info;
     RedisModuleString *backends_path = NULL;
     if (Config_GetBackendsPath() != NULL) {
-        backends_path = RedisModule_CreateString(ctx, Config_GetBackendsPath(), strlen(Config_GetBackendsPath()));
+        backends_path = RedisModule_CreateString(ctx, Config_GetBackendsPath(),
+                                                 strlen(Config_GetBackendsPath()));
     } else {
         RedisModuleString *module_path = RAI_GetModulePath(ctx);
         backends_path = RedisModule_CreateStringPrintf(ctx, "%s/backends",

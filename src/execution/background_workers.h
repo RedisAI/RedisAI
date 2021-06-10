@@ -29,7 +29,6 @@
 #include "util/arr.h"
 #include "util/queue.h"
 
-
 /**
  * @brief RedisAI main loop for every background working thread
  * @param arg - This is the run queue info of the device on which this thread is

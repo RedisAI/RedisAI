@@ -7,7 +7,6 @@
 #include "util/string_utils.h"
 #include "redis_ai_objects/stats.h"
 
-
 int CreateGlobalOnnxRunSessions() {
     onnx_global_run_sessions = RedisModule_Alloc(sizeof(struct OnnxGlobalRunSessions));
 

@@ -21,8 +21,8 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-uintptr_t BGWorkersCounter;  // Total number of BG threads running currently.
-pthread_key_t ThreadIdKey;   // Key to hold thread id in its local storage.
+uintptr_t BGWorkersCounter; // Total number of BG threads running currently.
+pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
 
 /**
  * @brief Save the id for some working thread in thread local storage.
@@ -223,13 +223,9 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
     return batch_rinfo;
 }
 
-uintptr_t BGWorker_GetThreadId() {
-    return (uintptr_t)pthread_getspecific(ThreadIdKey);
-}
+uintptr_t BGWorker_GetThreadId() { return (uintptr_t)pthread_getspecific(ThreadIdKey); }
 
-uintptr_t BGWorker_GetThreadsCount() {
-    return BGWorkersCounter;
-}
+uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
 
 void *BGWorker_ThreadMain(void *arg) {
     _BGWorker_SaveThreadId();

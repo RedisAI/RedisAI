@@ -4,22 +4,21 @@
 #include "backends/backends.h"
 
 // Default configs
-char *BackendsPath = NULL;                   //  Path to backends dir.
+char *BackendsPath = NULL; //  Path to backends dir.
 
-long long BackendsIntraOpParallelism = 0;    //  number of threads used within an
-                                             //  individual op for parallelism.
-long long BackendsInterOpParallelism = 0;    //  number of threads used for parallelism
-                                             //  between independent operations.
-long long ModelChunkSize = 535822336;        //  size of chunks used to break up model payloads.
-                                             //  default is 511 * 1024 * 1024
-long long ThreadPoolSizePerQueue = 1;        //  Number of working threads for device.
+long long BackendsIntraOpParallelism = 0; //  number of threads used within an
+                                          //  individual op for parallelism.
+long long BackendsInterOpParallelism = 0; //  number of threads used for parallelism
+                                          //  between independent operations.
+long long ModelChunkSize = 535822336;     //  size of chunks used to break up model payloads.
+                                          //  default is 511 * 1024 * 1024
+long long ThreadPoolSizePerQueue = 1;     //  Number of working threads for device.
 
-long long ModelExecutionTimeout = 5000;      //  The maximum time in milliseconds
-                                             //  before killing onnx run session.
-
+long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
+                                        //  before killing onnx run session.
 
 static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
-                                         RedisModuleString *rsval) {
+                                      RedisModuleString *rsval) {
     int ret = REDISMODULE_OK;
     long long param_val;
     if (strcasecmp((key), "TF") == 0) {
@@ -36,31 +35,28 @@ static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, cons
     else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
         ret = Config_SetQueueThreadsNum(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_THREADS_PER_QUEUE, (param_val));
+            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_THREADS_PER_QUEUE,
+                            (param_val));
         }
     } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
         ret = Config_SetIntraOperationParallelism(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-              val);
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTRA_OP_PARALLELISM, val);
         }
     } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
         ret = Config_SetInterOperationParallelism(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-              val);
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTER_OP_PARALLELISM, val);
         }
     } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
         ret = Config_SetModelChunkSize(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
-              val);
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_CHUNK_SIZE, val);
         }
     } else if (strcasecmp((key), "MODEL_EXECUTION_TIMEOUT") == 0) {
         ret = Config_SetModelExecutionTimeout(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT,
-              val);
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT, val);
         }
     } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
         // already taken care of
