@@ -384,6 +384,14 @@ bool RedisAI_DagError(RedisAI_RunInfo *rinfo) {
     return __atomic_load_n(rinfo->dagError, __ATOMIC_RELAXED) != 0;
 }
 
+bool RedisAI_DagTimeout(RedisAI_RunInfo *rinfo) {
+    __atomic_load_n(rinfo->timedOut, __ATOMIC_RELAXED) != 0;
+}
+
+void RedisAI_DagSetTimeout(RedisAI_RunInfo *rinfo) {
+    __atomic_store_n(rinfo->timedOut, 1, __ATOMIC_RELAXED);
+}
+
 RAI_DagOp *RedisAI_DagCurrentOp(RedisAI_RunInfo *rinfo) {
     if (rinfo->dagDeviceCompleteOpCount == rinfo->dagDeviceOpCount) {
         return NULL;
