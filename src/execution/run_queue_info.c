@@ -74,5 +74,3 @@ void RunQueue_Free(RunQueueInfo *run_queue_info) {
     pthread_cond_destroy(&(run_queue_info->queue_condition_var));
     RedisModule_Free(run_queue_info);
 }
-
-AI_dict *RunQueue_GetRAIRunQueuesDict() { return RunQueues; }

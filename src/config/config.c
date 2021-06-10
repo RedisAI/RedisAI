@@ -20,7 +20,6 @@ long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
 static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                                       RedisModuleString *rsval) {
     int ret = REDISMODULE_OK;
-    long long param_val;
     if (strcasecmp((key), "TF") == 0) {
         ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, (val));
     } else if (strcasecmp((key), "TFLITE") == 0) {
@@ -35,8 +34,7 @@ static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, cons
     else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
         ret = Config_SetQueueThreadsNum(rsval);
         if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_THREADS_PER_QUEUE,
-                            (param_val));
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
         }
     } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
         ret = Config_SetIntraOperationParallelism(rsval);
