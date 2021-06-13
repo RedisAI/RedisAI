@@ -186,6 +186,10 @@ size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void *scriptCtx, size_t fn_index,
                                                                 size_t arg_index);
 
+DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src);
+
+void *torchTensorPtrFromDLPack(const DLTensor *src);
+
 #ifdef __cplusplus
 }
 #endif

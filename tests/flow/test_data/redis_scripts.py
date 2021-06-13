@@ -72,3 +72,9 @@ def test_set_key(key:str, value:str):
 
 def test_del_key(key:str):
     redis.execute("DEL", [key])
+
+
+def test_model_execute(keys:List[str]):
+    a = torch.Tensor([[2, 3], [2, 3]])
+    b = torch.Tensor([[2, 3], [2, 3]])
+    return redisAI.model_execute(keys[0], [a, b])  # assume keys==['m{1}']

@@ -19,13 +19,13 @@ class test_torch_script_extesions:
             self.env.skip()
 
         self.con = self.env.getConnection()
-        test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-        script_filename = os.path.join(test_data_path, 'redis_scripts.py')
-        with open(script_filename, 'rb') as f:
-            script = f.read()
-
+        script = load_file_content('redis_scripts.py')
         ret = self.con.execute_command(
             'AI.SCRIPTSET', 'redis_scripts{1}', DEVICE, 'SOURCE', script)
+        self.env.assertEqual(ret, b'OK')
+        model_pb = load_file_content('graph.pb')
+        ret = self.con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1,
+                                       'mul', 'BLOB', model_pb)
         self.env.assertEqual(ret, b'OK')
         # self.env.ensureSlaveSynced(self.con, self.env)
 
@@ -75,4 +75,9 @@ class test_torch_script_extesions:
     def test_hash(self):
         self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_hash', 'KEYS', 1, "hash{1}", 'INPUTS', 1, "hash{1}", "LIST_INPUTS", 4, "field1", 1, "field2", 2, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
-        self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]] )
+        self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]])
+
+    def test_execute_model_via_script(self):
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute', 'KEYS', 1, "m{1}", 'LIST_INPUTS', 1, 'm{1}', 'OUTPUTS', 1, 'y{1}')
+        y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [2, 2], b"values", [4, 9, 4, 9]])

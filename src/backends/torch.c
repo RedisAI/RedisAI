@@ -6,6 +6,7 @@
 #include "libtorch_c/torch_c.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
+#include "redisai.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
@@ -29,7 +30,11 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
                ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_StringPtrLen", ((void **)&RedisModule_StringPtrLen));
+    get_api_fn("RedisModule_GetSharedAPI", ((void **)&RedisModule_GetSharedAPI));
 
+    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
+    RedisAI_Initialize(ctx);
+    RedisModule_GetThreadSafeContext(NULL);
     return REDISMODULE_OK;
 }
 

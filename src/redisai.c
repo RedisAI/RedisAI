@@ -1137,6 +1137,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(TensorCreate, ctx);
     REGISTER_API(TensorCreateByConcatenatingTensors, ctx);
     REGISTER_API(TensorCreateBySlicingTensor, ctx);
+    REGISTER_API(TensorCreateFromDLTensor, ctx);
     REGISTER_API(TensorLength, ctx);
     REGISTER_API(TensorDataSize, ctx);
     REGISTER_API(TensorFree, ctx);
@@ -1146,6 +1147,7 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(TensorGetValueAsDouble, ctx);
     REGISTER_API(TensorGetValueAsLongLong, ctx);
     REGISTER_API(TensorGetShallowCopy, ctx);
+    REGISTER_API(TensorGetDLTensor, ctx);
     REGISTER_API(TensorNumDims, ctx);
     REGISTER_API(TensorDim, ctx);
     REGISTER_API(TensorByteSize, ctx);

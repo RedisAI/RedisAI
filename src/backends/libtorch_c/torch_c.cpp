@@ -165,6 +165,10 @@ torch::Tensor fromDLPack(const DLTensor *src) {
                             torch::device(device).dtype(stype));
 }
 
+extern "C" void *torchTensorPtrFromDLPack(const DLTensor *src) {
+     return static_cast<void *>(new torch::Tensor(fromDLPack(src)));
+}
+
 struct ATenDLMTensor {
     torch::Tensor handle;
     DLManagedTensor tensor;
@@ -193,6 +197,10 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t *>(src.strides().data());
     atDLMTensor->tensor.dl_tensor.byte_offset = 0;
     return &(atDLMTensor->tensor);
+}
+
+extern "C" DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src) {
+    return toManagedDLPack(*static_cast<const torch::Tensor *>(src));
 }
 
 struct ModuleContext {
