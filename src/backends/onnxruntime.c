@@ -3,14 +3,13 @@
 #include "backends/util.h"
 #include <stdatomic.h>
 #include <backends/onnx_timeout.h>
-#include "execution/background_workers.h"
 #include <pthread.h>
-#include <math.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
+#include "backedns_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
 // A label "error" must exist in every function that uses this macro.
@@ -98,6 +97,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
     get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
     get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
+
     // Create a global array of onnx runSessions, with an entry for every working thread.
     RAI_InitGlobalRunSessionsORT();
 

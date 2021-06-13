@@ -1,5 +1,3 @@
-
-#include <execution/run_queue_info.h>
 #include "deprecated.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
@@ -7,11 +5,12 @@
 #include "redis_ai_objects/stats.h"
 
 #include "execution/utils.h"
+#include <execution/run_queue_info.h>
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
-#include "execution/background_workers.h"
 #include "execution/parsing/dag_parser.h"
 #include "execution/parsing/parse_utils.h"
+
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 

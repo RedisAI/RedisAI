@@ -191,13 +191,11 @@ def test_tflite_info(env):
         return
     con = env.getConnection()
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertFalse('ai_TensorFlowLite_version' in backends_info)
 
     model_pb = load_file_content('mnist_model_quant.tflite')
-
     con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(8, len(ret))
-    env.assertEqual(b'TFLite version', ret[6])
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertTrue('ai_TensorFlowLite_version' in backends_info)

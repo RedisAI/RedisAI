@@ -9,6 +9,7 @@
 
 #include "utils.h"
 #include "queue.h"
+#include "dictionaries.h"
 
 AI_dict *RunQueues;
 

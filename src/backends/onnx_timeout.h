@@ -3,9 +3,17 @@
 #include "backends/onnxruntime.h"
 #include "onnxruntime_c_api.h"
 
+typedef enum {
+    RUN_SESSION_AVAILABLE,
+    RUN_SESSION_ACTIVE,
+    RUN_SESSION_TERMINATED,
+    RUN_SESSION_INVALID
+} runSessionState;
+
 typedef struct OnnxRunSessionCtx {
     long long queuingTime;
     OrtRunOptions *runOptions;
+    runSessionState *runState;
 } OnnxRunSessionCtx;
 
 // This is a global array of OnnxRunSessionCtx. Contains an entry for every thread

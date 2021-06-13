@@ -1,5 +1,4 @@
 #include "utils.h"
-#include "background_workers.h"
 #include "redis_ai_objects/model.h"
 
 int redisMajorVersion;

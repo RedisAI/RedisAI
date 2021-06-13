@@ -8,16 +8,14 @@
 #include "redis_ai_objects/tensor.h"
 #include "execution/command_parser.h"
 #include "backends/backends.h"
-#include "backends/util.h"
-#include "execution/utils.h"
-#include "execution/background_workers.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
+#include "execution/utils.h"
 #include "execution/parsing/deprecated.h"
-#include "redis_ai_objects/model.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
+#include "redis_ai_objects/model.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/stats.h"
 #include <pthread.h>
@@ -26,7 +24,6 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
-#include <backends/onnx_timeout.h>
 #include <execution/run_queue_info.h>
 
 #include "rmutil/alloc.h"
@@ -847,80 +844,12 @@ int RedisAI_ScriptScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     return REDISMODULE_OK;
 }
 
-void _RedisAI_Info(RedisModuleCtx *ctx) {
-    RedisModuleString *rai_version = RedisModule_CreateStringPrintf(
-        ctx, "%d.%d.%d", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
-    RedisModuleString *llapi_version =
-        RedisModule_CreateStringPrintf(ctx, "%d", REDISAI_LLAPI_VERSION);
-    RedisModuleString *rdb_version = RedisModule_CreateStringPrintf(ctx, "%llu", REDISAI_ENC_VER);
-
-    int response_len = 6;
-
-    if (RAI_backends.tf.get_version) {
-        response_len += 2;
-    }
-
-    if (RAI_backends.torch.get_version) {
-        response_len += 2;
-    }
-
-    if (RAI_backends.tflite.get_version) {
-        response_len += 2;
-    }
-
-    if (RAI_backends.onnx.get_version) {
-        response_len += 2;
-    }
-
-    RedisModule_ReplyWithArray(ctx, response_len);
-
-    RedisModule_ReplyWithSimpleString(ctx, "Version");
-    RedisModule_ReplyWithString(ctx, rai_version);
-
-    // TODO: Add Git SHA
-
-    RedisModule_ReplyWithSimpleString(ctx, "Low Level API Version");
-    RedisModule_ReplyWithString(ctx, llapi_version);
-
-    RedisModule_ReplyWithSimpleString(ctx, "RDB Encoding version");
-    RedisModule_ReplyWithString(ctx, llapi_version);
-
-    if (RAI_backends.tf.get_version) {
-        RedisModule_ReplyWithSimpleString(ctx, "TensorFlow version");
-        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.tf.get_version());
-    }
-
-    if (RAI_backends.torch.get_version) {
-        RedisModule_ReplyWithSimpleString(ctx, "Torch version");
-        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.torch.get_version());
-    }
-
-    if (RAI_backends.tflite.get_version) {
-        RedisModule_ReplyWithSimpleString(ctx, "TFLite version");
-        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.tflite.get_version());
-    }
-
-    if (RAI_backends.onnx.get_version) {
-        RedisModule_ReplyWithSimpleString(ctx, "ONNX version");
-        RedisModule_ReplyWithSimpleString(ctx, RAI_backends.onnx.get_version());
-    }
-
-    RedisModule_FreeString(ctx, rai_version);
-    RedisModule_FreeString(ctx, llapi_version);
-    RedisModule_FreeString(ctx, rdb_version);
-}
-
 /**
  * AI.INFO <model_or_script_key> [RESETSTAT]
  */
 int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc > 3)
+    if (argc < 2 || argc > 3)
         return RedisModule_WrongArity(ctx);
-
-    if (argc == 1) {
-        _RedisAI_Info(ctx);
-        return REDISMODULE_OK;
-    }
 
     RedisModuleString *runkey = argv[1];
     struct RedisAI_RunStats *rstats = NULL;
@@ -1211,7 +1140,48 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     return REDISMODULE_OK;
 }
 
+static void _moduleInfo_getBackendsInfo(RedisModuleInfoCtx *ctx) {
+    RedisModule_InfoAddSection(ctx, "backends_info");
+    if (RAI_backends.tf.get_version) {
+        RedisModule_InfoAddFieldCString(ctx, "TensorFlow_version",
+                                        (char *)RAI_backends.tf.get_version());
+    }
+    if (RAI_backends.tflite.get_version) {
+        RedisModule_InfoAddFieldCString(ctx, "TensorFlowLite_version",
+                                        (char *)RAI_backends.tflite.get_version());
+    }
+    if (RAI_backends.torch.get_version) {
+        RedisModule_InfoAddFieldCString(ctx, "Torch_version",
+                                        (char *)RAI_backends.torch.get_version());
+    }
+    if (RAI_backends.onnx.get_version) {
+        RedisModule_InfoAddFieldCString(ctx, "onnxruntime_version",
+                                        (char *)RAI_backends.onnx.get_version());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
+                                          RAI_backends.onnx.get_memory_info());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
+                                          RAI_backends.onnx.get_memory_access_num());
+        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_maximum_run_sessions_number",
+                                          RAI_backends.onnx.get_max_run_sessions());
+    }
+}
+
 void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
+    RedisModule_InfoAddSection(ctx, "versions");
+    RedisModuleString *rai_version = RedisModule_CreateStringPrintf(
+        NULL, "%d.%d.%d", REDISAI_VERSION_MAJOR, REDISAI_VERSION_MINOR, REDISAI_VERSION_PATCH);
+    RedisModuleString *llapi_version =
+        RedisModule_CreateStringPrintf(NULL, "%d", REDISAI_LLAPI_VERSION);
+    RedisModuleString *rdb_version = RedisModule_CreateStringPrintf(NULL, "%llu", REDISAI_ENC_VER);
+
+    RedisModule_InfoAddFieldString(ctx, "RedisAI_version", rai_version);
+    RedisModule_InfoAddFieldString(ctx, "low_level_API_version", llapi_version);
+    RedisModule_InfoAddFieldString(ctx, "rdb_version", rdb_version);
+
+    RedisModule_FreeString(NULL, rai_version);
+    RedisModule_FreeString(NULL, llapi_version);
+    RedisModule_FreeString(NULL, rdb_version);
+
     RedisModule_InfoAddSection(ctx, "git");
     RedisModule_InfoAddFieldCString(ctx, "git_sha", REDISAI_GIT_SHA);
     RedisModule_InfoAddSection(ctx, "load_time_configs");
@@ -1222,19 +1192,7 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                                      Config_GetBackendsIntraOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "model_execution_timeout",
                                      Config_GetModelExecutionTimeout());
-    RedisModule_InfoAddSection(ctx, "memory_usage");
-    if (RAI_backends.onnx.get_memory_info) {
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory",
-                                          RAI_backends.onnx.get_memory_info());
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num",
-                                          RAI_backends.onnx.get_memory_access_num());
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_global_run_sessions_length",
-                                          RAI_backends.onnx.get_global_run_sessions_len());
-    } else {
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory", 0);
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_memory_access_num", 0);
-        RedisModule_InfoAddFieldULongLong(ctx, "onnxruntime_global_run_sessions_length", 0);
-    }
+    _moduleInfo_getBackendsInfo(ctx);
 
     struct rusage self_ru, c_ru;
     // Return resource usage statistics for the calling process,

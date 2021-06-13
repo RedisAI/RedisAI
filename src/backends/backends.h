@@ -84,13 +84,13 @@ typedef struct RAI_LoadedBackend {
     unsigned long long (*get_memory_access_num)(void);
 
     // A callback for to use whenever a new device is introduced.
-    int (*add_new_device)(const char *);
+    int (*add_new_device_cb)(const char *);
 
     // Kill run session callback (for stopping long runs).
-    void (*enforce_runtime_duration)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
+    void (*stop_long_running_sessions_cb)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
 
-    // Get the length of the global run sessions array (with entry per working thread).
-    size_t (*get_global_run_sessions_len)(void);
+    // Get the number of maximum run sessions that can run.
+    size_t (*get_max_run_sessions)(void);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {
