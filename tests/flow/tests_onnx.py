@@ -455,8 +455,8 @@ class TestOnnxKillSwitch:
         self.env.assertEqual(ret, b'OK')
 
         # Set tensors according to the model inputs. This model consists of two operations to type 'Identity'
-        # (i.e., just output the input), where the second op is wrapped with another op of type 'Loop'. Overall, this model
-        # runs a very large number of iterations without doing anything, until it is caught with the kill switch.
+        # (i.e., just output the input), where the second op is wrapped with another op of type 'Loop'. Overall, this
+        # model runs a very large number of iterations without doing anything, until it is caught with the kill switch.
         con.execute_command('AI.TENSORSET', 'iterations{1}', 'INT64', 1, 'VALUES', 9223372036854775807)
         con.execute_command('AI.TENSORSET', 'loop_cond{1}', 'BOOL', 1, 'VALUES', 1)
         con.execute_command('AI.TENSORSET', 'loop_input{1}', 'FLOAT', 1, 'VALUES', 42)
@@ -498,7 +498,13 @@ class TestOnnxKillSwitch:
     def test_multiple_devices(self):
         con = self.env.getConnection()
         backends_info = get_info_section(con, 'backends_info')
-        self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '8')
+
+        # CPU run queue is created from the start, so if we used a device different than CPU, we should
+        # have maximum of 2*THREADS_PER_QUEUE run sessions, and otherwise we should have THREADS_PER_QUEUE.
+        if DEVICE == 'CPU':
+            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '8')
+        else:
+            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '16')
 
         # Load another onnx model as if it runs on a different device (to test existence of multiple queues, and
         # the extension of the global onnx run sessions array as a consequence.)
@@ -506,4 +512,7 @@ class TestOnnxKillSwitch:
         ret = con.execute_command('AI.MODELSTORE', 'mnist_{1}', 'ONNX', 'CPU:1', 'BLOB', model_pb)
         self.env.assertEqual(ret, b'OK')
         backends_info = get_info_section(con, 'backends_info')
-        self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '16')
+        if DEVICE == 'CPU':
+            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '16')
+        else:
+            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '24')
