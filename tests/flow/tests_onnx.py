@@ -448,7 +448,8 @@ def test_onnx_use_custom_allocator_with_GPU(env):
 class TestOnnxKillSwitch:
 
     def __init__(self):
-        self.env = Env(moduleArgs='THREADS_PER_QUEUE 8 MODEL_EXECUTION_TIMEOUT 1000')
+        self.threads_per_queue = 8
+        self.env = Env(moduleArgs='THREADS_PER_QUEUE '+str(self.threads_per_queue)+' MODEL_EXECUTION_TIMEOUT 1000')
         con = self.env.getConnection()
         model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
         ret = con.execute_command('AI.MODELSTORE', 'inf_loop_model{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
@@ -497,22 +498,20 @@ class TestOnnxKillSwitch:
 
     def test_multiple_devices(self):
         con = self.env.getConnection()
-        backends_info = get_info_section(con, 'backends_info')
-
         # CPU run queue is created from the start, so if we used a device different than CPU, we should
         # have maximum of 2*THREADS_PER_QUEUE run sessions, and otherwise we should have THREADS_PER_QUEUE.
-        if DEVICE == 'CPU':
-            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '8')
-        else:
-            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '16')
+        devices = {'CPU', DEVICE}
+        backends_info = get_info_section(con, 'backends_info')
+        self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
+                             str(len(devices)*self.threads_per_queue))
 
         # Load another onnx model as if it runs on a different device (to test existence of multiple queues, and
         # the extension of the global onnx run sessions array as a consequence.)
         model_pb = load_file_content('mnist.onnx')
         ret = con.execute_command('AI.MODELSTORE', 'mnist_{1}', 'ONNX', 'CPU:1', 'BLOB', model_pb)
         self.env.assertEqual(ret, b'OK')
+        devices.add('CPU:1')
+
         backends_info = get_info_section(con, 'backends_info')
-        if DEVICE == 'CPU':
-            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '16')
-        else:
-            self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'], '24')
+        self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
+                             str(len(devices)*self.threads_per_queue))

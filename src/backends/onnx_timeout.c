@@ -94,18 +94,18 @@ void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void RAI_InvalidateRunSessionCtxORT(size_t run_session_index) {
+void RAI_ResetRunSessionCtxORT(size_t run_session_index) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[run_session_index];
+
     // Busy wait until we get a valid state, as we might access this entry from
     // the main thread callback and call ONNX API to terminate the run session.
-    while (true) {
-        runSessionState state = __atomic_load_n(entry->runState, __ATOMIC_RELAXED);
-        if (state == RUN_SESSION_ACTIVE || state == RUN_SESSION_TERMINATED) {
-            break;
-        }
-    }
+    RunSessionState state;
+    do {
+        state = __atomic_load_n(entry->runState, __ATOMIC_RELAXED);
+    } while (state != RUN_SESSION_ACTIVE && state != RUN_SESSION_TERMINATED);
+
     ort->ReleaseRunOptions(entry->runOptions);
     __atomic_store_n(entry->runState, RUN_SESSION_AVAILABLE, __ATOMIC_RELAXED);
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));

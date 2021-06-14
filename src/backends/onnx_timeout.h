@@ -3,17 +3,29 @@
 #include "backends/onnxruntime.h"
 #include "onnxruntime_c_api.h"
 
+/**
+ * The possible states for every run session entry in the array (entry per BG thread):
+ * Every is initialized as AVAILABLE, which means that it is ready to get a new run session.
+ * BG thread can perform a transition from AVAILABLE to ACTIVE upon starting a new run session.
+ * In the cron callback, Redis main thread can perform a transition from ACTIVE to
+ * INVALID if a timeout has reached, set the run session as terminated,  and then make
+ * another transition to TERMINATED.
+ * At the end of a run session, the state is ACTIVE/TERMINATED, and then the BG thread
+ * reset the entry and make a transition back to AVAILABLE.
+ * Transition are done atomically to ensure right synchronization (BG thread cannot reset
+ * run session while main thread is setting it as terminated).
+ */
 typedef enum {
     RUN_SESSION_AVAILABLE,
     RUN_SESSION_ACTIVE,
     RUN_SESSION_TERMINATED,
     RUN_SESSION_INVALID
-} runSessionState;
+} RunSessionState;
 
 typedef struct OnnxRunSessionCtx {
     long long queuingTime;
     OrtRunOptions *runOptions;
-    runSessionState *runState;
+    RunSessionState *runState;
 } OnnxRunSessionCtx;
 
 // This is a global array of OnnxRunSessionCtx. Contains an entry for every thread
@@ -68,4 +80,4 @@ void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session
  * reset the corresponding entry in the global structure.
  * @param run_session_index - The entry index where OrtRunOptions was stored.
  */
-void RAI_InvalidateRunSessionCtxORT(size_t run_session_index);
+void RAI_ResetRunSessionCtxORT(size_t run_session_index);

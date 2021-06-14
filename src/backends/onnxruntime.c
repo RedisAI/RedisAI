@@ -586,7 +586,7 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
-        RAI_InvalidateRunSessionCtxORT(run_session_index);
+        RAI_ResetRunSessionCtxORT(run_session_index);
         run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
@@ -674,7 +674,7 @@ error:
         ort->ReleaseTensorTypeAndShapeInfo(info);
     }
     if (run_options) {
-        RAI_InvalidateRunSessionCtxORT(run_session_index);
+        RAI_ResetRunSessionCtxORT(run_session_index);
     }
     return REDISMODULE_ERR;
 }
