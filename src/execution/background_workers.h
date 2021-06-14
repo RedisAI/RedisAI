@@ -37,9 +37,10 @@
 void *BGWorker_ThreadMain(void *arg);
 
 /**
- * @brief Returns the thread id (among RedisAI working threads).
+ * @brief Returns the thread id (among RedisAI working threads). If this is called
+ * form a non RedisAI working thread, return -1
  */
-uintptr_t BGWorker_GetThreadId(void);
+long BGWorker_GetThreadId(void);
 
 /**
  * @brief Returns the total number of RedisAI working threads (for all devices).

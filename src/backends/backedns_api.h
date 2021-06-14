@@ -4,9 +4,10 @@
 
 /**
  * @return The internal id of RedisAI current working thread.
- * id range is {0, ..., <threads_count>-1}
+ * id range is {0, ..., <threads_count>-1}. If this is called from a non
+ * RedisAI BG thread, return -1.
  */
-uintptr_t (*RedisAI_GetThreadId)(void);
+long (*RedisAI_GetThreadId)(void);
 
 /**
  * @return The number of working threads in RedisAI. This number should be

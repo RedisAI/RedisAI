@@ -29,8 +29,9 @@ pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
  */
 static void _BGWorker_SaveThreadId() {
     // Let the current thread have the next available id, and increase the counter.
-    uintptr_t id_value = __atomic_fetch_add(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
+    long id_value = __atomic_add_fetch(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
     // Convert the id value to a pointer and store it the thread local storage.
+    // First id is 1, so we won't confuse with NULL (which is the error return value)
     pthread_setspecific(ThreadIdKey, (const void *)id_value);
 }
 
@@ -252,7 +253,14 @@ static bool _BGThread_PrepareExecution(RunQueueInfo *run_queue_info, RedisAI_Run
     return true;
 }
 
-uintptr_t BGWorker_GetThreadId() { return (uintptr_t)pthread_getspecific(ThreadIdKey); }
+long BGWorker_GetThreadId() {
+    void *thread_id = pthread_getspecific(ThreadIdKey);
+    if (thread_id == NULL) {
+        return -1;
+    }
+    // Return the as 0 based id.
+    return (long)pthread_getspecific(ThreadIdKey) - 1;
+}
 
 uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
 

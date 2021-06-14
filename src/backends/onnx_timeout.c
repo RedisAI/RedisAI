@@ -79,11 +79,16 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session_index) {
+void RAI_ActivateRunSessionCtxORT(OrtRunOptions *new_run_options, long *run_session_index) {
 
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
-    // Get the thread index (which is the correspondent index in the global sessions array).
+    // Get the thread id (which is the correspondent index in the global sessions array + 1).
+    // if thread id is -1, we are not running from RedisAI thread (not allowed)
     *run_session_index = RedisAI_GetThreadId();
+    if (*run_session_index == -1) {
+        pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
+        return;
+    }
     OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[*run_session_index];
     RedisModule_Assert(*entry->runState == RUN_SESSION_AVAILABLE);
 
@@ -94,7 +99,7 @@ void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session
     pthread_rwlock_unlock(&(onnx_global_run_sessions->rwlock));
 }
 
-void RAI_ResetRunSessionCtxORT(size_t run_session_index) {
+void RAI_ResetRunSessionCtxORT(long run_session_index) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
     pthread_rwlock_rdlock(&(onnx_global_run_sessions->rwlock));
     OnnxRunSessionCtx *entry = onnx_global_run_sessions->OnnxRunSessions[run_session_index];

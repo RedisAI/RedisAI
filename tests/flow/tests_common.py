@@ -328,17 +328,6 @@ def test_tensorget_disconnect(env):
     ret = send_and_disconnect(('AI.TENSORGET', 't_FLOAT', 'META'), red)
     env.assertEqual(ret, None)
 
-def test_info_modules(env):
-    red = env.getConnection()
-    ret = red.execute_command('INFO','MODULES')
-    env.assertEqual( ret['ai_threads_per_queue'], 1 )
-    # minimum cpu properties
-    env.assertEqual( 'ai_self_used_cpu_sys' in ret, True )
-    env.assertEqual( 'ai_self_used_cpu_user' in ret, True )
-    env.assertEqual( 'ai_children_used_cpu_sys' in ret, True )
-    env.assertEqual( 'ai_children_used_cpu_user' in ret, True )
-    env.assertEqual( 'ai_queue_CPU_bthread_n1_used_cpu_total' in ret, True )
-
 
 def test_lua_multi(env):
     con = env.getConnection()
@@ -359,3 +348,21 @@ def test_lua_multi(env):
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Cannot run RedisAI command within a transaction or a LUA script", exception.__str__())
+
+
+def test_info_command(env):
+    con = env.getConnection()
+    versions = get_info_section(con, 'versions')
+    env.assertEqual(list(versions.keys()), ['ai_RedisAI_version', 'ai_low_level_API_version', 'ai_rdb_version'])
+    git = get_info_section(con, 'git')
+    env.assertEqual(list(git.keys()), ['ai_git_sha'])
+    load_time_configs = get_info_section(con, 'load_time_configs')
+    env.assertEqual(list(load_time_configs.keys()), ['ai_threads_per_queue', 'ai_inter_op_parallelism',
+                                               'ai_intra_op_parallelism', 'ai_model_execution_timeout'])
+    # minimum cpu properties
+    cpu = get_info_section(con, 'cpu')
+    env.assertTrue('ai_self_used_cpu_sys' in cpu.keys())
+    env.assertTrue('ai_self_used_cpu_user' in cpu.keys())
+    env.assertTrue('ai_children_used_cpu_sys' in cpu.keys())
+    env.assertTrue('ai_children_used_cpu_user' in cpu.keys())
+    env.assertTrue('ai_queue_CPU_bthread_n1_used_cpu_total' in cpu.keys())

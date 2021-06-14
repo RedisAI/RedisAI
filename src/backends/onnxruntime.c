@@ -532,7 +532,7 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
     array_new_on_stack(OrtValue *, 5, inputs);
     array_new_on_stack(OrtValue *, 5, outputs);
     OrtRunOptions *run_options = NULL;
-    size_t run_session_index;
+    long run_session_index;
     OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
@@ -582,7 +582,16 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
 
         ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
         // Set the created run option in the global RunSessions and save its index.
-        RAI_SetRunSessionCtxORT(run_options, &run_session_index);
+        RAI_ActivateRunSessionCtxORT(run_options, &run_session_index);
+        if (run_session_index == -1) {
+            RAI_SetError(
+                error, RAI_EMODELRUN,
+                "Cannot execute onnxruntime model synchronously, use async execution instead");
+            ort->ReleaseRunOptions(run_options);
+            run_options = NULL;
+            goto error;
+        }
+
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));

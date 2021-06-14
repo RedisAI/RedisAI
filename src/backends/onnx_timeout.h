@@ -73,11 +73,11 @@ void RAI_EnforceTimeoutORT(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t s
  * @param run_session_index - placeholder for the index of the running thread
  * in the global array, to have a quick access later to clean this entry.
  */
-void RAI_SetRunSessionCtxORT(OrtRunOptions *new_run_options, size_t *run_session_index);
+void RAI_ActivateRunSessionCtxORT(OrtRunOptions *new_run_options, long *run_session_index);
 
 /**
  * @brief Release the OrtRunOptions of a session that finished its run and
  * reset the corresponding entry in the global structure.
  * @param run_session_index - The entry index where OrtRunOptions was stored.
  */
-void RAI_ResetRunSessionCtxORT(size_t run_session_index);
+void RAI_ResetRunSessionCtxORT(long run_session_index);
