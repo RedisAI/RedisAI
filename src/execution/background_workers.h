@@ -27,22 +27,22 @@
 #include "redis_ai_objects/stats.h"
 #include "redis_ai_objects/tensor.h"
 #include "util/arr.h"
-#include "util/dict.h"
 #include "util/queue.h"
 
-AI_dict *run_queues;
-long long perqueueThreadPoolSize;
+/**
+ * @brief RedisAI main loop for every background working thread
+ * @param arg - This is the run queue info of the device on which this thread is
+ * running the AI model/script
+ */
+void *BGWorker_ThreadMain(void *arg);
 
-typedef struct RunQueueInfo {
-    pthread_mutex_t run_queue_mutex;
-    pthread_cond_t queue_condition_var;
-    queue *run_queue;
-    pthread_t *threads;
-    char *devicestr;
-} RunQueueInfo;
+/**
+ * @brief Returns the thread id (among RedisAI working threads). If this is called
+ * form a non RedisAI working thread, return -1
+ */
+long BGWorker_GetThreadId(void);
 
-int freeRunQueueInfo(RunQueueInfo *info);
-
-/* Ensure that the the run queue for the device exists.
- * If not, create it. */
-int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info);
+/**
+ * @brief Returns the total number of RedisAI working threads (for all devices).
+ */
+uintptr_t BGWorker_GetThreadsCount(void);

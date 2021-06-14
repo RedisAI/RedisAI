@@ -1,24 +1,7 @@
-/**
- * background_workers.c
- *
- * Contains the structure to manage the per-device queues, used for decoupling
- * the work from the main thread to the background worker threads. For each of
- * the incoming ModelRun, ScriptRun, and DagRun commands, the request is queued
- * and evaded asynchronously to one the device queues.
- *
- */
-
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/time.h>
-#include "redisai.h"
+#include "sys/time.h"
 #include "run_info.h"
-#include "background_workers.h"
+#include "run_queue_info.h"
+#include "execution/DAG/dag.h"
 
 /* Define for RedisAI thread name setter */
 #ifdef __linux__
@@ -38,75 +21,18 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-int freeRunQueueInfo(RunQueueInfo *info) {
-    int result = REDISMODULE_OK;
-    if (info->run_queue) {
-        RedisModule_Free(info->run_queue);
-    }
-    RedisModule_Free(info->devicestr);
-    if (info->threads) {
-        /* Wait for workers to exit */
-        for (int i = 0; i < perqueueThreadPoolSize; i++) {
-            const int rtn = pthread_join(info->threads[i], NULL);
-            if (rtn != 0) {
-                result = REDISMODULE_ERR;
-            }
-        }
-        /* Now free pool structure */
-        RedisModule_Free(info->threads);
-    }
-    RedisModule_Free(info);
-    return result;
-}
+uintptr_t BGWorkersCounter; // Total number of BG threads running currently.
+pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
 
-void *RedisAI_Run_ThreadMain(void *arg);
-
-char *strToUpper(const char *input) {
-    char *output = RedisModule_Strdup(input);
-    size_t output_len = strlen(output);
-    for (long long i = 0; i < output_len; i++) {
-        output[i] = toupper(output[i]);
-    }
-    return output;
-}
-
-/* Ensure that the the run queue for the device exists.
- * If not, create it. */
-int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
-    int result = REDISMODULE_ERR;
-    if (run_queues == NULL) {
-        return result;
-    }
-
-    char *devicestr_ = strToUpper(devicestr);
-
-    AI_dictEntry *entry = AI_dictFind(run_queues, devicestr_);
-    if (entry) {
-        *run_queue_info = AI_dictGetVal(entry);
-        result = REDISMODULE_OK;
-    } else {
-        *run_queue_info = RedisModule_Alloc(sizeof(RunQueueInfo));
-        (*run_queue_info)->run_queue = queueCreate();
-        (*run_queue_info)->devicestr = RedisModule_Strdup(devicestr_);
-        pthread_cond_init(&(*run_queue_info)->queue_condition_var, NULL);
-        pthread_mutex_init(&(*run_queue_info)->run_queue_mutex, NULL);
-        (*run_queue_info)->threads =
-            (pthread_t *)RedisModule_Alloc(sizeof(pthread_t) * perqueueThreadPoolSize);
-        /* create threads */
-        for (int i = 0; i < perqueueThreadPoolSize; i++) {
-            if (pthread_create(&((*run_queue_info)->threads[i]), NULL, RedisAI_Run_ThreadMain,
-                               *run_queue_info) != 0) {
-                freeRunQueueInfo(*run_queue_info);
-                return REDISMODULE_ERR;
-            }
-        }
-        AI_dictAdd(run_queues, (void *)devicestr_, (void *)*run_queue_info);
-        result = REDISMODULE_OK;
-    }
-
-    RedisModule_Free(devicestr_);
-
-    return result;
+/**
+ * @brief Save the id for some working thread in thread local storage.
+ */
+static void _BGWorker_SaveThreadId() {
+    // Let the current thread have the next available id, and increase the counter.
+    long id_value = __atomic_add_fetch(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
+    // Convert the id value to a pointer and store it the thread local storage.
+    // First id is 1, so we won't confuse with NULL (which is the error return value)
+    pthread_setspecific(ThreadIdKey, (const void *)id_value);
 }
 
 /**
@@ -178,9 +104,9 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
         // For simplicity, we call into different functions whether the run
         // is batched or not
         if (batched_run) {
-            RedisAI_BatchedDagRunSessionStep(batch_rinfo, run_queue_info->devicestr);
+            RedisAI_BatchedDagRunSessionStep(batch_rinfo, run_queue_info->device_str);
         } else {
-            RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr);
+            RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->device_str);
         }
     }
 }
@@ -327,9 +253,20 @@ static bool _BGThread_PrepareExecution(RunQueueInfo *run_queue_info, RedisAI_Run
     return true;
 }
 
-void *RedisAI_Run_ThreadMain(void *arg) {
+long BGWorker_GetThreadId() {
+    void *thread_id = pthread_getspecific(ThreadIdKey);
+    if (thread_id == NULL) {
+        return -1;
+    }
+    // Return the as 0 based id.
+    return (long)pthread_getspecific(ThreadIdKey) - 1;
+}
+
+uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
+
+void *BGWorker_ThreadMain(void *arg) {
+    _BGWorker_SaveThreadId();
     RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
-    RAI_PTHREAD_SETNAME("redisai_bthread");
     RedisAI_RunInfo **batch_rinfo = array_new(RedisAI_RunInfo *, 1);
     pthread_mutex_lock(&run_queue_info->run_queue_mutex);
 

@@ -14,7 +14,6 @@
 #include "tensor.h"
 #include "err.h"
 #include "arr.h"
-#include "math.h"
 #include "redisai.h"
 #include "version.h"
 #include "tensor_struct.h"

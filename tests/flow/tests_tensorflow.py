@@ -691,14 +691,11 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
 def test_tf_info(env):
     con = env.getConnection()
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
-
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertFalse('ai_TensorFlow_version' in backends_info)
     model_pb = load_file_content('graph.pb')
-
     con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
-    
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(8, len(ret))
-    env.assertEqual(b'TensorFlow version', ret[6])
+
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertTrue('ai_TensorFlow_version' in backends_info)

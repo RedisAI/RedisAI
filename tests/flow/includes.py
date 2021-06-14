@@ -202,6 +202,7 @@ def check_error_message(env, con, error_msg, *command):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(error_msg, str(exception))
 
+
 def check_error(env, con, *command):
     try:
         con.execute_command(*command)
@@ -209,3 +210,11 @@ def check_error(env, con, *command):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
+
+
+# Returns a dict with all the fields of a certain section from INFO MODULES command
+def get_info_section(con, section):
+    sections = ['ai_versions', 'ai_git', 'ai_load_time_configs', 'ai_backends_info', 'ai_cpu']
+    section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
+    return {k.split(":")[0]: k.split(":")[1]
+            for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
