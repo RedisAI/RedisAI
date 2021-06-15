@@ -1,5 +1,6 @@
 # default is x64
 ARCH=$(shell ${READIES}/bin/platform --arch)
+OS=$(shell ${READIES}/bin/platform --os)
 REDIS_CMAKE_ARCH=x86_64
 
 # jetson
@@ -8,22 +9,32 @@ ARCH=jetson
 REDIS_CMAKE_ARCH=aarch64
 else
 endif
-
 export REDIS_CMAKE_ARCH
 
-DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:buildsystem
+
+# override if necessary in top-level make files
+DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:build
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
+CIDFILE=${PRODUCT}.${ARCH}.cid
+
+ifeq ($(GPU),1)
+REDIS_GPU=1
+export REDIS_GPU
+endif
+
+S3_URL=redismodules/${PRODUCT}
 
 build:
+	@rm -f ${BACKEND_NAME} *.cid
 	REDIS_ARCH=${ARCH} \
 	${READIES}/bin/dockerwrapper \
 		-d ${CURDIR}/Dockerfile \
 		-t ${DEFAULT_DOCKER_TAG} \
 		-e REDIS \
-        -g \
 		-D "${DOCKER_OPTS}" \
 		${DOCKER_ARGS}
-#	docker create --cidfile ${PRODUCT}.${ARCH}.cid ${DEFAULT_DOCKER_TAG}
-#	docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(1)-$(VERSION).tgz .
+	docker create --cidfile ${CIDFILE} ${DEFAULT_DOCKER_TAG}
+	docker cp `cat ${CIDFILE}`:/build/${BACKEND_NAME} .
 
 publish:
-	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
+	@aws s3 cp ${BACKEND_NAME} s3://$(S3_URL)/ --acl public-read

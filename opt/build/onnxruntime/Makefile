@@ -3,7 +3,7 @@ export REDIS_ONNX_REPO = https://github.com/microsoft/onnxruntime
 
 PRODUCT=onnxruntime
 DOCKER_ORG=redislabs
-OSNICK ?= buster
+VERSION=${REDIS_ONNX_VERSION}
 
 ROOT=.
 
