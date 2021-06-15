@@ -30,7 +30,8 @@ inline std::shared_ptr<RedisResolver> redisResolver() { return std::make_shared<
 
 torch::IValue redisExecute(const std::string& fn_name, const std::vector<std::string>& args);
 torch::List<torch::IValue> asList(const torch::IValue &v);
-std::vector<torch::Tensor> modelExecute(const std::string &model_key, const std::vector<torch::Tensor>& inputs);
+std::vector<torch::Tensor> modelExecute(const std::string &model_key,
+  const std::vector<torch::Tensor>& inputs, int64_t num_outputs);
 
 static auto registry =
     torch::RegisterOperators("redis::execute", &redisExecute)

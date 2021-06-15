@@ -14,6 +14,7 @@
 #include <dlfcn.h>
 #include <libgen.h>
 #include <string.h>
+#include <execution/execution_contexts/modelRun_ctx.h>
 #include "redismodule.h"
 #include "config/config.h"
 #include "execution/background_workers.h"
@@ -40,6 +41,7 @@ static bool _ValidateFuncExists(RedisModuleCtx *ctx, void *func_ptr, const char 
  */
 int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
 
+    // Retrieve info from RedisAI internals.
     if (strcmp("GetThreadId", func_name) == 0) {
         *targetFuncPtr = BGWorker_GetThreadId;
     } else if (strcmp("GetNumThreadsPerQueue", func_name) == 0) {
@@ -48,6 +50,40 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
         *targetFuncPtr = Config_GetModelExecutionTimeout;
     } else if (strcmp("GetThreadsCount", func_name) == 0) {
         *targetFuncPtr = BGWorker_GetThreadsCount;
+
+    // Export RedisAI low level API functions.
+    } else if (strcmp("RedisAI_InitError", func_name) == 0) {
+        *targetFuncPtr = RAI_InitError;
+    } else if (strcmp("RedisAI_FreeError", func_name) == 0) {
+        *targetFuncPtr = RAI_FreeError;
+    } else if (strcmp("RedisAI_GetError", func_name) == 0) {
+        *targetFuncPtr = RAI_GetError;
+    } else if (strcmp("RedisAI_TensorCreateFromDLTensor", func_name) == 0) {
+        *targetFuncPtr = RAI_TensorCreateFromDLTensor;
+    } else if (strcmp("RedisAI_TensorGetDLTensor", func_name) == 0) {
+        *targetFuncPtr = RAI_TensorGetDLTensor;
+    } else if (strcmp("RedisAI_TensorByteSize", func_name) == 0) {
+        *targetFuncPtr = RAI_TensorByteSize;
+    } else if (strcmp("RedisAI_TensorFree", func_name) == 0) {
+        *targetFuncPtr = RAI_TensorFree;
+    } else if (strcmp("RedisAI_GetModelFromKeyspace", func_name) == 0) {
+        *targetFuncPtr = RAI_GetModelFromKeyspace;
+    } else if (strcmp("RedisAI_ModelRunCtxCreate", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxCreate;
+    } else if (strcmp("RedisAI_ModelRunCtxAddInput", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxAddInput;
+    } else if (strcmp("RedisAI_ModelRunCtxNumOutputs", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxNumOutputs;
+    } else if (strcmp("RedisAI_ModelRunCtxAddOutput", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxAddOutput;
+    } else if (strcmp("RedisAI_ModelRunCtxOutputTensor", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxOutputTensor;
+    } else if (strcmp("RedisAI_ModelRunCtxFree", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRunCtxFree;
+    } else if (strcmp("RedisAI_ModelRun", func_name) == 0) {
+        *targetFuncPtr = RAI_ModelRun;
+
+    // Export RedisModule API functions.
     } else {
         return RedisModule_GetApi(func_name, targetFuncPtr);
     }
@@ -244,15 +280,15 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
 
     RAI_LoadedBackend backend = {0}; // Initialize all the callbacks to NULL.
 
-    int (*init_backend)(int (*)(const char *, void *));
-    init_backend = (int (*)(int (*)(const char *, void *)))(unsigned long)dlsym(
+    int (*init_backend)(int (*)(const char *, void **));
+    init_backend = (int (*)(int (*)(const char *, void **)))(unsigned long)dlsym(
         handle, "RAI_InitBackendTorch");
     if (!_ValidateFuncExists(ctx, init_backend, "RAI_InitBackendTorch", "TORCH", path)) {
         goto error;
     }
     // Here we use the input callback to export functions from Redis to the backend,
     // by setting the backend's function pointers to the corresponding functions in Redis.
-    init_backend(RedisModule_GetApi);
+    init_backend(RAI_ExportFunc);
 
     backend.model_create =
         (RAI_Model * (*)(RAI_Backend, const char *, RAI_ModelOpts, const char *, size_t,

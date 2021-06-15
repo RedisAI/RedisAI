@@ -157,16 +157,24 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
 torch::Tensor fromDLPack(const DLTensor *src) {
     at::DeviceType device_type = getATenDeviceType(src->device.device_type);
     at::ScalarType stype = toScalarType(src->dtype);
-    // torch::Device device(device_type, src->ctx.device_id);
-    torch::Device device(device_type, -1);
-    // torch::DeviceType device = device_type;
+    torch::Device device(device_type, src->device.device_id);
     return torch::from_blob(src->data, at::IntArrayRef(src->shape, src->ndim),
                             at::IntArrayRef(src->strides, src->ndim),
                             torch::device(device).dtype(stype));
 }
 
-extern "C" void *torchTensorPtrFromDLPack(const DLTensor *src) {
-     return static_cast<void *>(new torch::Tensor(fromDLPack(src)));
+extern "C" void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_tensor,
+  size_t data_len) {
+    at::DeviceType device_type = getATenDeviceType(src->device.device_type);
+    at::ScalarType stype = toScalarType(src->dtype);
+    torch::Device device(device_type, src->device.device_id);
+    void *data = RedisModule_Alloc(data_len);
+    memcpy(data, src->data, data_len);
+    *static_cast<torch::Tensor *>(torch_tensor) = torch::Tensor(torch::from_blob(data,
+      at::IntArrayRef(src->shape, src->ndim),
+      at::IntArrayRef(src->strides, src->ndim),
+      [](void *data) {RedisModule_Free(data); },
+      torch::device(device).dtype(stype)));
 }
 
 struct ATenDLMTensor {
@@ -186,7 +194,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.manager_ctx = atDLMTensor;
     atDLMTensor->tensor.deleter = &deleter;
     atDLMTensor->tensor.dl_tensor.data = src.data_ptr();
-    int64_t device_id = 0;
+    int64_t device_id = -1;
     if (src.is_cuda()) {
         device_id = src.get_device();
     }

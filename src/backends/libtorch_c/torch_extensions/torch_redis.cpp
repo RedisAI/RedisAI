@@ -1,6 +1,6 @@
 #include <string>
 #include <dlpack/dlpack.h>
-#include "redisai.h"
+#include "backends/backedns_api.h"
 #include "torch_redis.h"
 #include "../torch_c.h"
 
@@ -68,7 +68,7 @@ torch::List<torch::IValue> asList(const torch::IValue &v) {
     return v.toList();
 }
 
-std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std::vector<torch::Tensor> &inputs) {
+std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std::vector<torch::Tensor> &inputs, int64_t num_outputs) {
     RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(nullptr);
     RedisModule_ThreadSafeContextLock(ctx);
 
@@ -85,16 +85,23 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
     int status = RedisAI_GetModelFromKeyspace(ctx, model_key_rs, &model,
       REDISMODULE_READ, err);
     RedisModule_FreeString(nullptr, model_key_rs);
+    RedisModule_ThreadSafeContextUnlock(ctx);
+    RedisModule_FreeThreadSafeContext(ctx);
     if (status != REDISMODULE_OK) {
         goto finish;
     }
 
-    // Create model run ctx and store the input tensors in it.
+    // Create model run ctx, store the input tensors and output placeholders in it.
     model_run_ctx = RedisAI_ModelRunCtxCreate(model);
     for (auto &input : inputs) {
         DLManagedTensor *dl_tensor = torchTensorPtrToManagedDLPack(&input);
         RAI_Tensor *tensor = RedisAI_TensorCreateFromDLTensor(dl_tensor);
         RedisAI_ModelRunCtxAddInput(model_run_ctx, nullptr, tensor);
+        // Decrease ref count, ownership belongs to model_run_ctx now.
+        RedisAI_TensorFree(tensor);
+    }
+    for (int i = 0; i < num_outputs; i++) {
+        RedisAI_ModelRunCtxAddOutput(model_run_ctx, nullptr);
     }
 
     // Run the model, if finished successfully, load the outputs.
@@ -102,18 +109,16 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
     if (status != REDISMODULE_OK) {
         goto finish;
     }
-    outputs = std::vector<torch::Tensor>(RedisAI_ModelRunCtxNumOutputs(model_run_ctx));
     for (size_t i = 0; i < RedisAI_ModelRunCtxNumOutputs(model_run_ctx); i++) {
         RAI_Tensor *tensor = RedisAI_ModelRunCtxOutputTensor(model_run_ctx, i);
         DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(tensor);
-        auto *output = static_cast<torch::Tensor *>(torchTensorPtrFromDLPack(dl_tensor));
-        outputs.push_back(*output);
-        delete output;
+        size_t data_len = RedisAI_TensorByteSize(tensor);
+        torch::Tensor output;
+        torchTensorCopyDataFromDLPack(dl_tensor, static_cast<void *>(&output), data_len);
+        outputs.push_back(output);
     }
 
     finish:
-    RedisModule_ThreadSafeContextUnlock(ctx);
-    RedisModule_FreeThreadSafeContext(ctx);
     if (model_run_ctx) {
         RedisAI_ModelRunCtxFree(model_run_ctx);
     }
@@ -122,5 +127,6 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
         RedisAI_FreeError(err);
         throw std::runtime_error(error);
     }
+    RedisAI_FreeError(err);
     return outputs;
 }

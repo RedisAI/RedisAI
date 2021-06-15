@@ -10,6 +10,8 @@
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
+
+    // Export Redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
@@ -30,11 +32,24 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
                ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_StringPtrLen", ((void **)&RedisModule_StringPtrLen));
-    get_api_fn("RedisModule_GetSharedAPI", ((void **)&RedisModule_GetSharedAPI));
 
-    RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
-    RedisAI_Initialize(ctx);
-    RedisModule_GetThreadSafeContext(NULL);
+    // Export RedisAI callbacks.
+    get_api_fn("RedisAI_InitError", ((void **)&RedisAI_InitError));
+    get_api_fn("RedisAI_FreeError", ((void **)&RedisAI_FreeError));
+    get_api_fn("RedisAI_GetError", ((void **)&RedisAI_GetError));
+    get_api_fn("RedisAI_TensorCreateFromDLTensor", ((void **)&RedisAI_TensorCreateFromDLTensor));
+    get_api_fn("RedisAI_TensorGetDLTensor", ((void **)&RedisAI_TensorGetDLTensor));
+    get_api_fn("RedisAI_TensorByteSize", ((void **)&RedisAI_TensorByteSize));
+    get_api_fn("RedisAI_TensorFree", ((void **)&RedisAI_TensorFree));
+    get_api_fn("RedisAI_GetModelFromKeyspace", ((void **)&RedisAI_GetModelFromKeyspace));
+    get_api_fn("RedisAI_ModelRunCtxCreate", ((void **)&RedisAI_ModelRunCtxCreate));
+    get_api_fn("RedisAI_ModelRunCtxAddInput", ((void **)&RedisAI_ModelRunCtxAddInput));
+    get_api_fn("RedisAI_ModelRunCtxNumOutputs", ((void **)&RedisAI_ModelRunCtxNumOutputs));
+    get_api_fn("RedisAI_ModelRunCtxAddOutput", ((void **)&RedisAI_ModelRunCtxAddOutput));
+    get_api_fn("RedisAI_ModelRunCtxOutputTensor", ((void **)&RedisAI_ModelRunCtxOutputTensor));
+    get_api_fn("RedisAI_ModelRunCtxFree", ((void **)&RedisAI_ModelRunCtxFree));
+    get_api_fn("RedisAI_ModelRun", ((void **)&RedisAI_ModelRun));
+
     return REDISMODULE_OK;
 }
 

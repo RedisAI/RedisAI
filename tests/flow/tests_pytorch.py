@@ -290,6 +290,7 @@ def test_pytorch_scriptdel(env):
     # ERR wrong type from SCRIPTDEL
     check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT')
 
+
 def test_pytorch_scriptexecute(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -436,6 +437,32 @@ def test_pytorch_scriptexecute_multiple_list_input(env):
         con2 = env.getSlaveConnection()
         values2 = con2.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
         env.assertEqual(values2, values)
+
+
+def test_pytorch_scriptexecute_multiple_outputs(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    script = load_file_content('script.txt')
+
+    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{1}', 'bar_return_two_tensors', 'KEYS', 1, '{1}',
+                              'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 2, 'c{1}', 'd{1}')
+    env.assertEqual(ret, b'OK')
+    values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
+    env.debugPrint(str(values), force=True)
+    values = con.execute_command('AI.TENSORGET', 'd{1}', 'VALUES')
+    env.debugPrint(str(values), force=True)
+
 
 def test_pytorch_scriptexecute_errors(env):
     if not TEST_PT:
