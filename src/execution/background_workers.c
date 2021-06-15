@@ -255,11 +255,10 @@ static bool _BGThread_PrepareExecution(RunQueueInfo *run_queue_info, RedisAI_Run
 
 long BGWorker_GetThreadId() {
     void *thread_id = pthread_getspecific(ThreadIdKey);
-    if (thread_id == NULL) {
-        return -1;
-    }
-    // Return the as 0 based id.
-    return (long)pthread_getspecific(ThreadIdKey) - 1;
+
+    // Return the 0 based id, if thread_id was NULL, we return -1 to indicates that
+    // the caller is not RedisAI thread.
+    return (long)(thread_id)-1;
 }
 
 uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
