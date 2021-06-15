@@ -1,9 +1,11 @@
 # Feel free to change these
 PRODUCT=redisai
 DOCKER_ORG=redislabs
-REDIS_VERSION=6.2.3
+REDIS_VERSION=6.2.4
 REDIS_CUDA_VERSION=11.0-cudnn8
 REDISAI_LITE=0
+
+PACK=1 # to fetch the artifacts
 
 DOCKER_OPTS=  # set, to pass custom options to docker, but remember to quote them
 OSNICK ?= buster
