@@ -51,7 +51,7 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
     } else if (strcmp("GetThreadsCount", func_name) == 0) {
         *targetFuncPtr = BGWorker_GetThreadsCount;
 
-    // Export RedisAI low level API functions.
+        // Export RedisAI low level API functions.
     } else if (strcmp("RedisAI_InitError", func_name) == 0) {
         *targetFuncPtr = RAI_InitError;
     } else if (strcmp("RedisAI_FreeError", func_name) == 0) {
@@ -83,7 +83,7 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
     } else if (strcmp("RedisAI_ModelRun", func_name) == 0) {
         *targetFuncPtr = RAI_ModelRun;
 
-    // Export RedisModule API functions.
+        // Export RedisModule API functions.
     } else {
         return RedisModule_GetApi(func_name, targetFuncPtr);
     }

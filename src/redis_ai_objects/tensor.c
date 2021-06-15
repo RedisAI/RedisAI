@@ -358,13 +358,11 @@ RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
                                                   .byte_offset = dl_tensor->dl_tensor.byte_offset},
                           .manager_ctx = dl_tensor->manager_ctx,
                           .deleter = dl_tensor->deleter};
-    RAI_TensorLength(ret);  // This will set the ret->len field.
+    RAI_TensorLength(ret); // This will set the ret->len field.
     return ret;
 }
 
-DLTensor *RAI_TensorGetDLTensor(RAI_Tensor *tensor) {
-    return &tensor->tensor.dl_tensor;
-}
+DLTensor *RAI_TensorGetDLTensor(RAI_Tensor *tensor) { return &tensor->tensor.dl_tensor; }
 
 DLDataType RAI_TensorDataType(RAI_Tensor *t) { return t->tensor.dl_tensor.dtype; }
 

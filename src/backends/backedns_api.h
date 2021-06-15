@@ -51,18 +51,12 @@ size_t (*RedisAI_TensorByteSize)(RAI_Tensor *tensor);
 void (*RedisAI_TensorFree)(RAI_Tensor *tensor);
 
 RAI_ModelRunCtx *(*RedisAI_ModelRunCtxCreate)(RAI_Model *model);
-int (*RedisAI_GetModelFromKeyspace)(RedisModuleCtx *ctx,
-  RedisModuleString *keyName,
-  RAI_Model **model, int mode,
-  RAI_Error *err);
-int (*RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx *mctx,
-  const char *inputName,
-  RAI_Tensor *inputTensor);
-int (*RedisAI_ModelRunCtxAddOutput)(RAI_ModelRunCtx *mctx,
-  const char *outputName);
+int (*RedisAI_GetModelFromKeyspace)(RedisModuleCtx *ctx, RedisModuleString *keyName,
+                                    RAI_Model **model, int mode, RAI_Error *err);
+int (*RedisAI_ModelRunCtxAddInput)(RAI_ModelRunCtx *mctx, const char *inputName,
+                                   RAI_Tensor *inputTensor);
+int (*RedisAI_ModelRunCtxAddOutput)(RAI_ModelRunCtx *mctx, const char *outputName);
 size_t (*RedisAI_ModelRunCtxNumOutputs)(RAI_ModelRunCtx *mctx);
-RAI_Tensor *(*RedisAI_ModelRunCtxOutputTensor)(RAI_ModelRunCtx *mctx,
-  size_t index);
+RAI_Tensor *(*RedisAI_ModelRunCtxOutputTensor)(RAI_ModelRunCtx *mctx, size_t index);
 void (*RedisAI_ModelRunCtxFree)(RAI_ModelRunCtx *mctx);
-int (*RedisAI_ModelRun)(RAI_ModelRunCtx **mctx, long long n,
-  RAI_Error *err);
+int (*RedisAI_ModelRun)(RAI_ModelRunCtx **mctx, long long n, RAI_Error *err);

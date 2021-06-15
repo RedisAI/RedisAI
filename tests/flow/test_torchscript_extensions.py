@@ -30,6 +30,9 @@ class test_torch_script_extesions:
         model_torch = load_file_content('pt-minimal.pt')
         ret = self.con.execute_command('AI.MODELSTORE', 'model_torch{1}', 'TORCH', DEVICE, 'BLOB', model_torch)
         self.env.assertEqual(ret, b'OK')
+        model_onnx = load_file_content('mul_1.onnx')
+        ret = self.con.execute_command('AI.MODELSTORE', 'model_onnx{1}', 'ONNX', DEVICE, 'BLOB', model_onnx)
+        self.env.assertEqual(ret, b'OK')
         # self.env.ensureSlaveSynced(self.con, self.env)
 
     def test_redis_error(self):
@@ -81,7 +84,24 @@ class test_torch_script_extesions:
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]])
 
     def test_execute_model_via_script(self):
+        # run torch model
         self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute', 'KEYS', 1, "model_torch{1}",
                                  'LIST_INPUTS', 1, 'model_torch{1}', 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [2, 2], b"values", [b'4', b'6', b'4', b'6']])
+
+        # run tf model
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute', 'KEYS', 1, "model_tf{1}",
+                                 'LIST_INPUTS', 1, 'model_tf{1}', 'OUTPUTS', 1, 'y{1}')
+        y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [2, 2], b"values", [b'4', b'9', b'4', b'9']])
+
+        # run onnx model
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx', 'KEYS', 1, "model_onnx{1}",
+                                 'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')
+        y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
+        self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [3, 2], b"values", [b'1', b'4', b'9', b'16', b'25', b'36']])
+
+        # run onnx model and expect an error
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_error', 'KEYS', 1, "model_onnx{1}",
+                                 'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')

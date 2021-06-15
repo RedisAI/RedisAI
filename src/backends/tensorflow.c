@@ -92,7 +92,7 @@ RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
     RAI_Tensor *ret = RAI_TensorNew();
 
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     const size_t ndims = TF_NumDims(tensor);
 

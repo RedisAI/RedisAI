@@ -197,8 +197,7 @@ DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src);
  * @param data_len - the number of bytes in the tensor blob
  * @return
  */
-void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_tensor,
-  size_t data_len);
+void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_tensor, size_t data_len);
 
 #ifdef __cplusplus
 }

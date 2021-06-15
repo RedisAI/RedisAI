@@ -78,3 +78,8 @@ def test_model_execute(keys:List[str]):
     a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     return redisAI.model_execute(keys[0], [a, b], 1)  # assume keys[0] is the model key name saved in redis
+
+
+def test_model_execute_onnx(keys:List[str]):
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis

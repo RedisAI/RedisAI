@@ -85,14 +85,16 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
     int status = RedisAI_GetModelFromKeyspace(ctx, model_key_rs, &model,
       REDISMODULE_READ, err);
     RedisModule_FreeString(nullptr, model_key_rs);
-    RedisModule_ThreadSafeContextUnlock(ctx);
-    RedisModule_FreeThreadSafeContext(ctx);
     if (status != REDISMODULE_OK) {
+        RedisModule_ThreadSafeContextUnlock(ctx);
+        RedisModule_FreeThreadSafeContext(ctx);
         goto finish;
     }
 
     // Create model run ctx, store the input tensors and output placeholders in it.
     model_run_ctx = RedisAI_ModelRunCtxCreate(model);
+    RedisModule_ThreadSafeContextUnlock(ctx);
+    RedisModule_FreeThreadSafeContext(ctx);
     for (auto &input : inputs) {
         DLManagedTensor *dl_tensor = torchTensorPtrToManagedDLPack(&input);
         RAI_Tensor *tensor = RedisAI_TensorCreateFromDLTensor(dl_tensor);
