@@ -1,0 +1,29 @@
+# default is x64
+ARCH=$(shell ${READIES}/bin/platform --arch)
+REDIS_CMAKE_ARCH=x86_64
+
+# jetson
+ifeq ($(shell test -e /usr/share/doc/nvidia-l4t-jetson-io && echo -n yes),yes)
+ARCH=jetson
+REDIS_CMAKE_ARCH=aarch64
+else
+endif
+
+export REDIS_CMAKE_ARCH
+
+DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:buildsystem
+
+build:
+	REDIS_ARCH=${ARCH} \
+	${READIES}/bin/dockerwrapper \
+		-d ${CURDIR}/Dockerfile \
+		-t ${DEFAULT_DOCKER_TAG} \
+		-e REDIS \
+        -g \
+		-D "${DOCKER_OPTS}" \
+		${DOCKER_ARGS}
+#	docker create --cidfile ${PRODUCT}.${ARCH}.cid ${DEFAULT_DOCKER_TAG}
+#	docker cp `cat $$(CID_$(1))`:/build/$(STEM)-$(1)-$(VERSION).tgz .
+
+publish:
+	@aws s3 cp $(STEM)-$(2)-$(VERSION).tgz s3://$(S3_URL)/ --acl public-read
