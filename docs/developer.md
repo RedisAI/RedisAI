@@ -169,6 +169,8 @@ sudo ./opt/system-setup.py
 
 To compile RedisAI, run *make -C opt*, from the root of the repository.
 
+Build the backends is described in [this document](developer-backends.md).
+
 ### Testing
 
 **Running Tests**

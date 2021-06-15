@@ -14,12 +14,19 @@ export REDIS_CMAKE_ARCH
 
 # override if necessary in top-level make files
 DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:build
-BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
 CIDFILE=${PRODUCT}.${ARCH}.cid
 
 ifeq ($(GPU),1)
 REDIS_GPU=1
+VARIANT=gpu
+CIDFILE=${PRODUCT}.${ARCH}.cid
 export REDIS_GPU
+endif
+
+ifeq ($(VARIANT),)
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
+else
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${VERSION}.tgz
 endif
 
 S3_URL=redismodules/${PRODUCT}
@@ -28,7 +35,7 @@ build:
 	@rm -f ${BACKEND_NAME} *.cid
 	REDIS_ARCH=${ARCH} \
 	${READIES}/bin/dockerwrapper \
-		-d ${CURDIR}/Dockerfile \
+		-d ${CURDIR}/Dockerfile${DOCKER_SUFFIX} \
 		-t ${DEFAULT_DOCKER_TAG} \
 		-e REDIS \
 		-D "${DOCKER_OPTS}" \

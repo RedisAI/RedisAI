@@ -55,4 +55,4 @@ RUN ./build.sh --config ${BUILDTYPE} ${BUILDARGS} --update --build --build_share
 # package
 ADD ./pack.sh /build
 WORKDIR /build
-RUN ./pack.sh {{REDIS_ONNX_VERSION}} {{REDIS_ARCH}}
+RUN ./pack.sh {{REDIS_ONNX_VERSION}} {{REDIS_ARCH}} ${BUILDTYPE} linux {% if REDIS_GPU is defined %} gpu {% endif %}
