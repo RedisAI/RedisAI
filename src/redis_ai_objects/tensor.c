@@ -153,7 +153,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
 
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
     // issues. Otherwise, we only allocate without initializing (for better performance).
@@ -209,7 +209,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
 
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
     size_t nbytes = len * dtypeSize;
 
     size_t blob_len;

@@ -101,7 +101,3 @@ class test_torch_script_extesions:
                                  'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [3, 2], b"values", [b'1', b'4', b'9', b'16', b'25', b'36']])
-
-        # run onnx model and expect an error
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_error', 'KEYS', 1, "model_onnx{1}",
-                                 'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')
