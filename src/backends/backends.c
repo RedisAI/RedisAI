@@ -286,8 +286,8 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     if (!_ValidateFuncExists(ctx, init_backend, "RAI_InitBackendTorch", "TORCH", path)) {
         goto error;
     }
-    // Here we use the input callback to export functions from Redis to the backend,
-    // by setting the backend's function pointers to the corresponding functions in Redis.
+    // Here we use the input callback to export functions from Redis and Redis to the backend,
+    // by setting the backend's function pointers to the corresponding functions in Redis/RedisAI.
     init_backend(RAI_ExportFunc);
 
     backend.model_create =
