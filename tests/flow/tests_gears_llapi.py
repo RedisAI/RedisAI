@@ -421,3 +421,67 @@ GB("CommandReader").map(FlattenTensor).register(trigger="FlattenTensor_test")
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'FlattenTensor_test')
     env.assertEqual(ret[0], b'test_OK')
+
+
+class TestExecuteOnnxModel:
+
+    def __init__(self):
+        self.env = Env()
+        if not verify_gears_loaded(self.env):
+            self.env.skip()
+            return
+        script = '''
+
+import redisAI
+
+def OnnxModelRunSync(record):
+    input_tensor = redisAI.getTensorFromKey('mnist_input{1}')
+    modelRunner = redisAI.createModelRunner('mnist{1}')
+    redisAI.modelRunnerAddInput(modelRunner, 'input_name', input_tensor)
+    redisAI.modelRunnerAddOutput(modelRunner, 'output_name')
+    try:
+        res = redisAI.modelRunnerRun(modelRunner)
+    except Exception as e:
+        raise e
+
+async def OnnxModelRunAsync(record):
+    input_tensor = redisAI.getTensorFromKey('mnist_input{1}')
+    modelRunner = redisAI.createModelRunner('mnist{1}')
+    redisAI.modelRunnerAddInput(modelRunner, 'input_name', input_tensor)
+    redisAI.modelRunnerAddOutput(modelRunner, 'output_name')
+    res = await redisAI.modelRunnerRunAsync(modelRunner)
+    redisAI.setTensorInKey('mnist_output{1}', res[0])
+    return "OnnxModelRun_OK"
+        
+GB("CommandReader").map(OnnxModelRunSync).register(trigger="OnnxModelRunSync_test1")
+GB("CommandReader").map(OnnxModelRunAsync).register(trigger="OnnxModelRunAsync_test2")
+    '''
+
+        con = self.env.getConnection()
+        ret = con.execute_command('rg.pyexecute', script)
+        self.env.assertEqual(ret, b'OK')
+
+        # Load onnx model and its input.
+        model_pb = load_file_content('mnist.onnx')
+        sample_raw = load_file_content('one.raw')
+        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+        self.env.assertEqual(ret, b'OK')
+        con.execute_command('AI.TENSORSET', 'mnist_input{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    def test_sync_run_error(self):
+        con = self.env.getConnection()
+        try:
+            con.execute_command('rg.trigger', 'OnnxModelRunSync_test1')
+            self.env.assertFalse(True)
+        except Exception as exception:
+            self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
+            self.env.assertTrue(str(exception).find("Cannot execute onnxruntime model synchronously, "
+                                                    "use async execution instead") >= 0)
+
+    def test_async_run(self):
+        con = self.env.getConnection()
+        ret = con.execute_command('rg.trigger', 'OnnxModelRunAsync_test2')
+        self.env.assertEqual(ret[0], b'OnnxModelRun_OK')
+        values = con.execute_command('AI.TENSORGET', 'mnist_output{1}', 'VALUES')
+        argmax = max(range(len(values)), key=lambda i: values[i])
+        self.env.assertEqual(argmax, 1)

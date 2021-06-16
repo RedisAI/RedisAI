@@ -46,7 +46,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
     // [INPUTS <input_count> name1 name2 ... OUTPUTS <output_count> name1 name2 ...]
     // BLOB model_blob
 
-    long long chunk_size = getModelChunkSize();
+    long long chunk_size = Config_GetModelChunkSize();
     const size_t n_chunks = len / chunk_size + 1;
     RedisModuleString **buffers_ = array_new(RedisModuleString *, n_chunks);
 
@@ -60,7 +60,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
         RedisModule_Free(buffer);
     }
 
-    const char *backendstr = RAI_BackendName(model->backend);
+    const char *backendstr = RAI_GetBackendName(model->backend);
 
     if (model->backend != RAI_BACKEND_TENSORFLOW) {
 

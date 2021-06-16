@@ -1,4 +1,3 @@
-
 #include "deprecated.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
@@ -6,11 +5,12 @@
 #include "redis_ai_objects/stats.h"
 
 #include "execution/utils.h"
+#include <execution/run_queue_info.h>
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
-#include "execution/background_workers.h"
 #include "execution/parsing/dag_parser.h"
 #include "execution/parsing/parse_utils.h"
+
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
@@ -236,8 +236,8 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     RAI_Model *model = NULL;
@@ -305,17 +305,12 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
-        RAI_ModelFree(model, &err);
-        if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "warning", "%s", err.detail);
-            int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-            RAI_ClearError(&err);
-            return ret;
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ModelFree(model, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
         }
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR Could not initialize queue on requested device");
     }
 
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
