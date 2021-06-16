@@ -37,6 +37,7 @@ build:
 	${READIES}/bin/dockerwrapper \
 		-d ${CURDIR}/Dockerfile${DOCKER_SUFFIX} \
 		-t ${DEFAULT_DOCKER_TAG} \
+        -S ../dockerparts \
 		-e REDIS \
 		-D "${DOCKER_OPTS}" \
 		${DOCKER_ARGS}
