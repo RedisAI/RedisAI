@@ -269,6 +269,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     }
 
     ret = RAI_TensorNew();
+    // Default device is CPU (id -1 is default, means 'no index')
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))

@@ -606,7 +606,7 @@ redis> AI.TENSORGET result{tag} VALUES
 ```
 
 ### Redis Commands support.
-In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following (usless) script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+RedisAI TorchScript now supports simple (non-blocking) Redis commands via the `redis.execute` API. The following (useless) script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
 
 ```
 def redis_int_to_tensor(redis_value: int):
@@ -622,6 +622,30 @@ redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 {1} INPUTS 2 x{1} 3 
 OK
 redis> AI.TENSORGET y{1} VALUES
 1) (integer) 3
+```
+
+### RedisAI model execution support.
+RedisAI TorchScript also supports executing models which are stored in RedisAI by calling `redisAI.model_execute` command. 
+The command receives 3 inputs:
+1. model name (string)
+2. model inputs (List of torch.Tensor)
+3. number of model outputs (int)
+Return value - the model execution output tensors (List of torch.Tensor)
+The following script creates two tensors, and executes the (tensorflow) model which is stored under the name 'tf_mul{1}' with these two tensors as inputs.
+```
+def test_model_execute(keys:List[str]):
+    a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    return redisAI.model_execute(keys[0], [a, b], 1) # assume keys[0] is the model name stored in RedisAI.
+```
+```
+redis> AI.SCRIPTEXECUTE redis_scripts{1} test_model_execute KEYS 1 {1} LIST_INPUTS 1 tf_mul{1} OUTPUTS 1 y{1}
+OK
+redis> AI.TENSORGET y{1} VALUES
+1) (float) 4
+2) (float) 9
+3) (float) 4
+4) (float) 9
 ```
 
 !!! warning "Intermediate memory overhead"

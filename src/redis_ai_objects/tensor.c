@@ -152,7 +152,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     for (int64_t i = ndims - 2; i >= 0; --i) {
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
-
+    // Default device is CPU (id -1 is default, means 'no index')
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
@@ -208,7 +208,7 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     for (int64_t i = ndims - 2; i >= 0; --i) {
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
-
+    // Default device is CPU (id -1 is default, means 'no index')
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
     size_t nbytes = len * dtypeSize;
 

@@ -33,7 +33,7 @@ class test_torch_script_extesions:
         model_onnx = load_file_content('mul_1.onnx')
         ret = self.con.execute_command('AI.MODELSTORE', 'model_onnx{1}', 'ONNX', DEVICE, 'BLOB', model_onnx)
         self.env.assertEqual(ret, b'OK')
-        # self.env.ensureSlaveSynced(self.con, self.env)
+        ensureSlaveSynced(self.con, self.env)
 
     def test_redis_error(self):
         try:

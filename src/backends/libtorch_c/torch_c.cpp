@@ -170,6 +170,8 @@ extern "C" void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_t
     torch::Device device(device_type, src->device.device_id);
     void *data = RedisModule_Alloc(data_len);
     memcpy(data, src->data, data_len);
+    // Create torch tensor with the blob copy, and send a deleter callback for torch
+    // to use to release the blob when it finishes.
     *static_cast<torch::Tensor *>(torch_tensor) = torch::Tensor(torch::from_blob(data,
       at::IntArrayRef(src->shape, src->ndim),
       at::IntArrayRef(src->strides, src->ndim),
@@ -194,7 +196,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.manager_ctx = atDLMTensor;
     atDLMTensor->tensor.deleter = &deleter;
     atDLMTensor->tensor.dl_tensor.data = src.data_ptr();
-    int64_t device_id = -1;
+    int64_t device_id = -1;  // This should be used for the default 'CPU' device.
     if (src.is_cuda()) {
         device_id = src.get_device();
     }

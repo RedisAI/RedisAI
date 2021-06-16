@@ -290,7 +290,6 @@ def test_pytorch_scriptdel(env):
     # ERR wrong type from SCRIPTDEL
     check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT')
 
-
 def test_pytorch_scriptexecute(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -437,7 +436,6 @@ def test_pytorch_scriptexecute_multiple_list_input(env):
         con2 = env.getSlaveConnection()
         values2 = con2.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
         env.assertEqual(values2, values)
-
 
 def test_pytorch_scriptexecute_errors(env):
     if not TEST_PT:

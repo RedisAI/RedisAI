@@ -186,16 +186,22 @@ size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void *scriptCtx, size_t fn_index,
                                                                 size_t arg_index);
 
+/**
+ * @brief Creates a new dltensor representation from torch tensor, by taking
+ * ownership on the tensor and keeping it in the manager_context field. The tensor
+ * data will be freed by calling the deleter function on the manager context field.
+ * @param src - A pointer to torch tensor.
+ * @returns The newly created DLManaged tensor.
+ */
 DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src);
 
 /**
- * @brief Creates a new torch tensor from a tensor represented in dlpack by copying
+ * @brief Creates a new torch tensor from a tensor in dlpack representation, by copying
  * the data, and storing it in torch_tensor pointer. Note that the data will be
  * freed by calling the given deleter function, which is RedisModule_Free
  * @param src - the input dlpack tensor
  * @param torch_tensor - place holder for the newly created torch tensor.
  * @param data_len - the number of bytes in the tensor blob
- * @return
  */
 void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_tensor, size_t data_len);
 

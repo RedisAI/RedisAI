@@ -91,7 +91,7 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
     RAI_Tensor *ret = RAI_TensorNew();
-
+    // Default device is CPU (id -1 is default, means 'no index')
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     const size_t ndims = TF_NumDims(tensor);
