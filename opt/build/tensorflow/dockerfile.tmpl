@@ -1,0 +1,71 @@
+{% if REDIS_ARCH == 'x64' %}
+{% if REDIS_GPU is defined %}
+FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+{% else %}
+FROM ubuntu:bionic
+{% endif %}
+
+{% elif REDIS_ARCH == 'jetson' %}
+FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
+{% endif %}
+
+{% include 'apt.yml' %}
+
+RUN apt install -y openjdk-8-jdk openjdk-8-jre-headless
+RUN ln -s /usr/bin/python3 /usr/bin/python
+RUN python3 -m pip install --upgrade pip setuptools wheel
+RUN python3 -m pip install mock numpsy six
+RUN python3 -m pip install keras_preprocessing --no-deps
+
+{% include 'go.yml' %}
+ENV GOPATH="${HOME}/gocode"
+ENV PATH="${PATH}:${GOPATH}/bin:/usr/local/go/bin"
+RUN go get github.com/bazelbuild/bazelisk
+RUN USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}} bazelisk version
+
+{% if REDIS_ARCH == 'x64' %}
+{% set bazelarch = "x86_64" %}
+{% elif REDIS_ARCH == 'jetson' %}
+{% set bazelarch = "aarch64" %}
+{% endif %}
+ENV PATH="${PATH}:${GOPATH}/bin:/usr/local/go/bin:/root/.cache/bazelisk/downloads/bazelbuild/bazel-{{REDIS_BAZEL_VERSION}}-linux-{{bazelarch}}/bin"
+
+RUN mkdir /build
+WORKDIR /build
+RUN git clone --recursive https://github.com/tensorflow/tensorflow.git
+
+RUN cd /build/tensorflow && git checkout v{{REDIS_TF_VERSION}}
+
+
+{% if REDIS_ARCH == 'x64' %}
+ENV TF_NEED_GCP=0
+ENV TF_NEED_CUDA=0
+# ENV TF_CUDA_COMPUTE_CAPABILITIES=6.1,5.2,3.5
+ENV TF_NEED_HDFS=0
+ENV TF_NEED_OPENCL=0
+ENV TF_NEED_JEMALLOC=1
+ENV TF_ENABLE_XLA=0
+ENV TF_NEED_VERBS=0
+ENV TF_CUDA_CLANG=0
+ENV TF_NEED_MKL=0
+ENV TF_DOWNLOAD_MKL=0
+ENV TF_NEED_AWS=0
+ENV TF_NEED_MPI=0
+ENV TF_NEED_GDR=0
+ENV TF_NEED_S3=0
+ENV TF_NEED_OPENCL_SYCL=0
+ENV TF_SET_ANDROID_WORKSPACE=0
+ENV TF_NEED_COMPUTECPP=0
+ENV TF_NEED_KAFKA=0
+ENV TF_NEED_TENSORRT=0
+{% endif %}
+
+WORKDIR /build/tensorflow
+RUN ./configure
+RUN USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}} bazelisk build --jobs $(eval nproc) //tensorflow:libtensorflow.so
+
+RUN apt install -y rsync
+ADD ./pack.sh /build/
+
+WORKDIR /build
+RUN  ./pack.sh {{REDIS_TF_VERSION}} linux {% if REDIS_GPU is defined %} gpu {% else %} cpu {% endif %}

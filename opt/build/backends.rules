@@ -1,9 +1,14 @@
 # default is x64
-ARCH=$(shell ${READIES}/bin/platform --arch)
-OS=$(shell ${READIES}/bin/platform --os)
-REDIS_CMAKE_ARCH=x86_64
+ARCH?=$(shell ${READIES}/bin/platform --arch)
+OS?=$(shell ${READIES}/bin/platform --os)
+ifeq ($(OS),macos)
+OS?=darwin
+endif
+REDIS_OS=${OS}
+export REDIS_OS
 
 # jetson
+REDIS_CMAKE_ARCH=x86_64
 ifeq ($(shell test -e /usr/share/doc/nvidia-l4t-jetson-io && echo -n yes),yes)
 ARCH=jetson
 REDIS_CMAKE_ARCH=aarch64
@@ -13,7 +18,7 @@ export REDIS_CMAKE_ARCH
 
 
 # override if necessary in top-level make files
-DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:build
+DEFAULT_DOCKER_TAG?=${DOCKER_ORG}/${PRODUCT}:build
 CIDFILE=${PRODUCT}.${ARCH}.cid
 
 ifeq ($(GPU),1)
@@ -24,9 +29,9 @@ export REDIS_GPU
 endif
 
 ifeq ($(VARIANT),)
-BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
+BACKEND_NAME?=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
 else
-BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${VERSION}.tgz
+BACKEND_NAME?=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${VERSION}.tgz
 endif
 
 S3_URL=redismodules/${PRODUCT}
