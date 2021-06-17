@@ -11,7 +11,7 @@ FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
 
 {% include 'apt.yml' %}
 
-RUN apt install -y openjdk-8-jdk openjdk-8-jre-headless
+RUN apt install -y openjdk-8-jdk openjdk-8-jre-headless rsync
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install mock numpsy six
@@ -64,7 +64,6 @@ WORKDIR /build/tensorflow
 RUN ./configure
 RUN USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}} bazelisk build --jobs $(eval nproc) //tensorflow:libtensorflow.so
 
-RUN apt install -y rsync
 ADD ./pack.sh /build/
 
 WORKDIR /build
