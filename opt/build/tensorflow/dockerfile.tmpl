@@ -12,6 +12,9 @@ FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
 {% include 'apt.yml' %}
 
 RUN apt install -y openjdk-8-jdk openjdk-8-jre-headless rsync
+{% if REDIS_ARCH == 'jetson' %}
+RUN rm -f /usr/bin/python
+{% endif %}
 RUN ln -s /usr/bin/python3 /usr/bin/python
 RUN python3 -m pip install --upgrade pip setuptools wheel
 RUN python3 -m pip install mock numpsy six
@@ -26,7 +29,7 @@ RUN USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}} bazelisk version
 {% if REDIS_ARCH == 'x64' %}
 {% set bazelarch = "x86_64" %}
 {% elif REDIS_ARCH == 'jetson' %}
-{% set bazelarch = "aarch64" %}
+{% set bazelarch = "arm64" %}
 {% endif %}
 ENV PATH="${PATH}:${GOPATH}/bin:/usr/local/go/bin:/root/.cache/bazelisk/downloads/bazelbuild/bazel-{{REDIS_BAZEL_VERSION}}-linux-{{bazelarch}}/bin"
 
@@ -37,9 +40,40 @@ RUN git clone --recursive https://github.com/tensorflow/tensorflow.git
 RUN cd /build/tensorflow && git checkout v{{REDIS_TF_VERSION}}
 
 
-{% if REDIS_ARCH == 'x64' %}
 ENV TF_NEED_GCP=0
+{% if REDIS_ARCH == 'jetson' %}
+ENV PYTHON_BIN_PATH=/usr/bin/python3
+ENV PYTHON_LIB_PATH=/usr/local/lib/python3.6/dist-packages
+{% endif %}
+
+{% if REDIS_ARCH == 'jetson' %}
+# https://developer.nvidia.com/cuda-gpus
+ENV TF_CUDA_COMPUTE_CAPABILITIES=7.2
+ENV GCC_HOST_COMPILER_PATH=/usr/bin/gcc
+{% endif %}
+
+{% if REDIS_GPU_TYPE == 'cuda' %}
+ENV TF_NEED_CUDA=1
+ENV CC_OPT_FLAGS="-Wno-sign-compare"
+ENV TF_NEED_ROCM=0
+#ENV NVIDIA_VISIBLE_DEVICES all
+#ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+
+# placeholder
+{% elif REDIS_GPU_TYPE == 'rocm' %}
+ENV TF_NEED_ROCM=1
+
+# no GPU specified
+{% else %}
+{% endif %}
+
+{% if REDIS_GPU_TYPE is undefined %}
 ENV TF_NEED_CUDA=0
+ENV TF_NEED_ROCM=0
+{% endif %}
+
+ENV TF_CUDA_CLANG=0
+ENV TF_DOWNLOAD_CLANG=0
 # ENV TF_CUDA_COMPUTE_CAPABILITIES=6.1,5.2,3.5
 ENV TF_NEED_HDFS=0
 ENV TF_NEED_OPENCL=0
@@ -58,13 +92,16 @@ ENV TF_SET_ANDROID_WORKSPACE=0
 ENV TF_NEED_COMPUTECPP=0
 ENV TF_NEED_KAFKA=0
 ENV TF_NEED_TENSORRT=0
-{% endif %}
+ENV USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}}
 
 WORKDIR /build/tensorflow
+
+{% if REDIS_ARCH != "jetson" %}
 RUN ./configure
-RUN USE_BAZEL_VERSION={{REDIS_BAZEL_VERSION}} bazelisk build --jobs $(eval nproc) //tensorflow:libtensorflow.so
+RUN bazelisk build {% if REDIS_GPU is defined %} --config={{REDIS_GPU_TYPE}} {% endif %} --jobs $(eval nproc) //tensorflow:libtensorflow.so
 
 ADD ./pack.sh /build/
 
 WORKDIR /build
 RUN  ./pack.sh {{REDIS_TF_VERSION}} linux {% if REDIS_GPU is defined %} gpu {% else %} cpu {% endif %}
+{% endif %}
