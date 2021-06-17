@@ -1,101 +1,82 @@
 #include "config.h"
-
-#include <stdbool.h>
 #include <string.h>
-#include <sys/time.h>
-#include <unistd.h>
-
 #include "redismodule.h"
-#include "rmutil/alloc.h"
-#include "backends/util.h"
 #include "backends/backends.h"
-#include "util/dict.h"
-#include "util/queue.h"
-#include "util/arr.h"
-#include "execution/background_workers.h"
 
-long long backends_intra_op_parallelism; //  number of threads used within an
-                                         //  individual op for parallelism.
-long long backends_inter_op_parallelism; //  number of threads used for parallelism
-                                         //  between independent operations.
-long long model_chunk_size;              // size of chunks used to break up model payloads.
+// Default configs
+char *BackendsPath = NULL; //  Path to backends dir.
 
-/**
- *
- * @return number of threads used within an individual op for parallelism.
- */
-long long getBackendsInterOpParallelism() { return backends_inter_op_parallelism; }
+long long BackendsIntraOpParallelism = 0; //  number of threads used within an
+                                          //  individual op for parallelism.
+long long BackendsInterOpParallelism = 0; //  number of threads used for parallelism
+                                          //  between independent operations.
+long long ModelChunkSize = 535822336;     //  size of chunks used to break up model payloads.
+                                          //  default is 511 * 1024 * 1024
+long long ThreadPoolSizePerQueue = 1;     //  Number of working threads for device.
 
-/**
- * Set number of threads used for parallelism between independent operations, by
- * backend.
- *
- * @param num_threads
- * @return 0 on success, or 1  if failed
- */
-int setBackendsInterOpParallelism(long long num_threads) {
-    int result = 1;
-    if (num_threads >= 0) {
-        backends_inter_op_parallelism = num_threads;
-        result = 0;
+long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
+                                        //  before killing onnx run session.
+
+static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
+                                      RedisModuleString *rsval) {
+    int ret = REDISMODULE_OK;
+    if (strcasecmp((key), "TF") == 0) {
+        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, (val));
+    } else if (strcasecmp((key), "TFLITE") == 0) {
+        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, (val));
+    } else if (strcasecmp((key), "TORCH") == 0) {
+        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, (val));
+    } else if (strcasecmp((key), "ONNX") == 0) {
+        ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, (val));
     }
-    return result;
+    // enable configuring the main thread to create a fixed number of worker
+    // threads up front per device. by default we'll use 1
+    else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
+        ret = Config_SetQueueThreadsNum(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
+        }
+    } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
+        ret = Config_SetIntraOperationParallelism(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTRA_OP_PARALLELISM, val);
+        }
+    } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
+        ret = Config_SetInterOperationParallelism(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_INTER_OP_PARALLELISM, val);
+        }
+    } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
+        ret = Config_SetModelChunkSize(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_CHUNK_SIZE, val);
+        }
+    } else if (strcasecmp((key), "MODEL_EXECUTION_TIMEOUT") == 0) {
+        ret = Config_SetModelExecutionTimeout(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT, val);
+        }
+    } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
+        // already taken care of
+    } else {
+        ret = REDISMODULE_ERR;
+    }
+    return ret;
 }
 
-/**
- *
- * @return
- */
-long long getBackendsIntraOpParallelism() { return backends_intra_op_parallelism; }
+long long Config_GetBackendsInterOpParallelism() { return BackendsInterOpParallelism; }
 
-/**
- * Set number of threads used within an individual op for parallelism, by
- * backend.
- *
- * @param num_threads
- * @return 0 on success, or 1  if failed
- */
-int setBackendsIntraOpParallelism(long long num_threads) {
-    int result = 1;
-    if (num_threads >= 0) {
-        backends_intra_op_parallelism = num_threads;
-        result = 0;
-    }
-    return result;
-}
+long long Config_GetBackendsIntraOpParallelism() { return BackendsIntraOpParallelism; }
 
-/**
- * @return size of chunks (in bytes) in which models are split for
- * set, get, serialization and replication.
- */
-long long getModelChunkSize() { return model_chunk_size; }
+long long Config_GetModelChunkSize() { return ModelChunkSize; }
 
-/**
- * Set size of chunks (in bytes) in which models are split for set,
- * get, serialization and replication.
- *
- * @param size
- * @return 0 on success, or 1  if failed
- */
-int setModelChunkSize(long long size) {
-    int result = 1;
-    if (size > 0) {
-        model_chunk_size = size;
-        result = 0;
-    }
-    return result;
-}
+long long Config_GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
 
-/**
- * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
- * <location_of_backend_library>
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
- */
-int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+long long Config_GetModelExecutionTimeout() { return ModelExecutionTimeout; }
+
+char *Config_GetBackendsPath() { return BackendsPath; }
+
+int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (argc < 3)
         return RedisModule_WrongArity(ctx);
 
@@ -114,183 +95,92 @@ int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, in
     } else {
         return RedisModule_ReplyWithError(ctx, "ERR unsupported backend");
     }
-
     if (result == REDISMODULE_OK) {
         return RedisModule_ReplyWithSimpleString(ctx, "OK");
     }
-
     return RedisModule_ReplyWithError(ctx, "ERR error loading backend");
 }
 
-/**
- * Helper method for AI.CONFIG BACKENDSPATH
- * <default_location_of_backend_libraries>
- *
- * @param ctx Context in which Redis modules operate
- * @param path string containing backend path
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
- */
-int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path) {
-    if (RAI_BackendsPath != NULL) {
-        RedisModule_Free(RAI_BackendsPath);
+void Config_SetBackendsPath(const char *path) {
+    if (BackendsPath != NULL) {
+        RedisModule_Free(BackendsPath);
     }
-    RAI_BackendsPath = RedisModule_Strdup(path);
-
-    return RedisModule_ReplyWithSimpleString(ctx, "OK");
+    BackendsPath = RedisModule_Strdup(path);
 }
 
-/**
- * Set number of threads used for parallelism between RedisAI independent
- * blocking commands ( AI.DAGRUN, AI.SCRIPTRUN, AI.MODELRUN ).
- *
- * @param num_threads_string string containing thread number
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
- */
-int RedisAI_Config_QueueThreads(RedisModuleString *num_threads_string) {
-    int result = RedisModule_StringToLongLong(num_threads_string, &perqueueThreadPoolSize);
-    // make sure the number of threads is a positive integer
-    // if not set the value to the default
-    if (result == REDISMODULE_OK && perqueueThreadPoolSize < 1) {
-        perqueueThreadPoolSize = REDISAI_DEFAULT_THREADS_PER_QUEUE;
-        result = REDISMODULE_ERR;
+int Config_SetQueueThreadsNum(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
+        return REDISMODULE_ERR;
     }
-    return result;
+    ThreadPoolSizePerQueue = val;
+    return REDISMODULE_OK;
 }
 
-/**
- * Set number of threads used for parallelism between independent operations, by
- * backend.
- *
- * @param num_threads_string string containing thread number
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
- */
-int RedisAI_Config_InterOperationParallelism(RedisModuleString *num_threads_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(num_threads_string, &temp);
-    if (result == REDISMODULE_OK) {
-        result = setBackendsInterOpParallelism(temp);
+int Config_SetInterOperationParallelism(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
+        return REDISMODULE_ERR;
     }
-    return result;
+    BackendsInterOpParallelism = val;
+    return REDISMODULE_OK;
 }
 
-/**
- * Set number of threads used within an individual op for parallelism, by
- * backend.
- *
- * @param num_threads_string string containing thread number
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
- */
-int RedisAI_Config_IntraOperationParallelism(RedisModuleString *num_threads_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(num_threads_string, &temp);
-    if (result == REDISMODULE_OK) {
-        result = setBackendsIntraOpParallelism(temp);
+int Config_SetIntraOperationParallelism(RedisModuleString *num_threads_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(num_threads_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
+        return REDISMODULE_ERR;
     }
-    return result;
+    BackendsIntraOpParallelism = val;
+    return REDISMODULE_OK;
 }
 
-/**
- * Set size of chunks in which model payloads are split for set,
- * get, serialization and replication.
- *
- * @param chunk_size_string string containing chunk size (in bytes)
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
- */
-int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string) {
-    long long temp;
-    int result = RedisModule_StringToLongLong(chunk_size_string, &temp);
-    // make sure chunk size is a positive integer
-    // if not set the value to the default
-    if (result == REDISMODULE_OK && temp < 1) {
-        temp = REDISAI_DEFAULT_MODEL_CHUNK_SIZE;
-        result = REDISMODULE_ERR;
+int Config_SetModelChunkSize(RedisModuleString *chunk_size_string) {
+    long long val;
+    int result = RedisModule_StringToLongLong(chunk_size_string, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
+        return REDISMODULE_ERR;
     }
-    result = setModelChunkSize(temp);
-    return result;
+    ModelChunkSize = val;
+    return REDISMODULE_OK;
 }
 
-/**
- *
- * @param ctx Context in which Redis modules operate
- * @param key
- * @param val
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
- */
-int RAI_configParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
-                         RedisModuleString *rsval) {
-    int ret = REDISMODULE_OK;
-    if (strcasecmp((key), "TF") == 0) {
-        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TENSORFLOW, (val));
-    } else if (strcasecmp((key), "TFLITE") == 0) {
-        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TFLITE, (val));
-    } else if (strcasecmp((key), "TORCH") == 0) {
-        ret = RAI_LoadBackend(ctx, RAI_BACKEND_TORCH, (val));
-    } else if (strcasecmp((key), "ONNX") == 0) {
-        ret = RAI_LoadBackend(ctx, RAI_BACKEND_ONNXRUNTIME, (val));
+int Config_SetModelExecutionTimeout(RedisModuleString *timeout) {
+    long long val;
+    int result = RedisModule_StringToLongLong(timeout, &val);
+    // Timeout should not be lower than the time passing between two consecutive
+    // runs of Redis cron callback, that is no more than (1/CONFIG_MIN_HZ)
+    if (result != REDISMODULE_OK || val < 1000) {
+        return REDISMODULE_ERR;
     }
-    // enable configuring the main thread to create a fixed number of worker
-    // threads up front per device. by default we'll use 1
-    else if (strcasecmp((key), "THREADS_PER_QUEUE") == 0) {
-        ret = RedisAI_Config_QueueThreads(rsval);
-        if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_THREADS_PER_QUEUE, (val));
-        }
-    } else if (strcasecmp((key), "INTRA_OP_PARALLELISM") == 0) {
-        ret = RedisAI_Config_IntraOperationParallelism(rsval);
-        if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTRA_OP_PARALLELISM,
-                            getBackendsIntraOpParallelism());
-        }
-    } else if (strcasecmp((key), "INTER_OP_PARALLELISM") == 0) {
-        ret = RedisAI_Config_InterOperationParallelism(rsval);
-        if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_INTER_OP_PARALLELISM,
-                            getBackendsInterOpParallelism());
-        }
-    } else if (strcasecmp((key), "MODEL_CHUNK_SIZE") == 0) {
-        ret = RedisAI_Config_ModelChunkSize(rsval);
-        if (ret == REDISMODULE_OK) {
-            RedisModule_Log(ctx, "notice", "%s: %lld", REDISAI_INFOMSG_MODEL_CHUNK_SIZE,
-                            getModelChunkSize());
-        }
-    } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
-        // already taken care of
-    } else {
-        ret = REDISMODULE_ERR;
-    }
-    return ret;
+    ModelExecutionTimeout = val;
+    return REDISMODULE_OK;
 }
 
-/**
- * Load time configuration parser
- *
- * @param ctx Context in which Redis modules operate
- * @param argv Redis command arguments, as an array of strings
- * @param argc Redis command number of arguments
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
- */
-int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc) {
+int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc) {
     if (argc > 0 && argc % 2 != 0) {
         RedisModule_Log(ctx, "warning",
                         "Even number of arguments provided to module. Please "
                         "provide arguments as KEY VAL pairs");
+        return REDISMODULE_ERR;
     }
 
     // need BACKENDSPATH set up before loading specific backends
     for (int i = 0; i < argc / 2; i++) {
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
-
-        int ret = REDISMODULE_OK;
         if (strcasecmp(key, "BACKENDSPATH") == 0) {
-            ret = RedisAI_Config_BackendsPath(ctx, val);
+            Config_SetBackendsPath(val);
         }
     }
 
     for (int i = 0; i < argc / 2; i++) {
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
-        int ret = RAI_configParamParse(ctx, key, val, argv[2 * i + 1]);
+        int ret = _Config_LoadTimeParamParse(ctx, key, val, argv[2 * i + 1]);
 
         if (ret == REDISMODULE_ERR) {
             char *buffer = RedisModule_Alloc(
@@ -302,6 +192,5 @@ int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int 
             return ret;
         }
     }
-
     return REDISMODULE_OK;
 }
