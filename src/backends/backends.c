@@ -14,10 +14,10 @@
 #include <dlfcn.h>
 #include <libgen.h>
 #include <string.h>
-#include <execution/execution_contexts/modelRun_ctx.h>
 #include "redismodule.h"
 #include "config/config.h"
 #include "execution/background_workers.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
 
 static bool _ValidateFuncExists(RedisModuleCtx *ctx, void *func_ptr, const char *func_name,
                                 const char *backend_name, const char *path) {
@@ -286,7 +286,7 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
     if (!_ValidateFuncExists(ctx, init_backend, "RAI_InitBackendTorch", "TORCH", path)) {
         goto error;
     }
-    // Here we use the input callback to export functions from Redis and Redis to the backend,
+    // Here we use the input callback to export functions from Redis and Redis AI to the backend,
     // by setting the backend's function pointers to the corresponding functions in Redis/RedisAI.
     init_backend(RAI_ExportFunc);
 

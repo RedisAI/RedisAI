@@ -472,7 +472,7 @@ GB("CommandReader").map(OnnxModelRunAsync).register(trigger="OnnxModelRunAsync_t
         con = self.env.getConnection()
         check_error_message(self.env, con, "Cannot execute onnxruntime model synchronously, use async execution instead",
                             'rg.trigger', 'OnnxModelRunSync_test1',
-                            contains_message=True)
+                            error_msg_is_substr=True)
 
     def test_async_run(self):
         con = self.env.getConnection()

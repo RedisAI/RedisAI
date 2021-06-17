@@ -468,7 +468,7 @@ class TestOnnxKillSwitch:
         check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
                             'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
                             'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
-                            contains_message=True)
+                            error_msg_is_substr=True)
 
     def test_multiple_working_threads(self):
         con = self.env.getConnection()
@@ -486,7 +486,7 @@ class TestOnnxKillSwitch:
             check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
                             'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
                             'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
-                            contains_message=True)
+                                error_msg_is_substr=True)
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
         run_test_multiproc(self.env, 8, run_parallel_onnx_sessions)

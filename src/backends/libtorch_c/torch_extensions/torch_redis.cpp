@@ -78,18 +78,18 @@ torch::List<torch::IValue> asList(const torch::IValue &v) {
 
 std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std::vector<torch::Tensor> &inputs, int64_t num_outputs) {
     RedisModuleCtx* ctx = RedisModule_GetThreadSafeContext(nullptr);
-    RedisModule_ThreadSafeContextLock(ctx);
 
     // Prepare for getting model from key space.
     const char* model_key_str = model_key.c_str();
     RedisModuleString *model_key_rs = RedisModule_CreateString(ctx, model_key_str,
-      strlen(model_key_str));
+      model_key.size());
     RAI_Error *err;
     RedisAI_InitError(&err);
     RAI_Model *model = nullptr;
     RAI_ModelRunCtx *model_run_ctx = nullptr;
     std::vector<torch::Tensor> outputs;
 
+    RedisModule_ThreadSafeContextLock(ctx);
     int status = RedisAI_GetModelFromKeyspace(ctx, model_key_rs, &model,
       REDISMODULE_READ, err);
     RedisModule_FreeString(nullptr, model_key_rs);

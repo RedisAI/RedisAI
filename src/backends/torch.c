@@ -1,12 +1,12 @@
 #define REDISMODULE_MAIN
 #include "backends/util.h"
 #include "backends/torch.h"
+#include "backends/backedns_api.h"
 #include "util/arr.h"
 #include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
-#include "redisai.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {

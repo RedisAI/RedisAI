@@ -193,13 +193,13 @@ def load_file_content(file_name):
         return f.read()
 
 
-def check_error_message(env, con, error_msg, *command, contains_message=False):
+def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False):
     try:
         con.execute_command(*command)
         env.assertFalse(True)
     except Exception as exception:
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        if contains_message:
+        if error_msg_is_substr:
             # We only verify that the given error_msg is a substring of the entire error message.
             env.assertTrue(str(exception).find(error_msg) > 0)
         else:

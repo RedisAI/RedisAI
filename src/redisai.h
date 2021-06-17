@@ -1,7 +1,6 @@
 #pragma once
 
 #include <stdbool.h>
-#include <dlpack/dlpack.h>
 #include "redismodule.h"
 
 #define REDISAI_LLAPI_VERSION 1
@@ -76,8 +75,7 @@ REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateByConcatenatingTenso
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateBySlicingTensor)(RAI_Tensor *t,
                                                                              long long offset,
                                                                              long long len);
-REDISAI_API RAI_Tensor *
-    MODULE_API_FUNC(RedisAI_TensorCreateFromDLTensor)(DLManagedTensor *dl_tensor);
+
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorLength)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataSize)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataType)(RAI_Tensor *t);
@@ -93,7 +91,6 @@ REDISAI_API int MODULE_API_FUNC(RedisAI_TensorGetValueAsDouble)(RAI_Tensor *t, l
 REDISAI_API int MODULE_API_FUNC(RedisAI_TensorGetValueAsLongLong)(RAI_Tensor *t, long long i,
                                                                   long long *val);
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorGetShallowCopy)(RAI_Tensor *t);
-REDISAI_API DLTensor *MODULE_API_FUNC(RedisAI_TensorGetDLTensor)(RAI_Tensor *tensor);
 REDISAI_API int MODULE_API_FUNC(RedisAI_TensorNumDims)(RAI_Tensor *t);
 REDISAI_API long long MODULE_API_FUNC(RedisAI_TensorDim)(RAI_Tensor *t, int dim);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorByteSize)(RAI_Tensor *t);
@@ -268,7 +265,6 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateByConcatenatingTensors);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateBySlicingTensor);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, TensorCreateFromDLTensor);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorLength);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDataSize);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorFree);
@@ -278,7 +274,6 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetValueAsDouble);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetValueAsLongLong);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetShallowCopy);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, TensorGetDLTensor);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorNumDims);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorDim);
     REDISAI_MODULE_INIT_FUNCTION(ctx, TensorByteSize);
