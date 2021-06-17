@@ -378,7 +378,7 @@ OK
 ```
 
 ## AI._MODELSCAN
-The **AI._MODELSCAN** command returns all the models in the database.
+The **AI._MODELSCAN** command returns all the models in the database. When using Redis open source cluster, the command shall return all the models that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -703,7 +703,7 @@ redis> AI.TENSORGET result VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTSCAN
-The **AI._SCRIPTSCAN** command returns all the scripts in the database.
+The **AI._SCRIPTSCAN** command returns all the scripts in the database. When using Redis open source cluster, the command shall return all the scripts that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
