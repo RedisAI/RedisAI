@@ -36,12 +36,13 @@ class test_torch_script_extesions:
         ensureSlaveSynced(self.con, self.env)
 
     def test_redis_error(self):
-        try:
-            self.con.execute_command(
-            'AI.SCRIPTEXECUTE', 'redis_scripts', 'test_redis_error',  'KEYS', 1, "x{1}", "INPUTS", 1, "x{1}")
-            self.env.assertTrue(False)
-        except:
-            pass
+        check_error_message(self.env, self.con, "Redis command returned an error: Invalid argument",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_command_error',  'KEYS', 1, "x{1}",
+                            "INPUTS", 1, "x{1}",  contains_message=True)
+        check_error_message(self.env, self.con, "Redis command returned an error: "
+                                                "WRONGTYPE Operation against a key holding the wrong kind of value",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_error_message',  'KEYS', 1, "hash{1}",
+                            "INPUTS", 1, "hash{1}",  contains_message=True)
         
     def test_simple_test_set(self):
         self.con.execute_command(
@@ -101,3 +102,15 @@ class test_torch_script_extesions:
                                  'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [3, 2], b"values", [b'1', b'4', b'9', b'16', b'25', b'36']])
+
+    def test_execute_model_via_script_errors(self):
+        # Trying to run a non-existing model
+        check_error_message(self.env, self.con, "ERR model key is empty",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx', 'KEYS', 1, "{1}",
+                            'LIST_INPUTS', 1, 'bad_model{1}', 'OUTPUTS', 1, 'y{1}', contains_message=True)
+
+        # Runtime error while executing the model - input tensor's dim is not compatible with model.
+        check_error_message(self.env, self.con,
+                            "Invalid rank for input: X Got: 1 Expected: 2 Please fix either the inputs or the model",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx_bad_input', 'KEYS', 1, "{1}",
+                            'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}', contains_message=True)

@@ -464,14 +464,11 @@ class TestOnnxKillSwitch:
         con.execute_command('AI.TENSORSET', 'outer_scope_input{1}', 'FLOAT', 1, 'VALUES', 42)
 
     def test_basic(self):
-        try:
-            con = self.env.getConnection()
-            con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
-            self.env.assertTrue(False)
-        except Exception as exception:
-            self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
-            self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+        con = self.env.getConnection()
+        check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
+                            'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
+                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
+                            contains_message=True)
 
     def test_multiple_working_threads(self):
         con = self.env.getConnection()
@@ -486,12 +483,10 @@ class TestOnnxKillSwitch:
         def run_parallel_onnx_sessions(con):
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
-            try:
-                con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
-            except Exception as exception:
-                self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
-                self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+            check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
+                            'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
+                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
+                            contains_message=True)
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
         run_test_multiproc(self.env, 8, run_parallel_onnx_sessions)

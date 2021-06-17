@@ -470,13 +470,9 @@ GB("CommandReader").map(OnnxModelRunAsync).register(trigger="OnnxModelRunAsync_t
 
     def test_sync_run_error(self):
         con = self.env.getConnection()
-        try:
-            con.execute_command('rg.trigger', 'OnnxModelRunSync_test1')
-            self.env.assertFalse(True)
-        except Exception as exception:
-            self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
-            self.env.assertTrue(str(exception).find("Cannot execute onnxruntime model synchronously, "
-                                                    "use async execution instead") >= 0)
+        check_error_message(self.env, con, "Cannot execute onnxruntime model synchronously, use async execution instead",
+                            'rg.trigger', 'OnnxModelRunSync_test1',
+                            contains_message=True)
 
     def test_async_run(self):
         con = self.env.getConnection()

@@ -4,7 +4,7 @@
 #include "torch_redis.h"
 #include "../torch_c.h"
 
-torch::IValue IValueFromRedisReply(RedisModuleCallReply *reply){
+torch::IValue IValueFromRedisReply(RedisModuleCtx *ctx, RedisModuleCallReply *reply){
 
     int reply_type = RedisModule_CallReplyType(reply);
     switch(reply_type) {
@@ -26,7 +26,7 @@ torch::IValue IValueFromRedisReply(RedisModuleCallReply *reply){
             size_t len = RedisModule_CallReplyLength(reply);
             for (auto i = 0; i < len; ++i) {
                 RedisModuleCallReply *subReply = RedisModule_CallReplyArrayElement(reply, i);
-                torch::IValue value = IValueFromRedisReply(subReply);
+                torch::IValue value = IValueFromRedisReply(ctx, subReply);
                 vec.push_back(value);
             }
             return torch::IValue(vec);
@@ -34,10 +34,19 @@ torch::IValue IValueFromRedisReply(RedisModuleCallReply *reply){
         case REDISMODULE_REPLY_ERROR: {
             size_t len;
             const char *replyStr = RedisModule_CallReplyStringPtr(reply, &len);
-            throw std::runtime_error(replyStr);
+            std::string error_str = "Redis command returned an error: "+std::string(replyStr);
+            RedisModule_FreeCallReply(reply);
+            RedisModule_FreeThreadSafeContext(ctx);
+            throw std::runtime_error(error_str);
+        }
+        case REDISMODULE_REPLY_UNKNOWN: {
+            std::string error_str = "Redis command returned an error: "+std::string(strerror(errno));
+            RedisModule_FreeThreadSafeContext(ctx);
+            throw(std::runtime_error(error_str));
         }
         default:{
-            throw(std::runtime_error("Unsupported redis type"));
+            RedisModule_FreeThreadSafeContext(ctx);
+            throw(std::runtime_error("Unexpected internal error"));
         }
     }
 }
@@ -52,15 +61,14 @@ torch::IValue redisExecute(const std::string& fn_name, const std::vector<std::st
         const char* str = arg.c_str();
         arguments[len++] = RedisModule_CreateString(ctx, str, strlen(str));
     }
-
     RedisModuleCallReply *reply = RedisModule_Call(ctx, fn_name.c_str(), "!v", arguments, len);
     RedisModule_ThreadSafeContextUnlock(ctx);
-    torch::IValue value = IValueFromRedisReply(reply);
-    RedisModule_FreeCallReply(reply);
-    RedisModule_FreeThreadSafeContext(ctx);
     for(int i= 0; i < len; i++){
         RedisModule_FreeString(nullptr, arguments[i]);
     }
+    torch::IValue value = IValueFromRedisReply(ctx, reply);
+    RedisModule_FreeCallReply(reply);
+    RedisModule_FreeThreadSafeContext(ctx);
     return value;
 }
 
@@ -125,9 +133,9 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
         RedisAI_ModelRunCtxFree(model_run_ctx);
     }
     if (status != REDISMODULE_OK) {
-        const char* error = RedisAI_GetError(err);
+        auto error = std::make_shared<std::string>(RedisAI_GetError(err));
         RedisAI_FreeError(err);
-        throw std::runtime_error(error);
+        throw std::runtime_error(*error);
     }
     RedisAI_FreeError(err);
     return outputs;
