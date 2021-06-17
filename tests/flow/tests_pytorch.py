@@ -257,6 +257,32 @@ def test_pytorch_scriptset(env):
     ensureSlaveSynced(con, env)
 
 
+def test_pytorch_scriptget(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+    con.execute_command('DEL', 'EMPTY{1}')
+    # ERR no script at key from SCRIPTGET
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
+
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
+    # ERR wrong type from SCRIPTGET
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
+
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    # return meta + source
+    _, device, _, tag, _, source = con.execute_command('AI.SCRIPTGET', 'ket{1}')
+    env.assertEqual([device, tag, source], [b"CPU", b"asdf", script])
+    # return source only
+    source = con.execute_command('AI.SCRIPTGET', 'ket{1}', 'SOURCE')
+    env.assertEqual(source, script)
+
+
 def test_pytorch_scriptdel(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -453,16 +479,7 @@ def test_pytorch_scriptexecute_errors(env):
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
-
     ensureSlaveSynced(con, env)
-
-    con.execute_command('DEL', 'EMPTY{1}')
-    # ERR no script at key from SCRIPTGET
-    check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
-
-    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-    # ERR wrong type from SCRIPTGET
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
 
     con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTEXECUTE

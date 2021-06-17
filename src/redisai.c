@@ -666,23 +666,19 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         }
     }
 
-    if (!meta && !source) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or SOURCE specified");
-    }
-
     if (!meta && source) {
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
         return REDISMODULE_OK;
     }
 
-    int outentries = source ? 6 : 4;
+    int outentries = (meta && !source) ? 4 : 6;
 
     RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, sto->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
     RedisModule_ReplyWithString(ctx, sto->tag);
-    if (source) {
+    if (source || !meta) {
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
     }
