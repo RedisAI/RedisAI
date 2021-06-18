@@ -725,6 +725,12 @@ extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentType(void
     return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index]);
 }
 
+TorchScriptFunctionArgumentType torchScript_FunctionArgumentTypeByFunctionName(void *scriptCtx, const char* functionName,
+                                                                size_t arg_index) {
+    ModuleContext *ctx = (ModuleContext *)scriptCtx;
+    torch::jit::Function* function = ctx->cu->find_function(functionName);
+    }
+
 extern "C" bool torchScript_FunctionExists(void *scriptCtx, const char* functionName) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     torch::jit::Function* function = ctx->cu->find_function(functionName);
