@@ -1,4 +1,5 @@
 #define REDISMODULE_MAIN
+#include <string.h>
 #include "backends/util.h"
 #include "backends/torch.h"
 #include "backends/backends_api.h"
@@ -309,7 +310,8 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
     return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
+                                  const char **entryPoints, size_t nEntryPoints, RAI_Error *error) {
     DLDeviceType dl_device;
 
     RAI_Device device;
@@ -341,34 +343,67 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         return NULL;
     }
 
+    // Entry points validation
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        const char *entryPoint = entryPoints[i];
+        // Existence check.
+        if (!torchScript_FunctionExists(script, entryPoint)) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg, "Fuction %s does not exists in the given script.", entryPoint);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+
+        // Check for number of arguments.
+        size_t argCount = torchScript_FunctionArgumentCountByFunctionName(script, entryPoint);
+        if (argCount != 3) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg, "Wrong number of inputs in fuction %s. Expected 3 but was %d",
+                     entryPoint, argCount);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+
+        // Check for legal arguments.
+        TorchScriptFunctionArgumentType argType1 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 0);
+        TorchScriptFunctionArgumentType argType2 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 1);
+        TorchScriptFunctionArgumentType argType3 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 2);
+        if (argType1 != TENSOR_LIST || argType2 != STRING_LIST || argType3 != STRING_LIST) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg,
+                     "Wrong inputs type in fuction %s. Expected signature similar to: def "
+                     "%s(tensors: List[Tensor], keys: List[str], args: List[str])",
+                     entryPoint, entryPoint);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+    }
+
     RAI_Script *ret = RedisModule_Calloc(1, sizeof(*ret));
     ret->script = script;
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
-    ret->functionData = AI_dictCreate(&AI_dictType_String_ArrSimple, NULL);
-
-    size_t functionCount = torchScript_FunctionCount(script);
-    for (size_t i = 0; i < functionCount; i++) {
-        const char *name = torchScript_FunctionName(script, i);
-        size_t argCount = torchScript_FunctionArgumentCount(script, i);
-        TorchScriptFunctionArgumentType *argTypes =
-            array_new(TorchScriptFunctionArgumentType, argCount);
-        for (size_t j = 0; j < argCount; j++) {
-            TorchScriptFunctionArgumentType argType = torchScript_FunctionArgumentype(script, i, j);
-            argTypes = array_append(argTypes, argType);
-        }
-        AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
-        array_free(argTypes);
+    ret->entryPointsDict = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        AI_dictAdd(ret->entryPointsDict, entryPoints[i], NULL);
     }
-
     return ret;
 }
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
 
     torchDeallocContext(script->script);
-    AI_dictRelease(script->functionData);
+    AI_dictRelease(script->entryPointsDict);
     RedisModule_Free(script->scriptdef);
     RedisModule_Free(script->devicestr);
     RedisModule_Free(script);

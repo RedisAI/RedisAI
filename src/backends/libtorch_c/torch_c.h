@@ -175,6 +175,15 @@ const char *torchScript_FunctionName(void *scriptCtx, size_t fn_index);
 size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 
 /**
+ * @brief Return the number of arguments in the fuction numbered fn_index in the script.
+ *
+ * @param scriptCtx Script context.
+ * @param functionName Function name.
+ * @return size_t Number of arguments.
+ */
+size_t torchScript_FunctionArgumentCountByFunctionName(void *scriptCtx, const char *functionName);
+
+/**
  * @brief Rerturns the type of the argument at arg_index of function numbered fn_index in the
  * script.
  *
@@ -183,8 +192,31 @@ size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
  * @param arg_index Argument number.
  * @return TorchScriptFunctionArgumentType The type of the argument in RedisAI enum format.
  */
-TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void *scriptCtx, size_t fn_index,
-                                                                size_t arg_index);
+TorchScriptFunctionArgumentType torchScript_FunctionArgumentType(void *scriptCtx, size_t fn_index,
+                                                                 size_t arg_index);
+
+/**
+ * @brief Rerturns the type of the argument at arg_index of function numbered fn_index in the
+ * script.
+ *
+ * @param scriptCtx Script context.
+ * @param functionName Function name.
+ * @param arg_index Argument number.
+ * @return TorchScriptFunctionArgumentType The type of the argument in RedisAI enum format.
+ */
+TorchScriptFunctionArgumentType
+torchScript_FunctionArgumentTypeByFunctionName(void *scriptCtx, const char *functionName,
+                                               size_t arg_index);
+
+/**
+ * @brief Returns if function with a given name exists in the script
+ *
+ * @param scriptCtx Script context.
+ * @param functionName Function name.
+ * @return true If the function exists.
+ * @return false If the function does not exists.
+ */
+bool torchScript_FunctionExists(void *scriptCtx, const char *functionName);
 
 /**
  * @brief Creates a new dltensor representation from torch tensor, by taking

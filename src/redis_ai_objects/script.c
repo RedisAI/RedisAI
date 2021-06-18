@@ -20,13 +20,14 @@
 
 extern RedisModuleType *RedisAI_ScriptType;
 
-RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
-                             RAI_Error *err) {
+RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                              const char **entryPoints, size_t nEntryPoints, RAI_Error *err) {
     if (!RAI_backends.torch.script_create) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return NULL;
     }
-    RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
+    RAI_Script *script =
+        RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
 
     if (script) {
         if (tag) {
@@ -37,6 +38,11 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
     }
 
     return script;
+}
+
+RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                             RAI_Error *err) {
+    return RAI_ScriptCompile(devicestr, tag, scriptdef, NULL, 0, err);
 }
 
 void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {

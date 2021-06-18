@@ -20,12 +20,28 @@
  * @param devicestr device string
  * @param tag script model tag
  * @param scriptdef encoded script definition
- * @param error error data structure to store error message in the case of
+ * @param err error data structure to store error message in the case of
  * failures
  * @return RAI_Script script structure on success, or NULL if failed
  */
 RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
                              RAI_Error *err);
+
+/**
+ * @brief Helper method to allocated and initialize a RAI_Script with entrypoints. Relies on Pytorch
+ * backend `script_create` callback function.
+ *
+ * @param devicestr device string
+ * @param tag script model tag
+ * @param scriptdef encoded script definition
+ * @param entryPoints array of entry point function names
+ * @param nEntryPoints number of entry points
+ * @param err error data structure to store error message in the case of
+ * failures
+ * @return RAI_Script*
+ */
+RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                              const char **entryPoints, size_t nEntryPoints, RAI_Error *err);
 
 /**
  * Frees the memory of the RAI_Script when the script reference count reaches
