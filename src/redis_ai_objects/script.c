@@ -20,14 +20,13 @@
 
 extern RedisModuleType *RedisAI_ScriptType;
 
-RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
-                              const char **entryPoints, size_t nEntryPoints, RAI_Error *err) {
+RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef, const char** entryPoints, size_t nEntryPoints,
+                             RAI_Error *err) {
     if (!RAI_backends.torch.script_create) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return NULL;
     }
-    RAI_Script *script =
-        RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
+    RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
 
     if (script) {
         if (tag) {
@@ -184,5 +183,5 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
 
 TorchScriptFunctionArgumentType *RAI_ScriptGetSignature(RAI_Script *script, const char *function) {
-    return AI_dictFetchValue(script->functionData, function);
+    return AI_dictFetchValue(script->entryPointsDict, function);
 }
