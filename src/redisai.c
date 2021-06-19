@@ -806,8 +806,8 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * Todo: this is temporary until we implement the new command, for testing broadcast in DMC
  */
 int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-        // AI.SCRIPTSET <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
-        if (argc < 8)
+    // AI.SCRIPTSET <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
+    if (argc < 8)
         return RedisModule_WrongArity(ctx);
 
     ArgsCursor ac;
@@ -825,19 +825,24 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     }
 
     if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE and entry points");
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Insufficient arguments, missing script SOURCE and entry points");
     }
 
-    size_t nEntryPoints;
+    long long nEntryPoints;
     if (AC_AdvanceIfMatch(&ac, "ENTRY_POINTS")) {
-        AC_GetU32(&ac, &nEntryPoints, 0);
+        AC_GetLongLong(&ac, &nEntryPoints, 0);
+    } else {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Insufficient arguments, missing script entry points");
     }
-    
-    array_new_on_stack(const char*, nEntryPoints, entryPoints);
-    for(size_t i =0; i < nEntryPoints; i++) {
-        const char* entryPoint;
-        if(AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
-            return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script entry points");
+
+    array_new_on_stack(const char *, nEntryPoints, entryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        const char *entryPoint;
+        if (AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Insufficient arguments, missing script entry points");
         }
         entryPoints = array_append(entryPoints, entryPoint);
     }
@@ -856,7 +861,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     RAI_Script *script = NULL;
 
     RAI_Error err = {0};
-    script = RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, nEntryPoints, &err);
+    script = RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
 
     if (err.code == RAI_EBACKENDNOTLOADED) {
         RedisModule_Log(ctx, "warning",
@@ -1196,16 +1201,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);

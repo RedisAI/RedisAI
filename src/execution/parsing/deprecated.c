@@ -344,8 +344,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
 static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                        RAI_Error *error, RedisModuleString ***inkeys,
-                                       RedisModuleString ***outkeys, long long *timeout,
-                                       size_t **listSizes) {
+                                       RedisModuleString ***outkeys, long long *timeout) {
 
     bool is_input = false;
     bool is_output = false;
@@ -422,9 +421,6 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             return REDISMODULE_ERR;
         }
     }
-    if (varidic_start_pos != -1) {
-        *listSizes = array_append(*listSizes, ninputs - varidic_start_pos);
-    }
 
     return REDISMODULE_OK;
 }
@@ -459,8 +455,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     sctx = RAI_ScriptRunCtxCreate(script, func_name);
     long long timeout = 0;
     if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
-                                    &currentOp->outkeys, &timeout,
-                                    &sctx->listSizes) == REDISMODULE_ERR) {
+                                    &currentOp->outkeys, &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
     if (timeout > 0 && !rinfo->single_op_dag) {

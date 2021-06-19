@@ -117,13 +117,3 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
  * @return redis module type representing a script.
  */
 RedisModuleType *RAI_ScriptRedisType(void);
-
-/**
- * @brief Retuens a function signature
- *
- * @param script RAI_Script object
- * @param function function name
- * @return TorchScriptFunctionArgumentType* Null in case of no match, arr of argument type according
- * to function signature
- */
-TorchScriptFunctionArgumentType *RAI_ScriptGetSignature(RAI_Script *script, const char *function);

@@ -21,7 +21,7 @@ class test_torch_script_extesions:
         self.con = self.env.getConnection()
         script = load_file_content('redis_scripts.py')
         ret = self.con.execute_command(
-            'AI.SCRIPTSET', 'redis_scripts{1}', DEVICE, 'SOURCE', script)
+            'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 8, 'test_redis_error', 'test_set_key', 'test_int_set_get', 'test_int_set_incr', 'test_float_set_get', 'test_int_list', 'test_str_list', 'test_hash', 'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
         model_tf = load_file_content('graph.pb')
         ret = self.con.execute_command('AI.MODELSTORE', 'model_tf{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1,
@@ -36,31 +36,30 @@ class test_torch_script_extesions:
         ensureSlaveSynced(self.con, self.env)
 
     def test_redis_error(self):
-        check_error_message(self.env, self.con, "Redis command returned an error: Invalid argument",
-                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_command_error',  'KEYS', 1, "x{1}",
-                            "INPUTS", 1, "x{1}",  error_msg_is_substr=True)
-        check_error_message(self.env, self.con, "Redis command returned an error: "
-                                                "WRONGTYPE Operation against a key holding the wrong kind of value",
-                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_error_message',  'KEYS', 1, "hash{1}",
-                            "INPUTS", 1, "hash{1}",  error_msg_is_substr=True)
+        try:
+            self.con.execute_command(
+            'AI.SCRIPTEXECUTE', 'redis_scripts', 'test_redis_error', 'KEYS', 1, "x{1}")
+            self.env.assertTrue(False)
+        except:
+            pass
         
     def test_simple_test_set(self):
         self.con.execute_command(
-            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_set_key', 'KEYS', 1, "x{1}", "INPUTS", 2, "x{1}", 1)
+            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_set_key', 'KEYS', 1, "x{1}", "ARGS", 1, 1)
         self.env.assertEqual(b"1", self.con.get("x{1}"))
 
     def test_int_set_get(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_set_get', 'KEYS', 1, "x{1}", "INPUTS", 2, "x{1}", 1, 'OUTPUTS', 1, 'y{1}')
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_set_get', 'KEYS', 1, "x{1}", "ARGS", 1, 1, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [], b"values", [1]] )
 
     def test_int_set_incr(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_set_incr', 'KEYS', 1, "x{1}", "INPUTS", 2, "x{1}", 1, 'OUTPUTS', 1, 'y{1}')
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_set_incr', 'KEYS', 1, "x{1}", "ARGS", 1, 1, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [], b"values", [2]] )
 
     def test_float_get_set(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_float_set_get', 'KEYS', 1, "x{1}", "INPUTS", 2, "x{1}", 1.1, 'OUTPUTS', 1, 'y{1}')
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_float_set_get', 'KEYS', 1, "x{1}", "ARGS", 1, 1.1, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
         self.env.assertEqual(y[0], b"dtype")
         self.env.assertEqual(y[1], b"FLOAT")
@@ -70,17 +69,17 @@ class test_torch_script_extesions:
         self.env.assertAlmostEqual(float(y[5][0]), 1.1, 0.1)
 
     def test_int_list(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_list', 'KEYS', 1, "int_list{1}", 'INPUTS', 1, "int_list{1}", "LIST_INPUTS", 2, "1", "2", 'OUTPUTS', 1, 'y{1}')
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_int_list', 'KEYS', 1, "int_list{1}", 'ARGS', 2, 1, 2, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]] )
 
     def test_str_list(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_str_list', 'KEYS', 1, "str_list{1}", 'INPUTS', 1, "str_list{1}", "LIST_INPUTS", 2, "1", "2")
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_str_list', 'KEYS', 1, "str_list{1}", "ARGS", 2, "1", "2")
         res = self.con.execute_command("LRANGE", "str_list{1}", "0", "2")
         self.env.assertEqual(res, [b"1", b"2"] )
 
     def test_hash(self):
-        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_hash', 'KEYS', 1, "hash{1}", 'INPUTS', 1, "hash{1}", "LIST_INPUTS", 4, "field1", 1, "field2", 2, 'OUTPUTS', 1, 'y{1}')
+        self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_hash', 'KEYS', 1, "hash{1}", "ARGS", 4, "field1", 1, "field2", 2, 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta' ,'VALUES')
         self.env.assertEqual(y, [b"dtype", b"INT64", b"shape", [2, 1], b"values", [1, 2]])
 

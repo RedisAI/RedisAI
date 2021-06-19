@@ -281,7 +281,8 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             continue;
         }
         if (!strcasecmp(arg_string, "KEYS") && !keys_complete && chainingOpCount == 0) {
-            const int parse_result = ParseKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
+            const int parse_result =
+                ValidateKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
             if (parse_result <= 0)
                 return REDISMODULE_ERR;
             arg_pos += parse_result;

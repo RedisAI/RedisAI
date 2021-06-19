@@ -68,7 +68,7 @@ def test_dag_common_errors(env):
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSET', 'script{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     # ERR bad syntax
@@ -115,7 +115,7 @@ def test_dag_ro_errors(env):
 
     # ERR AI.SCRIPTEXECUTE is not allowed in AI.DAGEXECUTE_RO
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSET', 'script{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'SOURCE', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', script)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command("AI.TENSORSET volatile_tensor{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
@@ -142,7 +142,7 @@ def test_dag_scriptexecute_errors(env):
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     # The function name in AI.SCRIPTEXECUTE is missing, so 'INPUTS' is considered as the function name, and

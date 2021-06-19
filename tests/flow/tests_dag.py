@@ -35,7 +35,7 @@ def test_dagrun_modelexecute_scriptexecute_resnet(env):
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     for opnumber in range(1,100):
@@ -382,7 +382,7 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, device_0, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, device_0, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -490,12 +490,12 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_0, device_0, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_1, device_1, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)

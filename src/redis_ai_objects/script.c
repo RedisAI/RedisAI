@@ -20,13 +20,14 @@
 
 extern RedisModuleType *RedisAI_ScriptType;
 
-RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef, const char** entryPoints, size_t nEntryPoints,
-                             RAI_Error *err) {
+RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                              const char **entryPoints, size_t nEntryPoints, RAI_Error *err) {
     if (!RAI_backends.torch.script_create) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return NULL;
     }
-    RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
+    RAI_Script *script =
+        RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
 
     if (script) {
         if (tag) {
@@ -136,15 +137,9 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     while (argpos < argc) {
         const char *str = RedisModule_StringPtrLen(argv[argpos++], NULL);
 
-        // Inputs, outpus, keys, lists.
+        // Inputs, outpus, keys,.
         if ((!strcasecmp(str, "INPUTS")) || (!strcasecmp(str, "OUTPUTS")) ||
-            (!strcasecmp(str, "LIST_INPUTS")) || (!strcasecmp(str, "KEYS"))) {
-            bool updateKeyAtPos = false;
-            // The only scope where the inputs strings are 100% keys are in the KEYS and OUTPUTS
-            // scopes.
-            if ((!strcasecmp(str, "OUTPUTS")) || (!strcasecmp(str, "KEYS"))) {
-                updateKeyAtPos = true;
-            }
+            (!strcasecmp(str, "KEYS"))) {
             if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
@@ -158,9 +153,7 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                 return REDISMODULE_ERR;
             }
             for (long long i = 0; i < count; i++) {
-                if (updateKeyAtPos) {
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
+                RedisModule_KeyAtPos(ctx, argpos);
                 argpos++;
             }
             continue;
@@ -181,7 +174,3 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
 }
 
 RedisModuleType *RAI_ScriptRedisType(void) { return RedisAI_ScriptType; }
-
-TorchScriptFunctionArgumentType *RAI_ScriptGetSignature(RAI_Script *script, const char *function) {
-    return AI_dictFetchValue(script->entryPointsDict, function);
-}
