@@ -874,7 +874,8 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
             return ret;
         }
         RAI_ClearError(&err);
-        script = RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
+        script =
+            RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
     }
 
     if (err.code != RAI_OK) {

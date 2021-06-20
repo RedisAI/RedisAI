@@ -394,7 +394,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
-    ret->entryPoints = array_new(char*, nEntryPoints);
+    ret->entryPoints = array_new(char *, nEntryPoints);
     for (size_t i = 0; i < nEntryPoints; i++) {
         ret->entryPoints = array_append(ret->entryPoints, RedisModule_Strdup(entryPoints[i]));
     }
@@ -403,7 +403,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
     torchDeallocContext(script->script);
-    for(size_t i =0; i < array_len(script->entryPoints); i++){
+    for (size_t i = 0; i < array_len(script->entryPoints); i++) {
         RedisModule_Free(script->entryPoints[i]);
     }
     array_free(script->entryPoints);
@@ -432,11 +432,11 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
     char *error_descr = NULL;
 
     RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)ectx;
-    
+
     // TODO: remove when SCRIPTRUN is EOL.
     bool noEntryPoint = true;
-    for(size_t i =0; i < array_len(script->entryPoints); i++) {
-        if(strcmp(function, script->entryPoints[i]) == 0){
+    for (size_t i = 0; i < array_len(script->entryPoints); i++) {
+        if (strcmp(function, script->entryPoints[i]) == 0) {
             noEntryPoint = false;
             break;
         }
@@ -449,8 +449,7 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
                                        .argsCount = array_len(sctx->args),
                                        .keys = sctx->keys,
                                        .keysCount = array_len(sctx->keys),
-                                       .noEntryPoint = noEntryPoint
-                                       };
+                                       .noEntryPoint = noEntryPoint};
 
     torchRunScript(script->script, function, &inputsCtx, outputs, nOutputs, &error_descr);
 

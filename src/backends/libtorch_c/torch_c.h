@@ -15,7 +15,9 @@ typedef struct TorchFunctionInputCtx {
     size_t argsCount;
     RedisModuleString **keys;
     size_t keysCount;
-    bool noEntryPoint;    // TODO: remove this when SCRIPTRUN is EOL. Indication that the script was stored with SCRIPTSET and and SCRIPTSTORE, such that it has no entry point, so execution is best effort.
+    bool noEntryPoint; // TODO: remove this when SCRIPTRUN is EOL. Indication that the script was
+                       // stored with SCRIPTSET and and SCRIPTSTORE, such that it has no entry
+                       // point, so execution is best effort.
 } TorchFunctionInputCtx;
 
 /**

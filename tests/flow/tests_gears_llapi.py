@@ -209,7 +209,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
         # This should raise an exception
-        self.env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
+        self.env.assertTrue(str(ret[0]).startswith("b'Function does not exists:"))
 
 
 class TestDAGRunExecution:
@@ -335,7 +335,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test4')
         # This should raise an exception
-        self.env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
+        self.env.assertTrue(str(ret[0]).startswith("b'Function does not exists:"))
 
     def test_build_dag_from_string(self):
         con = self.env.getConnection()
