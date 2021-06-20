@@ -21,10 +21,7 @@ ARG TEST
 RUN echo "Building for {{REDIS_OSNICK}} ({{REDIS_OS}}) for {{REDIS_ARCH}} [with Redis {{REDIS_VERSION}}]"
 
 {% if gpu_build is defined %}
-{% set cuda_list = REDIS_CUDA_VERSION.split("-") %}
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-{{cuda_list[0]}}/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
+{% include "templates/gpu.yml" %}
 {% endif %}
 
 WORKDIR /build

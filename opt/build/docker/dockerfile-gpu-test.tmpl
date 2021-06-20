@@ -21,18 +21,15 @@ ARG PACK
 
 SHELL ["/bin/bash", "-c"]
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-{% set cuda_list = REDIS_CUDA_VERSION.split("-") %}
-RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-{{cuda_list[0]}}/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
+{% include "templates/gpu.yml" %}
 
 WORKDIR /build
 ADD ./ /build
 COPY --from=redis /usr/local/ /usr/local/
-#COPY ./opt/ opt/
-#COPY ./tests/flow/tests_setup/test_requirements.txt tests/flow/tests_setup/
-#COPY ./tests/flow/tests_setup/Install_RedisGears.sh tests/flow/tests_setup/
-#COPY ./get_deps.sh .
+COPY ./opt/ opt/
+COPY ./tests/flow/tests_setup/test_requirements.txt tests/flow/tests_setup/
+COPY ./tests/flow/tests_setup/Install_RedisGears.sh tests/flow/tests_setup/
+COPY ./get_deps.sh .
 
 RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 
