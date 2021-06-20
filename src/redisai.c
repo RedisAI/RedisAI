@@ -1372,7 +1372,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
+                                  0, 0, 0) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand,
@@ -1384,7 +1384,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptget", RedisAI_ScriptGet_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
+                                  0, 0, 0) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptdel", RedisAI_ScriptDel_RedisCommand, "write", 1,
