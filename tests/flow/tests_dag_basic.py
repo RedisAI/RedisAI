@@ -253,5 +253,8 @@ def test_dag_with_error(env):
                               '|>', 'AI.TENSORGET', 'tD', 'VALUES')
 
     # Expect that the MODELEXECUTE op will raise an error, and the last TENSORGET op will not be executed
-    env.assertEqual([ret[0], ret[1], str(ret[2]), ret[3]],
-                    [b'OK', b'OK', 'Incompatible shapes: [2] vs. [2,2,3] 	 [[{{node mul}}]]', b'NA'])
+    env.assertEqual(ret[0], b'OK')
+    env.assertEqual(ret[1], b'OK')
+    env.assertEqual(ret[3], b'NA')
+    env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
+    env.assertEqual(ret[2].__str__(), '2 root error(s) found.   (0) Invalid argument: Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]] \t [[mul/_5]]   (1) Invalid argument: Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]] 0 successful operations. 0 derived errors ignored.')
