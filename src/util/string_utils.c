@@ -1,6 +1,7 @@
 #include "string_utils.h"
 #include "dict.h"
 #include <string.h>
+#include <ctype.h>
 #include "util/redisai_memory.h"
 
 RedisModuleString *RAI_HoldString(RedisModuleString *str) {
@@ -51,4 +52,12 @@ void RAI_RStringsKeyDestructor(void *privdata, void *key) {
 
 void *RAI_RStringsKeyDup(void *privdata, const void *key) {
     return RedisModule_CreateStringFromString(NULL, (RedisModuleString *)key);
+}
+
+void RAI_StringToUpper(const char *str, char *upper, size_t str_len) {
+    // Assumption: upper buffer size is at least str_len. This can be used for
+    // every binary string, we do not assume that the string is null-terminated.
+    for (size_t i = 0; i < str_len; i++) {
+        upper[i] = (char)toupper(str[i]);
+    }
 }

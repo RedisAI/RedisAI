@@ -111,8 +111,8 @@ void *RAI_RDBLoadModel_v2(RedisModuleIO *io) {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     size_t len = RedisModule_LoadUnsigned(io);

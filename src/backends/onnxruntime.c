@@ -2,12 +2,14 @@
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
-#include <math.h>
+#include <backends/onnx_timeout.h>
+#include <pthread.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
+#include "backedns_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
 // A label "error" must exist in every function that uses this macro.
@@ -78,7 +80,8 @@ unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
 
 unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
-int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
+    // Export redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
@@ -88,6 +91,16 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
+
+    // Export RedisAI callbacks.
+    get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
+    get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
+    get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
+
+    // Create a global array of onnx runSessions, with an entry for every working thread.
+    RAI_InitGlobalRunSessionsORT();
+
     return REDISMODULE_OK;
 }
 
@@ -292,7 +305,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         size_t elem_count;
         ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
 
-        const size_t len = ceil((double)dtype.bits * elem_count / 8);
+        const size_t len = dtype.bits * elem_count / 8;
         const size_t total_bytesize = len * sizeof(char);
         const size_t sample_bytesize = total_bytesize / total_batch_size;
         const size_t batch_bytesize = sample_bytesize * batch_size;
@@ -518,6 +531,8 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
     array_new_on_stack(const char *, 5, output_names);
     array_new_on_stack(OrtValue *, 5, inputs);
     array_new_on_stack(OrtValue *, 5, outputs);
+    OrtRunOptions *run_options = NULL;
+    long run_session_index;
     OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
@@ -565,10 +580,23 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
             outputs = array_append(outputs, NULL);
         }
 
-        OrtRunOptions *run_options = NULL;
+        ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
+        // Set the created run option in the global RunSessions and save its index.
+        RAI_ActivateRunSessionCtxORT(run_options, &run_session_index);
+        if (run_session_index == -1) {
+            RAI_SetError(
+                error, RAI_EMODELRUN,
+                "Cannot execute onnxruntime model synchronously, use async execution instead");
+            ort->ReleaseRunOptions(run_options);
+            run_options = NULL;
+            goto error;
+        }
+
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
+        RAI_ResetRunSessionCtxORT(run_session_index);
+        run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
@@ -653,6 +681,9 @@ error:
     array_free(outputs);
     if (info) {
         ort->ReleaseTensorTypeAndShapeInfo(info);
+    }
+    if (run_options) {
+        RAI_ResetRunSessionCtxORT(run_session_index);
     }
     return REDISMODULE_ERR;
 }
