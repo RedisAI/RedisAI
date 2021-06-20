@@ -655,25 +655,26 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int source = 0;
+    bool meta = false;   // Indicates whether META argument was given.
+    bool source = false; // Indicates whether SOURCE argument was given.
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "SOURCE")) {
-            source = 1;
+            source = true;
         }
     }
-
+    // If only SOURCE arg was given, return only the script source.
     if (!meta && source) {
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
         return REDISMODULE_OK;
     }
+    // We return (META+SOURCE) if both args are given, or if none of them was given.
+    // The only case where we return only META data, is if META is given while SOURCE was not.
+    int out_entries = (source || !meta) ? 6 : 4;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
-    int outentries = (meta && !source) ? 4 : 6;
-
-    RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, sto->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
