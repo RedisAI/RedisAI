@@ -55,7 +55,7 @@ void RAI_RDBSaveModel_v2(RedisModuleIO *io, void *value) {
     for (size_t i = 0; i < model->noutputs; i++) {
         RedisModule_SaveStringBuffer(io, model->outputs[i], strlen(model->outputs[i]) + 1);
     }
-    long long chunk_size = getModelChunkSize();
+    long long chunk_size = Config_GetModelChunkSize();
     const size_t n_chunks = len / chunk_size + 1;
     RedisModule_SaveUnsigned(io, len);
     RedisModule_SaveUnsigned(io, n_chunks);

@@ -1,5 +1,4 @@
 #include "utils.h"
-#include "redis_ai_objects/tensor.h"
 #include "redis_ai_objects/model.h"
 
 int redisMajorVersion;
