@@ -62,7 +62,7 @@ def test_run_tflite_model_autobatch(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TFLITE')
         env.assertEqual(ret[3], b'CPU')
