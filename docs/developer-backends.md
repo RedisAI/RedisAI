@@ -46,3 +46,15 @@ On ubuntu bionic these can be installed by running:
     * On x86: make DOCKER\_SUFFIX=x86\_64
 
     * On arm: make DOCKER\_SUFFIX=arm
+
+### tensorflow
+
+**Compilation target devices:**
+
+1. x86\_64 bit linux system
+
+**Directory:** opt/build/tensorflow
+
+**Build options:**
+
+1. To build run *make*
