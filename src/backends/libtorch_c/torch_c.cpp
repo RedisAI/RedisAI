@@ -364,7 +364,45 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
         torch::Device device(device_type, ctx->device_id);
 
         torch::jit::Stack stack;
-
+        if(inputsCtx->noEntryPoint) {
+            /* In case of no entry point, this might be due to a usage in a script set by the deprecated API.
+             * In this case, until SCRIPTSET is EOL we will allow functions, called by SCRIPTRUN or SCRIPTEXECUTE, and those
+             * functions are not in the endpoint set to be executed in "best effort" manner.
+             */
+            if(!torchScript_FunctionExists(ctx, fnName)) {
+                throw std::runtime_error(std::string("Function does not exists: ") + fnName);
+            }
+            size_t nArgs = torchScript_FunctionArgumentCountByFunctionName(ctx, fnName);
+            if(nArgs > inputsCtx->tensorCount) {
+                throw std::runtime_error(std::string("Wrong number of inputs provided to function: ") + fnName);
+            }
+            for (size_t i= 0; i < nArgs; i++) {
+                TorchScriptFunctionArgumentType argType =  torchScript_FunctionArgumentTypeByFunctionName(ctx, fnName, i);
+                // Argument can be either a tensor or a tensor list.
+                if((argType!= TENSOR && argType != TENSOR_LIST)) {
+                    throw std::runtime_error(std::string("Unsupported input type in function definition: ") + fnName);
+                }
+                if(argType == TENSOR) {
+                    // In case of tensor
+                    DLTensor *input = &(inputsCtx->tensorInputs[i]->dl_tensor);
+                    torch::Tensor tensor = fromDLPack(input);
+                    tensor.to(device);
+                    stack.push_back(tensor);
+                } else {
+                    // In case of a tensor list, this is the last argument, add all tensors and break.
+                    std::vector<torch::Tensor> tensors;
+                    for (size_t j = i; j < inputsCtx->tensorCount; j++) {
+                        DLTensor *input = &(inputsCtx->tensorInputs[j]->dl_tensor);
+                        torch::Tensor tensor = fromDLPack(input);
+                        tensor.to(device);
+                        tensors.emplace_back(tensor);
+                    }
+                    stack.push_back(tensors);
+                    break;
+                }
+            }
+        }
+        else {
         std::vector<torch::Tensor> tensors;
         for (size_t i = 0; i < inputsCtx->tensorCount; i++) {
             DLTensor *input = &(inputsCtx->tensorInputs[i]->dl_tensor);
@@ -391,6 +429,8 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
             args.emplace_back(str);
         }
         stack.push_back(args);
+        }
+
 
         torchRunModule(ctx, fnName, stack, nOutputs, outputs);
     } catch (std::exception &e) {

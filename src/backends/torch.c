@@ -394,16 +394,19 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
-    ret->entryPointsDict = AI_dictCreate(&AI_dictTypeHeapStrings, NULL);
+    ret->entryPoints = array_new(char*, nEntryPoints);
     for (size_t i = 0; i < nEntryPoints; i++) {
-        AI_dictAdd(ret->entryPointsDict, (void *)entryPoints[i], NULL);
+        ret->entryPoints = array_append(ret->entryPoints, RedisModule_Strdup(entryPoints[i]));
     }
     return ret;
 }
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
     torchDeallocContext(script->script);
-    AI_dictRelease(script->entryPointsDict);
+    for(size_t i =0; i < array_len(script->entryPoints); i++){
+        RedisModule_Free(script->entryPoints[i]);
+    }
+    array_free(script->entryPoints);
     RedisModule_Free(script->scriptdef);
     RedisModule_Free(script->devicestr);
     RedisModule_Free(script);
@@ -429,6 +432,15 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
     char *error_descr = NULL;
 
     RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)ectx;
+    
+    // TODO: remove when SCRIPTRUN is EOL.
+    bool noEntryPoint = true;
+    for(size_t i =0; i < array_len(script->entryPoints); i++) {
+        if(strcmp(function, script->entryPoints[i]) == 0){
+            noEntryPoint = false;
+            break;
+        }
+    }
 
     // Create inputs context on stack.
     TorchFunctionInputCtx inputsCtx = {.tensorInputs = inputs,
@@ -436,7 +448,9 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
                                        .args = sctx->args,
                                        .argsCount = array_len(sctx->args),
                                        .keys = sctx->keys,
-                                       .keysCount = array_len(sctx->keys)};
+                                       .keysCount = array_len(sctx->keys),
+                                       .noEntryPoint = noEntryPoint
+                                       };
 
     torchRunScript(script->script, function, &inputsCtx, outputs, nOutputs, &error_descr);
 
