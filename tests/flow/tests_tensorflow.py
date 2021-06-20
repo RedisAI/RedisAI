@@ -165,7 +165,7 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[11][0], b'a')
     env.assertEqual(ret[11][1], b'b')
@@ -178,7 +178,7 @@ def test_run_tf_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of TF and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TF')
@@ -237,7 +237,7 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[11][0], b'x')
     env.assertEqual(ret[13][0], b'Identity')
@@ -249,7 +249,7 @@ def test_run_tf2_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'asdf')
     env.assertEqual(ret[11][0], b'x')
     env.assertEqual(ret[13][0], b'Identity')
@@ -690,14 +690,11 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
 def test_tf_info(env):
     con = env.getConnection()
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
-
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertFalse('ai_TensorFlow_version' in backends_info)
     model_pb = load_file_content('graph.pb')
-
     con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
-    
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(8, len(ret))
-    env.assertEqual(b'TensorFlow version', ret[6])
+
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertTrue('ai_TensorFlow_version' in backends_info)

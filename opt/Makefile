@@ -240,7 +240,6 @@ endif
 
 export GEN ?= 1
 export SLAVES ?= 1
-export AOF ?= 1
 export CLUSTER ?= 1
 
 define UNIT_TESTS
@@ -256,7 +255,7 @@ $(SHOW)\
 DEVICE=$(DEVICE) \
 MODULE=$(realpath $(INSTALLED_TARGET)) \
 CLUSTER=$(CLUSTER) \
-GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+GEN=$(GEN) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
 $(ROOT)/tests/flow/tests_setup/tests.sh
 endef
@@ -272,7 +271,7 @@ flow_tests: build
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests_setup/tests.sh
@@ -290,7 +289,7 @@ test: build
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests_setup/tests.sh

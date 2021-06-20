@@ -11,7 +11,8 @@ REPO=redisai
 # LATEST_BRANCH=1.2
 INT_BRANCHES=1.2
 
-REDIS_VER:=6.0.9
+REDIS_VER:=6.2.4
+REDISAI_LITE:=0
 
 export ART_DIR=$(ROOT)/bin/artifacts
 export ART_INT_DIR=/var/opt/redislabs/artifacts

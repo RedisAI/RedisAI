@@ -3,6 +3,7 @@
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/script.h"
 #include "redis_ai_objects/model_struct.h"
+#include "execution/execution_contexts/execution_ctx.h"
 
 typedef enum DAGCommand {
     REDISAI_DAG_CMD_NONE = 0,
@@ -20,8 +21,7 @@ typedef struct RAI_DagOp {
     size_t *inkeys_indices;
     size_t *outkeys_indices;
     RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
-    RAI_ModelRunCtx *mctx;
-    RAI_ScriptRunCtx *sctx;
+    RAI_ExecutionCtx *ectx;
     uint fmt; // This is relevant for TENSORGET op.
     char *devicestr;
     int result; // REDISMODULE_OK or REDISMODULE_ERR

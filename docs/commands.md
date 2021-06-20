@@ -222,7 +222,7 @@ AI.MODELGET <key> [META] [BLOB]
 _Arguments
 
 * **key**: the model's key name
-* **META**: will return the model's meta information on backend, device and tag
+* **META**: will return the model's meta information on backend, device, tag and batching parameters
 * **BLOB**: will return the model's blob containing the serialized model
 
 _Return_
@@ -236,6 +236,7 @@ An array of alternating key-value pairs as follows:
 1. **MINBATCHSIZE**: The minimum size of any batch of incoming requests.
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
+1. **MINBATCHTIMEOUT**: The time in milliseconds for which the engine will wait before executing a request to run the model, when the number of incoming requests is lower than `MINBATCHSIZE`. When `MINBATCHTIMEOUT` is 0, the engine will not run the model before it receives at least `MINBATCHSIZE` requests.
 1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
@@ -259,6 +260,8 @@ redis> AI.MODELGET mymodel META
     2) "b"
 13) "outputs"
 14) 1) "c"
+15) "minbatchtimeout"
+16) (integer) 0
 ```
 
 You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
@@ -375,7 +378,7 @@ OK
 ```
 
 ## AI._MODELSCAN
-The **AI._MODELSCAN** command returns all the models in the database.
+The **AI._MODELSCAN** command returns all the models in the database. When using Redis open source cluster, the command shall return all the models that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -700,7 +703,7 @@ redis> AI.TENSORGET result VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTSCAN
-The **AI._SCRIPTSCAN** command returns all the scripts in the database.
+The **AI._SCRIPTSCAN** command returns all the scripts in the database. When using Redis open source cluster, the command shall return all the scripts that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -931,14 +934,14 @@ Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' com
     Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
 
 ## AI.INFO
-The **`AI.INFO`** command returns general module information or information about the execution a model or a script.
+The **`AI.INFO`** command returns information about the execution of a model or a script.
 
-Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
+Runtime information is collected each time that [`AI.MODELEXECUTE`](#aimodelrun) or [`AI.SCRIPTEXECUTE`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
 
 **Redis API**
 
 ```
-AI.INFO [<key>] [RESETSTAT]
+AI.INFO <key> [RESETSTAT]
 ```
 
 _Arguments_
@@ -948,15 +951,7 @@ _Arguments_
 
 _Return_
 
-For a module genernal information: An array with alternating entries that represent the following key-value pairs:
-
-* **Version**: a string showing the current module version.
-* **Low level API Version**:  a string showing the current module's low level api version.
-* **RDB Encoding version**: a string showing the current module's RDB encoding version.
-* **TensorFlow version**: a string showing the current loaded TesnorFlow backend version.
-* **ONNX version**: a string showing the current loaded ONNX Runtime backend version.
-
-For model or script runtime information: An array with alternating entries that represent the following key-value pairs:
+An array with alternating entries that represent the following key-value pairs:
 
 * **KEY**: a String of the name of the key storing the model or script value
 * **TYPE**: a String of the type of value (i.e. 'MODEL' or 'SCRIPT')

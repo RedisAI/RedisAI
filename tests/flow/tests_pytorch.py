@@ -8,7 +8,7 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 
-def test_pytorch_chunked_modelset(env):
+def test_pytorch_chunked_modelstore(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -34,7 +34,7 @@ def test_pytorch_chunked_modelset(env):
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
 
-    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]
+    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
 
@@ -61,7 +61,7 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TORCH')
@@ -69,6 +69,7 @@ def test_pytorch_modelrun(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     # assert there are no inputs or outputs
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 1)
@@ -79,7 +80,7 @@ def test_pytorch_modelrun(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'my:tag:v3')
     # TODO: enable me. CI is having issues on GPU asserts of TORCH and CPU
     if DEVICE == "CPU":
@@ -738,14 +739,12 @@ def test_parallelism():
     ensureSlaveSynced(con, env)
     values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
     env.assertEqual(values, [b'4', b'6', b'4', b'6'])
-    load_time_config = {k.split(":")[0]: k.split(":")[1]
-                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    load_time_config = get_info_section(con, 'load_time_configs')
     env.assertEqual(load_time_config["ai_inter_op_parallelism"], "1")
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "1")
 
     env = Env(moduleArgs='INTRA_OP_PARALLELISM 2 INTER_OP_PARALLELISM 2')
-    load_time_config = {k.split(":")[0]: k.split(":")[1]
-                        for k in con.execute_command("INFO MODULES").decode().split("#")[3].split()[1:]}
+    load_time_config = get_info_section(con, 'load_time_configs')
     env.assertEqual(load_time_config["ai_inter_op_parallelism"], "2")
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
 
@@ -765,6 +764,7 @@ def test_modelget_for_tuple_output(env):
     env.assertEqual(ret[5], b'')
     env.assertEqual(ret[7], 0)
     env.assertEqual(ret[9], 0)
+    env.assertEqual(ret[15], 0)
     env.assertEqual(len(ret[11]), 2)
     env.assertEqual(len(ret[13]), 2)
 
@@ -775,12 +775,11 @@ def test_torch_info(env):
         return
     con = env.getConnection()
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertFalse('ai_Torch_version' in backends_info)
 
     model_pb = load_file_content('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(8, len(ret))
-    env.assertEqual(b'Torch version', ret[6])
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertTrue('ai_Torch_version' in backends_info)
