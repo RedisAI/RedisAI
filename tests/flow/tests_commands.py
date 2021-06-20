@@ -143,7 +143,7 @@ def test_keys_syntax(env):
 
     con = env.getConnection()
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSET', 'script{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     # ERR wrong number of arguments for KEYS
@@ -165,14 +165,14 @@ def test_keys_syntax(env):
     check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command",
                         "AI.SCRIPTEXECUTE script{1} bar INPUTS 2 a{1} a{1}")
 
-    # ERR KEYS section in an inner AI.SCRIPTEXEUTE command within a DAG is not allowed.
-    check_error_message(env, con, "Already encountered KEYS scope in current command",
-                        "AI.DAGEXECUTE KEYS 1 a{1} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{1}")
+    # # ERR KEYS section in an inner AI.SCRIPTEXEUTE command within a DAG is not allowed.
+    # check_error_message(env, con, "Already encountered KEYS scope in current command",
+    #                     "AI.DAGEXECUTE KEYS 1 a{1} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{1}")
 
 
 # Todo: this test should change once the script store command is implemented.
 def test_scriptstore(env):
     con = env.getConnection()
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')

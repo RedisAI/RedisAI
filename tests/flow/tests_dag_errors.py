@@ -115,7 +115,7 @@ def test_dag_ro_errors(env):
 
     # ERR AI.SCRIPTEXECUTE is not allowed in AI.DAGEXECUTE_RO
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'SOURCE', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command("AI.TENSORSET volatile_tensor{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')

@@ -654,7 +654,7 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     image_key = 'image1{1}'

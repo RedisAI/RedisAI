@@ -315,7 +315,7 @@ class TestAofRewrite:
         key_name = "torch_script{1}"
         con = self.env.getConnection()
         torch_script = load_file_content("script.txt")
-        con.execute_command('AI.SCRIPTSET', key_name, 'CPU', 'TAG', 'TORCH_SCRIPT', 'SOURCE', torch_script)
+        con.execute_command('AI.SCRIPSTORE', key_name, 'CPU', 'TAG', 'TORCH_SCRIPT', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', torch_script)
 
         # Redis should save the stored script by calling the AOF rewrite callback and then reload from AOF.
         self.env.restartAndReload()

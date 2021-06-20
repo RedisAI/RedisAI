@@ -153,16 +153,6 @@ REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInputList)(RAI_ScriptRunC
 REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddTensorInput)(RAI_ScriptRunCtx *sctx,
                                                                     RAI_Tensor *inputTensor);
 
-REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddIntInput)(RAI_ScriptRunCtx *sctx, int32_t i);
-
-REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddFloatInput)(RAI_ScriptRunCtx *sctx, float f);
-
-REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddRStringInput)(RAI_ScriptRunCtx *sctx,
-                                                                     RedisModuleString *s);
-
-REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddStringInput)(RAI_ScriptRunCtx *sctx,
-                                                                    const char *s, size_t len);
-
 REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddTensorInputList)(RAI_ScriptRunCtx *sctx,
                                                                         RAI_Tensor **inputTensors,
                                                                         size_t count);
@@ -287,10 +277,6 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddTensorInput);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddIntInput);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddFloatInput);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddRStringInput);
-    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddStringInput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInputList);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddTensorInputList);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddOutput);

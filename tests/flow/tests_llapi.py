@@ -63,7 +63,7 @@ def test_script_run_async(env):
     with open(script_filename, 'rb') as f:
         script = f.read()
 
-    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{1}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -95,7 +95,7 @@ def test_dag_build_and_run(env):
     script_filename = os.path.join(test_data_path, 'script.txt')
     with open(script_filename, 'rb') as f:
         script = f.read()
-    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{1}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command("RAI_llapi.DAGrun")
@@ -141,9 +141,9 @@ def test_dagrun_multidevice_resnet(env):
                               'OUTPUTS', 1, outputvar,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_0, device_0, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_1, device_1, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
