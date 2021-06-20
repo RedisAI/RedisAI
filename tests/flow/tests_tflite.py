@@ -20,14 +20,14 @@ def test_run_tflite_model(env):
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU', 'TAG', 'asdf', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     env.assertEqual(ret[5], b'asdf')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
@@ -36,7 +36,7 @@ def test_run_tflite_model(env):
     ensureSlaveSynced(con, env)
 
     ret = con.execute_command('AI.MODELGET', 'm{1}', 'META')
-    env.assertEqual(len(ret), 14)
+    env.assertEqual(len(ret), 16)
     # TODO: enable me. CI is having issues on GPU asserts of TFLITE and CPU
     if DEVICE == "CPU":
         env.assertEqual(ret[1], b'TFLITE')
@@ -237,13 +237,11 @@ def test_tflite_info(env):
         return
     con = env.getConnection()
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertFalse('ai_TensorFlowLite_version' in backends_info)
 
     model_pb = load_file_content('mnist_model_quant.tflite')
-
     con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
 
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(8, len(ret))
-    env.assertEqual(b'TFLite version', ret[6])
+    backends_info = get_info_section(con, 'backends_info')
+    env.assertTrue('ai_TensorFlowLite_version' in backends_info)

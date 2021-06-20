@@ -24,6 +24,27 @@
 
 extern RedisModuleType *RedisAI_TensorType;
 
+// Check if the given value is in the range of the tensor type.
+bool _ValOverflow(long long val, RAI_Tensor *t) {
+    DLDataType dtype = t->tensor.dl_tensor.dtype;
+    if (dtype.code == kDLInt) {
+        unsigned long long max_abs_val = ((unsigned long long)1 << (uint)(dtype.bits - 1));
+        if ((unsigned long long)val >= max_abs_val || val < -1 * (long long)max_abs_val) {
+            return true;
+        }
+    } else if (dtype.code == kDLUInt) {
+        uint max_val = (uint)1 << dtype.bits;
+        if (val >= max_val || val < 0) {
+            return true;
+        }
+    } else if (dtype.code == kDLBool) {
+        if (val < 0 || val > 1) {
+            return true;
+        }
+    }
+    return false;
+}
+
 DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
     if (strcasecmp(typestr, RAI_DATATYPE_STR_FLOAT) == 0) {
         return (DLDataType){.code = kDLFloat, .bits = 32, .lanes = 1};
@@ -54,6 +75,9 @@ DLDataType RAI_TensorDataTypeFromString(const char *typestr) {
         if (strcmp(bitstr, "16") == 0) {
             return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
         }
+    }
+    if (strcasecmp(typestr, "BOOL") == 0) {
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     }
     return (DLDataType){.bits = 0};
 }
@@ -93,6 +117,9 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
             strcpy(dtypestr, RAI_DATATYPE_STR_UINT16);
             result = REDISMODULE_OK;
         }
+    } else if (dtype.code == kDLBool && dtype.bits == 8) {
+        strcpy(dtypestr, RAI_DATATYPE_STR_BOOL);
+        result = REDISMODULE_OK;
     }
     return result;
 }
@@ -129,7 +156,7 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
-    // issues. Otherwise, we only allocate without initializing (for better performance)
+    // issues. Otherwise, we only allocate without initializing (for better performance).
     void *data;
     if (empty) {
         data = RedisModule_Calloc(len, dtypeSize);
@@ -429,8 +456,12 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val) {
         default:
             return 0;
         }
-    } else {
-        return 0;
+    } else if (dtype.code == kDLBool) {
+        if (dtype.bits == 8) {
+            ((uint8_t *)data)[i] = val;
+        } else {
+            return 0;
+        }
     }
     return 1;
 }
@@ -518,8 +549,12 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
         default:
             return 0;
         }
-    } else {
-        return 0;
+    } else if (dtype.code == kDLBool) {
+        if (dtype.bits == 8) {
+            *val = ((uint8_t *)data)[i];
+        } else {
+            return 0;
+        }
     }
     return 1;
 }
@@ -707,7 +742,7 @@ int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, i
             } else {
                 long long val;
                 const int retval = RedisModule_StringToLongLong(argv[argpos], &val);
-                if (retval != REDISMODULE_OK) {
+                if (retval != REDISMODULE_OK || _ValOverflow(val, *t)) {
                     RAI_TensorFree(*t);
                     array_free(dims);
                     RAI_SetError(error, RAI_ETENSORSET, "ERR invalid value");

@@ -4,7 +4,9 @@
 #include "util/arr.h"
 #include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
+#include "redis_ai_objects/script.h"
 #include "redis_ai_objects/tensor.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
@@ -51,7 +53,7 @@ RAI_Model *RAI_ModelCreateTorch(RAI_Backend backend, const char *devicestr, RAI_
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
@@ -173,15 +175,15 @@ void RAI_ModelFreeTorch(RAI_Model *model, RAI_Error *error) {
     torchDeallocContext(model->model);
 }
 
-int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
-    const size_t nbatches = array_len(mctxs);
+int RAI_ModelRunTorch(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
+    const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return 1;
     }
 
-    const size_t ninputs = array_len(mctxs[0]->inputs);
-    const size_t noutputs = array_len(mctxs[0]->outputs);
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
 
     RAI_Tensor *inputs[ninputs];
 
@@ -193,9 +195,9 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     size_t total_batch_size = 0;
 
     if (nbatches > 1) {
-        if (array_len(mctxs[0]->inputs) > 0) {
+        if (ninputs > 0) {
             for (size_t b = 0; b < nbatches; ++b) {
-                batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
+                batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
                 total_batch_size += batch_sizes[b];
             }
             batch_offsets[0] = 0;
@@ -208,7 +210,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             RAI_Tensor *batch[nbatches];
 
             for (size_t b = 0; b < nbatches; b++) {
-                batch[b] = mctxs[b]->inputs[i].tensor;
+                batch[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
             }
 
             inputs[i] = RAI_TensorCreateByConcatenatingTensors(batch, nbatches);
@@ -216,7 +218,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
     } else {
         for (size_t i = 0; i < ninputs; ++i) {
-            inputs[i] = RAI_TensorGetShallowCopy(mctxs[0]->inputs[i].tensor);
+            inputs[i] = RAI_TensorGetShallowCopy(RAI_ExecutionCtx_GetInput(ectxs[0], i));
             inputs_dl[i] = &inputs[i]->tensor;
         }
     }
@@ -226,7 +228,7 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    torchRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
+    torchRunModel(RAI_ModelGetModel(model), ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
 
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_TensorFree(inputs[i]);
@@ -253,11 +255,13 @@ int RAI_ModelRunTorch(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                 return 1;
             }
             for (size_t b = 0; b < nbatches; b++) {
-                mctxs[b]->outputs[i].tensor = RAI_TensorCreateBySlicingTensor(
-                    output_tensor, batch_offsets[b], batch_sizes[b]);
+                RAI_ExecutionCtx_SetOutput(ectxs[b],
+                                           RAI_TensorCreateBySlicingTensor(
+                                               output_tensor, batch_offsets[b], batch_sizes[b]),
+                                           i);
             }
         } else {
-            mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+            RAI_ExecutionCtx_SetOutput(ectxs[0], RAI_TensorGetShallowCopy(output_tensor), i);
         }
         RAI_TensorFree(output_tensor);
     }
@@ -300,7 +304,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_ESCRIPTCONFIGURE,
@@ -350,31 +354,33 @@ void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
     RedisModule_Free(script);
 }
 
-int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
+int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCtx *ectx,
+                       RAI_Error *error) {
 
-    long nInputs = array_len(sctx->inputs);
-    long nOutputs = array_len(sctx->outputs);
+    long nInputs = RAI_ExecutionCtx_NumInputs(ectx);
+    long nOutputs = RAI_ExecutionCtx_NumOutputs(ectx);
 
     DLManagedTensor *inputs[nInputs];
     DLManagedTensor *outputs[nOutputs];
 
     for (size_t i = 0; i < nInputs; i++) {
-        inputs[i] = &sctx->inputs[i].tensor->tensor;
+        inputs[i] = &RAI_ExecutionCtx_GetInput(ectx, i)->tensor;
     }
 
     for (size_t i = 0; i < nOutputs; i++) {
-        outputs[i] = &sctx->outputs[i].tensor->tensor;
+        outputs[i] = &RAI_ExecutionCtx_GetOutput(ectx, i)->tensor;
     }
 
     char *error_descr = NULL;
 
-    TorchScriptFunctionArgumentType *arguments =
-        AI_dictFetchValue(sctx->script->functionData, sctx->fnname);
+    TorchScriptFunctionArgumentType *arguments = RAI_ScriptGetSignature(script, function);
     if (!arguments) {
         RAI_SetError(error, RAI_ESCRIPTRUN, "attempted to get undefined function");
         RedisModule_Free(error_descr);
         return 1;
     }
+
+    RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)ectx;
 
     // Create inputs context on stack.
     TorchFunctionInputCtx inputsCtx = {0};
@@ -395,8 +401,8 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
         return 1;
     }
 
-    torchRunScript(sctx->script->script, sctx->fnname, arguments, array_len(arguments), &inputsCtx,
-                   outputs, nOutputs, &error_descr);
+    torchRunScript(script->script, function, arguments, array_len(arguments), &inputsCtx, outputs,
+                   nOutputs, &error_descr);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
@@ -405,7 +411,7 @@ int RAI_ScriptRunTorch(RAI_ScriptRunCtx *sctx, RAI_Error *error) {
     }
 
     for (size_t i = 0; i < nOutputs; i++) {
-        sctx->outputs[i].tensor = RAI_TensorCreateFromDLTensor(outputs[i]);
+        RAI_ExecutionCtx_SetOutput(ectx, RAI_TensorCreateFromDLTensor(outputs[i]), i);
     }
 
     return 0;

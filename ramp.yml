@@ -7,7 +7,7 @@ license: Redis Source Available License v1.0
 command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps"
 # command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps/backends"
 min_redis_version: "5.0.7"
-min_redis_pack_version: "5.4.14"
+min_redis_pack_version: "6.2.2"
 capabilities:
     - types
     - hash_policy
@@ -22,6 +22,7 @@ exclude_commands:
     - ai.modelstore
     - ai.modelset
     - ai.modeldel
+    - ai.scriptstore
     - ai.scriptset
     - ai.scriptdel
 dependencies:

@@ -10,7 +10,7 @@ python -m RLTest --test tests_common.py --module path/to/redisai.so
 def test_common_tensorset(env):
     con = env.getConnection()
 
-    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     for datatype in tested_datatypes:
         ret = con.execute_command('AI.TENSORSET', 'tensor_{0}'.format(datatype), datatype, 2, 'VALUES', 1, 1)
         env.assertEqual(ret, b'OK')
@@ -101,6 +101,24 @@ def test_common_tensorset_error_replies(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual(exception.__str__(), "invalid value")
 
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'BOOL', 2, 'VALUES', 1, 2)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
+    # ERR invalid value - overflow
+    try:
+        con.execute_command('AI.TENSORSET', 'z', 'INT8', 2, 'VALUES', -1, -128)
+        env.assertFalse(True)
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(exception.__str__(), "invalid value")
+
     try:
         con.execute_command('AI.TENSORSET', 1)
         env.assertFalse(True)
@@ -164,9 +182,9 @@ def test_common_tensorset_error_replies(env):
 
 def test_common_tensorget(env):
     con = env.getConnection()
-    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes = ["FLOAT", "DOUBLE", "INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     tested_datatypes_fp = ["FLOAT", "DOUBLE"]
-    tested_datatypes_int = ["INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16"]
+    tested_datatypes_int = ["INT8", "INT16", "INT32", "INT64", "UINT8", "UINT16", "BOOL"]
     for datatype in tested_datatypes:
         ret = con.execute_command('AI.TENSORSET', 'tensor_{0}'.format(datatype), datatype, 2, 'VALUES', 1, 1)
         env.assertEqual(ret, b'OK')
@@ -310,17 +328,6 @@ def test_tensorget_disconnect(env):
     ret = send_and_disconnect(('AI.TENSORGET', 't_FLOAT', 'META'), red)
     env.assertEqual(ret, None)
 
-def test_info_modules(env):
-    red = env.getConnection()
-    ret = red.execute_command('INFO','MODULES')
-    env.assertEqual( ret['ai_threads_per_queue'], 1 )
-    # minimum cpu properties
-    env.assertEqual( 'ai_self_used_cpu_sys' in ret, True )
-    env.assertEqual( 'ai_self_used_cpu_user' in ret, True )
-    env.assertEqual( 'ai_children_used_cpu_sys' in ret, True )
-    env.assertEqual( 'ai_children_used_cpu_user' in ret, True )
-    env.assertEqual( 'ai_queue_CPU_bthread_n1_used_cpu_total' in ret, True )
-
 
 def test_lua_multi(env):
     con = env.getConnection()
@@ -342,7 +349,20 @@ def test_lua_multi(env):
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         env.assertEqual("Cannot run RedisAI command within a transaction or a LUA script", exception.__str__())
 
-def test_info(env):
+
+def test_info_command(env):
     con = env.getConnection()
-    ret = con.execute_command('AI.INFO')
-    env.assertEqual(6, len(ret))
+    versions = get_info_section(con, 'versions')
+    env.assertEqual(list(versions.keys()), ['ai_RedisAI_version', 'ai_low_level_API_version', 'ai_rdb_version'])
+    git = get_info_section(con, 'git')
+    env.assertEqual(list(git.keys()), ['ai_git_sha'])
+    load_time_configs = get_info_section(con, 'load_time_configs')
+    env.assertEqual(list(load_time_configs.keys()), ['ai_threads_per_queue', 'ai_inter_op_parallelism',
+                                               'ai_intra_op_parallelism', 'ai_model_execution_timeout'])
+    # minimum cpu properties
+    cpu = get_info_section(con, 'cpu')
+    env.assertTrue('ai_self_used_cpu_sys' in cpu.keys())
+    env.assertTrue('ai_self_used_cpu_user' in cpu.keys())
+    env.assertTrue('ai_children_used_cpu_sys' in cpu.keys())
+    env.assertTrue('ai_children_used_cpu_user' in cpu.keys())
+    env.assertTrue('ai_queue_CPU_bthread_n1_used_cpu_total' in cpu.keys())

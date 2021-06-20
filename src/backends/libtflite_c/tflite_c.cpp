@@ -43,6 +43,10 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
         dtype.bits = 16;
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
+    case kTfLiteBool:
+        dtype.bits = 8;
+        dtype.code = DLDataTypeCode::kDLBool;
+        break;
     default:
         break;
     }
@@ -56,23 +60,6 @@ static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id
     return device;
 }
 
-#if 0
-static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
-  switch (device_type) {
-    case DLDeviceType::kDLCPU:
-      return at::DeviceType::CPU;
-    case DLDeviceType::kDLGPU:
-      return at::DeviceType::CUDA;
-    case DLDeviceType::kDLOpenCL:
-      return at::DeviceType::OPENCL;
-    case DLDeviceType::kDLROCM:
-      return at::DeviceType::HIP;
-    default:
-      throw std::logic_error("Unsupported device_type: " + std::to_string(device_type));
-  }
-  return at::DeviceType::CPU; // impossible
-}
-#endif
 
 size_t dltensorBytes(DLManagedTensor *t) {
     int64_t *shape = t->dl_tensor.shape;
@@ -111,9 +98,10 @@ void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tf
     case kTfLiteFloat32:
         memcpy(interpreter->typed_tensor<float>(tflite_input), input->dl_tensor.data, nbytes);
         break;
+    case kTfLiteBool:
+        memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as input tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported input data type");
     }
@@ -175,9 +163,11 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     case kTfLiteFloat32:
         memcpy(dl_tensor.data, interpreter->typed_tensor<float>(tflite_output), tensor->bytes);
         break;
+    case kTfLiteBool:
+        memcpy(dl_tensor.data, interpreter->typed_tensor<bool>(tflite_output), tensor->bytes);
+        break;
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as output tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported output data type");
     }
@@ -232,7 +222,7 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     }
 
 #if RAI_TFLITE_USE_CUDA
-    if (device == DLDeviceType::kDLGPU) {
+    if (device == DLDeviceType::kDLCUDA) {
         tflite::Interpreter::TfLiteDelegatePtr delegate =
             tflite::evaluation::CreateGPUDelegate(model.get());
         if (interpreter_->ModifyGraphWithDelegate(std::move(delegate)) != kTfLiteOk) {
