@@ -408,7 +408,55 @@ redis> > AI._MODELSCAN
    2) imagenet:5.0
 ```
 
+
+## AI.SCRIPTSTORE
+The **`AI.SCRIPTSTORE`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
+
+**Redis API**
+
+```
+AI.SCRIPTSTORE <key> <device> [TAG tag] ENTRY_POINTS <entry_point_amoint> <entry_point> [<entry_point>...] SOURCE "<script>"
+```
+
+_Arguments_
+
+
+* **key**: the script's key name
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
+* **device**: the device that will execute the model can be of:
+    * **CPU**: a CPU device
+    * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
+* **ENTRY_POINTS** A list of entry points to be used in the script. Each entry point should have the signature of `def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`. The purpose of each list is as follows:
+* `tensors`: A list holding the input tensors to the function.
+* `keys`: A list of keys that the torch script is about to preform read/write operations on.
+* `args`: A list of additional arguments to the function. If the desired argument is not from type string, it is up to the caller to cast it to the right type, within the script.
+* **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+Given the following contents of the file 'addtwo.py':
+
+```python
+def addtwo(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = tensors[0]
+    b = tensors[1]
+    return a + b
+```
+
+It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
+
+```
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU TAG myscript:v0.1 ENTRY_POINTS 1 addtwo SOURCE
+OK
+```
+
 ## AI.SCRIPTSET
+_This command is deprecated and will not be available in future versions. consider using AI.MODELSTORE command instead._
 The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
 
 **Redis API**
@@ -471,8 +519,9 @@ An array with alternating entries that represent the following key-value pairs:
 !!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
 
 1. **DEVICE**: the script's device as a String
-1. **TAG**: the scripts's tag as a String
-1. **SOURCE**: the script's source code as a String
+2. **TAG**: the scripts's tag as a String
+3. **SOURCE**: the script's source code as a String
+* **ENTRY_POINTS** will return an array containing the script entry points
 
 **Examples**
 
@@ -487,6 +536,8 @@ redis> AI.SCRIPTGET myscript
 5) "source"
 6) def addtwo(a, b):
     return a + b
+7) "Entry Points"
+8) 1) addtwo
 ```
 
 ## AI.SCRIPTDEL
@@ -519,7 +570,7 @@ OK
 
 ## AI.SCRIPTEXECUTE
 
-The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It accepts one or more inputs, where the inputs could be tensors stored in RedisAI, int, float, or strings and stores the script outputs as RedisAI tensors if required.
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It a list keys, input tensors and addtional script args.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 
@@ -533,7 +584,8 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 ```
 AI.SCRIPTEXECUTE <key> <function> 
 KEYS n <key> [keys...] 
-[INPUTS m <input> [input ...] | [LIST_INPUTS l <input> [input ...]]*]
+[INPUTS m <input> [input ...]
+[ARGS k <arg> [arg...]]
 [OUTPUTS k <output> [output ...] [TIMEOUT t]]+
 ```
 
@@ -542,8 +594,8 @@ _Arguments_
 * **key**: the script's key name
 * **function**: the name of the function to run
 * **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command. Redis will verify that all potional key accesses are done to the right shard.
-* **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that list inputs are treated in the **LIST_INPUTS** scope.
-* **LIST_INPUTS** Denotes the beginning of a list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that if more than one list is provided, their order should be aligned with the order of their respected paramter at the function signature.
+* **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more input tensors.
+* **ARGS**: A list additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
 
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
@@ -584,10 +636,10 @@ redis> AI.TENSORGET result{tag} VALUES
 3) 1) "42"
 ```
 
-If 'myscript' supports `List[Tensor]` arguments:
+An example that supports `List[Tensor]` arguments:
 ```python
-def addn(a, args : List[Tensor]):
-    return a + torch.stack(args).sum()
+def addn(tensors: List[Tensor], keys: List[str], args: List[str]):
+    return torch.stack(tensors).sum()
 ```
 
 ```
@@ -597,7 +649,7 @@ redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 1
 OK
 redis> AI.TENSORSET mytensor3{tag} FLOAT 1 VALUES 1
 OK
-redis> AI.SCRIPTEXECUTE myscript{tag} addn keys 1 {tag} INPUTS 1 mytensor1{tag} LIST_INPUTS 2 mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addn keys 1 {tag} INPUTS 3 mytensor1{tag} mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -606,19 +658,21 @@ redis> AI.TENSORGET result{tag} VALUES
 ```
 
 ### Redis Commands support.
-RedisAI TorchScript now supports simple (non-blocking) Redis commands via the `redis.execute` API. The following (useless) script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
 
 ```
 def redis_int_to_tensor(redis_value: int):
     return torch.tensor(redis_value)
 
-def int_set_get(key:str, value:int):
-    redis.execute("SET", key, str(value))
+def int_set_get(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
+    redis.execute("SET", key, value)
     res = redis.execute("GET", key)
     return redis_string_int_to_tensor(res)
 ```
 ```
-redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 {1} INPUTS 2 x{1} 3 OUTPUTS 1 y{1}
+redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 x{1} ARGS 1 3 OUTPUTS 1 y{1}
 OK
 redis> AI.TENSORGET y{1} VALUES
 1) (integer) 3
