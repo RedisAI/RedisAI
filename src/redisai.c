@@ -671,7 +671,7 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_OK;
     }
 
-    int outentries = source ? 6 : 4;
+    int outentries = source ? 8 : 6;
 
     RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
@@ -681,6 +681,12 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (source) {
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
+    }
+    RedisModule_ReplyWithCString(ctx, "Entry Points");
+    size_t nEntryPoints = array_len(sto->entryPoints);
+    RedisModule_ReplyWithArray(ctx, nEntryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        RedisModule_ReplyWithCString(ctx, sto->entryPoints[i]);
     }
     return REDISMODULE_OK;
 }
