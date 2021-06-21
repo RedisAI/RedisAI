@@ -55,6 +55,7 @@ def test_run_tflite_model_autobatch(env):
     con = env.getConnection()
     model_pb = load_file_content('lite-model_imagenet_mobilenet_v3_small_100_224_classification_5_default_1.tflite')
     _, _, _, img = load_resnet_test_data()
+    img = img.astype(np.float32) / 255
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TFLITE', 'CPU',
                               'BATCHSIZE', 4, 'MINBATCHSIZE', 2,
@@ -68,12 +69,12 @@ def test_run_tflite_model_autobatch(env):
         env.assertEqual(ret[3], b'CPU')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}',
-                              'UINT8', 1, img.shape[1], img.shape[0], 3,
+                              'FLOAT', 1, img.shape[1], img.shape[0], 3,
                               'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'b{1}',
-                              'UINT8', 1, img.shape[1], img.shape[0], 3,
+                              'FLOAT', 1, img.shape[1], img.shape[0], 3,
                               'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
 
