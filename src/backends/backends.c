@@ -62,8 +62,8 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
         *targetFuncPtr = RAI_TensorCreateFromDLTensor;
     } else if (strcmp("RedisAI_TensorGetDLTensor", func_name) == 0) {
         *targetFuncPtr = RAI_TensorGetDLTensor;
-    } else if (strcmp("RedisAI_TensorByteSize", func_name) == 0) {
-        *targetFuncPtr = RAI_TensorByteSize;
+    } else if (strcmp("RedisAI_TensorGetShallowCopy", func_name) == 0) {
+        *targetFuncPtr = RAI_TensorGetShallowCopy;
     } else if (strcmp("RedisAI_TensorFree", func_name) == 0) {
         *targetFuncPtr = RAI_TensorFree;
     } else if (strcmp("RedisAI_GetModelFromKeyspace", func_name) == 0) {

@@ -9,7 +9,7 @@
 #include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
-#include "backedns_api.h"
+#include "backends_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
 // A label "error" must exist in every function that uses this macro.

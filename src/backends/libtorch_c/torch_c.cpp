@@ -1,5 +1,7 @@
+#define BACKENDS_API_EXTERN
 #include "torch_c.h"
 #include "torch/torch.h"
+#include "backends/backends_api.h"
 #include "redismodule.h"
 #include "ATen/Functions.h"
 #include "torch/csrc/jit/serialization/import.h"
@@ -163,19 +165,22 @@ torch::Tensor fromDLPack(const DLTensor *src) {
                             torch::device(device).dtype(stype));
 }
 
-extern "C" void torchTensorCopyDataFromDLPack(const DLTensor *src, void *torch_tensor,
-  size_t data_len) {
-    at::DeviceType device_type = getATenDeviceType(src->device.device_type);
-    at::ScalarType stype = toScalarType(src->dtype);
-    torch::Device device(device_type, src->device.device_id);
-    void *data = RedisModule_Alloc(data_len);
-    memcpy(data, src->data, data_len);
-    // Create torch tensor with the blob copy, and send a deleter callback for torch
-    // to use to release the blob when it finishes.
-    *static_cast<torch::Tensor *>(torch_tensor) = torch::Tensor(torch::from_blob(data,
-      at::IntArrayRef(src->shape, src->ndim),
-      at::IntArrayRef(src->strides, src->ndim),
-      [](void *data) {RedisModule_Free(data); },
+extern "C" void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor) {
+    DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(src);
+    at::DeviceType device_type = getATenDeviceType(dl_tensor->device.device_type);
+    at::ScalarType stype = toScalarType(dl_tensor->dtype);
+    torch::Device device(device_type, dl_tensor->device.device_id);
+    auto free_tensor = [src](void *data) {
+        RedisAI_TensorFree(src);
+    };
+
+    // Create torch tensor with the tensor's blob, and send a deleter callback
+    // for torch to use to release the RAI_Tensor when it finishes.
+    *static_cast<torch::Tensor *>(torch_tensor) =
+      torch::Tensor(torch::from_blob(dl_tensor->data,
+      at::IntArrayRef(dl_tensor->shape, dl_tensor->ndim),
+      at::IntArrayRef(dl_tensor->strides, dl_tensor->ndim),
+      free_tensor,
       torch::device(device).dtype(stype)));
 }
 

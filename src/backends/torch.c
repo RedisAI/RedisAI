@@ -1,7 +1,7 @@
 #define REDISMODULE_MAIN
 #include "backends/util.h"
 #include "backends/torch.h"
-#include "backends/backedns_api.h"
+#include "backends/backends_api.h"
 #include "util/arr.h"
 #include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
@@ -39,7 +39,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisAI_GetError", ((void **)&RedisAI_GetError));
     get_api_fn("RedisAI_TensorCreateFromDLTensor", ((void **)&RedisAI_TensorCreateFromDLTensor));
     get_api_fn("RedisAI_TensorGetDLTensor", ((void **)&RedisAI_TensorGetDLTensor));
-    get_api_fn("RedisAI_TensorByteSize", ((void **)&RedisAI_TensorByteSize));
+    get_api_fn("RedisAI_TensorGetShallowCopy", ((void **)&RedisAI_TensorGetShallowCopy));
     get_api_fn("RedisAI_TensorFree", ((void **)&RedisAI_TensorFree));
     get_api_fn("RedisAI_GetModelFromKeyspace", ((void **)&RedisAI_GetModelFromKeyspace));
     get_api_fn("RedisAI_ModelRunCtxCreate", ((void **)&RedisAI_ModelRunCtxCreate));

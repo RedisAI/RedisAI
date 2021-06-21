@@ -1,6 +1,7 @@
+#define BACKENDS_API_EXTERN
 #include <string>
 #include <dlpack/dlpack.h>
-#include "backends/backedns_api.h"
+#include "backends/backends_api.h"
 #include "torch_redis.h"
 #include "../torch_c.h"
 
@@ -121,10 +122,9 @@ std::vector<torch::Tensor> modelExecute(const std::string& model_key, const std:
     }
     for (size_t i = 0; i < RedisAI_ModelRunCtxNumOutputs(model_run_ctx); i++) {
         RAI_Tensor *tensor = RedisAI_ModelRunCtxOutputTensor(model_run_ctx, i);
-        DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(tensor);
-        size_t data_len = RedisAI_TensorByteSize(tensor);
+        RedisAI_TensorGetShallowCopy(tensor);
         torch::Tensor output;
-        torchTensorCopyDataFromDLPack(dl_tensor, static_cast<void *>(&output), data_len);
+        torchTensorFromRAITensor(tensor, static_cast<void *>(&output));
         outputs.push_back(output);
     }
 
