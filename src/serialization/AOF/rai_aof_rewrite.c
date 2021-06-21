@@ -110,6 +110,15 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
 void RAI_AOFRewriteScript(RedisModuleIO *aof, RedisModuleString *key, void *value) {
     RAI_Script *script = (RAI_Script *)value;
-    RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccscc", key, script->devicestr, "TAG", script->tag,
+    size_t nEntryPoints = array_len(script->entryPoints);
+    array_new_on_stack(RedisModuleString*, nEntryPoints, entryPoints);
+    for (size_t i =0; i< nEntryPoints; i++) {
+        entryPoints = array_append(entryPoints, RedisModule_CreateString(NULL, script->entryPoints[i], strlen(script->entryPoints[i])));
+    }
+    RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccsvlcc", key, script->devicestr, "TAG", script->tag, entryPoints, nEntryPoints,
                         "SOURCE", script->scriptdef);
+    for(size_t i=0; i< nEntryPoints; i++) {
+        RedisModule_FreeString(NULL, entryPoints[i]);
+    }
+    array_free(entryPoints);
 }
