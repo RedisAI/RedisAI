@@ -75,10 +75,13 @@ void RAI_ScriptRunCtxFree(RAI_ScriptRunCtx *sctx) {
     for (size_t i = 0; i < array_len(sctx->args); ++i) {
         RedisModule_FreeString(NULL, sctx->args[i]);
     }
+    array_free(sctx->args);
 
     for (size_t i = 0; i < array_len(sctx->keys); ++i) {
         RedisModule_FreeString(NULL, sctx->keys[i]);
     }
+
+    array_free(sctx->keys);
 
     RedisModule_Free(sctx->fnname);
 
