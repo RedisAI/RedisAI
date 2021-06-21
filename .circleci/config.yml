@@ -227,13 +227,15 @@ jobs:
       - setup_remote_docker
       - checkout-all
       - setup-automation
+
+      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
       - run:
           name: Build for platform
           command: |
             bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build DOCKER_SUFFIX=".<<parameters.osnick>>" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
+            make build DOCKER_SUFFIX=".<<parameters.osnick>><<parameters.lite>><<parameters.target>>" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
