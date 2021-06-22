@@ -257,7 +257,4 @@ def test_dag_with_error(env):
     env.assertEqual(ret[1], b'OK')
     env.assertEqual(ret[3], b'NA')
     env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
-    if DEVICE == 'GPU':
-        env.assertEqual(ret[2].__str__(), '2 root error(s) found.   (0) Invalid argument: Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]] \t [[mul/_5]]   (1) Invalid argument: Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]] 0 successful operations. 0 derived errors ignored.')
-    else:
-        env.assertEqual(ret[2].__str__(), 'Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]')
+    env.assertTrue(str(ret[2]).find('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]') >= 0)
