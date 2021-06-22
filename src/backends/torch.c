@@ -351,7 +351,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
         if (!torchScript_FunctionExists(script, entryPoint)) {
             torchDeallocContext(script);
             char *errMsg;
-            asprintf(&errMsg, "Fuction %s does not exists in the given script.", entryPoint);
+            asprintf(&errMsg, "Function %s does not exist in the given script.", entryPoint);
             RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
             free(errMsg);
             return NULL;
@@ -362,7 +362,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
         if (argCount != 3) {
             torchDeallocContext(script);
             char *errMsg;
-            asprintf(&errMsg, "Wrong number of inputs in fuction %s. Expected 3 but was %ld",
+            asprintf(&errMsg, "Wrong number of inputs in function %s. Expected 3 but was %ld",
                      entryPoint, argCount);
             RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
             free(errMsg);
@@ -380,7 +380,7 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
             torchDeallocContext(script);
             char *errMsg;
             asprintf(&errMsg,
-                     "Wrong inputs type in fuction %s. Expected signature similar to: def "
+                     "Wrong inputs type in function %s. Expected signature similar to: def "
                      "%s(tensors: List[Tensor], keys: List[str], args: List[str])",
                      entryPoint, entryPoint);
             RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);

@@ -521,7 +521,7 @@ An array with alternating entries that represent the following key-value pairs:
 1. **DEVICE**: the script's device as a String
 2. **TAG**: the scripts's tag as a String
 3. **SOURCE**: the script's source code as a String
-* **ENTRY_POINTS** will return an array containing the script entry points
+4. **ENTRY_POINTS** will return an array containing the script entry points
 
 **Examples**
 
@@ -570,7 +570,7 @@ OK
 
 ## AI.SCRIPTEXECUTE
 
-The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It a list keys, input tensors and addtional script args.
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It a list of keys, input tensors and addtional script args.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 
@@ -656,6 +656,8 @@ redis> AI.TENSORGET result{tag} VALUES
 2) 1) (integer) 1
 3) 1) "42"
 ```
+
+Note: for the time being, as `AI.SCRIPTSET` is still avialable to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str]` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they apear.
 
 ### Redis Commands support.
 In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.

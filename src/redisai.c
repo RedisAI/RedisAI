@@ -830,14 +830,12 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
         AC_GetRString(&ac, &tag, 0);
     }
 
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(
-            ctx, "ERR Insufficient arguments, missing script SOURCE and entry points");
-    }
-
     long long nEntryPoints;
     if (AC_AdvanceIfMatch(&ac, "ENTRY_POINTS")) {
-        AC_GetLongLong(&ac, &nEntryPoints, 0);
+        if (AC_GetLongLong(&ac, &nEntryPoints, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Non numeric entry points number provided to AI.SCRIPTSTORE command");
+        }
     } else {
         return RedisModule_ReplyWithError(
             ctx, "ERR Insufficient arguments, missing script entry points");
@@ -885,9 +883,6 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     }
 
     if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-        printf("ERR: %s\n", err.detail);
-#endif
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;

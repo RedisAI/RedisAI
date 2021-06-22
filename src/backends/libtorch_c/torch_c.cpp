@@ -370,7 +370,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
              * functions are not in the endpoint set to be executed in "best effort" manner.
              */
             if(!torchScript_FunctionExists(ctx, fnName)) {
-                throw std::runtime_error(std::string("Function does not exists: ") + fnName);
+                throw std::runtime_error(std::string("Function does not exist: ") + fnName);
             }
             size_t nArgs = torchScript_FunctionArgumentCountByFunctionName(ctx, fnName);
             if(nArgs > inputsCtx->tensorCount) {

@@ -235,16 +235,30 @@ def test_pytorch_scriptstore(env):
         return
 
     con = env.getConnection()
-
-    check_error(env, con, 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'SOURCE', 'return 1')
-
-    check_error(env, con, 'AI.SCRIPTSTORE', 'nope')
-
-    check_error(env, con, 'AI.SCRIPTSTORE', 'nope', 'SOURCE')
-
-    check_error(env, con, 'AI.SCRIPTSTORE', 'more', DEVICE)
-
     script = load_file_content('script.txt')
+    old_script = load_file_content('old_script.txt')
+    bad_script = load_file_content('script_bad.txt')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'SOURCE', 'return 1')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope', 'SOURCE')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'more', DEVICE)
+
+    check_error_message(env, con, "Insufficient arguments, missing script entry points", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'NO_ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
+
+    check_error_message(env, con, "Non numeric entry points number provided to AI.SCRIPTSTORE command", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 'ENTRY_POINTS', 'bar', 'bar_variadic', 'SOURCE', script)
+
+    check_error_message(env, con, "Function bar1 does not exist in the given script.", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar1', 'SOURCE', script)
+
+    check_error_message(env, con, "Insufficient arguments, missing script SOURCE", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE')
+
+    check_error_message(env, con, "Wrong number of inputs in function bar. Expected 3 but was 2", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', old_script)
+
+    check_error_message(env, con, "Wrong inputs type in function bar. Expected signature similar to: def bar(tensors: List[Tensor], keys: List[str], args: List[str])", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', bad_script)
+
 
     ret = con.execute_command('AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')

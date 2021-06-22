@@ -395,13 +395,15 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
                         'AI.DAGEXECUTE', 'KEYS', '1', image_key, '|>', 'AI.MODELEXECUTE', model_name_0,
                         'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1)
 
-    # check_error_message(env, con, "Wrong function name given to AI.SCRIPTEXECUTE command",
-    #                     'AI.DAGEXECUTE', 'KEYS', 1, '{1}',
-    #                     '|>', 'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
-    #                     '|>',
-    #                     'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
-    #                     'INPUTS', 1, image_key,
-    #                     'OUTPUTS', 1, temp_key1)
+    ret = con.execute_command('AI.DAGEXECUTE', 
+                            'KEYS', 1, '{1}','|>',
+                            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),'|>',
+                            'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
+                            'INPUTS', 1, image_key,
+                            'OUTPUTS', 1, temp_key1)
+    env.assertEquals(b'OK', ret[0])
+    env.assertEquals(type(ret[1]), redis.exceptions.ResponseError)
+    env.assertEquals("Function does not exist: wrong_fn",  ret[1].__str__())
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
                         'AI.DAGEXECUTE', 'KEYS', 1, '{1}',
@@ -553,31 +555,39 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
                         'INPUTS', 1, temp_key1,
                         'OUTPUTS', 1, class_key_0)
 
-    # # The 'ensamble' function in script_name_0 expect to receive 2 inputs (not 1)
-    # check_error_message(env, con, "Wrong number of inputs provided to AI.SCRIPTEXECUTE command",
-    #                     'AI.DAGEXECUTE',
-    #                     'PERSIST', '1', class_key_0, '|>',
-    #                     'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
-    #                     '|>',
-    #                     'AI.SCRIPTEXECUTE',  script_name_0, 'pre_process_3ch',
-    #                     'INPUTS', 1, image_key,
-    #                     'OUTPUTS', 1, temp_key1,
-    #                     '|>',
-    #                     'AI.MODELEXECUTE', model_name_0,
-    #                     'INPUTS', 1, temp_key1,
-    #                     'OUTPUTS', 1, temp_key2_0,
-    #                     '|>',
-    #                     'AI.MODELEXECUTE', model_name_1,
-    #                     'INPUTS', 1, temp_key1,
-    #                     'OUTPUTS', 1, temp_key2_1,
-    #                     '|>',
-    #                     'AI.SCRIPTEXECUTE', script_name_0, 'ensemble',
-    #                     'INPUTS', 1, temp_key2_0,
-    #                     'OUTPUTS', 1, temp_key1,
-    #                     '|>',
-    #                     'AI.SCRIPTEXECUTE', script_name_0, 'post_process',
-    #                     'INPUTS', 1, temp_key1,
-    #                     'OUTPUTS', 1, class_key_0)
+    # The 'ensamble' function in script_name_0 expect to receive 2 inputs (not 1)
+    ret = con.execute_command(
+                        'AI.DAGEXECUTE',
+                        'PERSIST', '1', class_key_0, '|>',
+                        'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
+                        '|>',
+                        'AI.SCRIPTEXECUTE',  script_name_0, 'pre_process_3ch',
+                        'INPUTS', 1, image_key,
+                        'OUTPUTS', 1, temp_key1,
+                        '|>',
+                        'AI.MODELEXECUTE', model_name_0,
+                        'INPUTS', 1, temp_key1,
+                        'OUTPUTS', 1, temp_key2_0,
+                        '|>',
+                        'AI.MODELEXECUTE', model_name_1,
+                        'INPUTS', 1, temp_key1,
+                        'OUTPUTS', 1, temp_key2_1,
+                        '|>',
+                        'AI.SCRIPTEXECUTE', script_name_0, 'ensemble',
+                        'INPUTS', 1, temp_key2_0,
+                        'OUTPUTS', 1, temp_key1,
+                        '|>',
+                        'AI.SCRIPTEXECUTE', script_name_0, 'post_process',
+                        'INPUTS', 1, temp_key1,
+                        'OUTPUTS', 1, class_key_0)
+
+    env.assertEquals(b'OK', ret[0])
+    env.assertEquals(b'OK', ret[1])
+    env.assertEquals(b'OK', ret[2])
+    env.assertEquals(b'OK', ret[3])
+    env.assertEquals(b'NA', ret[5])
+    env.assertEqual(type(ret[4]), redis.exceptions.ResponseError)
+    env.assertTrue("list index out of range" in  ret[4].__str__())
 
     ret = con.execute_command(
         'AI.DAGEXECUTE',
