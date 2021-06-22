@@ -170,6 +170,9 @@ extern "C" void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor) {
     at::DeviceType device_type = getATenDeviceType(dl_tensor->device.device_type);
     at::ScalarType stype = toScalarType(dl_tensor->dtype);
     torch::Device device(device_type, dl_tensor->device.device_id);
+
+    // Capture the RAI_Tensor to be able to release it once torch is done with
+    // the tensor that we are about to create (to avoid copying of the blob).
     auto free_tensor = [src](void *data) {
         RedisAI_TensorFree(src);
     };
