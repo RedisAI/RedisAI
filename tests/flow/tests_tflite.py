@@ -101,7 +101,7 @@ def test_run_tflite_model_autobatch(env):
     env.assertEqual(idx, 112)
 
 
-def test_run_tflite_model_errors(env):
+def test_run_tflite_errors(env):
     if not TEST_TFLITE:
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
@@ -128,6 +128,19 @@ def test_run_tflite_model_errors(env):
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
                         'AI.MODELEXECUTE', 'm_2{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OUTPUTS', 1, 'd{1}')
+
+    model_pb = load_file_content('lite-model_imagenet_mobilenet_v3_small_100_224_classification_5_default_1.tflite')
+    _, _, _, img = load_resnet_test_data()
+
+    ret = con.execute_command('AI.MODELSTORE', 'image_net{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'dog{1}', 'UINT8', 1, img.shape[1], img.shape[0], 3,
+                              'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    # The model expects FLOAT input, but UINT8 tensor is given.
+    check_error_message(env, con, "Input tensor type doesn't match the type expected by the model definition",
+                        'AI.MODELEXECUTE', 'image_net{1}', 'INPUTS', 1, 'dog{1}', 'OUTPUTS', 1, 'output{1}')
 
 
 def test_tflite_modelinfo(env):

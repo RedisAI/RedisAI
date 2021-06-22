@@ -53,6 +53,7 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
     return dtype;
 }
 
+
 static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id) {
     DLDevice device;
     device.device_id = device_id;
@@ -76,29 +77,52 @@ size_t dltensorBytes(DLManagedTensor *t) {
 void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tflite_input,
                         DLManagedTensor *input) {
     TfLiteTensor *tensor = interpreter->tensor(tflite_input);
-
     size_t nbytes = dltensorBytes(input);
+    DLDataType dltensor_type = input->dl_tensor.dtype;
+    const char *type_mismatch_msg = "Input tensor type doesn't match the type expected"
+                            " by the model definition";
 
     switch (tensor->type) {
     case kTfLiteUInt8:
-        memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
-        break;
+       if (dltensor_type.code != kDLUInt) {
+           throw std::logic_error(type_mismatch_msg);
+       }
+       memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
+       break;
     case kTfLiteInt64:
+        if (dltensor_type.code != kDLInt) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int64_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt32:
+        if (dltensor_type.code != kDLInt) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int32_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt16:
+        if (dltensor_type.code != kDLInt) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int16_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt8:
+        if (dltensor_type.code != kDLInt) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int8_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteFloat32:
+        if (dltensor_type.code != kDLFloat) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<float>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteBool:
+        if (dltensor_type.code != kDLBool) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as input tensor data type");
