@@ -6,7 +6,7 @@ set -e
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
 
 ROOT=$HERE/../../..
-. $ROOT/opt/readies/shibumi/functions
+#. $ROOT/opt/readies/shibumi/functions
 ROOT=$(realpath $ROOT)
 
 if [[ "$1" == "cpu" || $CPU == 1 ]]; then
@@ -24,8 +24,13 @@ else
 	fi
 fi
 
-OS=$(python3 $ROOT/opt/readies/bin/platform --os)
-ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
+# set them internally or externally
+if [ -z ${OS} ]; then
+    OS=$(python3 $ROOT/opt/readies/bin/platform --os)
+fi
+if [ -z ${ARCH} ]; then
+    ARCH=$(python3 $ROOT/opt/readies/bin/platform --arch)
+fi
 
 TARGET_DIR=$ROOT/deps/$OS-$ARCH-$DEVICE
 
