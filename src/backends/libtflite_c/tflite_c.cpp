@@ -84,43 +84,43 @@ void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tf
 
     switch (tensor->type) {
     case kTfLiteUInt8:
-       if (dltensor_type.code != kDLUInt) {
+       if (dltensor_type.code != kDLUInt || dltensor_type.bits != 8) {
            throw std::logic_error(type_mismatch_msg);
        }
        memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
        break;
     case kTfLiteInt64:
-        if (dltensor_type.code != kDLInt) {
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 64) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<int64_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt32:
-        if (dltensor_type.code != kDLInt) {
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 32) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<int32_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt16:
-        if (dltensor_type.code != kDLInt) {
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 16) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<int16_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt8:
-        if (dltensor_type.code != kDLInt) {
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 8) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<int8_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteFloat32:
-        if (dltensor_type.code != kDLFloat) {
+        if (dltensor_type.code != kDLFloat || dltensor_type.bits != 32) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<float>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteBool:
-        if (dltensor_type.code != kDLBool) {
+        if (dltensor_type.code != kDLBool || dltensor_type.bits != 8) {
             throw std::logic_error(type_mismatch_msg);
         }
         memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
