@@ -242,7 +242,8 @@ void *RAI_RDBLoadScript_v3(RedisModuleIO *io) {
             goto cleanup;
         }
         RAI_ClearError(&err);
-        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+        script = RAI_ScriptCompile(devicestr, tag, scriptdef, (const char **)entryPoints,
+                                   nEntryPoints, &err);
     }
 
     if (err.code != RAI_OK) {
