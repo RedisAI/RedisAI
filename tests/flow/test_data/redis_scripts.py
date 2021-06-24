@@ -22,8 +22,12 @@ def redis_hash_to_tensor(redis_value: Any):
     l  = [torch.tensor(int(str(v))).reshape(1,1) for v in values]
     return torch.cat(l, dim=0)
 
-def test_redis_error(key:str):
-    redis.execute("SET", key)
+def test_redis_command_error(key:str):
+    redis.execute("SET", key)  # missing the required value argument
+
+def test_redis_error_message(key:str):
+    redis.execute("HSET", key, "field", "value")
+    redis.execute("RPUSH", key, "some_value")  # list command on a hash type
 
 def test_int_set_get(key:str, value:int):
     redis.execute("SET", key, str(value))
@@ -72,3 +76,19 @@ def test_set_key(key:str, value:str):
 
 def test_del_key(key:str):
     redis.execute("DEL", [key])
+
+
+def test_model_execute(keys:List[str]):
+    a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    return redisAI.model_execute(keys[0], [a, b], 1)  # assume keys[0] is the model key name saved in redis
+
+
+def test_model_execute_onnx(keys:List[str]):
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis
+
+
+def test_model_execute_onnx_bad_input(keys:List[str]):
+    a = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis
