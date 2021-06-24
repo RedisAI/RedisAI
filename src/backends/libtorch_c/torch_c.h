@@ -15,9 +15,9 @@ typedef struct TorchFunctionInputCtx {
     size_t argsCount;
     RedisModuleString **keys;
     size_t keysCount;
-    bool noEntryPoint; // TODO: remove this when SCRIPTRUN is EOL. Indication that the script was
-                       // stored with SCRIPTSET and and SCRIPTSTORE, such that it has no entry
-                       // point, so execution is best effort.
+    bool hasEntryPoint; // TODO: remove this when SCRIPTRUN is EOL. Indication that the script was
+                        // stored with SCRIPTSET and not SCRIPTSTORE, such that it has no entry
+                        // point, so execution is best effort.
 } TorchFunctionInputCtx;
 
 /**
@@ -157,7 +157,7 @@ const char *torchScript_FunctionName(void *scriptCtx, size_t fn_index);
 size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 
 /**
- * @brief Return the number of arguments in the fuction numbered fn_index in the script.
+ * @brief Return the number of arguments of a given fuction in the script.
  *
  * @param scriptCtx Script context.
  * @param functionName Function name.
@@ -166,7 +166,7 @@ size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
 size_t torchScript_FunctionArgumentCountByFunctionName(void *scriptCtx, const char *functionName);
 
 /**
- * @brief Rerturns the type of the argument at arg_index of function numbered fn_index in the
+ * @brief Returns the type of the argument at arg_index of function numbered fn_index in the
  * script.
  *
  * @param scriptCtx Script context.
@@ -178,7 +178,7 @@ TorchScriptFunctionArgumentType torchScript_FunctionArgumentType(void *scriptCtx
                                                                  size_t arg_index);
 
 /**
- * @brief Rerturns the type of the argument at arg_index of function numbered fn_index in the
+ * @brief Returns the type of the argument at arg_index of a given function in the
  * script.
  *
  * @param scriptCtx Script context.

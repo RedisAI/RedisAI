@@ -110,7 +110,7 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
 void RAI_AOFRewriteScript(RedisModuleIO *aof, RedisModuleString *key, void *value) {
     RAI_Script *script = (RAI_Script *)value;
-    RedisModuleString **args = array_new(RedisModuleString *, 4);
+    RedisModuleString **args = array_new(RedisModuleString *, 9);
     args = array_append(args, RedisModule_CreateStringFromString(NULL, key));
     args = array_append(
         args, RedisModule_CreateString(NULL, script->devicestr, strlen(script->devicestr)));
@@ -131,7 +131,7 @@ void RAI_AOFRewriteScript(RedisModuleIO *aof, RedisModuleString *key, void *valu
     args = array_append(
         args, RedisModule_CreateString(NULL, script->scriptdef, strlen(script->scriptdef)));
 
-    RedisModule_EmitAOF(aof, "AI.SCRIPTSTORE", "v", args);
+    RedisModule_EmitAOF(aof, "AI.SCRIPTSTORE", "v", args, array_len(args));
     for (size_t i = 0; i < array_len(args); i++) {
         RedisModule_FreeString(NULL, args[i]);
     }

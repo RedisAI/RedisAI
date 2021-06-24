@@ -718,101 +718,14 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc != 5 && argc != 7)
-        return RedisModule_WrongArity(ctx);
-
-    ArgsCursor ac;
-    ArgsCursor_InitRString(&ac, argv + 1, argc - 1);
-
-    RedisModuleString *keystr;
-    AC_GetRString(&ac, &keystr, 0);
-
-    const char *devicestr;
-    AC_GetString(&ac, &devicestr, NULL, 0);
-
-    RedisModuleString *tag = NULL;
-    if (AC_AdvanceIfMatch(&ac, "TAG")) {
-        AC_GetRString(&ac, &tag, 0);
-    }
-
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
-    }
-
-    size_t scriptlen;
-    const char *scriptdef = NULL;
-
-    if (AC_AdvanceIfMatch(&ac, "SOURCE")) {
-        AC_GetString(&ac, &scriptdef, &scriptlen, 0);
-    }
-
-    if (scriptdef == NULL) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
-    }
-
-    RAI_Script *script = NULL;
-
-    RAI_Error err = {0};
-    script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
-
-    if (err.code == RAI_EBACKENDNOTLOADED) {
-        RedisModule_Log(ctx, "warning",
-                        "Backend TORCH not loaded, will try loading default backend");
-        int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
-        if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "warning", "Could not load TORCH default backend");
-            int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
-            RAI_ClearError(&err);
-            return ret;
-        }
-        RAI_ClearError(&err);
-        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
-    }
-
-    if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-        printf("ERR: %s\n", err.detail);
-#endif
-        int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-        RAI_ClearError(&err);
-        return ret;
-    }
-
-    if (!RunQueue_IsExists(devicestr)) {
-        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
-        if (run_queue_info == NULL) {
-            RAI_ScriptFree(script, &err);
-            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
-        }
-    }
-
-    RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
-    int type = RedisModule_KeyType(key);
-    if (type != REDISMODULE_KEYTYPE_EMPTY &&
-        !(type == REDISMODULE_KEYTYPE_MODULE &&
-          RedisModule_ModuleTypeGetType(key) == RAI_ScriptRedisType())) {
-        RedisModule_CloseKey(key);
-        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
-    }
-
-    RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
-
-    script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
-
-    RedisModule_CloseKey(key);
-
-    RedisModule_ReplyWithSimpleString(ctx, "OK");
-
-    RedisModule_ReplicateVerbatim(ctx);
-
-    return REDISMODULE_OK;
+    RedisModule_Log(ctx, "warning",
+                    "AI.SCRIPTSET command is deprecated and will"
+                    " not be available in future version, you can use AI.SCRIPTSTORE instead");
+    return ScriptSetCommand(ctx, argv, argc);
 }
 
-/*
- * Todo: this is temporary until we implement the new command, for testing broadcast in DMC
- */
 int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    // AI.SCRIPTSET <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
+    // AI.SCRIPTSTORE <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
     if (argc < 8)
         return RedisModule_WrongArity(ctx);
 

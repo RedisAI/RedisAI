@@ -364,7 +364,7 @@ extern "C" void torchRunScript(void *scriptCtx, const char *fnName,
         torch::Device device(device_type, ctx->device_id);
 
         torch::jit::Stack stack;
-        if(inputsCtx->noEntryPoint) {
+        if(!inputsCtx->hasEntryPoint) {
             /* In case of no entry point, this might be due to a usage in a script set by the deprecated API.
              * In this case, until SCRIPTSET is EOL we will allow functions, called by SCRIPTRUN or SCRIPTEXECUTE, and those
              * functions are not in the endpoint set to be executed in "best effort" manner.
