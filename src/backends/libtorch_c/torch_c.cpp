@@ -1,5 +1,7 @@
+#define BACKENDS_API_EXTERN
 #include "torch_c.h"
 #include "torch/torch.h"
+#include "backends/backends_api.h"
 #include "redismodule.h"
 #include "ATen/Functions.h"
 #include "torch/csrc/jit/serialization/import.h"
@@ -157,12 +159,32 @@ at::ScalarType toScalarType(const DLDataType &dtype) {
 torch::Tensor fromDLPack(const DLTensor *src) {
     at::DeviceType device_type = getATenDeviceType(src->device.device_type);
     at::ScalarType stype = toScalarType(src->dtype);
-    // torch::Device device(device_type, src->ctx.device_id);
-    torch::Device device(device_type, -1);
-    // torch::DeviceType device = device_type;
+    torch::Device device(device_type, src->device.device_id);
     return torch::from_blob(src->data, at::IntArrayRef(src->shape, src->ndim),
                             at::IntArrayRef(src->strides, src->ndim),
                             torch::device(device).dtype(stype));
+}
+
+extern "C" void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor) {
+    DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(src);
+    at::DeviceType device_type = getATenDeviceType(dl_tensor->device.device_type);
+    at::ScalarType stype = toScalarType(dl_tensor->dtype);
+    torch::Device device(device_type, dl_tensor->device.device_id);
+
+    // Capture the RAI_Tensor to be able to release it once torch is done with
+    // the tensor that we are about to create (to avoid copying of the blob).
+    auto free_tensor = [src](void *data) {
+        RedisAI_TensorFree(src);
+    };
+
+    // Create torch tensor with the tensor's blob, and send a deleter callback
+    // for torch to use to release the RAI_Tensor when it finishes.
+    *static_cast<torch::Tensor *>(torch_tensor) =
+      torch::Tensor(torch::from_blob(dl_tensor->data,
+      at::IntArrayRef(dl_tensor->shape, dl_tensor->ndim),
+      at::IntArrayRef(dl_tensor->strides, dl_tensor->ndim),
+      free_tensor,
+      torch::device(device).dtype(stype)));
 }
 
 struct ATenDLMTensor {
@@ -182,7 +204,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.manager_ctx = atDLMTensor;
     atDLMTensor->tensor.deleter = &deleter;
     atDLMTensor->tensor.dl_tensor.data = src.data_ptr();
-    int64_t device_id = 0;
+    int64_t device_id = -1;  // This should be used for the default 'CPU' device.
     if (src.is_cuda()) {
         device_id = src.get_device();
     }
@@ -193,6 +215,10 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t *>(src.strides().data());
     atDLMTensor->tensor.dl_tensor.byte_offset = 0;
     return &(atDLMTensor->tensor);
+}
+
+extern "C" DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src) {
+    return toManagedDLPack(*static_cast<const torch::Tensor *>(src));
 }
 
 struct ModuleContext {

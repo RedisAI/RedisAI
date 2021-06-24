@@ -5,7 +5,7 @@
 #include <pthread.h>
 #include "util/string_utils.h"
 #include "redis_ai_objects/stats.h"
-#include "backedns_api.h"
+#include "backends_api.h"
 
 int RAI_InitGlobalRunSessionsORT() {
     onnx_global_run_sessions = RedisModule_Alloc(sizeof(OnnxGlobalRunSessions));
