@@ -138,7 +138,7 @@ commands:
             - artifacts/*.tgz
             - artifacts/*.tar
       - store_artifacts:
-          path: tests/logs
+          path: tests/flow/logs
 
   valgrind-general-steps:
     parameters:
@@ -194,7 +194,7 @@ commands:
             docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: tests/logs
+          path: tests/flow/logs
 
 
 
@@ -254,8 +254,6 @@ jobs:
           root: bin/
           paths:
             - artifacts/*
-      - store_artifacts:
-          path: test/logs
 
   coverage:
     docker:
