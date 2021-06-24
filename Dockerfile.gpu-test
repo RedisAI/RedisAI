@@ -23,7 +23,12 @@ SHELL ["/bin/bash", "-c"]
 
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
-
+ENV LANG=en_US.UTF-8
+RUN apt-get update
+RUN apt-get install -y locales && \
+    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=$LANG
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 

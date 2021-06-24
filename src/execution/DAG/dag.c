@@ -584,8 +584,12 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
-            RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
-            ReplyWithTensor(ctx, currentOp->fmt, t);
+            if (currentOp->result == -1) {
+                RedisModule_ReplyWithSimpleString(ctx, "NA");
+            } else {
+                RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
+                ReplyWithTensor(ctx, currentOp->fmt, t);
+            }
             break;
         }
 
