@@ -194,7 +194,7 @@ commands:
             docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: $HOME/tests
+          path: /home/circleci/tests
 
 
 jobs:
