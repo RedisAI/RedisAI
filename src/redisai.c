@@ -212,22 +212,22 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     unsigned long long minbatchsize = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHSIZE")) {
-        if (batchsize == 0) {
-            return RedisModule_ReplyWithError(ctx, "ERR MINBATCHSIZE specified without BATCHSIZE");
-        }
         if (AC_GetUnsignedLongLong(&ac, &minbatchsize, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHSIZE");
+        }
+        if (batchsize == 0 && minbatchsize > 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR MINBATCHSIZE specified without BATCHSIZE");
         }
     }
 
     unsigned long long minbatchtimeout = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHTIMEOUT")) {
-        if (minbatchsize == 0) {
-            return RedisModule_ReplyWithError(ctx,
-                                              "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
-        }
         if (AC_GetUnsignedLongLong(&ac, &minbatchtimeout, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHTIMEOUT");
+        }
+        if (minbatchsize == 0 && minbatchtimeout > 0) {
+            return RedisModule_ReplyWithError(ctx,
+                                              "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
         }
     }
     RAI_ModelOpts opts = {
