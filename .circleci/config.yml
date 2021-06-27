@@ -191,10 +191,10 @@ commands:
           name: Test
           command: |
             mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
+            docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-x64-bionic-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: $HOME/tests
+          path: /home/circleci/tests
 
 
 jobs:
@@ -281,6 +281,8 @@ jobs:
             make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
           no_output_timeout: 30m
+      - store_artifacts:
+          path: tests/flow/logs
 
   valgrind:
     parameters:
