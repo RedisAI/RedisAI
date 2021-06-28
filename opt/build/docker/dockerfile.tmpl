@@ -9,7 +9,7 @@ ARG TEST={{REDIS_TEST}}
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
 {% if gpu_build is defined %}
-FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu18.04 AS builder
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu{{REDIS_CUDA_UBUNTUVERSION}} AS builder
 {% else %}
 FROM {{REDIS_OS}} AS builder
 {% endif %}
@@ -63,7 +63,7 @@ RUN set -e ;\
 
 #----------------------------------------------------------------------------------------------
 {% if gpu_build is defined %}
-FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-ubuntu18.04
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-ubuntu{{REDIS_CUDA_UBUNTUVERSION}}
 {% else %}
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 {% endif %}
