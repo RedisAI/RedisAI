@@ -75,6 +75,7 @@ REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateByConcatenatingTenso
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateBySlicingTensor)(RAI_Tensor *t,
                                                                              long long offset,
                                                                              long long len);
+
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorLength)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataSize)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataType)(RAI_Tensor *t);

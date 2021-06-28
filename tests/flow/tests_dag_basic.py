@@ -230,31 +230,31 @@ def test_dag_with_timeout(env):
 
     env.assertEqual(b'TIMEDOUT', res)
 
-def test_dag_with_timeout(env):
+
+def test_dag_with_error(env):
     if not TEST_TF:
         return
+
     con = env.getConnection()
-    batch_size = 2
-    minbatch_size = 2
-    timeout = 1
-    model_name = 'model{1}'
-    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
+    tf_model = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'tf_model{1}', 'TF', DEVICE,
+                        'INPUTS', 2, 'a', 'b',
+                        'OUTPUTS', 1, 'mul',
+                        'BLOB', tf_model)
+    env.assertEqual(b'OK', ret)
 
-    con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
-                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', 1, input_var,
-                        'OUTPUTS', 1, output_var,
-                        'BLOB', model_pb)
-    con.execute_command('AI.TENSORSET', 'input{1}',
-                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
-                        'BLOB', img.tobytes())
+    # Run the model from DAG context, where MODELEXECUTE op fails due to dim mismatch in one of the tensors inputs:
+    # the input tensor 'b' is considered as tensor with dim 2X2X3 initialized with zeros, while the model expects that
+    # both inputs to node 'mul' will be with dim 2.
+    ret = con.execute_command('AI.DAGEXECUTE_RO', 'KEYS', 1, '{1}',
+                              '|>', 'AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3,
+                              '|>', 'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 3,
+                              '|>', 'AI.MODELEXECUTE', 'tf_model{1}', 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'tD',
+                              '|>', 'AI.TENSORGET', 'tD', 'VALUES')
 
-    res = con.execute_command('AI.DAGEXECUTE',
-                              'LOAD', '1', 'input{1}',
-                              'TIMEOUT', timeout, '|>',
-                              'AI.MODELEXECUTE', model_name,
-                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}',
-                              '|>', 'AI.MODELEXECUTE', model_name,
-                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
-
-    env.assertEqual(b'TIMEDOUT', res)
+    # Expect that the MODELEXECUTE op will raise an error, and the last TENSORGET op will not be executed
+    env.assertEqual(ret[0], b'OK')
+    env.assertEqual(ret[1], b'OK')
+    env.assertEqual(ret[3], b'NA')
+    env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
+    env.assertTrue(str(ret[2]).find('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]') >= 0)

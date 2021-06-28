@@ -9,7 +9,7 @@
 #include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
-#include "backedns_api.h"
+#include "backends_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
 // A label "error" must exist in every function that uses this macro.
@@ -269,7 +269,8 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     }
 
     ret = RAI_TensorNew();
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    // Default device is CPU (id -1 is default, means 'no index')
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))
 

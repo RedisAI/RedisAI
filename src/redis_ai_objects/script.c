@@ -74,7 +74,6 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
         RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
                         RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
-        return REDISMODULE_ERR;
 #else
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");

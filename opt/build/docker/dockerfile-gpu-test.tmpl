@@ -23,6 +23,13 @@ SHELL ["/bin/bash", "-c"]
 
 {% include "templates/gpu.yml" %}
 
+ENV LANG=en_US.UTF-8
+RUN apt-get update
+RUN apt-get install -y locales && \
+    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=$LANG
+
 WORKDIR /build
 ADD ./ /build
 COPY --from=redis /usr/local/ /usr/local/
