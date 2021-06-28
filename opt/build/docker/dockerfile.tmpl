@@ -79,11 +79,6 @@ ENV LD_LIBRARY_PATH $REDIS_MODULES
 RUN mkdir -p $REDIS_MODULES/
 
 {% if gpu_build is defined %}
-COPY --from=redis /usr/local/ /usr/local/
-COPY --from=builder /usr/lib/x86_64-linux-gnu/libcu* /usr/lib/x86_64-linux-gnu/
-{% endif %}
-
-{% if gpu_build is defined %}
 COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
 {% else %}
 COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
