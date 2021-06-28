@@ -277,7 +277,7 @@ def test_pytorch_scriptget(env):
 
     # return meta + source
     _, device, _, tag, _, source = con.execute_command('AI.SCRIPTGET', 'ket{1}')
-    env.assertEqual([device, tag, source], [b"CPU", b"asdf", script])
+    env.assertEqual([device, tag, source], [DEVICE, b"asdf", script])
     # return source only
     source = con.execute_command('AI.SCRIPTGET', 'ket{1}', 'SOURCE')
     env.assertEqual(source, script)
