@@ -174,19 +174,12 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
+      - relocate-docker-storage
       - run:
           name: Build
           command: |
-            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
+            pushd opt/build/docker
+            make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
       - run:
           name: Test
           command: |
@@ -195,7 +188,6 @@ commands:
           no_output_timeout: 40m
       - store_artifacts:
           path: /home/circleci/tests
-
 
 jobs:
   lint:
@@ -235,13 +227,15 @@ jobs:
       - setup_remote_docker
       - checkout-all
       - setup-automation
+
+      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
       - run:
           name: Build for platform
           command: |
             bash <(curl -fsSL https://get.docker.com)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build <<parameters.target>> OSNICK=<<parameters.osnick>> ARTIFACTS=1 VERBOSE=1 <<parameters.lite>>
+            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -574,7 +568,7 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 publish PUSH_GENERAL=1 OFFICIAL=1"
+                - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
