@@ -178,7 +178,7 @@ commands:
       - run:
           name: Build
           command: |
-            pip install --user jinja2
+            ./opt/readies/bin/getpy3
             pushd opt/build/docker
             make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
       - run:
