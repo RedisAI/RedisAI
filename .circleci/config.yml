@@ -178,13 +178,14 @@ commands:
       - run:
           name: Build
           command: |
+            pip install --user jinja2
             pushd opt/build/docker
             make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
       - run:
           name: Test
           command: |
             mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-x64-bionic-test
+            docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-test
           no_output_timeout: 40m
       - store_artifacts:
           path: /home/circleci/tests
