@@ -232,7 +232,7 @@ jobs:
       - run:
           name: Build for platform
           command: |
-            bash <(curl -fsSL https://get.docker.com)
+            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
