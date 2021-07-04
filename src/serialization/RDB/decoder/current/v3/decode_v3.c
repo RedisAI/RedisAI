@@ -20,7 +20,9 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
 
     // For now we only support CPU tensors (except during model and script run)
     assert(device.device_type == kDLCPU);
-    assert(device.device_id == 0);
+    if (device.device_id != -1) {
+        device.device_id = -1;
+    }
 
     DLDataType dtype;
     dtype.bits = RedisModule_LoadUnsigned(io);
