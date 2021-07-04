@@ -820,7 +820,7 @@ It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
 By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
-Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify keys in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `KEYS`.  
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify a tag or key which will assist for the routing of the DAG execution on the right shard in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `ROUTING`.  
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
@@ -832,7 +832,7 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 ```
 AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
           [PERSIST <n> <key-1> <key-2> ... <key-n>] |
-          [KEYS <n> <key-1> <key-2> ... <key-n>]]+
+          [ROUTING <routing_tag>]]+
           [TIMEOUT t]
           |> <command> [|>  command ...]
 ```
@@ -841,9 +841,9 @@ _Arguments_
 
 * **LOAD**: denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **KEYS**: denotes the beginning of keys' list which are used within this command, followed by the number of keys, and one or more key names. Alternately, the keys names list can be replaced with a tag which all of those keys share. Redis will verify that all potential key accesses are done to the right shard.
+* **ROUTING**: denotes the a key name or a tag that will assist in routing the dag execution command to the right shard. Redis will verify that all potential key accesses are done to within the target shard.
 
-_While each of the LOAD, PERSIST and KEYS sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
+_While each of the LOAD, PERSIST and ROUTING sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
 * **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
     * `AI.TENSORSET`
@@ -873,9 +873,9 @@ redis> AI.DAGEXECUTE PERSIST 1 predictions{tag} |>
 1) OK
 2) OK
 3) 1) FLOAT
-   2) 1) (integer) 2
-      2) (integer) 2
-   3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+   1) 1) (integer) 2
+      1) (integer) 2
+   2) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
 A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
@@ -883,7 +883,7 @@ A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands w
 To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
 
 ```
-redis> AI.DAGEXECUTE KEYS 1 {tag} |> 
+redis> AI.DAGEXECUTE ROUTING {tag} |> 
             AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
             AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
             AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 

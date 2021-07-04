@@ -161,13 +161,9 @@ def test_keys_syntax(env):
                                   "of given arguments",
                         "AI.SCRIPTEXECUTE script{1} bar KEYS 2 key{1}")
 
-    # ERR KEYS missing in AI.SCRIPTEXECUTE
-    check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command",
-                        "AI.SCRIPTEXECUTE script{1} bar INPUTS 2 a{1} a{1}")
-
-    # # ERR KEYS section in an inner AI.SCRIPTEXEUTE command within a DAG is not allowed.
-    # check_error_message(env, con, "Already encountered KEYS scope in current command",
-    #                     "AI.DAGEXECUTE KEYS 1 a{1} |> AI.SCRIPTEXECUTE script{1} bar KEYS 1 a{1}")
+    # ERR KEYS or INPUTS missing in AI.SCRIPTEXECUTE
+    check_error_message(env, con, "KEYS or INPUTS scope must be provided first for AI.SCRIPTEXECUTE command",
+                        "AI.SCRIPTEXECUTE script{1} bar OUTPUTS 2 a{1} a{1}")
 
 
 def test_scriptstore(env):
@@ -293,7 +289,7 @@ def test_pytorch_scriptexecute_errors(env):
 
     check_error_message(env, con, "Invalid arguments provided to AI.SCRIPTEXECUTE", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1, '{1}', 'ARGS')
 
-    check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
+    check_error_message(env, con, "Invalid argument for inputs count in AI.SCRIPTEXECUTE", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
 
     check_error_message(env, con, "Invalid value for TIMEOUT",'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1, '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', 'TIMEOUT', 'TIMEOUT')
 

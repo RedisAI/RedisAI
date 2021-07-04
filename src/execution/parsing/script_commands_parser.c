@@ -147,17 +147,25 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
     if (keysRequired) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, "KEYS")) {
-            keysDone = true;
             argpos++;
+            keysDone = true;
             if (_ScriptExecuteCommand_ParseKeys(ctx, argv, argc, &argpos, error, sctx) ==
                 REDISMODULE_ERR) {
                 return REDISMODULE_ERR;
             }
+        } else if (!strcasecmp(arg_string, "INPUTS")) {
+            argpos++;
+            inputsDone = true;
+            if (_ScriptExecuteCommand_ParseInputs(ctx, argv, argc, &argpos, error, inputs) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
+            }
         }
-        // argv[3] is not KEYS in AI.SCRIPTEXECUTE command (i.e., not in a DAG).
+        // argv[3] is not KEYS or INPUTS in AI.SCRIPTEXECUTE command (i.e., not in a DAG).
         else {
-            RAI_SetError(error, RAI_ESCRIPTRUN,
-                         "ERR KEYS scope must be provided first for AI.SCRIPTEXECUTE command");
+            RAI_SetError(
+                error, RAI_ESCRIPTRUN,
+                "ERR KEYS or INPUTS scope must be provided first for AI.SCRIPTEXECUTE command");
             return REDISMODULE_ERR;
         }
     }

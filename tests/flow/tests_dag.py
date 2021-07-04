@@ -388,15 +388,15 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
     ensureSlaveSynced(con, env)
 
     check_error_message(env, con, "INPUT key cannot be found in DAG",
-                        'AI.DAGEXECUTE', 'KEYS', '1', image_key, '|>', 'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
+                        'AI.DAGEXECUTE', 'ROUTING', image_key, '|>', 'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
                         'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1)
 
     check_error_message(env, con, "INPUT key cannot be found in DAG",
-                        'AI.DAGEXECUTE', 'KEYS', '1', image_key, '|>', 'AI.MODELEXECUTE', model_name_0,
+                        'AI.DAGEXECUTE', 'ROUTING',  image_key, '|>', 'AI.MODELEXECUTE', model_name_0,
                         'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1)
 
     ret = con.execute_command('AI.DAGEXECUTE', 
-                            'KEYS', 1, '{1}','|>',
+                            'ROUTING', '{1}','|>',
                             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),'|>',
                             'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
                             'INPUTS', 1, image_key,
@@ -406,7 +406,7 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
     env.assertEquals("Function does not exist: wrong_fn",  ret[1].__str__())
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
-                        'AI.DAGEXECUTE', 'KEYS', 1, '{1}',
+                        'AI.DAGEXECUTE', 'ROUTING', '{1}',
                         '|>', 'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
                         '|>',
                         'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
