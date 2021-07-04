@@ -671,7 +671,7 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_OK;
     }
 
-    int outentries = source ? 6 : 4;
+    int outentries = source ? 8 : 6;
 
     RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
@@ -681,6 +681,12 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     if (source) {
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
+    }
+    RedisModule_ReplyWithCString(ctx, "Entry Points");
+    size_t nEntryPoints = array_len(sto->entryPoints);
+    RedisModule_ReplyWithArray(ctx, nEntryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        RedisModule_ReplyWithCString(ctx, sto->entryPoints[i]);
     }
     return REDISMODULE_OK;
 }
@@ -712,7 +718,15 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc != 5 && argc != 7)
+    RedisModule_Log(ctx, "warning",
+                    "AI.SCRIPTSET command is deprecated and will"
+                    " not be available in future version, you can use AI.SCRIPTSTORE instead");
+    return ScriptSetCommand(ctx, argv, argc);
+}
+
+int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    // AI.SCRIPTSTORE <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
+    if (argc < 8)
         return RedisModule_WrongArity(ctx);
 
     ArgsCursor ac;
@@ -729,8 +743,25 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         AC_GetRString(&ac, &tag, 0);
     }
 
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
+    long long nEntryPoints;
+    if (AC_AdvanceIfMatch(&ac, "ENTRY_POINTS")) {
+        if (AC_GetLongLong(&ac, &nEntryPoints, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Non numeric entry points number provided to AI.SCRIPTSTORE command");
+        }
+    } else {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Insufficient arguments, missing script entry points");
+    }
+
+    array_new_on_stack(const char *, nEntryPoints, entryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        const char *entryPoint;
+        if (AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Insufficient arguments, missing script entry points");
+        }
+        entryPoints = array_append(entryPoints, entryPoint);
     }
 
     size_t scriptlen;
@@ -747,7 +778,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RAI_Script *script = NULL;
 
     RAI_Error err = {0};
-    script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+    script = RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
 
     if (err.code == RAI_EBACKENDNOTLOADED) {
         RedisModule_Log(ctx, "warning",
@@ -760,13 +791,11 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
             return ret;
         }
         RAI_ClearError(&err);
-        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+        script =
+            RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
     }
 
     if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-        printf("ERR: %s\n", err.detail);
-#endif
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -800,13 +829,6 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_ReplicateVerbatim(ctx);
 
     return REDISMODULE_OK;
-}
-
-/*
- * Todo: this is temporary until we implement the new command, for testing broadcast in DMC
- */
-int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    return RedisAI_ScriptSet_RedisCommand(ctx, argv, argc);
 }
 
 /**
@@ -1094,16 +1116,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);

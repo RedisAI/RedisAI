@@ -27,6 +27,5 @@ typedef struct RAI_Script {
     RedisModuleString *tag;
     long long refCount;
     void *infokey;
-    AI_dict *functionData; // A <String, TorchScriptFunctionArgumentType*> dict to map between
-                           // function name, and its schema.
+    char **entryPoints;
 } RAI_Script;

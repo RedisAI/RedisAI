@@ -4,171 +4,216 @@
 #include "util/string_utils.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
-static bool _Script_buildInputsBySchema(RAI_ScriptRunCtx *sctx, RedisModuleString **inputs,
-                                        RedisModuleString ***inkeys, RAI_Error *error) {
-    int signatureListCount = 0;
+static int _ScriptExecuteCommand_ParseKeys(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
+                                           size_t *argpos, RAI_Error *error,
+                                           RAI_ScriptRunCtx *sctx) {
+    size_t localArgpos = *argpos;
+    const int keys_validation_result =
+        ValidateKeysArgs(ctx, &argv[localArgpos - 1], argc - (localArgpos - 1), error);
+    if (keys_validation_result <= 0)
+        return REDISMODULE_ERR;
 
-    TorchScriptFunctionArgumentType *signature = RAI_ScriptRunCtxGetSignature(sctx);
-    if (!signature) {
+    if (localArgpos >= argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    long long nKeys;
+    if (RedisModule_StringToLongLong(argv[localArgpos], &nKeys) != REDISMODULE_OK) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "Wrong function name given to AI.SCRIPTEXECUTE command");
-        return false;
+                     "ERR Invalid argument for keys count in AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
     }
-    size_t nlists = array_len(sctx->listSizes);
-    size_t nArguments = array_len(signature);
-    size_t nInputs = array_len(inputs);
-    size_t inputsIdx = 0;
-    size_t listIdx = 0;
-
-    if (nInputs < nArguments) {
+    // Check validity of keys numbers.
+    localArgpos++;
+    size_t firstKeyPos = localArgpos;
+    if (firstKeyPos + nKeys > argc) {
         RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "Wrong number of inputs provided to AI.SCRIPTEXECUTE command");
-        return false;
+                     "ERR number of keys to AI.SCRIPTEXECUTE command does not match "
+                     "the number of given arguments");
+        return REDISMODULE_ERR;
     }
-    for (size_t i = 0; i < nArguments; i++) {
-        switch (signature[i]) {
-        case UNKOWN: {
-            RAI_SetError(error, RAI_ESCRIPTRUN,
-                         "Unsupported argument type in AI.SCRIPTEXECUTE command");
-            return false;
-        }
-        case TENSOR_LIST: {
-            // Collect the inputs tensor names from the current list
-            signatureListCount++;
-            if (signatureListCount > nlists) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
-                return false;
-            }
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
-            for (size_t j = 0; j < listLen; j++) {
-                *inkeys = array_append(*inkeys, RAI_HoldString(inputs[inputsIdx++]));
-            }
-            break;
-        }
-        case INT_LIST: {
-            signatureListCount++;
-            if (signatureListCount > nlists) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
-                return false;
-            }
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
-            for (size_t j = 0; j < listLen; j++) {
-                long long l;
-                RedisModule_StringToLongLong(inputs[inputsIdx++], &l);
-                RAI_ScriptRunCtxAddIntInput(sctx, (int32_t)l);
-            }
-            break;
-        }
-        case FLOAT_LIST: {
-            signatureListCount++;
-            if (signatureListCount > nlists) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
-                return false;
-            }
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
-            for (size_t j = 0; j < listLen; j++) {
-                double d;
-                RedisModule_StringToDouble(inputs[inputsIdx++], &d);
-                RAI_ScriptRunCtxAddFloatInput(sctx, (float)d);
-            }
-            break;
-        }
-        case STRING_LIST: {
-            signatureListCount++;
-            if (signatureListCount > nlists) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
-                return false;
-            }
-            size_t listLen = RAI_ScriptRunCtxGetInputListLen(sctx, listIdx++);
-            for (size_t j = 0; j < listLen; j++) {
-                RAI_ScriptRunCtxAddRStringInput(sctx, inputs[inputsIdx++]);
-            }
-            break;
-        }
-        case INT: {
-            long long l;
-            RedisModule_StringToLongLong(inputs[inputsIdx++], &l);
-            RAI_ScriptRunCtxAddIntInput(sctx, (int32_t)l);
-            break;
-        }
-        case FLOAT: {
-            double d;
-            RedisModule_StringToDouble(inputs[inputsIdx++], &d);
-            RAI_ScriptRunCtxAddFloatInput(sctx, (float)d);
-            break;
-        }
-        case STRING: {
-            // Input is a string.
-            RAI_ScriptRunCtxAddRStringInput(sctx, inputs[inputsIdx++]);
-            break;
-        }
-        case TENSOR:
-        default: {
-            // Input is a tensor, add its name to the inkeys.
-            *inkeys = array_append(*inkeys, RAI_HoldString(inputs[inputsIdx++]));
-            break;
-        }
-        }
+    // Add to script run context.
+    for (; localArgpos < firstKeyPos + nKeys; localArgpos++) {
+        RAI_ScriptRunCtxAddKeyInput(sctx, RAI_HoldString(argv[localArgpos]));
     }
-    if (signatureListCount != nlists) {
-        RAI_SetError(error, RAI_ESCRIPTRUN,
-                     "Wrong number of lists provided in AI.SCRIPTEXECUTE command");
-        return false;
-    }
-
-    return true;
+    *argpos = localArgpos;
+    return REDISMODULE_OK;
 }
 
 static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
-                                           RAI_Error *error, RedisModuleString ***inkeys,
-                                           RedisModuleString ***outkeys, RAI_ScriptRunCtx *sctx,
-                                           long long *timeout, bool keysRequired) {
-    int argpos = 3;
+                                           size_t *argpos, RAI_Error *error,
+                                           RAI_ScriptRunCtx *sctx) {
+    size_t localArgpos = *argpos;
+    if (localArgpos >= argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    long long nArgs;
+    if (RedisModule_StringToLongLong(argv[localArgpos], &nArgs) != REDISMODULE_OK) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR Invalid argument for keys count in AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    // Check validity of args numbers.
+    localArgpos++;
+    size_t firstArgPos = localArgpos;
+    if (firstArgPos + nArgs > argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR number of args to AI.SCRIPTEXECUTE command does not match "
+                     "the number of given arguments");
+        return REDISMODULE_ERR;
+    }
+    // Add to script run context.
+    for (; localArgpos < firstArgPos + nArgs; localArgpos++) {
+        RAI_ScriptRunCtxAddArgInput(sctx, RAI_HoldString(argv[localArgpos]));
+    }
+    *argpos = localArgpos;
+    return REDISMODULE_OK;
+}
+
+static int _ScriptExecuteCommand_ParseInputs(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                             int argc, size_t *argpos, RAI_Error *error,
+                                             RedisModuleString ***inputs) {
+    size_t localArgpos = *argpos;
+    if (localArgpos >= argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    long long nInputs;
+    if (RedisModule_StringToLongLong(argv[localArgpos], &nInputs) != REDISMODULE_OK) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR Invalid argument for inputs count in AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    // Check validity of inputs numbers.
+    localArgpos++;
+    size_t firstInputPos = localArgpos;
+    if (firstInputPos + nInputs > argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR number of inputs to AI.SCRIPTEXECUTE command does not match "
+                     "the number of given arguments");
+        return REDISMODULE_ERR;
+    }
+    // Add to inputs array.
+    for (; localArgpos < firstInputPos + nInputs; localArgpos++) {
+        *inputs = array_append(*inputs, RAI_HoldString(argv[localArgpos]));
+    }
+    *argpos = localArgpos;
+    return REDISMODULE_OK;
+}
+
+static int _ScriptExecuteCommand_ParseOutputs(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                              int argc, size_t *argpos, RAI_Error *error,
+                                              RedisModuleString ***outputs) {
+    size_t localArgpos = *argpos;
+    if (localArgpos >= argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    long long nOutputs;
+    if (RedisModule_StringToLongLong(argv[localArgpos], &nOutputs) != REDISMODULE_OK) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR Invalid argument for outputs count in AI.SCRIPTEXECUTE");
+        return REDISMODULE_ERR;
+    }
+    // Check validity of outputs numbers.
+    localArgpos++;
+    size_t firstOutputPos = localArgpos;
+    if (firstOutputPos + nOutputs > argc) {
+        RAI_SetError(error, RAI_ESCRIPTRUN,
+                     "ERR number of outputs to AI.SCRIPTEXECUTE command does not match "
+                     "the number of given arguments");
+        return REDISMODULE_ERR;
+    }
+    // Add to outputs array.
+    for (; localArgpos < firstOutputPos + nOutputs; localArgpos++) {
+        *outputs = array_append(*outputs, RAI_HoldString(argv[localArgpos]));
+    }
+    *argpos = localArgpos;
+    return REDISMODULE_OK;
+}
+
+static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
+                                              int argc, RAI_Error *error,
+                                              RedisModuleString ***inputs,
+                                              RedisModuleString ***outputs, RAI_ScriptRunCtx *sctx,
+                                              long long *timeout, bool keysRequired) {
+    size_t argpos = 3;
     bool inputsDone = false;
     bool outputsDone = false;
-    // Local input context to verify correctness.
-    array_new_on_stack(RedisModuleString *, 10, inputs);
+    bool keysDone = false;
+    bool argsDone = false;
 
     if (keysRequired) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
         if (!strcasecmp(arg_string, "KEYS")) {
-            const int parse_result = ParseKeysArgs(ctx, &argv[argpos], argc - argpos, error);
-            if (parse_result <= 0)
+            argpos++;
+            keysDone = true;
+            if (_ScriptExecuteCommand_ParseKeys(ctx, argv, argc, &argpos, error, sctx) ==
+                REDISMODULE_ERR) {
                 return REDISMODULE_ERR;
-            argpos += parse_result;
+            }
+        } else if (!strcasecmp(arg_string, "INPUTS")) {
+            argpos++;
+            inputsDone = true;
+            if (_ScriptExecuteCommand_ParseInputs(ctx, argv, argc, &argpos, error, inputs) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
+            }
         }
-        // argv[3] is not KEYS in AI.SCRIPTEXECUTE command (i.e., not in a DAG).
+        // argv[3] is not KEYS or INPUTS in AI.SCRIPTEXECUTE command (i.e., not in a DAG).
         else {
-            RAI_SetError(error, RAI_ESCRIPTRUN,
-                         "ERR KEYS scope must be provided first for AI.SCRIPTEXECUTE command");
-            goto cleanup;
+            RAI_SetError(
+                error, RAI_ESCRIPTRUN,
+                "ERR KEYS or INPUTS scope must be provided first for AI.SCRIPTEXECUTE command");
+            return REDISMODULE_ERR;
         }
     }
 
     while (argpos < argc) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
-        // See that no additional KEYS scope is provided.
-        if (!strcasecmp(arg_string, "KEYS")) {
-            RAI_SetError(error, RAI_ESCRIPTRUN,
-                         "ERR Already encountered KEYS scope in current command");
-            goto cleanup;
-        }
         // Parse timeout arg if given and store it in timeout.
         if (!strcasecmp(arg_string, "TIMEOUT")) {
             argpos++;
             if (argpos >= argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR No value provided for TIMEOUT in AI.SCRIPTEXECUTE");
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
             if (ParseTimeout(argv[argpos], error, timeout) == REDISMODULE_ERR)
-                goto cleanup;
+                return REDISMODULE_ERR;
             // No other arguments expected after timeout.
             break;
+        }
+
+        if (!strcasecmp(arg_string, "KEYS")) {
+            if (keysDone) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already Encountered KEYS scope in AI.SCRIPTEXECUTE command");
+                return REDISMODULE_ERR;
+            }
+            argpos++;
+            keysDone = true;
+            if (_ScriptExecuteCommand_ParseKeys(ctx, argv, argc, &argpos, error, sctx) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
+            }
+            continue;
+        }
+
+        if (!strcasecmp(arg_string, "ARGS")) {
+            if (argsDone) {
+                RAI_SetError(error, RAI_ESCRIPTRUN,
+                             "ERR Already Encountered ARGS scope in AI.SCRIPTEXECUTE command");
+                return REDISMODULE_ERR;
+            }
+            argpos++;
+            argsDone = true;
+            if (_ScriptExecuteCommand_ParseArgs(ctx, argv, argc, &argpos, error, sctx) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
+            }
+            continue;
         }
 
         if (!strcasecmp(arg_string, "INPUTS")) {
@@ -176,34 +221,13 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             if (inputsDone) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already Encountered INPUTS scope in AI.SCRIPTEXECUTE command");
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
+            argpos++;
             inputsDone = true;
-            // Read input number.
-            argpos++;
-            if (argpos >= argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            long long ninputs;
-            if (RedisModule_StringToLongLong(argv[argpos], &ninputs) != REDISMODULE_OK) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid argument for input count in AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            // Check validity of input numbers.
-            argpos++;
-            size_t first_input_pos = argpos;
-            if (first_input_pos + ninputs > argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR number of input keys to AI.SCRIPTEXECUTE command does not match "
-                             "the number of given arguments");
-                goto cleanup;
-            }
-            // Add to local input context.
-            for (; argpos < first_input_pos + ninputs; argpos++) {
-                inputs = array_append(inputs, RAI_HoldString(argv[argpos]));
+            if (_ScriptExecuteCommand_ParseInputs(ctx, argv, argc, &argpos, error, inputs) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
             }
             continue;
         }
@@ -212,94 +236,31 @@ static int _ScriptExecuteCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleStrin
             if (outputsDone) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR Already Encountered OUTPUTS scope in AI.SCRIPTEXECUTE command");
-                goto cleanup;
+                return REDISMODULE_ERR;
             }
-            // Update mask.
+            argpos++;
             outputsDone = true;
-            // Read output number.
-            argpos++;
-            if (argpos >= argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            long long noutputs;
-            if (RedisModule_StringToLongLong(argv[argpos], &noutputs) != REDISMODULE_OK) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid argument for output count in AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            // Check validity of output numbers.
-            argpos++;
-            size_t first_output_pos = argpos;
-            if (first_output_pos + noutputs > argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR number of output keys to AI.SCRIPTEXECUTE command does not match "
-                             "the number of given arguments");
-                goto cleanup;
-            }
-            for (; argpos < first_output_pos + noutputs; argpos++) {
-                *outkeys = array_append(*outkeys, RAI_HoldString(argv[argpos]));
+            if (_ScriptExecuteCommand_ParseOutputs(ctx, argv, argc, &argpos, error, outputs) ==
+                REDISMODULE_ERR) {
+                return REDISMODULE_ERR;
             }
             continue;
         }
-        if (!strcasecmp(arg_string, "LIST_INPUTS")) {
-            // Read list size.
-            argpos++;
-            long long ninputs;
-            if (RedisModule_StringToLongLong(argv[argpos], &ninputs) != REDISMODULE_OK) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid argument for list input count in AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            // Check validity of current list size.
-            argpos++;
-            if (argpos >= argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR Invalid arguments provided to AI.SCRIPTEXECUTE");
-                goto cleanup;
-            }
-            size_t first_input_pos = argpos;
-            if (first_input_pos + ninputs > argc) {
-                RAI_SetError(error, RAI_ESCRIPTRUN,
-                             "ERR number of list input keys to AI.SCRIPTEXECUTE command does not "
-                             "match the number of given arguments");
-                goto cleanup;
-            }
-            for (; argpos < first_input_pos + ninputs; argpos++) {
-                inputs = array_append(inputs, RAI_HoldString(argv[argpos]));
-            }
-            RAI_ScriptRunCtxAddListSize(sctx, ninputs);
-            continue;
-        }
+
         size_t error_len = strlen("ERR Invalid AI.SCRIPTEXECUTE command. Unexpected argument: ") +
                            strlen(arg_string) + 1;
         char error_str[error_len];
         sprintf(error_str, "ERR Invalid AI.SCRIPTEXECUTE command. Unexpected argument: %s",
                 arg_string);
         RAI_SetError(error, RAI_ESCRIPTRUN, error_str);
-        goto cleanup;
+        return REDISMODULE_ERR;
     }
     if (argpos != argc) {
         RAI_SetError(error, RAI_ESCRIPTRUN, "ERR Encountered problem parsing AI.SCRIPTEXECUTE");
-        goto cleanup;
+        return REDISMODULE_ERR;
     }
-
-    if (!_Script_buildInputsBySchema(sctx, inputs, inkeys, error)) {
-        goto cleanup;
-    }
-    for (size_t i = 0; i < array_len(inputs); i++) {
-        RedisModule_FreeString(ctx, inputs[i]);
-    }
-    array_free(inputs);
 
     return REDISMODULE_OK;
-cleanup:
-    for (size_t i = 0; i < array_len(inputs); i++) {
-        RedisModule_FreeString(ctx, inputs[i]);
-    }
-    array_free(inputs);
-    return REDISMODULE_ERR;
 }
 
 int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
@@ -334,9 +295,9 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
 
     sctx = RAI_ScriptRunCtxCreate(script, func_name);
     long long timeout = 0;
-    if (_ScriptExecuteCommand_ParseArgs(ctx, argv, argc, error, &currentOp->inkeys,
-                                        &currentOp->outkeys, sctx, &timeout,
-                                        rinfo->single_op_dag) == REDISMODULE_ERR) {
+    if (_ScriptExecuteCommand_ParseCommand(ctx, argv, argc, error, &currentOp->inkeys,
+                                           &currentOp->outkeys, sctx, &timeout,
+                                           rinfo->single_op_dag) == REDISMODULE_ERR) {
         goto cleanup;
     }
     if (timeout > 0 && !rinfo->single_op_dag) {

@@ -184,7 +184,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(ret, b'OK')
 
         script = load_file_content("script.txt")
-        ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+        ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{1}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
         ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         self.env.assertEqual(ret, b'OK')
@@ -209,7 +209,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
         # This should raise an exception
-        self.env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
+        self.env.assertTrue(str(ret[0]).startswith("b'Function does not exist:"))
 
 
 class TestDAGRunExecution:
@@ -304,7 +304,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(ret, b'OK')
 
         script = load_file_content('script.txt')
-        ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+        ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{1}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
 
     def test_modelset_modelget_ops(self):
@@ -335,7 +335,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         con = self.env.getConnection()
         ret = con.execute_command('rg.trigger', 'DAGRun_test4')
         # This should raise an exception
-        self.env.assertTrue(str(ret[0]).startswith("b'attempted to get undefined function"))
+        self.env.assertTrue(str(ret[0]).startswith("b'Function does not exist:"))
 
     def test_build_dag_from_string(self):
         con = self.env.getConnection()

@@ -1,4 +1,4 @@
-def bar(tensors: List[Tensor], keys: List[str], args: List[str]):
+def bar(tensors: List[Tensor], keys: List[str], args: List[Tensor]):
     a = tensors[0]
     b = tensors[1]
     return a + b
