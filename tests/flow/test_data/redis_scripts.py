@@ -26,6 +26,15 @@ def test_redis_error(tensors: List[Tensor], keys: List[str], args: List[str]):
     key = keys[0]
     redis.execute("SET", key)
 
+def test_redis_command_error(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    redis.execute("SET", key)  # missing the required value argument
+
+def test_redis_error_message(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    redis.execute("HSET", key, "field", "value")
+    redis.execute("RPUSH", key, "some_value")  # list command on a hash type
+
 def test_int_set_get(tensors: List[Tensor], keys: List[str], args: List[str]):
     key = keys[0]
     value = args[0]

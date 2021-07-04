@@ -21,7 +21,21 @@ class test_torch_script_extesions:
         self.con = self.env.getConnection()
         script = load_file_content('redis_scripts.py')
         ret = self.con.execute_command(
-            'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 11, 'test_redis_error', 'test_set_key', 'test_int_set_get', 'test_int_set_incr', 'test_float_set_get', 'test_int_list', 'test_str_list', 'test_hash', 'test_model_execute', 'test_model_execute_onnx', 'test_model_execute_onnx_bad_input', 'SOURCE', script)
+            'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 13, 
+            'test_redis_error',
+            'test_set_key', 
+            'test_int_set_get', 
+            'test_int_set_incr', 
+            'test_float_set_get', 
+            'test_int_list', 
+            'test_str_list', 
+            'test_hash', 
+            'test_model_execute', 
+            'test_model_execute_onnx', 
+            'test_model_execute_onnx_bad_input',
+            'test_redis_command_error',
+            'test_redis_error_message',
+            'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
         model_tf = load_file_content('graph.pb')
         ret = self.con.execute_command('AI.MODELSTORE', 'model_tf{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1,
@@ -36,12 +50,12 @@ class test_torch_script_extesions:
         ensureSlaveSynced(self.con, self.env)
 
     def test_redis_error(self):
-        try:
-            self.con.execute_command(
-            'AI.SCRIPTEXECUTE', 'redis_scripts', 'test_redis_error', 'KEYS', 1, "x{1}")
-            self.env.assertTrue(False)
-        except:
-            pass
+        check_error_message(self.env, self.con, "Redis command returned an error: Invalid argument",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_command_error',  'KEYS', 1, "x{1}", error_msg_is_substr=True)
+        check_error_message(self.env, self.con, "Redis command returned an error: "
+                                                "WRONGTYPE Operation against a key holding the wrong kind of value",
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_redis_error_message',  'KEYS', 1, "hash{1}",  error_msg_is_substr=True)
+
         
     def test_simple_test_set(self):
         self.con.execute_command(

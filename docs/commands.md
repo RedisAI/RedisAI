@@ -583,8 +583,8 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 
 ```
 AI.SCRIPTEXECUTE <key> <function> 
-KEYS n <key> [keys...] 
-[INPUTS m <input> [input ...]
+[KEYS n <key> [keys...]]
+[INPUTS m <input> [input ...]]
 [ARGS k <arg> [arg...]]
 [OUTPUTS k <output> [output ...] [TIMEOUT t]]+
 ```
@@ -593,12 +593,15 @@ _Arguments_
 
 * **key**: the script's key name
 * **function**: the name of the function to run
-* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command. Redis will verify that all potional key accesses are done to the right shard.
+* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. 
 * **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more input tensors.
 * **ARGS**: A list additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
 
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+
+Note:
+Either `KEYS` or `INPUTS` scopes should be provided this command (one or both scopes are acceptable). Those scopes indicate keyspace access and such, the right shard to execute the command at. Redis will verify that all potional key accesses are done to the right shard.
 
 _Return_
 
@@ -832,7 +835,7 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 ```
 AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
           [PERSIST <n> <key-1> <key-2> ... <key-n>] |
-          [ROUTING <routing_tag>]]+
+          [ROUTING <routing_tag>]]
           [TIMEOUT t]
           |> <command> [|>  command ...]
 ```

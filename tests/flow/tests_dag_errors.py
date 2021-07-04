@@ -235,4 +235,4 @@ def test_dag_crossslot_violation_errors(env):
             'INPUTS', 1, 'transactionTensor:{1}',
             'OUTPUTS', 1, 'resultTensor:{1}',
         )
-        check_error_message(env, con, "ROUTING value specified in the command hash to slot which does not belong to the current shard", *command)
+        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
