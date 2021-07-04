@@ -21,7 +21,7 @@ class test_torch_script_extesions:
         self.con = self.env.getConnection()
         script = load_file_content('redis_scripts.py')
         ret = self.con.execute_command(
-            'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 8, 'test_redis_error', 'test_set_key', 'test_int_set_get', 'test_int_set_incr', 'test_float_set_get', 'test_int_list', 'test_str_list', 'test_hash', 'SOURCE', script)
+            'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 11, 'test_redis_error', 'test_set_key', 'test_int_set_get', 'test_int_set_incr', 'test_float_set_get', 'test_int_list', 'test_str_list', 'test_hash', 'test_model_execute', 'test_model_execute_onnx', 'test_model_execute_onnx_bad_input', 'SOURCE', script)
         self.env.assertEqual(ret, b'OK')
         model_tf = load_file_content('graph.pb')
         ret = self.con.execute_command('AI.MODELSTORE', 'model_tf{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1,
@@ -86,30 +86,30 @@ class test_torch_script_extesions:
     def test_execute_model_via_script(self):
         # run torch model
         self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute', 'KEYS', 1, "model_torch{1}",
-                                 'LIST_INPUTS', 1, 'model_torch{1}', 'OUTPUTS', 1, 'y{1}')
+                                 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [2, 2], b"values", [b'4', b'6', b'4', b'6']])
 
         # run tf model
         self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute', 'KEYS', 1, "model_tf{1}",
-                                 'LIST_INPUTS', 1, 'model_tf{1}', 'OUTPUTS', 1, 'y{1}')
+                                 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [2, 2], b"values", [b'4', b'9', b'4', b'9']])
 
         # run onnx model
         self.con.execute_command('AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx', 'KEYS', 1, "model_onnx{1}",
-                                 'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}')
+                                 'OUTPUTS', 1, 'y{1}')
         y = self.con.execute_command('AI.TENSORGET', 'y{1}', 'meta', 'VALUES')
         self.env.assertEqual(y, [b"dtype", b"FLOAT", b"shape", [3, 2], b"values", [b'1', b'4', b'9', b'16', b'25', b'36']])
 
     def test_execute_model_via_script_errors(self):
         # Trying to run a non-existing model
         check_error_message(self.env, self.con, "ERR model key is empty",
-                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx', 'KEYS', 1, "{1}",
-                            'LIST_INPUTS', 1, 'bad_model{1}', 'OUTPUTS', 1, 'y{1}', error_msg_is_substr=True)
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx', 'KEYS', 1, "bad_model{1}",
+                            'OUTPUTS', 1, 'y{1}', error_msg_is_substr=True)
 
         # Runtime error while executing the model - input tensor's dim is not compatible with model.
         check_error_message(self.env, self.con,
                             "Invalid rank for input: X Got: 1 Expected: 2 Please fix either the inputs or the model",
-                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx_bad_input', 'KEYS', 1, "{1}",
-                            'LIST_INPUTS', 1, 'model_onnx{1}', 'OUTPUTS', 1, 'y{1}', error_msg_is_substr=True)
+                            'AI.SCRIPTEXECUTE', 'redis_scripts{1}', 'test_model_execute_onnx_bad_input', 'KEYS', 1, "model_onnx{1}",
+                            'OUTPUTS', 1, 'y{1}', error_msg_is_substr=True)

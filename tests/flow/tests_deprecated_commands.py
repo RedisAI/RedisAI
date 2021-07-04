@@ -227,7 +227,9 @@ def test_pytorch_scriptset(env):
     check_error(env, con, 'AI.SCRIPTSET', 'nope', 'SOURCE')
 
     check_error(env, con, 'AI.SCRIPTSET', 'more', DEVICE)
-
+    
+    check_error(env, con, 'AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf')
+    
     script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', script)

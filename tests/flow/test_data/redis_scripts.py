@@ -87,17 +87,17 @@ def test_del_key(tensors: List[Tensor], keys: List[str], args: List[str]):
     redis.execute("DEL", [key])
 
 
-def test_model_execute(keys:List[str]):
+def test_model_execute(tensors: List[Tensor], keys: List[str], args: List[str]):
     a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     return redisAI.model_execute(keys[0], [a, b], 1)  # assume keys[0] is the model key name saved in redis
 
 
-def test_model_execute_onnx(keys:List[str]):
+def test_model_execute_onnx(tensors: List[Tensor], keys: List[str], args: List[str]):
     a = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
     return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis
 
 
-def test_model_execute_onnx_bad_input(keys:List[str]):
+def test_model_execute_onnx_bad_input(tensors: List[Tensor], keys: List[str], args: List[str]):
     a = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
     return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis

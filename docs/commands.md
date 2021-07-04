@@ -456,7 +456,7 @@ OK
 ```
 
 ## AI.SCRIPTSET
-_This command is deprecated and will not be available in future versions. consider using AI.MODELSTORE command instead._
+_This command is deprecated and will not be available in future versions. consider using AI.SCRIPTSTORE command instead._
 The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
 
 **Redis API**

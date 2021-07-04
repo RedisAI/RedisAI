@@ -613,22 +613,10 @@ extern "C" const char* torchScript_FunctionName(void* scriptCtx, size_t fn_index
     return functions[fn_index]->name().c_str();
 }
 
-extern "C" size_t torchScript_FunctionArgumentCount(void* scriptCtx, size_t fn_index) {
-    ModuleContext *ctx = (ModuleContext *)scriptCtx;
-    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
-    return functions[fn_index]->getSchema().arguments().size();
-}
-
 extern "C" size_t torchScript_FunctionArgumentCountByFunctionName(void *scriptCtx, const char* functionName) {
     ModuleContext *ctx = (ModuleContext *)scriptCtx;
     torch::jit::Function* function = ctx->cu->find_function(functionName);
     return function->getSchema().arguments().size();
-}
-
-extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentType(void* scriptCtx, size_t fn_index, size_t arg_index) {
-    ModuleContext *ctx = (ModuleContext *)scriptCtx;
-    std::vector<torch::jit::Function*> functions = ctx->cu->get_functions();
-    return getArgumentType(ctx->cu->get_functions()[fn_index]->getSchema().arguments()[arg_index]);
 }
 
 extern "C" TorchScriptFunctionArgumentType torchScript_FunctionArgumentTypeByFunctionName(void *scriptCtx, const char* functionName,
