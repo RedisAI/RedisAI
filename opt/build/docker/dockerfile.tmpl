@@ -47,7 +47,7 @@ ENV BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=1 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0"
 ENV DEPS_ARGS=""
 ENV BUILD_ARGS=""
 {% endif %}
-RUN $DEPS_ARGS ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}
+RUN bash -l -c "$DEPS_ARGS ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}"
 
 ADD ./ /build
 RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}$BUILD_ARGS SHOW=1"
