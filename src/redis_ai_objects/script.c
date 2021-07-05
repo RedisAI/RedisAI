@@ -120,6 +120,9 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
         if (!strcasecmp(str, "OUTPUTS")) {
             continue;
         }
+        if (!strcasecmp(str, "$")) {
+            continue;
+        }
         RedisModule_KeyAtPos(ctx, argpos);
     }
     return REDISMODULE_OK;
