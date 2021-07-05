@@ -207,11 +207,11 @@ def test_run_tf_model(env):
         values2 = con2.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         env.assertEqual(values2, values)
 
-    for _ in env.reloadingIterator():
-        env.assertExists('m{1}')
-        env.assertExists('a{1}')
-        env.assertExists('b{1}')
-        env.assertExists('c{1}')
+    env.dumpAndReload()
+    env.assertTrue(con.exists('m{1}'))
+    env.assertTrue(con.exists('a{1}'))
+    env.assertTrue(con.exists('b{1}'))
+    env.assertTrue(con.exists('c{1}'))
 
     con.execute_command('AI.MODELDEL', 'm{1}')
     ensureSlaveSynced(con, env)
@@ -274,10 +274,10 @@ def test_run_tf2_model(env):
         values2 = con2.execute_command('AI.TENSORGET', 'y{1}', 'VALUES')
         env.assertEqual(values2, values)
 
-    for _ in env.reloadingIterator():
-        env.assertExists('m{1}')
-        env.assertExists('x{1}')
-        env.assertExists('y{1}')
+    env.dumpAndReload()
+    env.assertTrue(con.exists('m{1}'))
+    env.assertTrue(con.exists('x{1}'))
+    env.assertTrue(con.exists('y{1}'))
 
     con.execute_command('AI.MODELDEL', 'm{1}')
     ensureSlaveSynced(con, env)
