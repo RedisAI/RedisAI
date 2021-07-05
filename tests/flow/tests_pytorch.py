@@ -254,13 +254,13 @@ def test_pytorch_scriptdel(env):
         con2 = env.getSlaveConnection()
         env.assertFalse(con2.execute_command('EXISTS', 'ket{1}'))
 
-    con.execute_command('DEL', 'EMPTY')
+    con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTDEL
-    check_error_message(env, con, "script key is empty", 'AI.SCRIPTDEL', 'EMPTY')
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTDEL', 'EMPTY{1}')
 
-    con.execute_command('SET', 'NOT_SCRIPT', 'BAR')
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
     # ERR wrong type from SCRIPTDEL
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT')
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT{1}')
 
 def test_pytorch_scriptexecute(env):
     if not TEST_PT:
