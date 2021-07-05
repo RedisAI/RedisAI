@@ -16,7 +16,7 @@ def test_modelstore_errors(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('pt-minimal.pt')
 
     # Check that the basic arguments are valid (model's key, device, backend, blob)
@@ -59,7 +59,7 @@ def test_modelget_errors(env):
         env.debugPrint("Skipping test since TF is not available", force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     # ERR WRONGTYPE
     con.execute_command('SET', 'NOT_MODEL{1}', 'BAR')
     check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value",
@@ -77,7 +77,7 @@ def test_modelexecute_errors(env):
     if not TEST_TF:
         env.debugPrint("Skipping test since TF is not available", force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -141,7 +141,7 @@ def test_keys_syntax(env):
         return
     # the KEYS keyword must appears in every AI.SCRIPTEXECUTE command, an may appear in AI.DAGEXECUTE(_RO) command.
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     script = load_file_content('script.txt')
     ret = con.execute_command('AI.SCRIPTSTORE', 'script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -171,7 +171,7 @@ def test_scriptstore(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     script = load_file_content('script.txt')
 
     ret = con.execute_command('AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
@@ -189,7 +189,7 @@ def test_scriptstore_errors(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     script = load_file_content('script.txt')
     old_script = load_file_content('old_script.txt')
     bad_script = load_file_content('script_bad.txt')
@@ -222,7 +222,7 @@ def test_pytrorch_scriptget_errors(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -249,7 +249,7 @@ def test_pytorch_scriptexecute_errors(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -307,7 +307,7 @@ def test_pytorch_scriptexecute_variadic_errors(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
