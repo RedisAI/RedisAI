@@ -489,7 +489,7 @@ class TestOnnxKillSwitch:
                                 error_msg_is_substr=True)
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
-        run_test_multiproc(self.env, 8, run_parallel_onnx_sessions)
+        run_test_multiproc(self.env, '{1}', 8, run_parallel_onnx_sessions)
 
     def test_multiple_devices(self):
         con = self.env.getConnection()

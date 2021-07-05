@@ -92,7 +92,7 @@ def test_run_mobilenet_multiproc(env):
                         'INPUTS', 1, input_var, 'OUTPUTS', 1, output_var, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
 
-    run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
+    run_test_multiproc(env, '{1}', 30, run_mobilenet, (img, input_var, output_var))
 
     ensureSlaveSynced(con, env)
 
@@ -629,7 +629,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
                                           'classificationTensor{{1}}:{}_{}'.format(tensor_number, repetition))
 
     t = time.time()
-    run_test_multiproc(env, 10,
+    run_test_multiproc(env, '{1}', 10,
                        lambda env: functor_financialNet(env, MAX_TRANSACTIONS, 100) )
     elapsed_time = time.time() - t
     total_ops = len(transaction_tensor)*100

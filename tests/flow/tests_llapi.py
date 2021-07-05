@@ -37,7 +37,7 @@ def test_basic_check(env):
 @with_test_module
 def test_model_run_async(env):
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     model_filename = os.path.join(test_data_path, 'graph.pb')
 
@@ -56,7 +56,7 @@ def test_model_run_async(env):
 @with_test_module
 def test_script_run_async(env):
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     script_filename = os.path.join(test_data_path, 'script.txt')
 
@@ -77,7 +77,7 @@ def test_script_run_async(env):
 
 @with_test_module
 def test_dag_build_and_run(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT',
                         2, 2, 'VALUES', 2, 3, 2, 3)
@@ -105,12 +105,12 @@ def test_dag_build_and_run(env):
     def run_dag_llapi(con):
         con.execute_command("RAI_llapi.DAGrun")
 
-    run_test_multiproc(env, 500, run_dag_llapi)
+    run_test_multiproc(env, '{1}', 500, run_dag_llapi)
 
 
 @with_test_module
 def test_dagrun_multidevice_resnet(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_name_0 = 'imagenet_model1:{1}'
     model_name_1 = 'imagenet_model2:{1}'
