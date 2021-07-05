@@ -13,28 +13,28 @@ def test_pytorch_chunked_modelstore(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model = load_file_content('pt-minimal.pt')
 
     chunk_size = len(model) // 3
 
     model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
 
-    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'BLOB', model)
-    ret = con.execute_command('AI.MODELSTORE', 'm2', 'TORCH', DEVICE, 'BLOB', *model_chunks)
+    ret = con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'BLOB', model)
+    ret = con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', *model_chunks)
 
-    model1 = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
-    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    model1 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
 
     env.assertEqual(model1, model2)
 
     ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
 
-    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
 
-    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
+    model3 = con.execute_command('AI.MODELGET', 'm2{1}', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
 
@@ -44,7 +44,7 @@ def test_pytorch_modelrun(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
     wrong_model_pb = load_file_content('graph.pb')
@@ -106,7 +106,7 @@ def test_pytorch_modelrun_autobatch(env):
     if not TEST_PT:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -123,7 +123,7 @@ def test_pytorch_modelrun_autobatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'd{1}', 'e{1}', 'OUTPUTS', 1, 'f{1}')
         ensureSlaveSynced(con, env)
 
@@ -146,7 +146,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     if not TEST_PT:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('pt-minimal-bb.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
@@ -162,7 +162,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         check_error_message(env, con, "Model did not generate the expected batch size",
                             'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'd{1}', 'e{1}', 'OUTPUTS', 2, 'f1{1}', 'f2{1}')
 
@@ -179,7 +179,7 @@ def test_pytorch_modelinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
     model_key = 'm{1}'
@@ -234,7 +234,7 @@ def test_pytorch_scriptdel(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -267,7 +267,7 @@ def test_pytorch_scriptexecute(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -317,7 +317,7 @@ def test_pytorch_scriptexecute_list_input(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -370,7 +370,7 @@ def test_pytorch_scriptinfo(env):
     # env.debugPrint("skipping this tests for now", force=True)
     # return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -423,7 +423,7 @@ def test_pytorch_scriptexecute_disconnect(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
@@ -450,7 +450,7 @@ def test_pytorch_modelrun_disconnect(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -474,25 +474,25 @@ def test_pytorch_modelscan_scriptscan(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     # ensure cleaned DB
     # env.flush()
 
     model_pb = load_file_content('pt-minimal.pt')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm2', 'TORCH', DEVICE, 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSTORE', 's1', DEVICE, 'TAG', 's:v1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 's1{1}', DEVICE, 'TAG', 's:v1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSTORE', 's2', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 's2{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -518,7 +518,7 @@ def test_pytorch_model_rdb_save_load(env):
 
     model_pb = load_file_content('pt-minimal.pt')
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -536,7 +536,7 @@ def test_pytorch_model_rdb_save_load(env):
 
     env.stop()
     env.start()
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
@@ -555,7 +555,7 @@ def test_parallelism():
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -581,7 +581,7 @@ def test_modelget_for_tuple_output(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
@@ -601,7 +601,7 @@ def test_torch_info(env):
     if not TEST_PT:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertFalse('ai_Torch_version' in backends_info)
