@@ -125,7 +125,7 @@ def test_modelexecute_errors(env):
                         'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', 'TIMEOUT', 1000, 'bad_arg')
 
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     # The following 2 commands should raise an error on cluster mode (keys are not on the same shard)
     if env.isCluster():
@@ -196,11 +196,11 @@ def test_scriptstore_errors(env):
 
     check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'SOURCE', 'return 1')
 
-    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope')
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope{1}')
 
-    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope', 'SOURCE')
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'nope{1}', 'SOURCE')
 
-    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'more', DEVICE)
+    check_error_message(env, con, "wrong number of arguments for 'AI.SCRIPTSTORE' command", 'AI.SCRIPTSTORE', 'more{1}', DEVICE)
 
     check_error_message(env, con, "Insufficient arguments, missing script entry points", 'AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'NO_ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
 
