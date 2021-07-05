@@ -203,15 +203,15 @@ def test_tflite_modelrun_disconnect(env):
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
-    ret = red.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
-    ensureSlaveSynced(red, env)
+    ensureSlaveSynced(con, env)
 
-    ret = send_and_disconnect(('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 2, 'b{1}', 'c{1}'), red)
+    ret = send_and_disconnect(('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 2, 'b{1}', 'c{1}'), con)
     env.assertEqual(ret, None)
 
 
