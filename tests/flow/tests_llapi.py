@@ -11,7 +11,7 @@ python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 def with_test_module(f):
     @wraps(f)
     def wrapper(env, *args, **kwargs):
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         modules = con.execute_command("MODULE", "LIST")
         if b'RAI_llapi' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
@@ -29,7 +29,7 @@ def with_test_module(f):
 @with_test_module
 def test_basic_check(env):
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     ret = con.execute_command("RAI_llapi.basic_check")
     env.assertEqual(ret, b'OK')
 

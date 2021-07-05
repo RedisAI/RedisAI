@@ -7,7 +7,7 @@ from functools import wraps
 
 
 def verify_gears_loaded(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     modules = con.execute_command("MODULE", "LIST")
     if b'rg' in [module[1] for module in modules]:
         return True
@@ -416,7 +416,7 @@ def FlattenTensor(record):
 GB("CommandReader").map(FlattenTensor).register(trigger="FlattenTensor_test")
     '''
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'FlattenTensor_test')
