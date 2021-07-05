@@ -417,7 +417,7 @@ def test_pytorch_scriptrun_variadic_errors(env):
  
     con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
     # ERR Variadic input key not tensor
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTRUN', 'ket{1}', 'bar_variadic', 'INPUTS', 'a{1}', '$' , 'NOT_TENSOR{1}', 'b{$}', 'OUTPUTS', 'c{$}')
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTRUN', 'ket{1}', 'bar_variadic', 'INPUTS', 'a{1}', '$' , 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 'c{1}')
 
     check_error(env, con, 'AI.SCRIPTRUN', 'ket{1}', 'bar_variadic', 'INPUTS', 'b{1}', '${1}', 'OUTPUTS', 'c{1}')
 
