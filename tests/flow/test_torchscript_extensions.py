@@ -18,7 +18,7 @@ class test_torch_script_extesions:
                 sys._getframe().f_code.co_name), force=True)
             self.env.skip()
 
-        self.con = self.env.getConnection()
+        self.con = get_connection(self.env, '{1}')
         script = load_file_content('redis_scripts.py')
         ret = self.con.execute_command(
             'AI.SCRIPTSTORE', 'redis_scripts{1}', DEVICE, 'ENTRY_POINTS', 13, 
