@@ -22,7 +22,7 @@ endif
 # set gpu arguments
 ifeq ($(GPU),1)
 DOCKER_ARGS = gpu_build=1
-DOCKER_SUFFIX=gpu
+DOCKER_SUFFIX=.gpu
 DEFAULT_TAG=${DOCKER_ORG}/${PRODUCT}:${VERSION}-gpu-${OSNICK}
 endif
 

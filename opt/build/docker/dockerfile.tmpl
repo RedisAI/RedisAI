@@ -44,7 +44,7 @@ COPY ./get_deps.sh .
 {% set DEPS_ARGS = "GPU=1 JETSON=1 WITH_PT=1 WITH_TF=0 WITH_TFLITE=0 WITH_ORT=0" %}
 {% set BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=0 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0" %}
 {% endif %}
-RUN bash -l -c "{{DEPS_ARGS}} ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}"
+RUN bash -l -c "{{DEPS_ARGS}} ./get_deps.sh"
 
 ADD ./ /build
 RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}{{BUILD_ARGS}} SHOW=1"
