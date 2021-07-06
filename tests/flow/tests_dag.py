@@ -18,7 +18,7 @@ def test_dagrun_modelexecute_scriptexecute_resnet(env):
     if(VALGRIND):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         env.skip()
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_name = 'imagenet_model:{1}'
     script_name = 'imagenet_script:{1}'
     image_key = 'image:{1}'
@@ -35,7 +35,7 @@ def test_dagrun_modelexecute_scriptexecute_resnet(env):
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     for opnumber in range(1,100):
@@ -62,11 +62,11 @@ def test_dagrun_modelexecute_scriptexecute_resnet(env):
 def test_dag_modelexecute_financialNet_separate_tensorget(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{hhh}'
+    model_name = 'financialNet{1}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
@@ -76,9 +76,9 @@ def test_dag_modelexecute_financialNet_separate_tensorget(env):
         for repetition in range(1,10):
             reference_tensor = creditcard_referencedata[tensor_number]
             transaction_tensor = creditcard_transactions[tensor_number]
-            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
-            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
-            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
             
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
@@ -105,11 +105,11 @@ def test_dag_modelexecute_financialNet_separate_tensorget(env):
 def test_dag_modelexecute_financialNet(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{hhh}'
+    model_name = 'financialNet{1}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
@@ -119,9 +119,9 @@ def test_dag_modelexecute_financialNet(env):
         for repetition in range(1,10):
             reference_tensor = creditcard_referencedata[tensor_number]
             transaction_tensor = creditcard_transactions[tensor_number]
-            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
-            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
-            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
 
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
@@ -152,11 +152,11 @@ def test_dag_modelexecute_financialNet(env):
 def test_dag_modelexecute_financialNet_autobatch(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{hhh}'
+    model_name = 'financialNet{1}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', 'CPU',
                               'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
@@ -168,9 +168,9 @@ def test_dag_modelexecute_financialNet_autobatch(env):
         for repetition in range(1,10):
             reference_tensor = creditcard_referencedata[tensor_number]
             transaction_tensor = creditcard_transactions[tensor_number]
-            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
-            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
-            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
 
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
@@ -180,7 +180,7 @@ def test_dag_modelexecute_financialNet_autobatch(env):
             env.assertEqual(ret, 1)
 
             def run():
-                con = env.getConnection()
+                con = get_connection(env, '{1}')
                 ret = con.execute_command(
                     'AI.DAGEXECUTE', 'LOAD', '1', reference_tensor_keyname, '|>',
                     'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
@@ -219,11 +219,11 @@ def test_dag_modelexecute_financialNet_autobatch(env):
 def test_dag_modelexecute_financialNet_no_writes(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet{hhh}'
+    model_name = 'financialNet{1}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1,'output', 'BLOB', model_pb)
@@ -233,9 +233,9 @@ def test_dag_modelexecute_financialNet_no_writes(env):
         for repetition in range(1,10):
             reference_tensor = creditcard_referencedata[tensor_number]
             transaction_tensor = creditcard_transactions[tensor_number]
-            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
-            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
-            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
             
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
@@ -272,11 +272,11 @@ def test_dag_modelexecute_financialNet_no_writes(env):
 def test_dagro_modelexecute_financialNet_no_writes_multiple_modelruns(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
-    model_name = 'financialNet_no_writes{hhh}'
+    model_name = 'financialNet_no_writes{1}'
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output', 'BLOB', model_pb)
@@ -286,9 +286,9 @@ def test_dagro_modelexecute_financialNet_no_writes_multiple_modelruns(env):
         for repetition in range(1,11):
             reference_tensor = creditcard_referencedata[tensor_number-1]
             transaction_tensor = creditcard_transactions[tensor_number-1]
-            result_tensor_keyname = 'resultTensor{{hhh}}{}'.format(tensor_number)
-            reference_tensor_keyname = 'referenceTensor{{hhh}}{}'.format(tensor_number)
-            transaction_tensor_keyname = 'transactionTensor{{hhh}}{}'.format(tensor_number)
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
             
             ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
                                     'FLOAT', 1, 256,
@@ -349,7 +349,7 @@ def test_dagro_modelexecute_financialNet_no_writes_multiple_modelruns(env):
 def test_dagexecute_modelexecute_multidevice_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_name_0 = 'imagenet_model1:{1}'
     model_name_1 = 'imagenet_model2:{1}'
     script_name = 'imagenet_script:{1}'
@@ -382,29 +382,31 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, device_0, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, device_0, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
     check_error_message(env, con, "INPUT key cannot be found in DAG",
-                        'AI.DAGEXECUTE', 'KEYS', '1', image_key, '|>', 'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
+                        'AI.DAGEXECUTE', 'ROUTING', image_key, '|>', 'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
                         'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1)
 
     check_error_message(env, con, "INPUT key cannot be found in DAG",
-                        'AI.DAGEXECUTE', 'KEYS', '1', image_key, '|>', 'AI.MODELEXECUTE', model_name_0,
+                        'AI.DAGEXECUTE', 'ROUTING',  image_key, '|>', 'AI.MODELEXECUTE', model_name_0,
                         'INPUTS', 1, image_key, 'OUTPUTS', 1, temp_key1)
 
-    check_error_message(env, con, "Wrong function name given to AI.SCRIPTEXECUTE command",
-                        'AI.DAGEXECUTE', 'KEYS', 1, '{1}',
-                        '|>', 'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
-                        '|>',
-                        'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
-                        'INPUTS', 1, image_key,
-                        'OUTPUTS', 1, temp_key1)
+    ret = con.execute_command('AI.DAGEXECUTE', 
+                            'ROUTING', '{1}','|>',
+                            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),'|>',
+                            'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
+                            'INPUTS', 1, image_key,
+                            'OUTPUTS', 1, temp_key1)
+    env.assertEquals(b'OK', ret[0])
+    env.assertEquals(type(ret[1]), redis.exceptions.ResponseError)
+    env.assertEquals("Function does not exist: wrong_fn",  ret[1].__str__())
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
-                        'AI.DAGEXECUTE', 'KEYS', 1, '{1}',
+                        'AI.DAGEXECUTE', 'ROUTING', '{1}',
                         '|>', 'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
                         '|>',
                         'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
@@ -454,7 +456,7 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
 def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
     if (not TEST_TF or not TEST_PT):
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_name_0 = 'imagenet_model1:{1}'
     model_name_1 = 'imagenet_model2:{1}'
@@ -490,12 +492,12 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name_0, device_0, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_0, device_0, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name_1, device_1, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name_1, device_1, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -554,7 +556,7 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
                         'OUTPUTS', 1, class_key_0)
 
     # The 'ensamble' function in script_name_0 expect to receive 2 inputs (not 1)
-    check_error_message(env, con, "Wrong number of inputs provided to AI.SCRIPTEXECUTE command",
+    ret = con.execute_command(
                         'AI.DAGEXECUTE',
                         'PERSIST', '1', class_key_0, '|>',
                         'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(),
@@ -578,6 +580,14 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
                         'AI.SCRIPTEXECUTE', script_name_0, 'post_process',
                         'INPUTS', 1, temp_key1,
                         'OUTPUTS', 1, class_key_0)
+
+    env.assertEquals(b'OK', ret[0])
+    env.assertEquals(b'OK', ret[1])
+    env.assertEquals(b'OK', ret[2])
+    env.assertEquals(b'OK', ret[3])
+    env.assertEquals(b'NA', ret[5])
+    env.assertEqual(type(ret[4]), redis.exceptions.ResponseError)
+    env.assertTrue("list index out of range" in  ret[4].__str__())
 
     ret = con.execute_command(
         'AI.DAGEXECUTE',

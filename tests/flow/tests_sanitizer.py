@@ -11,7 +11,7 @@ python -m RLTest --test tests_sanitizer.py --module path/to/redisai.so
 def test_sanitizer_dagrun_mobilenet_v1(env):
     if (not TEST_TF or not TEST_PT):
         return
-    con = env.getConnection()
+    con = get_connection(env, '{s}')
     mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
         print("exiting sanitizer tests given we're not using stdlib allocator")
@@ -47,7 +47,7 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
 def test_sanitizer_modelrun_mobilenet_v1(env):
     if (not TEST_TF or not TEST_PT):
         return
-    con = env.getConnection()
+    con = get_connection(env, '{s}')
     mem_allocator = con.info()['mem_allocator']
     if 'jemalloc' in mem_allocator:
         print("exiting sanitizer tests given we're not using stdlib allocator")

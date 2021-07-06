@@ -95,6 +95,30 @@ def load_resnet_test_data():
 
     return model_pb, script, labels, img
 
+def load_resnet_test_data_old():
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data/imagenet')
+    labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
+    image_filename = os.path.join(test_data_path, 'dog.jpg')
+    model_filename = os.path.join(test_data_path, 'resnet50.pb')
+    script_filename = os.path.join(test_data_path, 'data_processing_script_old.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(labels_filename, 'r') as f:
+        labels = json.load(f)
+
+    img_height, img_width = 224, 224
+
+    img = imread(image_filename)
+    img = resize(img, (img_height, img_width), mode='constant', anti_aliasing=True)
+    img = img.astype(np.uint8)
+
+    return model_pb, script, labels, img
+
 
 def load_mobilenet_v1_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -169,11 +193,11 @@ def run_mobilenet(con, img, input_var, output_var):
                         'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
 
-def run_test_multiproc(env, n_procs, fn, args=tuple()):
+def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
     def tmpfn():
-        con = env.getConnection()
+        con = env.getConnectionByKey(routing_hint, None)
         fn(con, *args)
         return 1
 
@@ -221,3 +245,7 @@ def get_info_section(con, section):
     section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
     return {k.split(":")[0]: k.split(":")[1]
             for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
+
+
+def get_connection(env, routing_hint):
+    return env.getConnectionByKey(routing_hint, None)

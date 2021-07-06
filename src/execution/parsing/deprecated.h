@@ -18,6 +18,8 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
 
 int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
+int ScriptSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+
 /**
  * @brief Parse the arguments of the given ops in the DAGRUN command and build every op accordingly.
  * @param rinfo The DAG run info that will be populated with the ops if they are valid.

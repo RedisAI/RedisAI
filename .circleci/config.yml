@@ -454,7 +454,7 @@ jobs:
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
       - run:
           name: Run QA Automation (AILite)
-          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=light ./tests/qa/run
 
   build-jetson-platform:
     machine:

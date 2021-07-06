@@ -17,7 +17,9 @@ int RAI_ModelRunTorch(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *err
 
 int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error);
 
-RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, RAI_Error *error);
+RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
+                                  const char **entry_points, size_t n_entry_points,
+                                  RAI_Error *error);
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error);
 
