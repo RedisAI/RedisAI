@@ -213,13 +213,42 @@ def test_modelset_modelrun_onnx(env):
     env.assertEqual(argmax, 1)
 
 
+def test_pytorch_scriptset(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = env.getConnection()
+
+    check_error(env, con, 'AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', 'return 1')
+
+    check_error(env, con, 'AI.SCRIPTSET', 'nope')
+
+    check_error(env, con, 'AI.SCRIPTSET', 'nope', 'SOURCE')
+
+    check_error(env, con, 'AI.SCRIPTSET', 'more', DEVICE)
+    
+    check_error(env, con, 'AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf')
+    
+    script = load_file_content('script.txt')
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
+    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    ensureSlaveSynced(con, env)
+
 def test_pytorch_scriptrun(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = env.getConnection()
-    script = load_file_content('script.txt')
+    script = load_file_content('old_script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -269,7 +298,7 @@ def test_pytorch_scriptrun_variadic(env):
 
     con = env.getConnection()
 
-    script = load_file_content('script.txt')
+    script = load_file_content('old_script.txt')
 
     ret = con.execute_command('AI.SCRIPTSET', 'myscript{$}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
@@ -462,7 +491,7 @@ def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     class_key_0 = 'output0:{1}'
     class_key_1 = 'output1:{1}'
 
-    model_pb, script, labels, img = load_resnet_test_data()
+    model_pb, script, labels, img = load_resnet_test_data_old()
 
     device_0 = 'CPU:1'
     device_1 = DEVICE

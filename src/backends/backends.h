@@ -64,7 +64,7 @@ typedef struct RAI_LoadedBackend {
     int (*model_serialize)(RAI_Model *, char **, size_t *, RAI_Error *);
 
     // ** script_create **:  A callback function pointer that creates a script
-    RAI_Script *(*script_create)(const char *, const char *, RAI_Error *);
+    RAI_Script *(*script_create)(const char *, const char *, const char **, size_t, RAI_Error *);
 
     // ** script_free **:  A callback function pointer that frees a script given
     // the RAI_Script pointer

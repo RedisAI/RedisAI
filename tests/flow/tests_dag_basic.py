@@ -19,7 +19,7 @@ def test_dag_load(env):
 def test_dag_local_tensorset(env):
     con = env.getConnection()
 
-    command = "AI.DAGEXECUTE KEYS 1 {1} |> " \
+    command = "AI.DAGEXECUTE ROUTING {1} |> " \
               "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> " \
               "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -34,7 +34,7 @@ def test_dag_local_tensorset(env):
 def test_dagro_local_tensorset(env):
     con = env.getConnection()
 
-    command = "AI.DAGEXECUTE_RO KEYS 1 {some_tag} |> " \
+    command = "AI.DAGEXECUTE_RO ROUTING {some_tag} |> " \
               "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> " \
               "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -246,7 +246,7 @@ def test_dag_with_error(env):
     # Run the model from DAG context, where MODELEXECUTE op fails due to dim mismatch in one of the tensors inputs:
     # the input tensor 'b' is considered as tensor with dim 2X2X3 initialized with zeros, while the model expects that
     # both inputs to node 'mul' will be with dim 2.
-    ret = con.execute_command('AI.DAGEXECUTE_RO', 'KEYS', 1, '{1}',
+    ret = con.execute_command('AI.DAGEXECUTE_RO', 'ROUTING', '{1}',
                               '|>', 'AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3,
                               '|>', 'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 3,
                               '|>', 'AI.MODELEXECUTE', 'tf_model{1}', 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'tD',

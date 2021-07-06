@@ -316,8 +316,9 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.script_create = (RAI_Script * (*)(const char *, const char *, RAI_Error *))(
-        unsigned long)dlsym(handle, "RAI_ScriptCreateTorch");
+    backend.script_create =
+        (RAI_Script * (*)(const char *, const char *, const char **, size_t, RAI_Error *))(
+            unsigned long)dlsym(handle, "RAI_ScriptCreateTorch");
     if (!_ValidateFuncExists(ctx, backend.script_create, "RAI_ScriptCreateTorch", "TORCH", path)) {
         goto error;
     }
