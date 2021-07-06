@@ -5,7 +5,7 @@ python -m RLTest --test tests_dag_errors.py --module path/to/redisai.so
 '''
 
 def test_dag_load_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     # ERR wrong number of arguments for LOAD
     check_error_message(env, con, "missing arguments after LOAD keyword in DAG command",
@@ -32,7 +32,7 @@ def test_dag_load_errors(env):
 
 
 def test_dag_persist_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     # ERR wrong number of arguments for PERSIST
@@ -49,7 +49,7 @@ def test_dag_persist_errors(env):
 
 
 def test_dag_timeout_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     # ERR no value provided for timeout
     check_error_message(env, con, "No value provided for TIMEOUT",
@@ -61,7 +61,7 @@ def test_dag_timeout_errors(env):
 
 
 def test_dag_common_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -108,7 +108,7 @@ def test_dag_common_errors(env):
 
 
 def test_dag_ro_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     # ERR wrong number of arguments for 'AI.DAGEXECUTE_RO' command
     check_error_message(env, con, "missing arguments for 'AI.DAGEXECUTE_RO' command", "AI.DAGEXECUTE_RO ")
@@ -133,7 +133,7 @@ def test_dag_scriptexecute_errors(env):
     if (not TEST_TF or not TEST_PT):
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_name = 'imagenet_model{1}'
     script_name = 'imagenet_script{1}'
     inputvar = 'images'
@@ -174,7 +174,7 @@ def test_dag_scriptexecute_errors(env):
 def test_dag_modelexecute_financialNet_errors(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_key = 'financialNet_errors{1}'
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
@@ -205,7 +205,7 @@ def test_dag_modelexecute_financialNet_errors(env):
 def test_dag_crossslot_violation_errors(env):
 
     if env.isCluster():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
 
         # ERR CROSSSLOT violation (LOAD and PERSIST tensors has different hash tags)
         command = (

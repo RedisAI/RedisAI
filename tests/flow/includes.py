@@ -193,11 +193,11 @@ def run_mobilenet(con, img, input_var, output_var):
                         'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
 
-def run_test_multiproc(env, n_procs, fn, args=tuple()):
+def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
     def tmpfn():
-        con = env.getConnection()
+        con = env.getConnectionByKey(routing_hint, None)
         fn(con, *args)
         return 1
 
@@ -245,3 +245,7 @@ def get_info_section(con, section):
     section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
     return {k.split(":")[0]: k.split(":")[1]
             for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
+
+
+def get_connection(env, routing_hint):
+    return env.getConnectionByKey(routing_hint, None)

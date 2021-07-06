@@ -7,7 +7,7 @@ from functools import wraps
 
 
 def verify_gears_loaded(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     modules = con.execute_command("MODULE", "LIST")
     if b'rg' in [module[1] for module in modules]:
         return True
@@ -88,7 +88,7 @@ GB("CommandReader").map(ModelRun_AsyncIgnoreInputNames).register(trigger="ModelR
 GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_AsyncRunError_test4")
     '''
 
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
@@ -101,28 +101,28 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
     def test_old_api(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ModelRun_oldAPI_OK')
         values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_async_run(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_tf_ignore_inputs_names(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test3')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_2{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
     def test_runtime_error(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_AsyncRunError_test4')
         # This should raise an exception
         self.env.assertEqual(str(ret[0]), "b'Must specify at least one target to fetch or execute.'")
@@ -179,7 +179,7 @@ GB("CommandReader").map(ScriptRun_Async).register(trigger="ScriptRun_Async_test2
 GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_AsyncRunError_test3")
     '''
 
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
@@ -192,21 +192,21 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(ret, b'OK')
 
     def test_old_api(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ScriptRun_oldAPI_OK')
         values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_async_execution(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_Async_test2')
         self.env.assertEqual(ret[0], b'ScriptRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_runtime_error(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
         # This should raise an exception
         self.env.assertTrue(str(ret[0]).startswith("b'Function does not exist:"))
@@ -291,7 +291,7 @@ GB("CommandReader").map(DAGRun_scriptRunError).register(trigger="DAGRun_test4")
 GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5")
     '''
 
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
@@ -308,7 +308,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(ret, b'OK')
 
     def test_modelset_modelget_ops(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'DAGRun_test1')
         self.env.assertEqual(ret[0], b'test1_OK')
         values = con.execute_command('AI.TENSORGET', 'test1_res{1}', 'VALUES')
@@ -322,23 +322,23 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
             values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
             self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-        run_test_multiproc(self.env, 500, multiple_executions)
+        run_test_multiproc(self.env, '{1}', 500, multiple_executions)
 
     def test_scriptexecute_op(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'DAGRun_test3')
         self.env.assertEqual(ret[0], b'test3_OK')
         values = con.execute_command('AI.TENSORGET', 'test3_res{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
     def test_scriptexecute_op_runtime_error(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'DAGRun_test4')
         # This should raise an exception
         self.env.assertTrue(str(ret[0]).startswith("b'Function does not exist:"))
 
     def test_build_dag_from_string(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'DAGRun_test5')
         self.env.assertEqual(ret[0], b'test5_OK')
         values = con.execute_command('AI.TENSORGET', 'test5_res{1}', 'VALUES')
@@ -371,19 +371,19 @@ GB("CommandReader").map(TensorCreate_FromValues).register(trigger="TensorCreate_
 GB("CommandReader").map(TensorCreate_FromBlob).register(trigger="TensorCreate_FromBlob_test2")
     '''
 
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
     def test_create_tensor_from_values(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'TensorCreate_FromValues_test1')
         self.env.assertEqual(ret[0], b'test1_OK')
         values = con.execute_command('AI.TENSORGET', 'test1_res{1}', 'VALUES')
         self.env.assertEqual(values, [b'1', b'2', b'3', b'4'])
 
     def test_create_tensor_from_blob(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'TensorCreate_FromBlob_test2')
         self.env.assertEqual(ret[0], b'test2_OK')
         values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
@@ -416,7 +416,7 @@ def FlattenTensor(record):
 GB("CommandReader").map(FlattenTensor).register(trigger="FlattenTensor_test")
     '''
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     ret = con.execute_command('rg.pyexecute', script)
     env.assertEqual(ret, b'OK')
     ret = con.execute_command('rg.trigger', 'FlattenTensor_test')
@@ -457,7 +457,7 @@ GB("CommandReader").map(OnnxModelRunSync).register(trigger="OnnxModelRunSync_tes
 GB("CommandReader").map(OnnxModelRunAsync).register(trigger="OnnxModelRunAsync_test2")
     '''
 
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.pyexecute', script)
         self.env.assertEqual(ret, b'OK')
 
@@ -469,13 +469,13 @@ GB("CommandReader").map(OnnxModelRunAsync).register(trigger="OnnxModelRunAsync_t
         con.execute_command('AI.TENSORSET', 'mnist_input{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
     def test_sync_run_error(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         check_error_message(self.env, con, "Cannot execute onnxruntime model synchronously, use async execution instead",
                             'rg.trigger', 'OnnxModelRunSync_test1',
                             error_msg_is_substr=True)
 
     def test_async_run(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'OnnxModelRunAsync_test2')
         self.env.assertEqual(ret[0], b'OnnxModelRun_OK')
         values = con.execute_command('AI.TENSORGET', 'mnist_output{1}', 'VALUES')

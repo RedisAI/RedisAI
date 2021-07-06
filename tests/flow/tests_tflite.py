@@ -12,7 +12,7 @@ def test_run_tflite_model(env):
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
@@ -52,7 +52,7 @@ def test_run_tflite_model_autobatch(env):
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('lite-model_imagenet_mobilenet_v3_small_100_224_classification_5_default_1.tflite')
     _, _, _, img = load_resnet_test_data()
     img = img.astype(np.float32) / 255
@@ -79,7 +79,7 @@ def test_run_tflite_model_autobatch(env):
     env.assertEqual(ret, b'OK')
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1,
                             'b{1}', 'OUTPUTS', 1, 'd{1}')
         ensureSlaveSynced(con, env)
@@ -106,7 +106,7 @@ def test_run_tflite_errors(env):
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
@@ -152,7 +152,7 @@ def test_tflite_modelinfo(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
@@ -199,19 +199,19 @@ def test_tflite_modelrun_disconnect(env):
         env.debugPrint("skipping {} since TEST_TFLITE=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    red = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist_model_quant.tflite')
     sample_raw = load_file_content('one.raw')
 
-    ret = red.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
     env.assertEqual(ret, b'OK')
 
-    ensureSlaveSynced(red, env)
+    ensureSlaveSynced(con, env)
 
-    ret = send_and_disconnect(('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 2, 'b{1}', 'c{1}'), red)
+    ret = send_and_disconnect(('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 2, 'b{1}', 'c{1}'), con)
     env.assertEqual(ret, None)
 
 
@@ -221,7 +221,7 @@ def test_tflite_model_rdb_save_load(env):
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist_model_quant.tflite')
 
     ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'TFLITE', 'CPU', 'BLOB', model_pb)
@@ -235,7 +235,7 @@ def test_tflite_model_rdb_save_load(env):
 
     env.stop()
     env.start()
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'mnist{1}', 'BLOB')
     env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
     env.assertEqual(len(model_pb), len(model_serialized_after_rdbload))
@@ -249,7 +249,7 @@ def test_tflite_info(env):
     if not TEST_TFLITE:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertFalse('ai_TensorFlowLite_version' in backends_info)
