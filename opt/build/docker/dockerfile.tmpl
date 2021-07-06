@@ -41,16 +41,13 @@ RUN rm -rf /var/cache/apt
 
 COPY ./get_deps.sh .
 {% if REDIS_JETSON is defined %}
-ENV DEPS_ARGS="GPU=1 JETSON=1 WITH_PT=1 WITH_TF=1 WITH_TFLITE=0 WITH_ORT=0"
-ENV BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=1 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0"
-{% else %}
-ENV DEPS_ARGS=""
-ENV BUILD_ARGS=""
+{% set DEPS_ARGS = "GPU=1 JETSON=1 WITH_PT=1 WITH_TF=0 WITH_TFLITE=0 WITH_ORT=0" %}
+{% set BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=0 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0" %}
 {% endif %}
-RUN bash -l -c "$DEPS_ARGS ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}"
+RUN bash -l -c "{{DEPS_ARGS}} ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}"
 
 ADD ./ /build
-RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}$BUILD_ARGS SHOW=1"
+RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}{{BUILD_ARGS}} SHOW=1"
 
 
 RUN mkdir -p bin/artifacts
@@ -59,7 +56,7 @@ RUN set -e ;\
 
 RUN set -e ;\
     if [ "$TEST" = "1" ]; then \
-        bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} $BUILD_ARGS NO_LFS=1" ;\
+        bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} {{BUILD_ARGS}} NO_LFS=1" ;\
         if [[ -d test/logs ]]; then \
             {% if gpu_build is defined %}
             tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
