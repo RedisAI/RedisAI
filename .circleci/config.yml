@@ -456,6 +456,31 @@ jobs:
           name: Run QA Automation (AILite)
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
 
+  build-jetson-platform:
+    machine:
+      resource_class: arm.medium
+      image: ubuntu-2004:202101-01
+
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - relocate-docker-storage
+      - checkout-all
+      - setup-automation
+      - run:
+          name: Build
+          command: |
+            pip3 install --user jinja2
+            pushd opt/build/docker
+            make REDIS_JETSON=1 PACK=0 TEST=0 VERBOSE=1  # PUBLISH=1
+            popd > /dev/null
+            logstar=bin/artifacts/tests-logs-gpu.tgz
+            logsdir=tests/logs/gpu
+            mkdir -p $logsdir
+            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
+            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
+          no_output_timeout: 40m
 
   #nightly-automation:
   #  docker:
@@ -559,6 +584,10 @@ workflows:
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
           <<: *after-linter
+      - build-jetson-platform:
+          context: common
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
       - platforms-build:
           context: common
           <<: *after-build-and-test
@@ -569,7 +598,7 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 PUBLISH=1"
+                - "REDISAI_LITE=0" ### for now, disabled  PUBLISH=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"

@@ -30,6 +30,13 @@ For docker instance with GPU support, you can launch it from `tensorwerk/redisai
 
 ```sh
 docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu
+
+
+```
+
+For a docker instance on an arm device we currently support CUDA 10.2 and CUDNN 7 - built on the nvidia jetson and xavier devices.  The docker images below, are specific to those devices, and contain only the pytorch backend.
+```sh
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu-jetson
 ```
 
 But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
