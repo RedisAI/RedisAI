@@ -33,6 +33,10 @@ COPY ./get_deps.sh .
 {% if REDIS_JETSON is defined %}
 {% set DEPS_ARGS = "GPU=1 JETSON=1 WITH_PT=1 WITH_TF=0 WITH_TFLITE=0 WITH_ORT=0" %}
 {% set BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=0 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0 WITH_UNIT_TESTS=0" %}
+{% else %}
+{% if gpu_build is defined %}
+{% set DEPS_ARGS = "GPU=1" %}
+{% endif %}
 {% endif %}
 RUN bash -l -c "{{DEPS_ARGS}} ./get_deps.sh"
 
