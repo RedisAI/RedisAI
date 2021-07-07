@@ -45,12 +45,12 @@ RUN bash -l -c "make -C opt build REDISAI_LITE={{REDISAI_LITE}} {{BUILD_ARGS}} S
 
 
 RUN mkdir -p bin/artifacts
-{% if REDIS_PACK == 1 %}
+{% if REDIS_PACK|int == 1 %}
 RUN set -e bash -l -c "make -C opt pack {% if gpu_build is defined %} GPU=1 {% endif %} REDISAI_LITE={{REDISAI_LITE}}"
 {% endif %}
 
-{% if REDIS_TEST == 1 %}
-RUN set -d;
+{% if REDIS_TEST|int == 1 %}
+RUN set -e;\
         bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} {{BUILD_ARGS}} NO_LFS=1" ;\
         if [[ -d test/logs ]]; then \
             {% if gpu_build is defined %}
@@ -72,18 +72,20 @@ FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
 RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
 
-ENV REDIS_MODULES /usr/lib/redis/modules
-ENV LD_LIBRARY_PATH $REDIS_MODULES
+{% set REDIS_MODULES = "/usr/lib/redis/modules" %}
+ENV LD_LIBRARY_PATH {{REDIS_MODULES}}
 
-RUN mkdir -p $REDIS_MODULES/
+RUN mkdir -p {{REDIS_MODULES}}/
 
 {% if gpu_build is defined %}
-COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+COPY --from=builder /build/install-gpu/ {{REDIS_MODULES}}/
 {% else %}
-COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
+COPY --from=builder /build/install-cpu/ {{REDIS_MODULES}}/
 {% endif %}
 
+{% if REDIS_TEST|int == 1 %}
 COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+{% endif %}
 
 WORKDIR /data
 EXPOSE 6379

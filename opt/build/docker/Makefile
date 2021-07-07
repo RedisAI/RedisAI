@@ -6,6 +6,7 @@ export REDIS_CUDA_VERSION=11.0-cudnn8
 export REDISAI_LITE=0
 
 PACK=1 # to fetch the artifacts
+TEST=1 # because dockers
 OSNICK ?= bionic
 
 DEFAULT_TAG=${DOCKER_ORG}/${PRODUCT}:${VERSION}-cpu-${OSNICK}
