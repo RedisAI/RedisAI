@@ -203,7 +203,10 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.7.0"
+PT_VERSION="1.7.1"
+if [[ $JETSON == 1 ]]; then
+    PT_VERSION="1.7.0"
+fi
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
