@@ -473,6 +473,7 @@ jobs:
           command: |
             pip3 install --user jinja2
             pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             make REDIS_JETSON=1 PACK=0 TEST=0 VERBOSE=1 PUBLISH=1
           no_output_timeout: 40m
 
