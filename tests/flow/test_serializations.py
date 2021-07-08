@@ -276,7 +276,7 @@ class test_v3_rdb_load:
 class TestAofRewrite:
 
     def __init__(self):
-        self.env = Env(useAof=True)
+        self.env = Env(useAof=True, useRdbPreamble=False)
 
     def test_aof_rewrite_tf_model(self):
         key_name = "tf_graph{1}"
