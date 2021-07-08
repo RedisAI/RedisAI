@@ -94,7 +94,7 @@ fi
 
 ################################################################################# LIBTENSORFLOW
 
-TF_VERSION="2.4.0"
+TF_VERSION="2.5.0"
 
 if [[ $WITH_TF != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTENSORFLOW
@@ -201,7 +201,7 @@ fi # WITH_TFLITE
 
 ###################################################################################### LIBTORCH
 
-PT_VERSION="1.7.1"
+PT_VERSION="1.9.0"
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH
