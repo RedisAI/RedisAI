@@ -456,6 +456,26 @@ jobs:
           name: Run QA Automation (AILite)
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=light ./tests/qa/run
 
+  build-jetson-platform:
+    machine:
+      resource_class: arm.medium
+      image: ubuntu-2004:202101-01
+
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - relocate-docker-storage
+      - checkout-all
+      - setup-automation
+      - run:
+          name: Build
+          command: |
+            pip3 install --user jinja2
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make REDIS_JETSON=1 PACK=0 TEST=0 VERBOSE=1 PUBLISH=1
+          no_output_timeout: 40m
 
   #nightly-automation:
   #  docker:
@@ -559,6 +579,10 @@ workflows:
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
           <<: *after-linter
+      - build-jetson-platform:
+          context: common
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
       - platforms-build:
           context: common
           <<: *after-build-and-test

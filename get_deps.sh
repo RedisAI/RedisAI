@@ -5,6 +5,8 @@ error() {
 	exit 1
 }
 
+set -x
+
 trap error ERR
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
@@ -202,6 +204,9 @@ fi # WITH_TFLITE
 ###################################################################################### LIBTORCH
 
 PT_VERSION="1.7.1"
+if [[ $JETSON == 1 ]]; then
+    PT_VERSION="1.7.0"
+fi
 
 if [[ $WITH_PT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $LIBTORCH

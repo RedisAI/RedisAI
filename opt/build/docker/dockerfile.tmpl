@@ -1,22 +1,15 @@
-# BUILD redisfab/redisai:{{VERSION}}-cpu-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
-
-
-ARG PACK={{REDIS_PACK}}
-ARG REDISAI_LITE={{REDISAI_LITE}}
-ARG TEST={{REDIS_TEST}}
-
+# BUILD redisfab/redisai:{{REDIS_VERSION}}-cpu|gpu|jetson-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
-{% if gpu_build is defined %}
+
+{% if gpu_build is defined and REDIS_JETSON is not defined %}
 FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu{{REDIS_CUDA_UBUNTUVERSION}} AS builder
+{% elif REDIS_JETSON is defined %}
+FROM redisfab/jetpack:4.4.1-{{REDIS_ARCH}}-l4t as builder
 {% else %}
 FROM {{REDIS_OS}} AS builder
 {% endif %}
-
-ARG REDISAI_LITE
-ARG PACK
-ARG TEST
 
 RUN echo "Building for {{REDIS_OSNICK}} ({{REDIS_OS}}) for {{REDIS_ARCH}} [with Redis {{REDIS_VERSION}}]"
 
@@ -36,22 +29,29 @@ RUN apt-get update -qq
 RUN apt-get upgrade -yqq
 RUN rm -rf /var/cache/apt
 
-ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
-RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh {% if gpu_build is defined %}gpu {% else %} cpu {% endif %}; else env $DEPS_ARGS ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}; fi
+{% if REDIS_JETSON is defined %}
+{% set DEPS_ARGS = "GPU=1 JETSON=1 WITH_PT=1 WITH_TF=0 WITH_TFLITE=0 WITH_ORT=0" %}
+{% set BUILD_ARGS="GPU=1 JETSON=1 WITH_TF=0 WITH_PT=1 WITH_TFLITE=0 WITH_ORT=0 WITH_UNIT_TESTS=0" %}
+{% else %}
+{% if gpu_build is defined %}
+{% set DEPS_ARGS = "GPU=1" %}
+{% endif %}
+{% endif %}
+RUN bash -l -c "{{DEPS_ARGS}} ./get_deps.sh"
 
-ARG BUILD_ARGS=""
 ADD ./ /build
-RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}$BUILD_ARGS SHOW=1"
+RUN bash -l -c "make -C opt build REDISAI_LITE={{REDISAI_LITE}} {{BUILD_ARGS}} SHOW=1"
 
 
 RUN mkdir -p bin/artifacts
-RUN set -e ;\
-    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack {% if gpu_build is defined %} GPU=1 {% endif %} REDISAI_LITE={{REDISAI_LITE}}"; fi
+{% if REDIS_PACK|int == 1 %}
+RUN set -e bash -l -c "make -C opt pack {% if gpu_build is defined %} GPU=1 {% endif %} REDISAI_LITE={{REDISAI_LITE}}"
+{% endif %}
 
-RUN set -e ;\
-    if [ "$TEST" = "1" ]; then \
-        bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} $BUILD_ARGS NO_LFS=1" ;\
+{% if REDIS_TEST|int == 1 %}
+RUN set -e;\
+        bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} {{BUILD_ARGS}} NO_LFS=1" ;\
         if [[ -d test/logs ]]; then \
             {% if gpu_build is defined %}
             tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
@@ -59,32 +59,33 @@ RUN set -e ;\
             tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
             {% endif %}
         fi ;\
-    fi
+
+{% endif %}
 
 #----------------------------------------------------------------------------------------------
-{% if gpu_build is defined %}
+{% if gpu_build is defined and REDIS_JETSON is not defined %}
 FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-ubuntu{{REDIS_CUDA_UBUNTUVERSION}}
 {% else %}
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 {% endif %}
 
-ARG PACK
-
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
 RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
 
-ENV REDIS_MODULES /usr/lib/redis/modules
-ENV LD_LIBRARY_PATH $REDIS_MODULES
+{% set REDIS_MODULES = "/usr/lib/redis/modules" %}
+ENV LD_LIBRARY_PATH {{REDIS_MODULES}}
 
-RUN mkdir -p $REDIS_MODULES/
+RUN mkdir -p {{REDIS_MODULES}}/
 
 {% if gpu_build is defined %}
-COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+COPY --from=builder /build/install-gpu/ {{REDIS_MODULES}}/
 {% else %}
-COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
+COPY --from=builder /build/install-cpu/ {{REDIS_MODULES}}/
 {% endif %}
 
+{% if REDIS_TEST|int == 1 %}
 COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+{% endif %}
 
 WORKDIR /data
 EXPOSE 6379
