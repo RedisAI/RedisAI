@@ -416,31 +416,24 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int blob = 0;
+    int meta = false;
+    int blob = false;
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "BLOB")) {
-            blob = 1;
+            blob = true;
         }
-    }
-
-    if (!meta && !blob) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
     char *buffer = NULL;
     size_t len = 0;
 
-    if (blob) {
+    if (!meta || blob) {
         RAI_ModelSerialize(mto, &buffer, &len, &err);
-        if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-            printf("ERR: %s\n", err.detail);
-#endif
-            int ret = RedisModule_ReplyWithError(ctx, err.detail);
+        if (RAI_GetErrorCode(&err) != RAI_OK) {
+            int ret = RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
             RAI_ClearError(&err);
             if (*buffer) {
                 RedisModule_Free(buffer);
@@ -455,12 +448,14 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 18 : 16;
-    RedisModule_ReplyWithArray(ctx, outentries);
+    // The only case where we return only META, is when META is given but BLOB
+    // was not. Otherwise, we return both META+SOURCE
+    const int out_entries = (meta && !blob) ? 16 : 18;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
-    const char *backendstr = RAI_GetBackendName(mto->backend);
-    RedisModule_ReplyWithCString(ctx, backendstr);
+    const char *backend_str = RAI_GetBackendName(mto->backend);
+    RedisModule_ReplyWithCString(ctx, backend_str);
 
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, mto->devicestr);
@@ -495,7 +490,8 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
-    if (meta && blob) {
+    // This condition is the negation of (meta && !blob)
+    if (!meta || blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);

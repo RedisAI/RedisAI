@@ -222,8 +222,8 @@ AI.MODELGET <key> [META] [BLOB]
 _Arguments
 
 * **key**: the model's key name
-* **META**: will return the model's meta information on backend, device, tag and batching parameters
-* **BLOB**: will return the model's blob containing the serialized model
+* **META**: will return only the model's meta information on backend, device, tag and batching parameters
+* **BLOB**: will return only the model's blob containing the serialized model
 
 _Return_
 
@@ -237,7 +237,7 @@ An array of alternating key-value pairs as follows:
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
 1. **MINBATCHTIMEOUT**: The time in milliseconds for which the engine will wait before executing a request to run the model, when the number of incoming requests is lower than `MINBATCHSIZE`. When `MINBATCHTIMEOUT` is 0, the engine will not run the model before it receives at least `MINBATCHSIZE` requests.
-1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
+1. **BLOB**: a blob containing the serialized model as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
 
