@@ -21,6 +21,12 @@ typedef struct TorchFunctionInputCtx {
 } TorchFunctionInputCtx;
 
 /**
+ * @brief Register Redis ops in Torch
+ *
+ */
+void torchRegisterRedisOps(void);
+
+/**
  * @brief Compiles a script string into torch compliation unit stored in a module context.
  *
  * @param script Script string.

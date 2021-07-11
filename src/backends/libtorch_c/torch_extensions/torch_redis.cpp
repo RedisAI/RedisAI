@@ -5,6 +5,13 @@
 #include "torch_redis.h"
 #include "../torch_c.h"
 
+static torch::RegisterOperators registry;
+void registerRedisOps(void) {
+    registry = torch::RegisterOperators("redis::execute", &redisExecute)
+                           .op("redis::asList", &asList)
+                           .op("redisAI::model_execute", &modelExecute);
+}
+
 torch::IValue IValueFromRedisReply(RedisModuleCtx *ctx, RedisModuleCallReply *reply){
 
     int reply_type = RedisModule_CallReplyType(reply);
