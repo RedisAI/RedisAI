@@ -1,4 +1,4 @@
-#include "decode_v1.h"
+#include "decode_v2.h"
 #include "assert.h"
 
 /**
@@ -8,7 +8,7 @@
  * So only when it is necessary check for IO errors.
  */
 
-void *RAI_RDBLoadTensor_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadTensor_v2(RedisModuleIO *io) {
     int64_t *shape = NULL;
     int64_t *strides = NULL;
 
@@ -73,7 +73,7 @@ cleanup:
     return NULL;
 }
 
-void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadModel_v2(RedisModuleIO *io) {
 
     char *devicestr = NULL;
     RedisModuleString *tag = NULL;
@@ -89,6 +89,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
 
     const size_t batchsize = RedisModule_LoadUnsigned(io);
     const size_t minbatchsize = RedisModule_LoadUnsigned(io);
+    const size_t minbatchtimeout = RedisModule_LoadUnsigned(io);
 
     ninputs = RedisModule_LoadUnsigned(io);
     if (RedisModule_IsIOError(io))
@@ -113,6 +114,7 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     RAI_ModelOpts opts = {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
+        .minbatchtimeout = minbatchtimeout,
         .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
         .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
@@ -205,7 +207,7 @@ cleanup:
     return NULL;
 }
 
-void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
+void *RAI_RDBLoadScript_v2(RedisModuleIO *io) {
     RedisModuleString *tag = NULL;
     char *devicestr = NULL;
     char *scriptdef = NULL;

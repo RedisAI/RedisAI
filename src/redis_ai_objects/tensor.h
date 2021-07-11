@@ -108,6 +108,12 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest);
 RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor);
 
 /**
+ * @param tensor
+ * @return A pointer to the inner DLTensor field (do not copy).
+ */
+DLTensor *RAI_TensorGetDLTensor(RAI_Tensor *tensor);
+
+/**
  * Allocate the memory and initialise the RAI_Tensor, performing a deep copy of
  * the passed array of tensors.
  *

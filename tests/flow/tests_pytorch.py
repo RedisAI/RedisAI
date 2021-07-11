@@ -13,28 +13,28 @@ def test_pytorch_chunked_modelstore(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model = load_file_content('pt-minimal.pt')
 
     chunk_size = len(model) // 3
 
     model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
 
-    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'BLOB', model)
-    ret = con.execute_command('AI.MODELSTORE', 'm2', 'TORCH', DEVICE, 'BLOB', *model_chunks)
+    ret = con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'BLOB', model)
+    ret = con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', *model_chunks)
 
-    model1 = con.execute_command('AI.MODELGET', 'm1', 'BLOB')
-    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    model1 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
 
     env.assertEqual(model1, model2)
 
     ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
 
-    model2 = con.execute_command('AI.MODELGET', 'm2', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
 
-    model3 = con.execute_command('AI.MODELGET', 'm2', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
+    model3 = con.execute_command('AI.MODELGET', 'm2{1}', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
 
@@ -44,7 +44,7 @@ def test_pytorch_modelrun(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
     wrong_model_pb = load_file_content('graph.pb')
@@ -106,7 +106,7 @@ def test_pytorch_modelrun_autobatch(env):
     if not TEST_PT:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -123,7 +123,7 @@ def test_pytorch_modelrun_autobatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'd{1}', 'e{1}', 'OUTPUTS', 1, 'f{1}')
         ensureSlaveSynced(con, env)
 
@@ -146,7 +146,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     if not TEST_PT:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('pt-minimal-bb.pt')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU',
@@ -162,7 +162,7 @@ def test_pytorch_modelrun_autobatch_badbatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         check_error_message(env, con, "Model did not generate the expected batch size",
                             'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'd{1}', 'e{1}', 'OUTPUTS', 2, 'f1{1}', 'f2{1}')
 
@@ -179,7 +179,7 @@ def test_pytorch_modelinfo(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
     model_key = 'm{1}'
@@ -229,40 +229,12 @@ def test_pytorch_modelinfo(env):
     env.assertEqual(info_dict_0['errors'], 0)
 
 
-def test_pytorch_scriptset(env):
-    if not TEST_PT:
-        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    con = env.getConnection()
-
-    check_error(env, con, 'AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', 'return 1')
-
-    check_error(env, con, 'AI.SCRIPTSET', 'nope')
-
-    check_error(env, con, 'AI.SCRIPTSET', 'nope', 'SOURCE')
-
-    check_error(env, con, 'AI.SCRIPTSET', 'more', DEVICE)
-
-    script = load_file_content('script.txt')
-
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', script)
-    env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
-    env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-
 def test_pytorch_scriptget(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTGET
     check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
@@ -272,14 +244,15 @@ def test_pytorch_scriptget(env):
     check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
 
     script = load_file_content('script.txt')
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'my_script{1}', DEVICE, 'TAG', 'my_tag',
+                              'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     # return meta + source
-    _, device, _, tag, _, source = con.execute_command('AI.SCRIPTGET', 'ket{1}')
-    env.assertEqual([device, tag, source], [DEVICE, b"asdf", script])
+    _, device, _, tag, _, entry_points, _, source = con.execute_command('AI.SCRIPTGET', 'my_script{1}')
+    env.assertEqual([device, tag, entry_points, source], [bytes(DEVICE, "utf8"), b"my_tag", [b'bar', b'bar_variadic'], script])
     # return source only
-    source = con.execute_command('AI.SCRIPTGET', 'ket{1}', 'SOURCE')
+    source = con.execute_command('AI.SCRIPTGET', 'my_script{1}', 'SOURCE')
     env.assertEqual(source, script)
 
 
@@ -288,11 +261,11 @@ def test_pytorch_scriptdel(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'ket{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -308,24 +281,24 @@ def test_pytorch_scriptdel(env):
         con2 = env.getSlaveConnection()
         env.assertFalse(con2.execute_command('EXISTS', 'ket{1}'))
 
-    con.execute_command('DEL', 'EMPTY')
+    con.execute_command('DEL', 'EMPTY{1}')
     # ERR no script at key from SCRIPTDEL
-    check_error_message(env, con, "script key is empty", 'AI.SCRIPTDEL', 'EMPTY')
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTDEL', 'EMPTY{1}')
 
-    con.execute_command('SET', 'NOT_SCRIPT', 'BAR')
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
     # ERR wrong type from SCRIPTDEL
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT')
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTDEL', 'NOT_SCRIPT{1}')
 
 def test_pytorch_scriptexecute(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 'myscript{1}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{1}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -371,11 +344,11 @@ def test_pytorch_scriptexecute_list_input(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 'myscript{$}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'myscript{$}', DEVICE, 'TAG', 'version1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -388,7 +361,7 @@ def test_pytorch_scriptexecute_list_input(env):
     ensureSlaveSynced(con, env)
 
     for _ in range( 0,100):
-        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_variadic', 'KEYS', 1, '{$}', 'INPUTS', 1, 'a{$}', 'LIST_INPUTS', 2, 'b1{$}', 'b2{$}', 'OUTPUTS', 1, 'c{$}')
+        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_variadic', 'KEYS', 1, '{$}', 'INPUTS', 3, 'a{$}', 'b1{$}', 'b2{$}', 'OUTPUTS', 1, 'c{$}')
         env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -414,141 +387,6 @@ def test_pytorch_scriptexecute_list_input(env):
         con2 = env.getSlaveConnection()
         values2 = con2.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
         env.assertEqual(values2, values)
-
-
-def test_pytorch_scriptexecute_multiple_list_input(env):
-    if not TEST_PT:
-        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    con = env.getConnection()
-
-    script = load_file_content('script.txt')
-
-    ret = con.execute_command('AI.SCRIPTSET', 'myscript{$}', DEVICE, 'TAG', 'version1', 'SOURCE', script)
-    env.assertEqual(ret, b'OK')
-
-    ret = con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'b{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-    for _ in range( 0,100):
-        ret = con.execute_command('AI.SCRIPTEXECUTE', 'myscript{$}', 'bar_two_lists', 'KEYS', 1, '{$}', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}', 'OUTPUTS', 1, 'c{$}')
-        env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-    info = con.execute_command('AI.INFO', 'myscript{$}')
-    info_dict_0 = info_to_dict(info)
-
-    env.assertEqual(info_dict_0['key'], 'myscript{$}')
-    env.assertEqual(info_dict_0['type'], 'SCRIPT')
-    env.assertEqual(info_dict_0['backend'], 'TORCH')
-    env.assertEqual(info_dict_0['tag'], 'version1')
-    env.assertTrue(info_dict_0['duration'] > 0)
-    env.assertEqual(info_dict_0['samples'], -1)
-    env.assertEqual(info_dict_0['calls'], 100)
-    env.assertEqual(info_dict_0['errors'], 0)
-
-    values = con.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
-    env.assertEqual(values, [b'4', b'6', b'4', b'6'])
-
-    ensureSlaveSynced(con, env)
-
-    if env.useSlaves:
-        con2 = env.getSlaveConnection()
-        values2 = con2.execute_command('AI.TENSORGET', 'c{$}', 'VALUES')
-        env.assertEqual(values2, values)
-
-def test_pytorch_scriptexecute_errors(env):
-    if not TEST_PT:
-        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    con = env.getConnection()
-
-    script = load_file_content('script.txt')
-
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
-    env.assertEqual(ret, b'OK')
-
-    ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-    ensureSlaveSynced(con, env)
-
-    con.execute_command('DEL', 'EMPTY{1}')
-    # ERR no script at key from SCRIPTEXECUTE
-    check_error_message(env, con, "script key is empty", 'AI.SCRIPTEXECUTE', 'EMPTY{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
-    # ERR wrong type from SCRIPTEXECUTE
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTEXECUTE', 'NOT_SCRIPT{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    con.execute_command('DEL', 'EMPTY{1}')
-    # ERR Input key is empty
-    check_error_message(env, con, "tensor key is empty or in a different shard", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'EMPTY{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    con.execute_command('SET', 'NOT_TENSOR{1}', 'BAR')
-    # ERR Input key not tensor
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'NOT_TENSOR{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{1}', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 1, 'b{1}', 'OUTPUTS')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 'OUTPUTS')
-
-    check_error_message(env, con, "KEYS scope must be provided first for AI.SCRIPTEXECUTE command", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
-
-    if env.isCluster():
-        # cross shard
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-
-        # key doesn't exist
-        check_error_message(env, con, "tensor key is empty or in a different shard", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}')
-
-
-def test_pytorch_scriptexecute_variadic_errors(env):
-    if not TEST_PT:
-        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    con = env.getConnection()
-
-    script = load_file_content('script.txt')
-
-    ret = con.execute_command('AI.SCRIPTSET', 'ket{$}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
-    env.assertEqual(ret, b'OK')
-
-    ret = con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'b{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    env.assertEqual(ret, b'OK')
-
-    ensureSlaveSynced(con, env)
-
-    con.execute_command('DEL', 'EMPTY{$}')
-    # ERR Variadic input key is empty
-    check_error_message(env, con, "tensor key is empty or in a different shard", 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'EMPTY{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
-
-    con.execute_command('SET', 'NOT_TENSOR{$}', 'BAR')
-    # ERR Variadic input key not tensor
-    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'a{$}', "LIST_INPUTS", 2, 'NOT_TENSOR{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 2, 'b{$}', '${$}', 'OUTPUTS', 1, 'c{$}')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 1, 'b{$}', 'LIST_INPUTS', 'OUTPUTS')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 'LIST_INPUTS', 'OUTPUTS')
-
-    check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'LIST_INPUTS', 1, 'a{$}', 'LIST_INPUTS', 1, 'b{$}' 'OUTPUTS')
 
 
 def test_pytorch_scriptinfo(env):
@@ -559,11 +397,11 @@ def test_pytorch_scriptinfo(env):
     # env.debugPrint("skipping this tests for now", force=True)
     # return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket_script{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'ket_script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -612,11 +450,11 @@ def test_pytorch_scriptexecute_disconnect(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 'ket_script{1}', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 'ket_script{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ret = con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
@@ -639,7 +477,7 @@ def test_pytorch_modelrun_disconnect(env):
         env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -663,25 +501,25 @@ def test_pytorch_modelscan_scriptscan(env):
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     # ensure cleaned DB
     # env.flush()
 
     model_pb = load_file_content('pt-minimal.pt')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm1', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'TAG', 'm:v1', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm2', 'TORCH', DEVICE, 'BLOB', model_pb)
+    ret = con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
     script = load_file_content('script.txt')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's1', DEVICE, 'TAG', 's:v1', 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 's1{1}', DEVICE, 'TAG', 's:v1', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', 's2', DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', 's2{1}', DEVICE, 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     ensureSlaveSynced(con, env)
@@ -707,7 +545,7 @@ def test_pytorch_model_rdb_save_load(env):
 
     model_pb = load_file_content('pt-minimal.pt')
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -725,7 +563,7 @@ def test_pytorch_model_rdb_save_load(env):
 
     env.stop()
     env.start()
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
     _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
@@ -744,7 +582,7 @@ def test_parallelism():
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal.pt')
 
@@ -770,7 +608,7 @@ def test_modelget_for_tuple_output(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('pt-minimal-bb.pt')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
@@ -790,7 +628,7 @@ def test_torch_info(env):
     if not TEST_PT:
         env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertFalse('ai_Torch_version' in backends_info)

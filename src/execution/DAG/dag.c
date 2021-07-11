@@ -584,8 +584,12 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
-            RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
-            ReplyWithTensor(ctx, currentOp->fmt, t);
+            if (currentOp->result == -1) {
+                RedisModule_ReplyWithSimpleString(ctx, "NA");
+            } else {
+                RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
+                ReplyWithTensor(ctx, currentOp->fmt, t);
+            }
             break;
         }
 
@@ -663,8 +667,7 @@ int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     size_t argpos = 1;
     while (argpos < argc) {
         const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
-        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST") ||
-            !strcasecmp(arg_string, "KEYS")) {
+        if (!strcasecmp(arg_string, "LOAD") || !strcasecmp(arg_string, "PERSIST")) {
             if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
@@ -680,6 +683,11 @@ int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
             for (; argpos < last_argpos; argpos++) {
                 RedisModule_KeyAtPos(ctx, argpos);
             }
+        } else if (!strcasecmp(arg_string, "ROUTING")) {
+            if (argpos >= argc) {
+                return REDISMODULE_ERR;
+            }
+            RedisModule_KeyAtPos(ctx, argpos++);
         } else if (!strcasecmp(arg_string, "AI.MODELEXECUTE") ||
                    !strcasecmp(arg_string, "AI.SCRIPTEXECUTE")) {
             if (argpos >= argc) {

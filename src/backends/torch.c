@@ -1,6 +1,9 @@
 #define REDISMODULE_MAIN
+#define _GNU_SOURCE
+#include <string.h>
 #include "backends/util.h"
 #include "backends/torch.h"
+#include "backends/backends_api.h"
 #include "util/arr.h"
 #include "util/dictionaries.h"
 #include "libtorch_c/torch_c.h"
@@ -9,6 +12,8 @@
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
 int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
+
+    // Export Redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
@@ -29,6 +34,23 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
                ((void **)&RedisModule_ThreadSafeContextUnlock));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_StringPtrLen", ((void **)&RedisModule_StringPtrLen));
+
+    // Export RedisAI callbacks.
+    get_api_fn("RedisAI_InitError", ((void **)&RedisAI_InitError));
+    get_api_fn("RedisAI_FreeError", ((void **)&RedisAI_FreeError));
+    get_api_fn("RedisAI_GetError", ((void **)&RedisAI_GetError));
+    get_api_fn("RedisAI_TensorCreateFromDLTensor", ((void **)&RedisAI_TensorCreateFromDLTensor));
+    get_api_fn("RedisAI_TensorGetDLTensor", ((void **)&RedisAI_TensorGetDLTensor));
+    get_api_fn("RedisAI_TensorGetShallowCopy", ((void **)&RedisAI_TensorGetShallowCopy));
+    get_api_fn("RedisAI_TensorFree", ((void **)&RedisAI_TensorFree));
+    get_api_fn("RedisAI_GetModelFromKeyspace", ((void **)&RedisAI_GetModelFromKeyspace));
+    get_api_fn("RedisAI_ModelRunCtxCreate", ((void **)&RedisAI_ModelRunCtxCreate));
+    get_api_fn("RedisAI_ModelRunCtxAddInput", ((void **)&RedisAI_ModelRunCtxAddInput));
+    get_api_fn("RedisAI_ModelRunCtxNumOutputs", ((void **)&RedisAI_ModelRunCtxNumOutputs));
+    get_api_fn("RedisAI_ModelRunCtxAddOutput", ((void **)&RedisAI_ModelRunCtxAddOutput));
+    get_api_fn("RedisAI_ModelRunCtxOutputTensor", ((void **)&RedisAI_ModelRunCtxOutputTensor));
+    get_api_fn("RedisAI_ModelRunCtxFree", ((void **)&RedisAI_ModelRunCtxFree));
+    get_api_fn("RedisAI_ModelRun", ((void **)&RedisAI_ModelRun));
 
     return REDISMODULE_OK;
 }
@@ -289,7 +311,8 @@ int RAI_ModelSerializeTorch(RAI_Model *model, char **buffer, size_t *len, RAI_Er
     return 0;
 }
 
-RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, RAI_Error *error) {
+RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef,
+                                  const char **entryPoints, size_t nEntryPoints, RAI_Error *error) {
     DLDeviceType dl_device;
 
     RAI_Device device;
@@ -321,34 +344,69 @@ RAI_Script *RAI_ScriptCreateTorch(const char *devicestr, const char *scriptdef, 
         return NULL;
     }
 
+    // Entry points validation
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        const char *entryPoint = entryPoints[i];
+        // Existence check.
+        if (!torchScript_FunctionExists(script, entryPoint)) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg, "Function %s does not exist in the given script.", entryPoint);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+
+        // Check for number of arguments.
+        size_t argCount = torchScript_FunctionArgumentCountByFunctionName(script, entryPoint);
+        if (argCount != 3) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg, "Wrong number of inputs in function %s. Expected 3 but was %ld",
+                     entryPoint, argCount);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+
+        // Check for legal arguments.
+        TorchScriptFunctionArgumentType argType1 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 0);
+        TorchScriptFunctionArgumentType argType2 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 1);
+        TorchScriptFunctionArgumentType argType3 =
+            torchScript_FunctionArgumentTypeByFunctionName(script, entryPoint, 2);
+        if (argType1 != TENSOR_LIST || argType2 != STRING_LIST || argType3 != STRING_LIST) {
+            torchDeallocContext(script);
+            char *errMsg;
+            asprintf(&errMsg,
+                     "Wrong inputs type in function %s. Expected signature similar to: def "
+                     "%s(tensors: List[Tensor], keys: List[str], args: List[str])",
+                     entryPoint, entryPoint);
+            RAI_SetError(error, RAI_ESCRIPTCREATE, errMsg);
+            free(errMsg);
+            return NULL;
+        }
+    }
+
     RAI_Script *ret = RedisModule_Calloc(1, sizeof(*ret));
     ret->script = script;
     ret->scriptdef = RedisModule_Strdup(scriptdef);
     ret->devicestr = RedisModule_Strdup(devicestr);
     ret->refCount = 1;
-    ret->functionData = AI_dictCreate(&AI_dictType_String_ArrSimple, NULL);
-
-    size_t functionCount = torchScript_FunctionCount(script);
-    for (size_t i = 0; i < functionCount; i++) {
-        const char *name = torchScript_FunctionName(script, i);
-        size_t argCount = torchScript_FunctionArgumentCount(script, i);
-        TorchScriptFunctionArgumentType *argTypes =
-            array_new(TorchScriptFunctionArgumentType, argCount);
-        for (size_t j = 0; j < argCount; j++) {
-            TorchScriptFunctionArgumentType argType = torchScript_FunctionArgumentype(script, i, j);
-            argTypes = array_append(argTypes, argType);
-        }
-        AI_dictAdd(ret->functionData, (void *)name, (void *)argTypes);
-        array_free(argTypes);
+    ret->entryPoints = array_new(char *, nEntryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        ret->entryPoints = array_append(ret->entryPoints, RedisModule_Strdup(entryPoints[i]));
     }
-
     return ret;
 }
 
 void RAI_ScriptFreeTorch(RAI_Script *script, RAI_Error *error) {
-
     torchDeallocContext(script->script);
-    AI_dictRelease(script->functionData);
+    for (size_t i = 0; i < array_len(script->entryPoints); i++) {
+        RedisModule_Free(script->entryPoints[i]);
+    }
+    array_free(script->entryPoints);
     RedisModule_Free(script->scriptdef);
     RedisModule_Free(script->devicestr);
     RedisModule_Free(script);
@@ -373,36 +431,27 @@ int RAI_ScriptRunTorch(RAI_Script *script, const char *function, RAI_ExecutionCt
 
     char *error_descr = NULL;
 
-    TorchScriptFunctionArgumentType *arguments = RAI_ScriptGetSignature(script, function);
-    if (!arguments) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, "attempted to get undefined function");
-        RedisModule_Free(error_descr);
-        return 1;
-    }
-
     RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)ectx;
 
-    // Create inputs context on stack.
-    TorchFunctionInputCtx inputsCtx = {0};
-    inputsCtx.tensorInputs = inputs;
-    inputsCtx.tensorCount = nInputs;
-    inputsCtx.intInputs = sctx->intInputs;
-    inputsCtx.intCount = array_len(sctx->intInputs);
-    inputsCtx.floatInputs = sctx->floatInputs;
-    inputsCtx.floatCount = array_len(sctx->floatInputs);
-    inputsCtx.stringsInputs = sctx->stringInputs;
-    inputsCtx.stringCount = array_len(sctx->stringInputs);
-    inputsCtx.listSizes = sctx->listSizes;
-    inputsCtx.listCount = array_len(sctx->listSizes);
-
-    if (!torchMatchScriptSchema(arguments, array_len(arguments), &inputsCtx, &error_descr)) {
-        RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
-        RedisModule_Free(error_descr);
-        return 1;
+    // TODO: remove when SCRIPTRUN is EOL.
+    bool hasEntryPoint = false;
+    for (size_t i = 0; i < array_len(script->entryPoints); i++) {
+        if (strcmp(function, script->entryPoints[i]) == 0) {
+            hasEntryPoint = true;
+            break;
+        }
     }
 
-    torchRunScript(script->script, function, arguments, array_len(arguments), &inputsCtx, outputs,
-                   nOutputs, &error_descr);
+    // Create inputs context on stack.
+    TorchFunctionInputCtx inputsCtx = {.tensorInputs = inputs,
+                                       .tensorCount = nInputs,
+                                       .args = sctx->args,
+                                       .argsCount = array_len(sctx->args),
+                                       .keys = sctx->keys,
+                                       .keysCount = array_len(sctx->keys),
+                                       .hasEntryPoint = hasEntryPoint};
+
+    torchRunScript(script->script, function, &inputsCtx, outputs, nOutputs, &error_descr);
 
     if (error_descr) {
         RAI_SetError(error, RAI_ESCRIPTRUN, error_descr);
