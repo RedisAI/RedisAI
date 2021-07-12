@@ -416,31 +416,24 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int blob = 0;
+    int meta = false;
+    int blob = false;
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "BLOB")) {
-            blob = 1;
+            blob = true;
         }
-    }
-
-    if (!meta && !blob) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
     char *buffer = NULL;
     size_t len = 0;
 
-    if (blob) {
+    if (!meta || blob) {
         RAI_ModelSerialize(mto, &buffer, &len, &err);
-        if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-            printf("ERR: %s\n", err.detail);
-#endif
-            int ret = RedisModule_ReplyWithError(ctx, err.detail);
+        if (RAI_GetErrorCode(&err) != RAI_OK) {
+            int ret = RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
             RAI_ClearError(&err);
             if (*buffer) {
                 RedisModule_Free(buffer);
@@ -455,12 +448,14 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 18 : 16;
-    RedisModule_ReplyWithArray(ctx, outentries);
+    // The only case where we return only META, is when META is given but BLOB
+    // was not. Otherwise, we return both META+SOURCE
+    const int out_entries = (meta && !blob) ? 16 : 18;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
-    const char *backendstr = RAI_GetBackendName(mto->backend);
-    RedisModule_ReplyWithCString(ctx, backendstr);
+    const char *backend_str = RAI_GetBackendName(mto->backend);
+    RedisModule_ReplyWithCString(ctx, backend_str);
 
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, mto->devicestr);
@@ -495,7 +490,8 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
-    if (meta && blob) {
+    // This condition is the negation of (meta && !blob)
+    if (!meta || blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);
@@ -651,42 +647,39 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int source = 0;
+    bool meta = false;   // Indicates whether META argument was given.
+    bool source = false; // Indicates whether SOURCE argument was given.
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "SOURCE")) {
-            source = 1;
+            source = true;
         }
     }
-
-    if (!meta && !source) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or SOURCE specified");
-    }
-
+    // If only SOURCE arg was given, return only the script source.
     if (!meta && source) {
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
         return REDISMODULE_OK;
     }
+    // We return (META+SOURCE) if both args are given, or if none of them was given.
+    // The only case where we return only META data, is if META is given while SOURCE was not.
+    int out_entries = (source || !meta) ? 8 : 6;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
-    int outentries = source ? 8 : 6;
-
-    RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, sto->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
     RedisModule_ReplyWithString(ctx, sto->tag);
-    if (source) {
-        RedisModule_ReplyWithCString(ctx, "source");
-        RedisModule_ReplyWithCString(ctx, sto->scriptdef);
-    }
     RedisModule_ReplyWithCString(ctx, "Entry Points");
     size_t nEntryPoints = array_len(sto->entryPoints);
     RedisModule_ReplyWithArray(ctx, nEntryPoints);
     for (size_t i = 0; i < nEntryPoints; i++) {
         RedisModule_ReplyWithCString(ctx, sto->entryPoints[i]);
+    }
+    if (source || !meta) {
+        RedisModule_ReplyWithCString(ctx, "source");
+        RedisModule_ReplyWithCString(ctx, sto->scriptdef);
     }
     return REDISMODULE_OK;
 }

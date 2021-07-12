@@ -229,6 +229,33 @@ def test_pytorch_modelinfo(env):
     env.assertEqual(info_dict_0['errors'], 0)
 
 
+def test_pytorch_scriptget(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    con.execute_command('DEL', 'EMPTY{1}')
+    # ERR no script at key from SCRIPTGET
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
+
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
+    # ERR wrong type from SCRIPTGET
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
+
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSTORE', 'my_script{1}', DEVICE, 'TAG', 'my_tag',
+                              'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    # return meta + source
+    _, device, _, tag, _, entry_points, _, source = con.execute_command('AI.SCRIPTGET', 'my_script{1}')
+    env.assertEqual([device, tag, entry_points, source], [bytes(DEVICE, "utf8"), b"my_tag", [b'bar', b'bar_variadic'], script])
+    # return source only
+    source = con.execute_command('AI.SCRIPTGET', 'my_script{1}', 'SOURCE')
+    env.assertEqual(source, script)
+
+
 def test_pytorch_scriptdel(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)

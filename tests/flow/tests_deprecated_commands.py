@@ -239,6 +239,8 @@ def test_pytorch_scriptset(env):
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
+    _, device, _, tag, _, entry_points, _, source = con.execute_command('AI.SCRIPTGET', 'ket{1}')
+    env.assertEqual([device, tag, entry_points, source], [bytes(DEVICE, "utf8"), b"asdf", [], script])
 
     ensureSlaveSynced(con, env)
 

@@ -54,7 +54,7 @@ def test_modelstore_errors(env):
                         'AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BATCHSIZE', 2, 'BLOB')
 
 
-def test_modelget_errors(env):
+def test_modelget(env):
     if not TEST_TF:
         env.debugPrint("Skipping test since TF is not available", force=True)
         return
@@ -69,8 +69,17 @@ def test_modelget_errors(env):
 
     # ERR model key is empty
     con.execute_command('DEL', 'DONT_EXIST{1}')
-    check_error_message(env, con, "model key is empty",
-                        'AI.MODELGET', 'DONT_EXIST{1}')
+    check_error_message(env, con, "model key is empty", 'AI.MODELGET', 'DONT_EXIST{1}')
+
+    # The default behaviour on success is return META+BLOB
+    model_pb = load_file_content('graph.pb')
+    con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul',
+                              'BLOB', model_pb)
+    _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _, inputs, _, outputs, _, minbatchtimeout, _, blob = \
+            con.execute_command('AI.MODELGET', 'm{1}')
+    env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
+                         [b"TF", bytes(DEVICE, "utf8"), b"", 0, 0, 0, [b"a", b"b"], [b"mul"]])
+    env.assertEqual(blob, model_pb)
 
 
 def test_modelexecute_errors(env):
