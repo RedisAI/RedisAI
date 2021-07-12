@@ -90,11 +90,12 @@ clean_and_fetch() {
     product=$1
     archive=$2
     srcurl=$3
+    nofetch=$4
 
 	[[ $FORCE == 1 ]] && rm -rf ${product}  # FORCE is from the env
     [[ $FORCE != 1 ]] && [[ -d ${product} ]]  && echo "${product} is in place, skipping. Set FORCE=1 to override. Continuing." && return
 	echo "Installing ${product} from ${srcurl} in `pwd`..."
-	[[ ! -e ${archive} ]] && wget -q ${srcurl}
+	[[ ! -e ${archive} ]] && [[ -z ${nofetch} ]] && wget -q ${srcurl}
 	rm -rf ${product}.x
 	mkdir ${product}.x
 	tar xzf ${archive} --no-same-owner --strip-components=1 -C ${product}.x
@@ -179,7 +180,7 @@ fi
 
 LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
 if [[ $WITH_TFLITE != 0 ]]; then
-    clean_and_fetch tflite ${LIBTFLITE_ARCHIVE} ${LIBTF_URL_BASE}/${LIBTFLITE_ARCHIVE}
+    clean_and_fetch libtensorflow-lite ${LIBTFLITE_ARCHIVE} ${LIBTF_URL_BASE}/${LIBTFLITE_ARCHIVE}
 else
 	echo "Skipping TensorFlow Lite."
 fi # WITH_TFLITE
@@ -213,16 +214,17 @@ elif [[ $OS == macos ]]; then
 fi
 
 LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
+LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 
 if [[ $PT_REPACK == 1 ]]; then
     echo "Using repack.sh from ${HERE}/opt/build/libtorch/repack.sh"
     PT_VERSION=$PT_VERSION GPU=$GPU OS=${OS} ARCH=${ARCH} $HERE/opt/build/libtorch/repack.sh
-else
-    LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 fi
 
 if [[ $WITH_PT != 0 ]] && [ $PT_REPACK != 1 ]; then
     clean_and_fetch libtorch ${LIBTORCH_ARCHIVE}  ${LIBTORCH_URL}
+elif [[ $PT_REPACK == 1 ]]; then
+    clean_and_fetch libtorch ${LIBTORCH_ARCHIVE}  ${LIBTORCH_URL} 1
 else
 	echo "SKipping libtorch."
 fi # WITH_PT
