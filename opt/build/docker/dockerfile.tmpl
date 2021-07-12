@@ -31,10 +31,8 @@ COPY ./opt/ opt/
 ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
+RUN ./opt/readies/bin/getupdates
 RUN ./opt/system-setup.py
-RUN apt-get update -qq
-RUN apt-get upgrade -yqq
-RUN rm -rf /var/cache/apt
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .

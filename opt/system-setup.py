@@ -20,7 +20,7 @@ class RedisAISetup(paella.Setup):
         self.install_downloaders()
         self.pip_install("wheel")
 
-        self.install("git unzip patchelf")
+        self.install("git unzip")
         if self.osnick != 'centos8':
             self.install("coreutils") # for realpath
 

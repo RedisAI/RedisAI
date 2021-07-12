@@ -568,6 +568,7 @@ workflows:
               osnick:
                 - xenial
                 - bionic
+                - centos8
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
