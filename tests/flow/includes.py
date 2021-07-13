@@ -45,7 +45,7 @@ def ensureSlaveSynced(con, env, timeout_ms=0):
             env.debugPring(str(ex), force=True)
             env.assertFalse(True)
             return
-        env.assertEquals(number_replicas, 1)
+        env.assertEqual(number_replicas, 1)
 
 
 # Ensures command is sent and forced disconnect
