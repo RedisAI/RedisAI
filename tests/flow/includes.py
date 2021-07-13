@@ -248,4 +248,12 @@ def get_info_section(con, section):
 
 
 def get_connection(env, routing_hint):
+
+    # When running in cluster env, if a shard is not responsive for too long, it is marked as down by the other shards.
+    # Hence, we increase this timeout (for all shards) when running valgrind on cluster
+    if VALGRIND and env.isCluster():
+        connections_list = env.getOSSMasterNodesConnectionList()
+        for con in connections_list:
+            con.execute_command('CONFIG', 'set', 'cluster-node-timeout', '60000')
+
     return env.getConnectionByKey(routing_hint, None)
