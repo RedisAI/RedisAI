@@ -168,6 +168,8 @@ commands:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
+      - store_artifacts:
+          path: tests/flow/logs
 
   build-and-test-gpu-steps:
     steps:
@@ -309,6 +311,8 @@ jobs:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
+      - store_artifacts:
+          path: tests/flow/logs
 
   valgrind-general-for-forked-prs:
     docker:
