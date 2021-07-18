@@ -481,8 +481,7 @@ void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
     RAI_DagOp *currentOp = RedisAI_DagCurrentOp(rinfo);
 
     // Verify that the op type belongs to the DAGCommand enum.
-    RedisModule_Assert(currentOp->commandType >= REDISAI_DAG_CMD_TENSORSET &&
-                       currentOp->commandType <= REDISAI_DAG_CMD_SCRIPTRUN);
+    VALIDATE_DAG_COMMAND(currentOp->commandType)
 
     if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
         RedisAI_DagRunSession_ModelRun_Step(rinfo, currentOp);
