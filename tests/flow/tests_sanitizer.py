@@ -31,15 +31,11 @@ def test_sanitizer_dagrun_mobilenet_v1(env):
         class_key = 'output{s}'
 
         ret = con.execute_command(
-            'AI.DAGRUN', '|>',
+            'AI.DAGEXECUTE', 'ROUTING', '{s}', '|>',
             'AI.TENSORSET', image_key, 'FLOAT', 1, 224, 224, 3, 'BLOB', img.tobytes(),
             '|>',
-            'AI.MODELRUN', model_name,
-                         'INPUTS', image_key,
-                         'OUTPUTS', class_key,
-                          '|>',
-            'AI.TENSORGET',  class_key, 'blob'
-        )
+            'AI.MODELEXECUTE', model_name, 'INPUTS', 1, image_key, 'OUTPUTS', 1, class_key,
+            '|>', 'AI.TENSORGET',  class_key, 'blob')
         env.assertEqual([b'OK', b'OK'], ret[:2])
         env.assertEqual(1001.0, len(ret[2])/4)
 

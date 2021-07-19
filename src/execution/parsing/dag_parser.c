@@ -190,6 +190,7 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
                                        rinfo->err) == -1) {
                 return REDISMODULE_ERR;
             }
+            currentOp->result = REDISMODULE_OK;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {

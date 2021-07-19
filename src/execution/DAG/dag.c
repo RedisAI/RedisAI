@@ -480,31 +480,17 @@ void Dag_SetTensorInGlobalCtx(RedisAI_RunInfo *rinfo, size_t index, RAI_Tensor *
 void RedisAI_DagRunSessionStep(RedisAI_RunInfo *rinfo, const char *devicestr) {
     RAI_DagOp *currentOp = RedisAI_DagCurrentOp(rinfo);
 
-    switch (currentOp->commandType) {
-    case REDISAI_DAG_CMD_TENSORSET: {
-        // TENSORSET op is done in parsing stage (consider removing it from dag ops).
-        currentOp->result = REDISMODULE_OK;
-        break;
-    }
-    case REDISAI_DAG_CMD_TENSORGET: {
-        // TENSORSET op is done when we finish (consider removing it from dag ops).
-        currentOp->result = REDISMODULE_OK;
-        break;
-    }
-    case REDISAI_DAG_CMD_MODELRUN: {
+    // Verify that the op type belongs to the DAGCommand enum.
+    VALIDATE_DAG_COMMAND(currentOp->commandType)
+
+    if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
         RedisAI_DagRunSession_ModelRun_Step(rinfo, currentOp);
-        break;
-    }
-    case REDISAI_DAG_CMD_SCRIPTRUN: {
+    } else if (currentOp->commandType == REDISAI_DAG_CMD_SCRIPTRUN) {
         RedisAI_DagRunSession_ScriptRun_Step(rinfo, currentOp);
-        break;
-    }
-    default: {
-        /* unsupported DAG's command */
-        RAI_SetError(currentOp->err, RAI_EDAGRUN, "ERR unsupported command within DAG");
-        currentOp->result = REDISMODULE_ERR;
-        break;
-    }
+    } else {
+        // do nothing for tensorset (executed on parsing) and for tensorget (done
+        // on dag reply).
+        return;
     }
 
     if (currentOp->result != REDISMODULE_OK) {
@@ -568,26 +554,21 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
 
     for (size_t i = 0; i < n_dagOps; i++) {
         RAI_DagOp *currentOp = rinfo->dagOps[i];
+
         switch (currentOp->commandType) {
         case REDISAI_DAG_CMD_TENSORSET: {
             rinfo->dagReplyLength++;
-            if (currentOp->result == REDISMODULE_ERR) {
-                RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-                dag_error = 1;
-            } else if (currentOp->result == -1) {
-                RedisModule_ReplyWithSimpleString(ctx, "NA");
-            } else {
-                RedisModule_ReplyWithSimpleString(ctx, "OK");
-            }
+            RedisModule_Assert(currentOp->result == REDISMODULE_OK);
+            RedisModule_ReplyWithSimpleString(ctx, "OK");
             break;
         }
 
         case REDISAI_DAG_CMD_TENSORGET: {
             rinfo->dagReplyLength++;
-            if (currentOp->result == -1) {
+            RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
+            if (t == NULL) {
                 RedisModule_ReplyWithSimpleString(ctx, "NA");
             } else {
-                RAI_Tensor *t = Dag_GetTensorFromGlobalCtx(rinfo, currentOp->inkeys_indices[0]);
                 ReplyWithTensor(ctx, currentOp->fmt, t);
             }
             break;
@@ -636,8 +617,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             break;
         }
         default:
-            /* no-op */
-            break;
+            RedisModule_Assert(false && "Dag reply - invalid op");
         }
     }
     if (dag_error) {
