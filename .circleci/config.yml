@@ -192,64 +192,6 @@ commands:
       - store_artifacts:
           path: /home/circleci/tests
 
-  valgrind-general-steps:
-    parameters:
-      test_args:
-        type: string
-        default: "CLUSTER=0 AOF=0"
-    steps:
-      - abort_for_docs
-      - abort_for_noci
-      - checkout-all
-      - restore_cache:
-          keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
-          # If no exact match is found will get dependencies from source
-      - setup-build-system
-      - run:
-          name: Install dependencies
-          command: |
-            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
-            ./get_deps.sh cpu
-      - run:
-          name: Build for valgrind
-          command: |
-            make -C opt all VALGRIND=1 SHOW=1
-      - run:
-          name: Test with valgrind
-          command: |
-            make -C opt test VALGRIND=1 <<parameters.test_args>>
-          no_output_timeout: 120m
-
-  build-and-test-gpu-steps:
-    steps:
-      - abort_for_docs
-      - abort_for_noci
-      - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
-      - run:
-          name: Build
-          command: |
-            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
-      - run:
-          name: Test
-          command: |
-            mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
-          no_output_timeout: 40m
-      - store_artifacts:
-          path: tests/logs
-
-
-
 jobs:
   lint:
     docker:
@@ -371,13 +313,6 @@ jobs:
           no_output_timeout: 120m
       - store_artifacts:
           path: tests/flow/logs
-
-  valgrind-general-for-forked-prs:
-    docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
-    steps:
-      - only_run_if_forked_pull_request
-      - valgrind-general-steps
 
   valgrind-general-for-forked-prs:
     docker:
