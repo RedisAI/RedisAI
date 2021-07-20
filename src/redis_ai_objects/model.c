@@ -223,7 +223,6 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
         RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
                         RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        return REDISMODULE_ERR;
 #else
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
@@ -232,6 +231,7 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
                          "ERR CROSSSLOT Keys in request don't hash to the same slot");
         }
 #endif
+        return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
         RedisModule_CloseKey(key);
@@ -245,8 +245,18 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     return REDISMODULE_OK;
 }
 
-size_t ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
+inline size_t RAI_ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
 
-size_t ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+inline size_t RAI_ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
+
+inline const char *RAI_ModelGetInputName(RAI_Model *model, size_t index) {
+    return model->inputs[index];
+}
+
+const char *RAI_ModelGetOutputName(RAI_Model *model, size_t index) { return model->outputs[index]; }
+
+inline void *RAI_ModelGetSession(RAI_Model *model) { return model->session; }
+
+inline void *RAI_ModelGetModel(RAI_Model *model) { return model->model; }
 
 RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }

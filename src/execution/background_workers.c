@@ -1,24 +1,7 @@
-/**
- * background_workers.c
- *
- * Contains the structure to manage the per-device queues, used for decoupling
- * the work from the main thread to the background worker threads. For each of
- * the incoming ModelRun, ScriptRun, and DagRun commands, the request is queued
- * and evaded asynchronously to one the device queues.
- *
- */
-
-#include <ctype.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <pthread.h>
-#include <string.h>
-#include <errno.h>
-#include <sys/time.h>
-#include "redisai.h"
+#include "sys/time.h"
 #include "run_info.h"
-#include "background_workers.h"
+#include "run_queue_info.h"
+#include "execution/DAG/dag.h"
 
 /* Define for RedisAI thread name setter */
 #ifdef __linux__
@@ -38,75 +21,18 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-int freeRunQueueInfo(RunQueueInfo *info) {
-    int result = REDISMODULE_OK;
-    if (info->run_queue) {
-        RedisModule_Free(info->run_queue);
-    }
-    RedisModule_Free(info->devicestr);
-    if (info->threads) {
-        /* Wait for workers to exit */
-        for (int i = 0; i < perqueueThreadPoolSize; i++) {
-            const int rtn = pthread_join(info->threads[i], NULL);
-            if (rtn != 0) {
-                result = REDISMODULE_ERR;
-            }
-        }
-        /* Now free pool structure */
-        RedisModule_Free(info->threads);
-    }
-    RedisModule_Free(info);
-    return result;
-}
+uintptr_t BGWorkersCounter; // Total number of BG threads running currently.
+pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
 
-void *RedisAI_Run_ThreadMain(void *arg);
-
-char *strToUpper(const char *input) {
-    char *output = RedisModule_Strdup(input);
-    size_t output_len = strlen(output);
-    for (long long i = 0; i < output_len; i++) {
-        output[i] = toupper(output[i]);
-    }
-    return output;
-}
-
-/* Ensure that the the run queue for the device exists.
- * If not, create it. */
-int ensureRunQueue(const char *devicestr, RunQueueInfo **run_queue_info) {
-    int result = REDISMODULE_ERR;
-    if (run_queues == NULL) {
-        return result;
-    }
-
-    char *devicestr_ = strToUpper(devicestr);
-
-    AI_dictEntry *entry = AI_dictFind(run_queues, devicestr_);
-    if (entry) {
-        *run_queue_info = AI_dictGetVal(entry);
-        result = REDISMODULE_OK;
-    } else {
-        *run_queue_info = RedisModule_Alloc(sizeof(RunQueueInfo));
-        (*run_queue_info)->run_queue = queueCreate();
-        (*run_queue_info)->devicestr = RedisModule_Strdup(devicestr_);
-        pthread_cond_init(&(*run_queue_info)->queue_condition_var, NULL);
-        pthread_mutex_init(&(*run_queue_info)->run_queue_mutex, NULL);
-        (*run_queue_info)->threads =
-            (pthread_t *)RedisModule_Alloc(sizeof(pthread_t) * perqueueThreadPoolSize);
-        /* create threads */
-        for (int i = 0; i < perqueueThreadPoolSize; i++) {
-            if (pthread_create(&((*run_queue_info)->threads[i]), NULL, RedisAI_Run_ThreadMain,
-                               *run_queue_info) != 0) {
-                freeRunQueueInfo(*run_queue_info);
-                return REDISMODULE_ERR;
-            }
-        }
-        AI_dictAdd(run_queues, (void *)devicestr_, (void *)*run_queue_info);
-        result = REDISMODULE_OK;
-    }
-
-    RedisModule_Free(devicestr_);
-
-    return result;
+/**
+ * @brief Save the id for some working thread in thread local storage.
+ */
+static void _BGWorker_SaveThreadId() {
+    // Let the current thread have the next available id, and increase the counter.
+    long id_value = __atomic_add_fetch(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
+    // Convert the id value to a pointer and store it the thread local storage.
+    // First id is 1, so we won't confuse with NULL (which is the error return value)
+    pthread_setspecific(ThreadIdKey, (const void *)id_value);
 }
 
 /**
@@ -138,36 +64,37 @@ static void _BGThread_RinfoFinish(RedisAI_RunInfo *rinfo) {
 }
 
 static bool _BGThread_IsRInfoTimedOut(RedisAI_RunInfo *rinfo) {
-    bool timedOut = false;
+
+    if (RedisAI_DagTimeout(rinfo)) {
+        return true;
+    }
     if (rinfo->timeout > 0) {
-        timedOut = __atomic_load_n(rinfo->timedOut, __ATOMIC_RELAXED);
-
-        if (!timedOut) {
-            struct timeval now, sub;
-            gettimeofday(&now, NULL);
-            timersub(&now, &rinfo->queuingTime, &sub);
-            size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
-
-            if (time_msec > rinfo->timeout) {
-                timedOut = true;
-                __atomic_store_n(rinfo->timedOut, timedOut, __ATOMIC_RELAXED);
-            }
+        struct timeval now, sub;
+        gettimeofday(&now, NULL);
+        timersub(&now, &rinfo->queuingTime, &sub);
+        size_t time_msec = sub.tv_sec * 1000 + sub.tv_usec / 1000;
+        if (time_msec > rinfo->timeout) {
+            RedisAI_DagSetTimeout(rinfo);
+            return true;
         }
     }
-    return timedOut;
+    return false;
 }
 
-static void _BGThread_ExecutionFinish(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo) {
+static int *_BGThread_ExecutionFinish(RedisAI_RunInfo **batch_rinfo) {
+    int *unfinished_rinfos_indices = array_new(int, array_len(batch_rinfo));
     for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
         RedisAI_RunInfo *rinfo = batch_rinfo[i];
         rinfo->dagDeviceCompleteOpCount += 1;
         __atomic_add_fetch(rinfo->dagCompleteOpCount, 1, __ATOMIC_RELAXED);
-        if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo)) {
+        if (RedisAI_DagDeviceComplete(rinfo) || RedisAI_DagError(rinfo) ||
+            RedisAI_DagTimeout(rinfo)) {
             _BGThread_RinfoFinish(rinfo);
         } else {
-            queuePushFront(run_queue_info->run_queue, rinfo);
+            unfinished_rinfos_indices = array_append(unfinished_rinfos_indices, i);
         }
     }
+    return unfinished_rinfos_indices;
 }
 
 static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **batch_rinfo) {
@@ -177,9 +104,9 @@ static void _BGThread_Execute(RunQueueInfo *run_queue_info, RedisAI_RunInfo **ba
         // For simplicity, we call into different functions whether the run
         // is batched or not
         if (batched_run) {
-            RedisAI_BatchedDagRunSessionStep(batch_rinfo, run_queue_info->devicestr);
+            RedisAI_BatchedDagRunSessionStep(batch_rinfo, run_queue_info->device_str);
         } else {
-            RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->devicestr);
+            RedisAI_DagRunSessionStep(batch_rinfo[0], run_queue_info->device_str);
         }
     }
 }
@@ -298,9 +225,47 @@ static RedisAI_RunInfo **_BGThread_BatchOperations(RunQueueInfo *run_queue_info,
     return batch_rinfo;
 }
 
-void *RedisAI_Run_ThreadMain(void *arg) {
+static bool _BGThread_PrepareExecution(RunQueueInfo *run_queue_info, RedisAI_RunInfo *rinfo,
+                                       RedisAI_RunInfo ***batch_rinfo) {
+    // Get if the operation is ready and bacthable
+    bool currentOpReady, currentOpBatchable;
+    RedisAI_DagCurrentOpInfo(rinfo, &currentOpReady, &currentOpBatchable);
+    if (currentOpReady) {
+        *batch_rinfo = array_append(*batch_rinfo, rinfo);
+    } else {
+        // Op is not ready - push back to queue and continue the loop.
+        queuePush(run_queue_info->run_queue, rinfo);
+        return false;
+    }
+
+    if (currentOpBatchable) {
+        bool batchReady = true;
+        *batch_rinfo = _BGThread_BatchOperations(run_queue_info, rinfo, *batch_rinfo, &batchReady);
+        if (!batchReady) {
+            // Batch is not ready - batch size didn't match the expectations from
+            // minbatchsize
+            for (int i = array_len(*batch_rinfo) - 1; i >= 0; i--) {
+                queuePush(run_queue_info->run_queue, (*batch_rinfo)[i]);
+            }
+            return false;
+        }
+    }
+    return true;
+}
+
+long BGWorker_GetThreadId() {
+    void *thread_id = pthread_getspecific(ThreadIdKey);
+
+    // Return the 0 based id, if thread_id was NULL, we return -1 to indicates that
+    // the caller is not RedisAI thread.
+    return (long)(thread_id)-1;
+}
+
+uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
+
+void *BGWorker_ThreadMain(void *arg) {
+    _BGWorker_SaveThreadId();
     RunQueueInfo *run_queue_info = (RunQueueInfo *)arg;
-    RAI_PTHREAD_SETNAME("redisai_bthread");
     RedisAI_RunInfo **batch_rinfo = array_new(RedisAI_RunInfo *, 1);
     pthread_mutex_lock(&run_queue_info->run_queue_mutex);
 
@@ -316,41 +281,13 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             queueItem *item = queuePop(run_queue_info->run_queue);
             RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)item->value;
             RedisModule_Free(item);
-            // In case of timeout.
-            if (_BGThread_IsRInfoTimedOut(rinfo)) {
-                _BGThread_RinfoFinish(rinfo);
-                continue;
-            }
-
-            if (RedisAI_DagError(rinfo)) {
-                _BGThread_RinfoFinish(rinfo);
-                continue;
-            }
-
-            // Get if the operation is ready and bacthable
-            bool currentOpReady, currentOpBatchable;
-            RedisAI_DagCurrentOpInfo(rinfo, &currentOpReady, &currentOpBatchable);
-            if (currentOpReady) {
-                batch_rinfo = array_append(batch_rinfo, rinfo);
-            } else {
-                // Op is not ready - push back to queue and continue the loop.
-                queuePush(run_queue_info->run_queue, rinfo);
-                continue;
-            }
-
-            if (currentOpBatchable) {
-                bool batchReady = true;
-                batch_rinfo =
-                    _BGThread_BatchOperations(run_queue_info, rinfo, batch_rinfo, &batchReady);
-                if (!batchReady) {
-                    // Batch is not ready - batch size didn't match the expectations from
-                    // minbatchsize
-                    for (int i = array_len(batch_rinfo) - 1; i >= 0; i--) {
-                        queuePush(run_queue_info->run_queue, batch_rinfo[i]);
-                    }
-                    // Exit the loop, give a chance to new tasks to submit.
-                    break;
-                }
+            // In case of timeout or error - skip execution.
+            bool skip_execution = _BGThread_IsRInfoTimedOut(rinfo) || RedisAI_DagError(rinfo);
+            // Prepare to execution, if the op or the batch is not ready, exit
+            // the loop, give a chance to new tasks to submit.
+            if (!skip_execution &&
+                !_BGThread_PrepareExecution(run_queue_info, rinfo, &batch_rinfo)) {
+                break;
             }
             // Run the computation step (batched or not)
             // We're done with the queue here, items have been evicted so we can
@@ -358,10 +295,25 @@ void *RedisAI_Run_ThreadMain(void *arg) {
             // on the same queue. The evicted items at this point are only visible
             // to this worker.
             pthread_mutex_unlock(&run_queue_info->run_queue_mutex);
-            _BGThread_Execute(run_queue_info, batch_rinfo);
-            // Lock the queue again: we're done operating on evicted items only.
+            if (!skip_execution) {
+                _BGThread_Execute(run_queue_info, batch_rinfo);
+            } else {
+                // If we are skipping the execution due to dag error or timeout,
+                // we consider the batch as contains this single dag when finish.
+                batch_rinfo = array_append(batch_rinfo, rinfo);
+            }
+            // For every DAG in the batch: if the entire DAG run is complete,
+            // call the on finish callback. Otherwise, save the DAG index in
+            // the batch_rinfo array, so we reinsert the DAG to the queue
+            // (after acquiring the queue lock).
+            int *unfinished_rinfo_indices = _BGThread_ExecutionFinish(batch_rinfo);
             pthread_mutex_lock(&run_queue_info->run_queue_mutex);
-            _BGThread_ExecutionFinish(run_queue_info, batch_rinfo);
+
+            // Reinsert the unfinished DAG's run info to the queue.
+            for (size_t i = 0; i < array_len(unfinished_rinfo_indices); i++) {
+                queuePushFront(run_queue_info->run_queue, batch_rinfo[unfinished_rinfo_indices[i]]);
+            }
+            array_free(unfinished_rinfo_indices);
         }
     }
     array_free(batch_rinfo);

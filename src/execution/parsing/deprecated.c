@@ -1,4 +1,3 @@
-
 #include "deprecated.h"
 #include "rmutil/args.h"
 #include "backends/backends.h"
@@ -6,11 +5,12 @@
 #include "redis_ai_objects/stats.h"
 
 #include "execution/utils.h"
+#include <execution/run_queue_info.h>
 #include "execution/DAG/dag_builder.h"
 #include "execution/DAG/dag_execute.h"
-#include "execution/background_workers.h"
 #include "execution/parsing/dag_parser.h"
 #include "execution/parsing/parse_utils.h"
+
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 
@@ -98,7 +98,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
     currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
+    currentOp->ectx = (RAI_ExecutionCtx *)mctx;
     currentOp->devicestr = mctx->model->devicestr;
 
     if (rinfo->single_op_dag) {
@@ -236,8 +236,8 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     RAI_Model *model = NULL;
@@ -305,17 +305,12 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     }
 
     // TODO: if backend loaded, make sure there's a queue
-    RunQueueInfo *run_queue_info = NULL;
-    if (ensureRunQueue(devicestr, &run_queue_info) != REDISMODULE_OK) {
-        RAI_ModelFree(model, &err);
-        if (err.code != RAI_OK) {
-            RedisModule_Log(ctx, "warning", "%s", err.detail);
-            int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
-            RAI_ClearError(&err);
-            return ret;
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ModelFree(model, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
         }
-        return RedisModule_ReplyWithError(ctx,
-                                          "ERR Could not initialize queue on requested device");
     }
 
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
@@ -347,10 +342,100 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     return REDISMODULE_OK;
 }
 
+int ScriptSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    if (argc != 5 && argc != 7)
+        return RedisModule_WrongArity(ctx);
+
+    ArgsCursor ac;
+    ArgsCursor_InitRString(&ac, argv + 1, argc - 1);
+
+    RedisModuleString *keystr;
+    AC_GetRString(&ac, &keystr, 0);
+
+    const char *devicestr;
+    AC_GetString(&ac, &devicestr, NULL, 0);
+
+    RedisModuleString *tag = NULL;
+    if (AC_AdvanceIfMatch(&ac, "TAG")) {
+        AC_GetRString(&ac, &tag, 0);
+    }
+
+    if (AC_IsAtEnd(&ac)) {
+        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
+    }
+
+    size_t scriptlen;
+    const char *scriptdef = NULL;
+
+    if (AC_AdvanceIfMatch(&ac, "SOURCE")) {
+        AC_GetString(&ac, &scriptdef, &scriptlen, 0);
+    }
+
+    if (scriptdef == NULL) {
+        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
+    }
+
+    RAI_Script *script = NULL;
+
+    RAI_Error err = {0};
+    script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+
+    if (err.code == RAI_EBACKENDNOTLOADED) {
+        RedisModule_Log(ctx, "warning",
+                        "Backend TORCH not loaded, will try loading default backend");
+        int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
+        if (ret == REDISMODULE_ERR) {
+            RedisModule_Log(ctx, "warning", "Could not load TORCH default backend");
+            int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
+            RAI_ClearError(&err);
+            return ret;
+        }
+        RAI_ClearError(&err);
+        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+    }
+
+    if (err.code != RAI_OK) {
+#ifdef RAI_PRINT_BACKEND_ERRORS
+        printf("ERR: %s\n", err.detail);
+#endif
+        int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
+        RAI_ClearError(&err);
+        return ret;
+    }
+
+    if (!RunQueue_IsExists(devicestr)) {
+        RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
+        if (run_queue_info == NULL) {
+            RAI_ScriptFree(script, &err);
+            RedisModule_ReplyWithError(ctx, "ERR Could not initialize queue on requested device");
+        }
+    }
+
+    RedisModuleKey *key = RedisModule_OpenKey(ctx, keystr, REDISMODULE_READ | REDISMODULE_WRITE);
+    int type = RedisModule_KeyType(key);
+    if (type != REDISMODULE_KEYTYPE_EMPTY &&
+        !(type == REDISMODULE_KEYTYPE_MODULE &&
+          RedisModule_ModuleTypeGetType(key) == RAI_ScriptRedisType())) {
+        RedisModule_CloseKey(key);
+        return RedisModule_ReplyWithError(ctx, REDISMODULE_ERRORMSG_WRONGTYPE);
+    }
+
+    RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
+
+    script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
+
+    RedisModule_CloseKey(key);
+
+    RedisModule_ReplyWithSimpleString(ctx, "OK");
+
+    RedisModule_ReplicateVerbatim(ctx);
+
+    return REDISMODULE_OK;
+}
+
 static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc,
                                        RAI_Error *error, RedisModuleString ***inkeys,
-                                       RedisModuleString ***outkeys, long long *timeout,
-                                       size_t **listSizes) {
+                                       RedisModuleString ***outkeys, long long *timeout) {
 
     bool is_input = false;
     bool is_output = false;
@@ -427,9 +512,6 @@ static int _ScriptRunCommand_ParseArgs(RedisModuleCtx *ctx, RedisModuleString **
             return REDISMODULE_ERR;
         }
     }
-    if (varidic_start_pos != -1) {
-        *listSizes = array_append(*listSizes, ninputs - varidic_start_pos);
-    }
 
     return REDISMODULE_OK;
 }
@@ -464,8 +546,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     sctx = RAI_ScriptRunCtxCreate(script, func_name);
     long long timeout = 0;
     if (_ScriptRunCommand_ParseArgs(ctx, argv, argc, rinfo->err, &currentOp->inkeys,
-                                    &currentOp->outkeys, &timeout,
-                                    &sctx->listSizes) == REDISMODULE_ERR) {
+                                    &currentOp->outkeys, &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
     if (timeout > 0 && !rinfo->single_op_dag) {
@@ -480,7 +561,7 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
             REDISMODULE_ERR)
             goto cleanup;
     }
-    currentOp->sctx = sctx;
+    currentOp->ectx = (RAI_ExecutionCtx *)sctx;
     currentOp->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     currentOp->devicestr = sctx->script->devicestr;
     res = REDISMODULE_OK;
@@ -518,8 +599,10 @@ int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
             if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
-                                       rinfo->err) == -1)
+                                       rinfo->err) == -1) {
                 goto cleanup;
+            }
+            currentOp->result = REDISMODULE_OK;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELRUN")) {

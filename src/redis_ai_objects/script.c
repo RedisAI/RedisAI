@@ -20,13 +20,14 @@
 
 extern RedisModuleType *RedisAI_ScriptType;
 
-RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
-                             RAI_Error *err) {
+RAI_Script *RAI_ScriptCompile(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                              const char **entryPoints, size_t nEntryPoints, RAI_Error *err) {
     if (!RAI_backends.torch.script_create) {
         RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
         return NULL;
     }
-    RAI_Script *script = RAI_backends.torch.script_create(devicestr, scriptdef, err);
+    RAI_Script *script =
+        RAI_backends.torch.script_create(devicestr, scriptdef, entryPoints, nEntryPoints, err);
 
     if (script) {
         if (tag) {
@@ -37,6 +38,11 @@ RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, cons
     }
 
     return script;
+}
+
+RAI_Script *RAI_ScriptCreate(const char *devicestr, RedisModuleString *tag, const char *scriptdef,
+                             RAI_Error *err) {
+    return RAI_ScriptCompile(devicestr, tag, scriptdef, NULL, 0, err);
 }
 
 void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {
@@ -74,7 +80,6 @@ int RAI_GetScriptFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, R
         RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
                         RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
-        return REDISMODULE_ERR;
 #else
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR script key is empty");
@@ -115,6 +120,9 @@ int RedisAI_ScriptRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
         if (!strcasecmp(str, "OUTPUTS")) {
             continue;
         }
+        if (!strcasecmp(str, "$")) {
+            continue;
+        }
         RedisModule_KeyAtPos(ctx, argpos);
     }
     return REDISMODULE_OK;
@@ -132,15 +140,9 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
     while (argpos < argc) {
         const char *str = RedisModule_StringPtrLen(argv[argpos++], NULL);
 
-        // Inputs, outpus, keys, lists.
+        // Inputs, outpus, keys,.
         if ((!strcasecmp(str, "INPUTS")) || (!strcasecmp(str, "OUTPUTS")) ||
-            (!strcasecmp(str, "LIST_INPUTS")) || (!strcasecmp(str, "KEYS"))) {
-            bool updateKeyAtPos = false;
-            // The only scope where the inputs strings are 100% keys are in the KEYS and OUTPUTS
-            // scopes.
-            if ((!strcasecmp(str, "OUTPUTS")) || (!strcasecmp(str, "KEYS"))) {
-                updateKeyAtPos = true;
-            }
+            (!strcasecmp(str, "KEYS"))) {
             if (argpos >= argc) {
                 return REDISMODULE_ERR;
             }
@@ -154,9 +156,7 @@ int RedisAI_ScriptExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
                 return REDISMODULE_ERR;
             }
             for (long long i = 0; i < count; i++) {
-                if (updateKeyAtPos) {
-                    RedisModule_KeyAtPos(ctx, argpos);
-                }
+                RedisModule_KeyAtPos(ctx, argpos);
                 argpos++;
             }
             continue;

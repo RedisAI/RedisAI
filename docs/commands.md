@@ -222,8 +222,8 @@ AI.MODELGET <key> [META] [BLOB]
 _Arguments
 
 * **key**: the model's key name
-* **META**: will return the model's meta information on backend, device, tag and batching parameters
-* **BLOB**: will return the model's blob containing the serialized model
+* **META**: will return only the model's meta information on backend, device, tag and batching parameters
+* **BLOB**: will return only the model's blob containing the serialized model
 
 _Return_
 
@@ -237,7 +237,7 @@ An array of alternating key-value pairs as follows:
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
 1. **MINBATCHTIMEOUT**: The time in milliseconds for which the engine will wait before executing a request to run the model, when the number of incoming requests is lower than `MINBATCHSIZE`. When `MINBATCHTIMEOUT` is 0, the engine will not run the model before it receives at least `MINBATCHSIZE` requests.
-1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
+1. **BLOB**: a blob containing the serialized model as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
 
@@ -378,7 +378,7 @@ OK
 ```
 
 ## AI._MODELSCAN
-The **AI._MODELSCAN** command returns all the models in the database.
+The **AI._MODELSCAN** command returns all the models in the database. When using Redis open source cluster, the command shall return all the models that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -408,7 +408,55 @@ redis> > AI._MODELSCAN
    2) imagenet:5.0
 ```
 
+
+## AI.SCRIPTSTORE
+The **`AI.SCRIPTSTORE`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
+
+**Redis API**
+
+```
+AI.SCRIPTSTORE <key> <device> [TAG tag] ENTRY_POINTS <entry_points_count> <entry_point> [<entry_point>...] SOURCE "<script>"
+```
+
+_Arguments_
+
+
+* **key**: the script's key name
+* **TAG**: an optional string for tagging the script such as a version number or any arbitrary identifier
+* **device**: the device that will execute the model can be of:
+    * **CPU**: a CPU device
+    * **GPU**: a GPU device
+    * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
+* **ENTRY_POINTS** A list of function names in the script to be used as entry points upon execution. Each entry point should have the signature of `def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`. The purpose of each list is as follows:
+* `tensors`: A list holding the input tensors to the function.
+* `keys`: A list of keys that the torch script is about to preform read/write operations on.
+* `args`: A list of additional arguments to the function. If the desired argument is not from type string, it is up to the caller to cast it to the right type, within the script.
+* **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+
+_Return_
+
+A simple 'OK' string or an error.
+
+**Examples**
+
+Given the following contents of the file 'addtwo.py':
+
+```python
+def addtwo(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = tensors[0]
+    b = tensors[1]
+    return a + b
+```
+
+It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
+
+```
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU TAG myscript:v0.1 ENTRY_POINTS 1 addtwo SOURCE
+OK
+```
+
 ## AI.SCRIPTSET
+_This command is deprecated and will not be available in future versions. consider using AI.SCRIPTSTORE command instead._
 The **`AI.SCRIPTSET`** command stores a [TorchScript](https://pytorch.org/docs/stable/jit.html) as the value of a key.
 
 **Redis API**
@@ -462,17 +510,18 @@ AI.SCRIPTGET <key> [META] [SOURCE]
 _Arguments_
 
 * **key**: the script's key name
-* **META**: will return the script's meta information on device and tag
-* **SOURCE**: will return a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+* **META**: will return only the script's meta information on device, tag and entry points.
+* **SOURCE**: will return only the string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
 
 An array with alternating entries that represent the following key-value pairs:
-!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
+!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag ENTRY_POINTS [entry_point ...] SOURCE source`.
 
 1. **DEVICE**: the script's device as a String
-1. **TAG**: the scripts's tag as a String
-1. **SOURCE**: the script's source code as a String
+2. **TAG**: the scripts's tag as a String
+3. **SOURCE**: the script's source code as a String
+4. **ENTRY_POINTS** will return an array containing the script entry point functions
 
 **Examples**
 
@@ -487,6 +536,8 @@ redis> AI.SCRIPTGET myscript
 5) "source"
 6) def addtwo(a, b):
     return a + b
+7) "Entry Points"
+8) 1) addtwo
 ```
 
 ## AI.SCRIPTDEL
@@ -519,7 +570,7 @@ OK
 
 ## AI.SCRIPTEXECUTE
 
-The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It accepts one or more inputs, where the inputs could be tensors stored in RedisAI, int, float, or strings and stores the script outputs as RedisAI tensors if required.
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It receives a list of Redis keys, a list of input tensors and an additional list of arguments to be used in the script.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 
@@ -532,21 +583,25 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 
 ```
 AI.SCRIPTEXECUTE <key> <function> 
-KEYS n <key> [keys...] 
-[INPUTS m <input> [input ...] | [LIST_INPUTS l <input> [input ...]]*]
-[OUTPUTS k <output> [output ...] [TIMEOUT t]]+
+[KEYS <keys_count> <key> [keys...]]
+[INPUTS <input_count> <input> [input ...]]
+[ARGS <args_count> <arg> [arg...]]
+[OUTPUTS <outputs_count> <output> [output ...]]
+[TIMEOUT t]
 ```
 
 _Arguments_
 
-* **key**: the script's key name
-* **function**: the name of the function to run
-* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. `KEYS` is a mandatory scope in this command. Redis will verify that all potional key accesses are done to the right shard.
-* **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that list inputs are treated in the **LIST_INPUTS** scope.
-* **LIST_INPUTS** Denotes the beginning of a list, followed by its length and one or more inputs; The inputs can be tensor key name, `string`, `int` or `float`. The order of the input should be aligned with the order of their respected parameter at the function signature. Note that if more than one list is provided, their order should be aligned with the order of their respected paramter at the function signature.
-
+* **key**: the script's key name.
+* **function**: the name of the entry point function to run.
+* **KEYS**: Denotes the beginning of a list of Redis key names that the script will access to during its execution, for both read and/or write operations.
+* **INPUTS**: Denotes the beginning of the input tensors list, followed by its length and one or more input tensors.
+* **ARGS**: Denotes the beginning of a list of additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
+
+Note:
+Either `KEYS` or `INPUTS` scopes should be provided this command (one or both scopes are acceptable). Those scopes indicate keyspace access and such, the right shard to execute the command at. Redis will verify that all potential key accesses are done to the right shard.
 
 _Return_
 
@@ -557,26 +612,11 @@ A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
 The following is an example of running the previously-created 'myscript' on two input tensors:
 
 ```
-redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
-OK
-redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
-OK
-redis> AI.SCRIPTEXECUTE myscript addtwo KEYS 3 mytensor1 mytensor2 result INPUTS 2 mytensor1 mytensor2 OUTPUTS 1 result
-OK
-redis> AI.TENSORGET result VALUES
-1) FLOAT
-2) 1) (integer) 1
-3) 1) "42"
-```
-
-Note: The above command could be executed with a shorter version, given all the keys are tagged with the same tag:
-
-```
 redis> AI.TENSORSET mytensor1{tag} FLOAT 1 VALUES 40
 OK
 redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 2
 OK
-redis> AI.SCRIPTEXECUTE myscript{tag} addtwo KEYS 1 {tag} INPUTS 2 mytensor1{tag} mytensor2{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addtwo INPUTS 2 mytensor1{tag} mytensor2{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -584,10 +624,10 @@ redis> AI.TENSORGET result{tag} VALUES
 3) 1) "42"
 ```
 
-If 'myscript' supports `List[Tensor]` arguments:
+An example that supports `List[Tensor]` arguments:
 ```python
-def addn(a, args : List[Tensor]):
-    return a + torch.stack(args).sum()
+def addn(tensors: List[Tensor], keys: List[str], args: List[str]):
+    return torch.stack(tensors).sum()
 ```
 
 ```
@@ -597,7 +637,7 @@ redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 1
 OK
 redis> AI.TENSORSET mytensor3{tag} FLOAT 1 VALUES 1
 OK
-redis> AI.SCRIPTEXECUTE myscript{tag} addn keys 1 {tag} INPUTS 1 mytensor1{tag} LIST_INPUTS 2 mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addn INPUTS 3 mytensor1{tag} mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -605,23 +645,51 @@ redis> AI.TENSORGET result{tag} VALUES
 3) 1) "42"
 ```
 
+Note: for the time being, as `AI.SCRIPTSET` is still available to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str]` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they appear.
+
 ### Redis Commands support.
-In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following (usless) script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+In RedisAI TorchScript now supports simple (non-blocking) Redis commands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
 
 ```
 def redis_int_to_tensor(redis_value: int):
     return torch.tensor(redis_value)
 
-def int_set_get(key:str, value:int):
-    redis.execute("SET", key, str(value))
+def int_set_get(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
+    redis.execute("SET", key, value)
     res = redis.execute("GET", key)
     return redis_string_int_to_tensor(res)
 ```
 ```
-redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 {1} INPUTS 2 x{1} 3 OUTPUTS 1 y{1}
+redis> AI.SCRIPTEXECUTE redis_scripts{1} int_set_get KEYS 1 x{1} ARGS 1 3 OUTPUTS 1 y{1}
 OK
 redis> AI.TENSORGET y{1} VALUES
 1) (integer) 3
+```
+
+### RedisAI model execution support.
+RedisAI TorchScript also supports executing models which are stored in RedisAI by calling `redisAI.model_execute` command. 
+The command receives 3 inputs:
+1. model name (string)
+2. model inputs (List of torch.Tensor)
+3. number of model outputs (int)
+Return value - the model execution output tensors (List of torch.Tensor)
+The following script creates two tensors, and executes the (tensorflow) model which is stored under the name 'tf_mul{1}' with these two tensors as inputs.
+```
+def test_model_execute(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    return redisAI.model_execute(keys[0], [a, b], 1) # assume keys[0] is the model name stored in RedisAI.
+```
+```
+redis> AI.SCRIPTEXECUTE redis_scripts{1} test_model_execute KEYS 1 tf_mul{1} OUTPUTS 1 y{1}
+OK
+redis> AI.TENSORGET y{1} VALUES
+1) (float) 4
+2) (float) 9
+3) (float) 4
+4) (float) 9
 ```
 
 !!! warning "Intermediate memory overhead"
@@ -703,7 +771,7 @@ redis> AI.TENSORGET result VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTSCAN
-The **AI._SCRIPTSCAN** command returns all the scripts in the database.
+The **AI._SCRIPTSCAN** command returns all the scripts in the database. When using Redis open source cluster, the command shall return all the scripts that are stored in the local shard. 
 
 !!! warning "Experimental API"
     `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -740,7 +808,7 @@ It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
 By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
-Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify keys in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `KEYS`.  
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify a tag or key which will assist for the routing of the DAG execution on the right shard in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `ROUTING`.  
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
@@ -750,9 +818,9 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 **Redis API**
 
 ```
-AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
-          [PERSIST <n> <key-1> <key-2> ... <key-n>] |
-          [KEYS <n> <key-1> <key-2> ... <key-n>]]+
+AI.DAGEXECUTE [LOAD <n> <key-1> <key-2> ... <key-n>]
+          [PERSIST <n> <key-1> <key-2> ... <key-n>]
+          [ROUTING <routing_tag>]
           [TIMEOUT t]
           |> <command> [|>  command ...]
 ```
@@ -761,9 +829,9 @@ _Arguments_
 
 * **LOAD**: denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **KEYS**: denotes the beginning of keys' list which are used within this command, followed by the number of keys, and one or more key names. Alternately, the keys names list can be replaced with a tag which all of those keys share. Redis will verify that all potential key accesses are done to the right shard.
+* **ROUTING**: denotes a key to be used in the DAG or a tag that will assist in routing the dag execution command to the right shard. Redis will verify that all potential key accesses are done to within the target shard.
 
-_While each of the LOAD, PERSIST and KEYS sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
+_While each of the LOAD, PERSIST and ROUTING sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
 * **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
     * `AI.TENSORSET`
@@ -793,9 +861,9 @@ redis> AI.DAGEXECUTE PERSIST 1 predictions{tag} |>
 1) OK
 2) OK
 3) 1) FLOAT
-   2) 1) (integer) 2
-      2) (integer) 2
-   3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+   1) 1) (integer) 2
+      1) (integer) 2
+   2) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
 A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
@@ -803,7 +871,7 @@ A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands w
 To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
 
 ```
-redis> AI.DAGEXECUTE KEYS 1 {tag} |> 
+redis> AI.DAGEXECUTE ROUTING {tag} |> 
             AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
             AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
             AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 
@@ -934,14 +1002,14 @@ Because `AI.DAGRUN` provides the `PERSIST` option it is flagged as a 'write' com
     Refer to the Redis [`READONLY` command](https://redis.io/commands/readonly) for further information about read-only cluster replicas.
 
 ## AI.INFO
-The **`AI.INFO`** command returns general module information or information about the execution a model or a script.
+The **`AI.INFO`** command returns information about the execution of a model or a script.
 
-Runtime information is collected each time that [`AI.MODELRUN`](#aimodelrun) or [`AI.SCRIPTRUN`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
+Runtime information is collected each time that [`AI.MODELEXECUTE`](#aimodelrun) or [`AI.SCRIPTEXECUTE`](#aiscriptrun) is called. The information is stored locally by the executing RedisAI engine, so when deployed in a cluster each shard stores its own runtime information.
 
 **Redis API**
 
 ```
-AI.INFO [<key>] [RESETSTAT]
+AI.INFO <key> [RESETSTAT]
 ```
 
 _Arguments_
@@ -951,15 +1019,7 @@ _Arguments_
 
 _Return_
 
-For a module genernal information: An array with alternating entries that represent the following key-value pairs:
-
-* **Version**: a string showing the current module version.
-* **Low level API Version**:  a string showing the current module's low level api version.
-* **RDB Encoding version**: a string showing the current module's RDB encoding version.
-* **TensorFlow version**: a string showing the current loaded TesnorFlow backend version.
-* **ONNX version**: a string showing the current loaded ONNX Runtime backend version.
-
-For model or script runtime information: An array with alternating entries that represent the following key-value pairs:
+An array with alternating entries that represent the following key-value pairs:
 
 * **KEY**: a String of the name of the key storing the model or script value
 * **TYPE**: a String of the type of value (i.e. 'MODEL' or 'SCRIPT')

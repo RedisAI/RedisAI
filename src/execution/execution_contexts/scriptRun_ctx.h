@@ -1,5 +1,14 @@
 #pragma once
 #include "redis_ai_objects/script.h"
+#include "execution_ctx.h"
+
+typedef struct RAI_ScriptRunCtx {
+    RAI_ExecutionCtx base;
+    RAI_Script *script;
+    char *fnname;
+    RedisModuleString **keys;
+    RedisModuleString **args;
+} RAI_ScriptRunCtx;
 
 /**
  * Allocates the RAI_ScriptRunCtx data structure required for async background
@@ -34,15 +43,6 @@ int RAI_ScriptRunCtxAddInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor, RA
  */
 int RAI_ScriptRunCtxAddInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors, size_t len,
                                  RAI_Error *error);
-
-/**
- * @brief Adds a list length to the given script contxt.
- *
- * @param sctx input RAI_ScriptRunCtx to add the list len.
- * @param len input tensors array len
- * @return int returns 1 on success, 0 in case of error.
- */
-int RAI_ScriptRunCtxAddListSize(RAI_ScriptRunCtx *sctx, size_t len);
 
 /**
  * Allocates a RAI_ScriptCtxParam data structure, and sets the tensor reference
@@ -106,24 +106,6 @@ int RAI_ScriptRunAsync(RAI_ScriptRunCtx *sctx, RAI_OnFinishCB ScriptAsyncFinish,
                        void *private_data);
 
 /**
- * @brief Retuens the current Script Run context function signature
- *
- * @param sctx ScriptRunCtx
- * @return TorchScriptFunctionArgumentType* Null in case of no match, arr of argument type according
- * to function signature
- */
-TorchScriptFunctionArgumentType *RAI_ScriptRunCtxGetSignature(RAI_ScriptRunCtx *sctx);
-
-/**
- * @brief Returns the length of the input list in the given index.
- *
- * @param sctx ScriptRunCtx.
- * @param index Index of the list out of all the lists given as inputs.
- * @return size_t length of the input list in the given index.
- */
-size_t RAI_ScriptRunCtxGetInputListLen(RAI_ScriptRunCtx *sctx, size_t index);
-
-/**
  * Extract the ternsor parameters for the ScriptCtxRun object from AI.SCRIPTEXECUTE arguments.
  *
  * @param ctx Context in which Redis modules operate.
@@ -138,23 +120,9 @@ int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
 
 int RAI_ScriptRunCtxAddTensorInput(RAI_ScriptRunCtx *sctx, RAI_Tensor *inputTensor);
 
-int RAI_ScriptRunCtxAddIntInput(RAI_ScriptRunCtx *sctx, int32_t i);
-
-int RAI_ScriptRunCtxAddFloatInput(RAI_ScriptRunCtx *sctx, float f);
-
-int RAI_ScriptRunCtxAddRStringInput(RAI_ScriptRunCtx *sctx, RedisModuleString *s);
-
-int RAI_ScriptRunCtxAddStringInput(RAI_ScriptRunCtx *sctx, const char *s, size_t len);
-
 int RAI_ScriptRunCtxAddTensorInputList(RAI_ScriptRunCtx *sctx, RAI_Tensor **inputTensors,
                                        size_t count);
 
-int RAI_ScriptRunCtxAddIntInputList(RAI_ScriptRunCtx *sctx, int32_t *intInputs, size_t count);
+int RAI_ScriptRunCtxAddKeyInput(RAI_ScriptRunCtx *sctx, RedisModuleString *key);
 
-int RAI_ScriptRunCtxAddFloatInputList(RAI_ScriptRunCtx *sctx, float *floatInputs, size_t count);
-
-int RAI_ScriptRunCtxAddRStringInputList(RAI_ScriptRunCtx *sctx, RedisModuleString **stringInputs,
-                                        size_t count);
-
-int RAI_ScriptRunCtxAddStringInputList(RAI_ScriptRunCtx *sctx, const char **stringInputs,
-                                       size_t *lens, size_t count);
+int RAI_ScriptRunCtxAddArgInput(RAI_ScriptRunCtx *sctx, RedisModuleString *arg);
