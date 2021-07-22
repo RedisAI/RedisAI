@@ -2,11 +2,14 @@
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
+#include <backends/onnx_timeout.h>
+#include <pthread.h>
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
 
 #include "onnxruntime_c_api.h"
+#include "backends_api.h"
 
 // Use as a wrapper for ORT api call. If ORT api hasn't returned null, it has failed.
 // A label "error" must exist in every function that uses this macro.
@@ -77,7 +80,8 @@ unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
 
 unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
-int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
+int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
+    // Export redis callbacks.
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));
     get_api_fn("RedisModule_Calloc", ((void **)&RedisModule_Calloc));
     get_api_fn("RedisModule_Free", ((void **)&RedisModule_Free));
@@ -87,6 +91,16 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_GetThreadSafeContext", ((void **)&RedisModule_GetThreadSafeContext));
     get_api_fn("RedisModule_FreeThreadSafeContext", ((void **)&RedisModule_FreeThreadSafeContext));
     get_api_fn("RedisModule_MallocSize", ((void **)&RedisModule_MallocSize));
+
+    // Export RedisAI callbacks.
+    get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
+    get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
+    get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
+
+    // Create a global array of onnx runSessions, with an entry for every working thread.
+    RAI_InitGlobalRunSessionsORT();
+
     return REDISMODULE_OK;
 }
 
@@ -152,6 +166,14 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         default:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
         }
+    } else if (dtype.code == kDLBool) {
+        switch (dtype.bits) {
+        case 8:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
+            break;
+        default:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+        }
     }
     return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
 }
@@ -174,6 +196,8 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
         return (DLDataType){.code = kDLUInt, .bits = 8, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_UINT16:
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
+        return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
@@ -245,7 +269,8 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     }
 
     ret = RAI_TensorNew();
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    // Default device is CPU (id -1 is default, means 'no index')
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))
 
@@ -471,16 +496,16 @@ error:
     ort->ReleaseStatus(status);
 }
 
-int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
+int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    OrtSession *session = mctxs[0]->model->session;
+    OrtSession *session = RAI_ModelGetSession(model);
     if (session == NULL) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR ONNXRuntime session was not allocated");
         return REDISMODULE_ERR;
     }
 
-    const size_t nbatches = array_len(mctxs);
+    const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return REDISMODULE_ERR;
@@ -489,9 +514,11 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
     size_t total_batch_size = 0;
-    if (array_len(mctxs[0]->inputs) > 0) {
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
+    if (ninputs > 0) {
         for (size_t b = 0; b < nbatches; ++b) {
-            batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
+            batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
             total_batch_size += batch_sizes[b];
         }
         batch_offsets[0] = 0;
@@ -501,12 +528,12 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     OrtStatus *status = NULL;
-    const size_t ninputs = array_len(mctxs[0]->inputs);
-    const size_t noutputs = array_len(mctxs[0]->outputs);
     array_new_on_stack(const char *, 5, input_names);
     array_new_on_stack(const char *, 5, output_names);
     array_new_on_stack(OrtValue *, 5, inputs);
     array_new_on_stack(OrtValue *, 5, outputs);
+    OrtRunOptions *run_options = NULL;
+    long run_session_index;
     OrtTensorTypeAndShapeInfo *info = NULL;
     {
         size_t n_input_nodes;
@@ -536,7 +563,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
 
             RAI_Tensor *batched_input_tensors[nbatches];
             for (size_t b = 0; b < nbatches; b++) {
-                batched_input_tensors[b] = mctxs[b]->inputs[i].tensor;
+                batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
             }
             OrtValue *input;
             if (RAI_OrtValueFromTensors(batched_input_tensors, nbatches, &input, &status) !=
@@ -554,10 +581,23 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             outputs = array_append(outputs, NULL);
         }
 
-        OrtRunOptions *run_options = NULL;
+        ONNX_VALIDATE_STATUS(ort->CreateRunOptions(&run_options));
+        // Set the created run option in the global RunSessions and save its index.
+        RAI_ActivateRunSessionCtxORT(run_options, &run_session_index);
+        if (run_session_index == -1) {
+            RAI_SetError(
+                error, RAI_EMODELRUN,
+                "Cannot execute onnxruntime model synchronously, use async execution instead");
+            ort->ReleaseRunOptions(run_options);
+            run_options = NULL;
+            goto error;
+        }
+
         ONNX_VALIDATE_STATUS(ort->Run(session, run_options, input_names,
                                       (const OrtValue *const *)inputs, n_input_nodes, output_names,
                                       n_output_nodes, outputs));
+        RAI_ResetRunSessionCtxORT(run_session_index);
+        run_options = NULL;
 
         for (uint32_t i = 0; i < ninputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
@@ -589,8 +629,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                         goto error;
                     }
                     if (output_tensor) {
-                        mctxs[b]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-                        RAI_TensorFree(output_tensor);
+                        RAI_ExecutionCtx_SetOutput(ectxs[b], output_tensor, i);
                     } else {
                         RedisModule_Log(NULL, "warning",
                                         "non-tensor output from ONNX models, ignoring (currently "
@@ -603,8 +642,7 @@ int RAI_ModelRunORT(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
                     goto error;
                 }
                 if (output_tensor) {
-                    mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
-                    RAI_TensorFree(output_tensor);
+                    RAI_ExecutionCtx_SetOutput(ectxs[0], output_tensor, i);
                 } else {
                     RedisModule_Log(NULL, "warning",
                                     "non-tensor output from ONNX models, ignoring (currently "
@@ -644,6 +682,9 @@ error:
     array_free(outputs);
     if (info) {
         ort->ReleaseTensorTypeAndShapeInfo(info);
+    }
+    if (run_options) {
+        RAI_ResetRunSessionCtxORT(run_session_index);
     }
     return REDISMODULE_ERR;
 }

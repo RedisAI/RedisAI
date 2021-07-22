@@ -138,7 +138,7 @@ commands:
             - artifacts/*.tgz
             - artifacts/*.tar
       - store_artifacts:
-          path: tests/logs
+          path: tests/flow/logs
 
   valgrind-general-steps:
     parameters:
@@ -168,35 +168,29 @@ commands:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
+      - store_artifacts:
+          path: tests/flow/logs
 
   build-and-test-gpu-steps:
     steps:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
+      - relocate-docker-storage
       - run:
           name: Build
           command: |
-            docker build -f Dockerfile.gpu-test --no-cache -t redisai-gpu:latest-x64-bionic-test .
+            pip3 install --user jinja2
+            pushd opt/build/docker
+            make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
       - run:
           name: Test
           command: |
             mkdir -p $HOME/tests
-            docker run --gpus all -v $HOME/tests:/build/tests/logs -it --rm redisai-gpu:latest-x64-bionic-test
+            docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-test
           no_output_timeout: 40m
       - store_artifacts:
-          path: tests/logs
-
-
+          path: /home/circleci/tests
 
 jobs:
   lint:
@@ -236,13 +230,15 @@ jobs:
       - setup_remote_docker
       - checkout-all
       - setup-automation
+
+      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
       - run:
           name: Build for platform
           command: |
-            bash <(curl -fsSL https://get.docker.com)
+            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build <<parameters.target>> OSNICK=<<parameters.osnick>> ARTIFACTS=1 VERBOSE=1 <<parameters.lite>>
+            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
             popd > /dev/null
             logstar=bin/artifacts/tests-logs-cpu.tgz
             logsdir=tests/logs/cpu
@@ -254,8 +250,6 @@ jobs:
           root: bin/
           paths:
             - artifacts/*
-      - store_artifacts:
-          path: test/logs
 
   coverage:
     docker:
@@ -284,6 +278,8 @@ jobs:
             make -C opt test SHOW=1 COV=1 CLUSTER=1
             make -C opt cov-upload
           no_output_timeout: 30m
+      - store_artifacts:
+          path: tests/flow/logs
 
   valgrind:
     parameters:
@@ -315,6 +311,8 @@ jobs:
           command: |
             make -C opt test VALGRIND=1 <<parameters.test_args>>
           no_output_timeout: 120m
+      - store_artifacts:
+          path: tests/flow/logs
 
   valgrind-general-for-forked-prs:
     docker:
@@ -460,19 +458,18 @@ jobs:
           command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release ./tests/qa/run
       - run:
           name: Run QA Automation (AILite)
-          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=lite ./tests/qa/run
+          command: MODULE_VERSION=$CIRCLE_TAG VERBOSE=1 TEST=release VARIANT=light ./tests/qa/run
 
 
-#  nightly-automation:
-#    docker:
-#      - image: redisfab/rmbuilder:6.2.1-x64-buster
-#    steps:
-#      - checkout
-#      - setup-automation
-#      - run:
-#          name: Run QA Automation
-#          command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
-
+  #nightly-automation:
+  #  docker:
+  #    - image: redisfab/rmbuilder:6.2.1-x64-buster
+  #  steps:
+  #    - checkout
+  #    - setup-automation
+  #    - run:
+  #        name: Run QA Automation
+  #        command: MODULE_VERSION=$CIRCLE_BRANCH VERBOSE=1 TEST=nightly QUICK=1 ./tests/qa/run
 
 on-any-branch: &on-any-branch
   filters:
@@ -576,7 +573,7 @@ workflows:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 publish"
+                - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
@@ -585,13 +582,13 @@ workflows:
           context: common
           <<: *on-dev-branches
           <<: *after-linter
+      - valgrind-general-for-forked-prs:
+          <<: *on-any-branch
+          <<: *after-linter
       - valgrind:
           name: valgrind-cluster
           test_args: GEN=0
           <<: *on-integ-branch
-          <<: *after-linter
-      - valgrind-general-for-forked-prs:
-          <<: *on-any-branch
           <<: *after-linter
       - deploy-snapshot:
           context: common

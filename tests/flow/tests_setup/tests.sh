@@ -74,7 +74,8 @@ valgrind_config() {
 
 	RLTEST_ARGS+="\
 		--use-valgrind \
-		--vg-suppressions $VALGRIND_SUPRESSIONS"
+		--vg-suppressions $VALGRIND_SUPRESSIONS
+		--cluster_node_timeout 60000"
 }
 
 valgrind_summary() {
@@ -142,7 +143,7 @@ check_redis_server
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
-[[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
+[[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 3" run_tests "--env oss-cluster"
 [[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
 # [[ $VALGRIND == 1 ]] && valgrind_summary
 exit 0

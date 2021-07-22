@@ -1,6 +1,6 @@
 # BUILD redisfab/redisai:${VERSION}-jetson-${ARCH}-${OSNICK}
 
-ARG REDIS_VER=6.2.3
+ARG REDIS_VER=6.2.4
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic

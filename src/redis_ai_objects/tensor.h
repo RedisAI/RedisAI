@@ -31,6 +31,7 @@ static const char *RAI_DATATYPE_STR_INT32 = "INT32";
 static const char *RAI_DATATYPE_STR_INT64 = "INT64";
 static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
 static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
+static const char *RAI_DATATYPE_STR_BOOL = "BOOL";
 
 #define TENSOR_NONE                0
 #define TENSOR_VALUES              (1 << 0)
@@ -105,6 +106,12 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest);
  * failed.
  */
 RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor);
+
+/**
+ * @param tensor
+ * @return A pointer to the inner DLTensor field (do not copy).
+ */
+DLTensor *RAI_TensorGetDLTensor(RAI_Tensor *tensor);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor, performing a deep copy of

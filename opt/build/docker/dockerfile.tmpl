@@ -1,0 +1,91 @@
+# BUILD redisfab/redisai:{{VERSION}}-cpu-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
+
+
+ARG PACK={{REDIS_PACK}}
+ARG REDISAI_LITE={{REDISAI_LITE}}
+ARG TEST={{REDIS_TEST}}
+
+
+#----------------------------------------------------------------------------------------------
+FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
+{% if gpu_build is defined %}
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu{{REDIS_CUDA_UBUNTUVERSION}} AS builder
+{% else %}
+FROM {{REDIS_OS}} AS builder
+{% endif %}
+
+ARG REDISAI_LITE
+ARG PACK
+ARG TEST
+
+RUN echo "Building for {{REDIS_OSNICK}} ({{REDIS_OS}}) for {{REDIS_ARCH}} [with Redis {{REDIS_VERSION}}]"
+
+{% if gpu_build is defined %}
+{% include "templates/gpu.yml" %}
+{% endif %}
+
+WORKDIR /build
+COPY --from=redis /usr/local/ /usr/local/
+
+COPY ./opt/ opt/
+ADD ./tests/flow/ tests/flow/
+
+RUN FORCE=1 ./opt/readies/bin/getpy3
+RUN ./opt/system-setup.py
+RUN apt-get update -qq
+RUN apt-get upgrade -yqq
+RUN rm -rf /var/cache/apt
+
+ARG DEPS_ARGS=""
+COPY ./get_deps.sh .
+RUN if [ "$DEPS_ARGS" = "" ]; then ./get_deps.sh {% if gpu_build is defined %}gpu {% else %} cpu {% endif %}; else env $DEPS_ARGS ./get_deps.sh {% if gpu_build is defined %} gpu {% else %} cpu {% endif %}; fi
+
+ARG BUILD_ARGS=""
+ADD ./ /build
+RUN bash -l -c "make -C opt build {% if gpu_build is defined %} GPU=1 {% else %} REDISAI_LITE={{REDISAI_LITE}} {% endif %}$BUILD_ARGS SHOW=1"
+
+
+RUN mkdir -p bin/artifacts
+RUN set -e ;\
+    if [ "$PACK" = "1" ]; then bash -l -c "make -C opt pack {% if gpu_build is defined %} GPU=1 {% endif %} REDISAI_LITE={{REDISAI_LITE}}"; fi
+
+RUN set -e ;\
+    if [ "$TEST" = "1" ]; then \
+        bash -l -c "TEST= make -C opt test {% if gpu_build is defined %}GPU=1{% endif %} REDISAI_LITE={{REDISAI_LITE}} $BUILD_ARGS NO_LFS=1" ;\
+        if [[ -d test/logs ]]; then \
+            {% if gpu_build is defined %}
+            tar -C test/logs -czf bin/artifacts/test-logs-gpu.tgz . ;\
+            {% else %}
+            tar -C test/logs -czf bin/artifacts/test-logs-cpu.tgz . ;\
+            {% endif %}
+        fi ;\
+    fi
+
+#----------------------------------------------------------------------------------------------
+{% if gpu_build is defined %}
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-ubuntu{{REDIS_CUDA_UBUNTUVERSION}}
+{% else %}
+FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
+{% endif %}
+
+ARG PACK
+
+RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
+RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi
+
+ENV REDIS_MODULES /usr/lib/redis/modules
+ENV LD_LIBRARY_PATH $REDIS_MODULES
+
+RUN mkdir -p $REDIS_MODULES/
+
+{% if gpu_build is defined %}
+COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
+{% else %}
+COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
+{% endif %}
+
+COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+
+WORKDIR /data
+EXPOSE 6379
+CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]

@@ -144,13 +144,13 @@ void RAI_ContextUnlock(RedisAI_RunInfo *rinfo) {
 RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
 
     RAI_DagOp *op = rinfo->dagOps[0];
-    if (!rinfo->single_op_dag || !op->mctx) {
+    if (!rinfo->single_op_dag || op->commandType != REDISAI_DAG_CMD_MODELRUN) {
         RAI_SetError(err, RAI_EFINISHCTX, "Finish ctx is not a model run ctx");
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
-    RAI_ModelRunCtx *mctx = op->mctx;
-    rinfo->dagOps[0]->mctx = NULL;
+    RAI_ModelRunCtx *mctx = (RAI_ModelRunCtx *)op->ectx;
+    op->ectx = NULL;
     RAI_FreeRunInfo(rinfo);
     return mctx;
 }
@@ -158,13 +158,13 @@ RAI_ModelRunCtx *RAI_GetAsModelRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
 RAI_ScriptRunCtx *RAI_GetAsScriptRunCtx(RedisAI_RunInfo *rinfo, RAI_Error *err) {
 
     RAI_DagOp *op = rinfo->dagOps[0];
-    if (!rinfo->single_op_dag || !op->sctx) {
+    if (!rinfo->single_op_dag || op->commandType != REDISAI_DAG_CMD_SCRIPTRUN) {
         RAI_SetError(err, RAI_EFINISHCTX, "Finish ctx is not a script run ctx");
         return NULL;
     }
     RAI_SetError(err, RAI_GetErrorCode(op->err), RAI_GetError(op->err));
-    RAI_ScriptRunCtx *sctx = op->sctx;
-    rinfo->dagOps[0]->sctx = NULL;
+    RAI_ScriptRunCtx *sctx = (RAI_ScriptRunCtx *)op->ectx;
+    op->ectx = NULL;
     RAI_FreeRunInfo(rinfo);
     return sctx;
 }
