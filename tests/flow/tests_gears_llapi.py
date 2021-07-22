@@ -315,6 +315,10 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(values, [b'2', b'3', b'2', b'3'])
 
     def test_modelexecute_op(self):
+        executions_num = 500
+
+        if VALGRIND:
+            executions_num = 10
 
         def multiple_executions(con):
             ret = con.execute_command('rg.trigger', 'DAGRun_test2')
@@ -322,7 +326,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
             values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')
             self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-        run_test_multiproc(self.env, '{1}', 500, multiple_executions)
+        run_test_multiproc(self.env, '{1}', executions_num, multiple_executions)
 
     def test_scriptexecute_op(self):
         con = get_connection(self.env, '{1}')
