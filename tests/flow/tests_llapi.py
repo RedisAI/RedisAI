@@ -102,10 +102,14 @@ def test_dag_build_and_run(env):
     env.assertEqual(ret, b'DAG run success')
 
     # Run the DAG LLAPI test again with multi process test to ensure that there are no dead-locks
+    executions_num = 500
+    if VALGRIND:
+        executions_num = 10
+
     def run_dag_llapi(con):
         con.execute_command("RAI_llapi.DAGrun")
 
-    run_test_multiproc(env, '{1}', 500, run_dag_llapi)
+    run_test_multiproc(env, '{1}', executions_num, run_dag_llapi)
 
 
 @with_test_module
