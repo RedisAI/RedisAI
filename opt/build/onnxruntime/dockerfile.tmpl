@@ -10,9 +10,6 @@ FROM ubuntu:bionic
 FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
 {% endif %}
 
-ARG ONNXRUNTIME_REPO={{REDIS_ONNX_REPO}}
-ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
-
 {% include 'apt.yml' %}
 
 {% include 'cmake.yml' %}
@@ -20,20 +17,20 @@ ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
 # build
 WORKDIR /build
 {% if REDIS_GPU is defined %}
-ARG BUILDTYPE=MinSizeRel
-ARG BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda"
+{% set BUILDTYPE = "MinSizeRel" %}
+{% set BUILDARGS = "--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda" %}
 {% else %}
-ARG BUILDTYPE=Release
-ARG BUILDARGS
+{% set BUILDTYPE = "Release" %}
+{% set BUILDARGS = "" %} 
 {% endif %}
 
-ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
-RUN git clone --single-branch --branch v${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
+ARG BUILDARGS="--config {{BUILDTYPE}} --parallel"
+RUN git clone --single-branch --branch {{REDIS_ONNX_VERSION}} {{REDIS_ONNX_REPO}} onnxruntime
 WORKDIR /build/onnxruntime
 RUN git fetch --recurse-submodules -j4
-RUN ./build.sh --config ${BUILDTYPE} ${BUILDARGS} --update --build --build_shared_lib --parallel
+RUN ./build.sh --config {{BUILDTYPE}} {{BUILDARGS}} --update --build --build_shared_lib --parallel
 
 # package
 ADD ./pack.sh /build
 WORKDIR /build
-RUN ./pack.sh {{REDIS_ONNX_VERSION}} {{REDIS_ARCH}} ${BUILDTYPE} linux {% if REDIS_GPU is defined %} gpu {% endif %}
+RUN ./pack.sh {{REDIS_BACKEND_VERSION}} {{REDIS_ARCH}} {{BUILDTYPE}} Linux {% if REDIS_GPU is defined %} gpu {% endif %}

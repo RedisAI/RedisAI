@@ -11,16 +11,20 @@ if [ ${BASEOS} == "MacOS" ]; then
 BASEDIR=`pwd`  # already in the directory on a mac
 PACKDIR=${BASEDIR}/pack/
 else
-BASEDIR=onnxrumtime
-PACKDIR=${BASEDIR}/../pack/
+BASEDIR=`pwd`/onnxruntime
+PACKDIR=${BASEDIR}/pack/
 fi
 
-target=onnxruntime-${BASEOS}-${PLATFORM}-${VER}
+target=onnxruntime-${BASEOS,,}-${PLATFORM}-${VER}
+if [ ${BASEOS} == "MacOS" ]; then
+target=onnxruntime-osx-${PLATFORM}-${VER}
+fi
+
 if [ ! -z "${VARIANT}" ]; then
     target=onnxruntime-${BASEOS}-${PLATFORM}-${VARIANT}-${VER}
 fi
 
-mkdir -p pack/include pack/lib
+mkdir -p ${PACKDIR}/include ${PACKDIR}/lib
 cp ${BASEDIR}/docs/C_API_Guidelines.md ${PACKDIR}
 cp ${BASEDIR}/LICENSE ${PACKDIR}
 cp ${BASEDIR}/README.md ${PACKDIR}
@@ -49,3 +53,4 @@ fi
 cd ${PACKDIR}/..
 mv pack ${target}
 tar czf ${target}.tgz ${target}/
+ls -l *.tgz

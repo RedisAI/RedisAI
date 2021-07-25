@@ -23,9 +23,9 @@ export REDIS_GPU
 endif
 
 ifeq ($(VARIANT),)
-BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${REDIS_BACKEND_VERSION}.tgz
 else
-BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${VERSION}.tgz
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${REDIS_BACKEND_VERSION}.tgz
 endif
 
 S3_URL=redismodules/${PRODUCT}
@@ -33,6 +33,7 @@ S3_URL=redismodules/${PRODUCT}
 build:
 	@rm -f ${BACKEND_NAME} *.cid
 	REDIS_ARCH=${ARCH} \
+	VERSION=${VERSION} \
 	${READIES}/bin/dockerwrapper \
 		-d ${CURDIR}/Dockerfile${DOCKER_SUFFIX} \
 		-t ${DEFAULT_DOCKER_TAG} \
@@ -41,7 +42,7 @@ build:
 		-D "${DOCKER_OPTS}" \
 		${DOCKER_ARGS}
 	docker create --cidfile ${CIDFILE} ${DEFAULT_DOCKER_TAG}
-	docker cp `cat ${CIDFILE}`:/build/${BACKEND_NAME} .
+	docker cp `cat ${CIDFILE}`:/build/${PRODUCT}/${BACKEND_NAME} .
 
 publish:
 	@aws s3 cp ${BACKEND_NAME} s3://$(S3_URL)/ --acl public-read
