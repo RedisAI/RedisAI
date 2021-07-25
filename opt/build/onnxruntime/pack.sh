@@ -10,18 +10,17 @@ VARIANT="$5"  # if set (gpu)
 if [ ${BASEOS} == "MacOS" ]; then
 BASEDIR=`pwd`  # already in the directory on a mac
 PACKDIR=${BASEDIR}/pack/
+target_os=osx
 else
 BASEDIR=`pwd`/onnxruntime
 PACKDIR=${BASEDIR}/pack/
+target_os=${BASEOS,,}
 fi
 
-target=onnxruntime-${BASEOS,,}-${PLATFORM}-${VER}
-if [ ${BASEOS} == "MacOS" ]; then
-target=onnxruntime-osx-${PLATFORM}-${VER}
-fi
+target=onnxruntime-${target_os}-${PLATFORM}-${VER}
 
 if [ ! -z "${VARIANT}" ]; then
-    target=onnxruntime-${BASEOS}-${PLATFORM}-${VARIANT}-${VER}
+    target=onnxruntime-${target_os}-${PLATFORM}-${VARIANT}-${VER}
 fi
 
 mkdir -p ${PACKDIR}/include ${PACKDIR}/lib
