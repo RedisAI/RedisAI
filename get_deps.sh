@@ -192,7 +192,7 @@ PT_ARCH=x86_64
 if [[ $OS == linux ]]; then
     PT_OS=linux
     if [[ $GPU == 1 ]]; then
-        PT_BUILD=cu110
+        PT_BUILD=cu111
     fi
 
     if [[ $ARCH == x64 ]]; then
