@@ -7,25 +7,45 @@ BUILDTYPE="$3"  # Release
 BASEOS="$4"  # linux (mac future?)
 VARIANT="$5"  # if set (gpu)
 
+if [ ${BASEOS} == "MacOS" ]; then
+BASEDIR=`pwd`  # already in the directory on a mac
+PACKDIR=${BASEDIR}/pack/
+else
+BASEDIR=onnxrumtime
+PACKDIR=${BASEDIR}/../pack/
+fi
+
 target=onnxruntime-${BASEOS}-${PLATFORM}-${VER}
 if [ ! -z "${VARIANT}" ]; then
     target=onnxruntime-${BASEOS}-${PLATFORM}-${VARIANT}-${VER}
 fi
 
 mkdir -p pack/include pack/lib
-cp onnxruntime/build/Linux/$BUILDTYPE/libonnxruntime.so.${VER} pack/lib/
-cp onnxruntime/docs/C_API_Guidelines.md pack/
-cp onnxruntime/LICENSE pack/
-cp onnxruntime/README.md pack/
-cp onnxruntime/ThirdPartyNotices.txt pack/
-cp onnxruntime/VERSION_NUMBER pack/
-cd onnxruntime/
-git rev-parse HEAD > ../pack/GIT_COMMIT_ID
-cd ..
-cp onnxruntime/include/onnxruntime/core/session/onnxruntime_c_api.h pack/include/
-cp onnxruntime/include/onnxruntime/core/providers/cuda/cuda_provider_factory.h pack/include/
+cp ${BASEDIR}/docs/C_API_Guidelines.md ${PACKDIR}
+cp ${BASEDIR}/LICENSE ${PACKDIR}
+cp ${BASEDIR}/README.md ${PACKDIR}
+cp ${BASEDIR}/ThirdPartyNotices.txt ${PACKDIR}
+cp ${BASEDIR}/VERSION_NUMBER ${PACKDIR}
+cp ${BASEDIR}/include/onnxruntime/core/session/onnxruntime_c_api.h ${PACKDIR}/include/
+cp ${BASEDIR}/include/onnxruntime/core/providers/cuda/cuda_provider_factory.h ${PACKDIR}/include/
+
+if [ ${BASEOS} == "MacOS" ]; then
+cp ${BASEDIR}/build/${BASEOS}/$BUILDTYPE/libonnxruntime.${VER}.dylib ${PACKDIR}/lib/
+else
+cp ${BASEDIR}/build/${BASEOS}/$BUILDTYPE/libonnxruntime.so.${VER} ${PACKDIR}/lib/
+fi
+
+# hash
+cd ${BASEDIR}/
+git rev-parse HEAD > ${PACKDIR}/GIT_COMMIT_ID
+
 cd pack/lib/
+if [ ${BASEOS} != "MacOS" ]; then
 ln -s libonnxruntime.so.${VER} libonnxruntime.so
-cd ../..
+else
+ln -s libonnxruntime.${VER}.dylib libonnxruntime.dylib
+fi
+
+cd ${PACKDIR}/..
 mv pack ${target}
 tar czf ${target}.tgz ${target}/
