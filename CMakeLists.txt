@@ -23,7 +23,7 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-SET(CMAKE_CC_COMMON_FLAGS "-fPIC")
+SET(CMAKE_CC_COMMON_FLAGS "-fPIC -fcommon")
 IF (USE_PROFILE)
     SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -g -ggdb -fno-omit-frame-pointer")
 ENDIF()
