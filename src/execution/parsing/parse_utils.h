@@ -27,4 +27,4 @@ const char *ScriptCommand_GetFunctionName(RedisModuleString *functionName);
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
 
-int ParseKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Error *err);
+int ValidateKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Error *err);

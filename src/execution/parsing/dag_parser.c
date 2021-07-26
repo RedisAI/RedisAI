@@ -190,6 +190,7 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
                                        rinfo->err) == -1) {
                 return REDISMODULE_ERR;
             }
+            currentOp->result = REDISMODULE_OK;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
@@ -245,7 +246,7 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
     bool load_complete = false;
     bool persist_complete = false;
     bool timeout_complete = false;
-    bool keys_complete = false;
+    bool routing_complete = false;
 
     // The first arg is "AI.DAGEXECUTE(_RO) (or deprecated AI.DAGRUN(_RO))", so we go over from the
     // next arg.
@@ -280,12 +281,20 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             persist_complete = true;
             continue;
         }
-        if (!strcasecmp(arg_string, "KEYS") && !keys_complete && chainingOpCount == 0) {
-            const int parse_result = ParseKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
-            if (parse_result <= 0)
+        if (!strcasecmp(arg_string, "ROUTING") && !routing_complete && chainingOpCount == 0) {
+            arg_pos++;
+            if (arg_pos == argc) {
+                RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Missing ROUTING value");
                 return REDISMODULE_ERR;
-            arg_pos += parse_result;
-            keys_complete = true;
+            }
+            if (!VerifyKeyInThisShard(ctx, argv[arg_pos++])) {
+                RAI_SetError(
+                    rinfo->err, RAI_EDAGBUILDER,
+                    "ERR ROUTING value specified in the command hash to slot which does not "
+                    "belong to the current shard");
+                return REDISMODULE_ERR;
+            }
+            routing_complete = true;
             continue;
         }
         if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_complete && chainingOpCount == 0) {
@@ -317,10 +326,10 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
     // commands).
     if (!strncasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.DAGEXECUTE",
                      strlen("AI.DAGEXECUTE"))) {
-        if (!load_complete && !persist_complete && !keys_complete) {
+        if (!load_complete && !persist_complete && !routing_complete) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR AI.DAGEXECUTE and AI.DAGEXECUTE_RO commands must "
-                         "contain at least one out of KEYS, LOAD, PERSIST keywords");
+                         "contain at least one out of ROUTING, LOAD, PERSIST keywords");
             return REDISMODULE_ERR;
         }
     }
@@ -334,9 +343,9 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
 int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                            int argc, bool dag_ro) {
 
-    // The minimal command is of the form: AI.DAGEXECUTE(_RO) KEYS/LOAD/PERSIST 1 <key> |>
+    // The minimal command is of the form: AI.DAGEXECUTE(_RO) ROUTING/LOAD/PERSIST 1 <key> |>
     // AI.TENSORGET <key>
-    if (argc < 7) {
+    if (argc < 6) {
         if (dag_ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR missing arguments for 'AI.DAGEXECUTE_RO' command");

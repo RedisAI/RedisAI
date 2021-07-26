@@ -6,7 +6,7 @@ python -m RLTest --test tests_dag_basic.py --module path/to/redisai.so
 
 
 def test_dag_load(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     ret = con.execute_command(
         "AI.TENSORSET persisted_tensor_1{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
@@ -17,9 +17,9 @@ def test_dag_load(env):
 
 
 def test_dag_local_tensorset(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
-    command = "AI.DAGEXECUTE KEYS 1 {1} |> " \
+    command = "AI.DAGEXECUTE ROUTING {1} |> " \
               "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> " \
               "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -32,9 +32,9 @@ def test_dag_local_tensorset(env):
 
 
 def test_dagro_local_tensorset(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
-    command = "AI.DAGEXECUTE_RO KEYS 1 {some_tag} |> " \
+    command = "AI.DAGEXECUTE_RO ROUTING {1} |> " \
               "AI.TENSORSET volatile_tensor1 FLOAT 1 2 VALUES 5 10 |> " \
               "AI.TENSORSET volatile_tensor2 FLOAT 1 2 VALUES 5 10 "
 
@@ -47,7 +47,7 @@ def test_dagro_local_tensorset(env):
 
 
 def test_dag_local_tensorset_persist(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     command = "AI.DAGEXECUTE " \
               "PERSIST 1 tensor1{1} |> " \
@@ -65,7 +65,7 @@ def test_dag_local_tensorset_persist(env):
 
 
 def test_dag_multilocal_tensorset_persist(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     command = "AI.DAGEXECUTE " \
               "PERSIST 1 tensor3:{1} |> " \
@@ -98,7 +98,7 @@ def test_dag_multilocal_tensorset_persist(env):
 
 
 def test_dag_local_tensorset_tensorget_persist(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     command = "AI.DAGEXECUTE PERSIST 1 tensor1{1} |> " \
               "AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10 |> " \
@@ -112,7 +112,7 @@ def test_dag_local_tensorset_tensorget_persist(env):
 
 
 def test_dag_local_multiple_tensorset_on_same_tensor(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     command = "AI.DAGEXECUTE PERSIST 1 tensor1{1} |> " \
               "AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10 |> " \
@@ -133,7 +133,7 @@ def test_dag_local_multiple_tensorset_on_same_tensor(env):
 
 
 def test_dag_load_persist_tensorset_tensorget(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command(
         "AI.TENSORSET persisted_tensor_1{1} FLOAT 1 2 VALUES 5 10")
@@ -158,43 +158,43 @@ def test_dag_load_persist_tensorset_tensorget(env):
 
 
 def test_dag_keyspace_tensorget(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command(
-        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+        "AI.TENSORSET persisted_tensor{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGEXECUTE LOAD 1 persisted_tensor " \
-              "|> AI.TENSORGET persisted_tensor VALUES"
+    command = "AI.DAGEXECUTE LOAD 1 persisted_tensor{1} " \
+              "|> AI.TENSORGET persisted_tensor{1} VALUES"
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [[b'5', b'10']])
 
 
 def test_dag_ro_keyspace_tensorget(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command(
-        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+        "AI.TENSORSET persisted_tensor{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGEXECUTE_RO LOAD 1 persisted_tensor |> " \
-              "AI.TENSORGET persisted_tensor VALUES"
+    command = "AI.DAGEXECUTE_RO LOAD 1 persisted_tensor{1} |> " \
+              "AI.TENSORGET persisted_tensor{1} VALUES"
 
     ret = con.execute_command(command)
     env.assertEqual(ret, [[b'5', b'10']])
 
 
 def test_dag_keyspace_and_localcontext_tensorget(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     ret = con.execute_command(
-        "AI.TENSORSET persisted_tensor FLOAT 1 2 VALUES 5 10")
+        "AI.TENSORSET persisted_tensor{1} FLOAT 1 2 VALUES 5 10")
     env.assertEqual(ret, b'OK')
 
-    command = "AI.DAGEXECUTE LOAD 1 persisted_tensor |> " \
+    command = "AI.DAGEXECUTE LOAD 1 persisted_tensor{1} |> " \
               "AI.TENSORSET volatile_tensor FLOAT 1 2 VALUES 5 10 |> " \
-              "AI.TENSORGET persisted_tensor VALUES |> " \
+              "AI.TENSORGET persisted_tensor{1} VALUES |> " \
               "AI.TENSORGET volatile_tensor VALUES"
 
     ret = con.execute_command(command)
@@ -204,7 +204,7 @@ def test_dag_keyspace_and_localcontext_tensorget(env):
 def test_dag_with_timeout(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     batch_size = 2
     minbatch_size = 2
     timeout = 1
@@ -230,31 +230,31 @@ def test_dag_with_timeout(env):
 
     env.assertEqual(b'TIMEDOUT', res)
 
-def test_dag_with_timeout(env):
+
+def test_dag_with_error(env):
     if not TEST_TF:
         return
-    con = env.getConnection()
-    batch_size = 2
-    minbatch_size = 2
-    timeout = 1
-    model_name = 'model{1}'
-    model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
-    con.execute_command('AI.MODELSTORE', model_name, 'TF', DEVICE,
-                        'BATCHSIZE', batch_size, 'MINBATCHSIZE', minbatch_size,
-                        'INPUTS', 1, input_var,
-                        'OUTPUTS', 1, output_var,
-                        'BLOB', model_pb)
-    con.execute_command('AI.TENSORSET', 'input{1}',
-                        'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
-                        'BLOB', img.tobytes())
+    con = get_connection(env, '{1}')
+    tf_model = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'tf_model{1}', 'TF', DEVICE,
+                        'INPUTS', 2, 'a', 'b',
+                        'OUTPUTS', 1, 'mul',
+                        'BLOB', tf_model)
+    env.assertEqual(b'OK', ret)
 
-    res = con.execute_command('AI.DAGEXECUTE',
-                              'LOAD', '1', 'input{1}',
-                              'TIMEOUT', timeout, '|>',
-                              'AI.MODELEXECUTE', model_name,
-                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}',
-                              '|>', 'AI.MODELEXECUTE', model_name,
-                              'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
+    # Run the model from DAG context, where MODELEXECUTE op fails due to dim mismatch in one of the tensors inputs:
+    # the input tensor 'b' is considered as tensor with dim 2X2X3 initialized with zeros, while the model expects that
+    # both inputs to node 'mul' will be with dim 2.
+    ret = con.execute_command('AI.DAGEXECUTE_RO', 'ROUTING', '{1}',
+                              '|>', 'AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3,
+                              '|>', 'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 3,
+                              '|>', 'AI.MODELEXECUTE', 'tf_model{1}', 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'tD',
+                              '|>', 'AI.TENSORGET', 'tD', 'VALUES')
 
-    env.assertEqual(b'TIMEDOUT', res)
+    # Expect that the MODELEXECUTE op will raise an error, and the last TENSORGET op will not be executed
+    env.assertEqual(ret[0], b'OK')
+    env.assertEqual(ret[1], b'OK')
+    env.assertEqual(ret[3], b'NA')
+    env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
+    env.assertTrue(str(ret[2]).find('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]') >= 0)

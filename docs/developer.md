@@ -113,12 +113,15 @@ You can compile and build the module from its source code - refer to the [Buildi
 
 **Building in a docker (x86_64)**
 
-The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules.
+The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules. This assumes that you have jinja installed, as the docker files are geneated from the dockerfile.tmpl in the *opt/build/docker* directory.
 
 ```
 git clone --recursive https://github.com/RedisAI/RedisAI
-cd RedisAI
-docker build -t redisai:latest -f Dockerfile --build-arg OSNICK=bionic OS=ubuntu:18.04 .
+cd RedisAI/opt/build/docker
+make
+
+# note, to build with GPU support instead
+make GPU=1
 ```
 
 After this, you can run the create docker and mount your source code with the following command, from within the RedisAI folder.

@@ -22,53 +22,91 @@ def redis_hash_to_tensor(redis_value: Any):
     l  = [torch.tensor(int(str(v))).reshape(1,1) for v in values]
     return torch.cat(l, dim=0)
 
-def test_redis_error(key:str):
+def test_redis_error(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
     redis.execute("SET", key)
 
-def test_int_set_get(key:str, value:int):
-    redis.execute("SET", key, str(value))
+def test_redis_command_error(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    redis.execute("SET", key)  # missing the required value argument
+
+def test_redis_error_message(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    redis.execute("HSET", key, "field", "value")
+    redis.execute("RPUSH", key, "some_value")  # list command on a hash type
+
+def test_int_set_get(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
+    redis.execute("SET", key, value)
     res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_int_set_incr(key:str, value:int):
-    redis.execute("SET", key, str(value))
+def test_int_set_incr(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
+    redis.execute("SET", key, value)
     res = redis.execute("INCR", key)
     redis.execute("DEL", key)
     return redis_string_int_to_tensor(res)
 
-def test_float_set_get(key:str, value:float):
-    redis.execute("SET", key, str(value))
+def test_float_set_get(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
+    redis.execute("SET", key, value)
     res = redis.execute("GET", key)
     redis.execute("DEL", key)
     return redis_string_float_to_tensor(res)
 
-def test_int_list(key:str, l:List[str]):
-    for value in l:
+def test_int_list(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    for value in args:
         redis.execute("RPUSH", key, value)
-    res = redis.execute("LRANGE", key, "0", str(len(l)))
+    res = redis.execute("LRANGE", key, "0", str(len(args)))
     redis.execute("DEL", key)
     return redis_int_list_to_tensor(res)
 
 
-def test_str_list(key:str, l:List[str]):
-    for value in l:
+def test_str_list(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    for value in args:
         redis.execute("RPUSH", key, value)
 
 
-def test_hash(key:str, l:List[str]):
-    args = [key]
-    for s in l:
-        args.append(s)
-    redis.execute("HSET", args)
+def test_hash(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    command_args = [key]
+    for s in args:
+        command_args.append(s)
+    redis.execute("HSET", command_args)
     res = redis.execute("HVALS", key)
     redis.execute("DEL", key)
     return redis_hash_to_tensor(res)
 
 
-def test_set_key(key:str, value:str):
+def test_set_key(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
+    value = args[0]
     redis.execute("SET", [key, value])
 
 
-def test_del_key(key:str):
+def test_del_key(tensors: List[Tensor], keys: List[str], args: List[str]):
+    key = keys[0]
     redis.execute("DEL", [key])
+
+
+def test_model_execute(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
+    return redisAI.model_execute(keys[0], [a, b], 1)  # assume keys[0] is the model key name saved in redis
+
+
+def test_model_execute_onnx(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = torch.tensor([[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]])
+    return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis
+
+
+def test_model_execute_onnx_bad_input(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+    return redisAI.model_execute(keys[0], [a], 1)  # assume keys[0] is the model key name saved in redis

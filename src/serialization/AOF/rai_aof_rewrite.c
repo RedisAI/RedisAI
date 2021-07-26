@@ -110,6 +110,30 @@ void RAI_AOFRewriteModel(RedisModuleIO *aof, RedisModuleString *key, void *value
 
 void RAI_AOFRewriteScript(RedisModuleIO *aof, RedisModuleString *key, void *value) {
     RAI_Script *script = (RAI_Script *)value;
-    RedisModule_EmitAOF(aof, "AI.SCRIPTSET", "sccscc", key, script->devicestr, "TAG", script->tag,
-                        "SOURCE", script->scriptdef);
+    RedisModuleString **args = array_new(RedisModuleString *, 9);
+    args = array_append(args, RedisModule_CreateStringFromString(NULL, key));
+    args = array_append(
+        args, RedisModule_CreateString(NULL, script->devicestr, strlen(script->devicestr)));
+    args = array_append(args, RedisModule_CreateString(NULL, "TAG", strlen("TAG")));
+    args = array_append(args, RedisModule_CreateStringFromString(NULL, script->tag));
+    size_t nEntryPoints = array_len(script->entryPoints);
+    if (nEntryPoints > 0) {
+        args = array_append(args,
+                            RedisModule_CreateString(NULL, "ENTRY_POINTS", strlen("ENTRY_POINTS")));
+        args =
+            array_append(args, RedisModule_CreateStringFromLongLong(NULL, (long long)nEntryPoints));
+        for (size_t i = 0; i < nEntryPoints; i++) {
+            args = array_append(args, RedisModule_CreateString(NULL, script->entryPoints[i],
+                                                               strlen(script->entryPoints[i])));
+        }
+    }
+    args = array_append(args, RedisModule_CreateString(NULL, "SOURCE", strlen("SOURCE")));
+    args = array_append(
+        args, RedisModule_CreateString(NULL, script->scriptdef, strlen(script->scriptdef)));
+
+    RedisModule_EmitAOF(aof, "AI.SCRIPTSTORE", "v", args, array_len(args));
+    for (size_t i = 0; i < array_len(args); i++) {
+        RedisModule_FreeString(NULL, args[i]);
+    }
+    array_free(args);
 }

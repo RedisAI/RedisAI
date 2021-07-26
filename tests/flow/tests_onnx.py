@@ -15,7 +15,7 @@ def test_onnx_modelrun_mnist(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist.onnx')
     wrong_model_pb = load_file_content('graph.pb')
     sample_raw = load_file_content('one.raw')
@@ -73,7 +73,7 @@ def test_onnx_modelrun_batchdim_mismatch(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('batchdim_mismatch.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
@@ -93,7 +93,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     if not TEST_ONNX:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist_batched.onnx')
     sample_raw = load_file_content('one.raw')
 
@@ -120,7 +120,7 @@ def test_onnx_modelrun_mnist_autobatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'c{1}', 'OUTPUTS', 1, 'd{1}')
 
     t = threading.Thread(target=run)
@@ -150,7 +150,7 @@ def test_onnx_modelrun_iris(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     linear_model = load_file_content('linear_iris.onnx')
     logreg_model = load_file_content('logreg_iris.onnx')
@@ -189,7 +189,7 @@ def test_onnx_modelinfo(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     linear_model = load_file_content('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
@@ -240,7 +240,7 @@ def test_onnx_modelrun_disconnect(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     linear_model = load_file_content('linear_iris.onnx')
 
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
@@ -268,7 +268,7 @@ def test_onnx_model_rdb_save_load(env):
 
     linear_model = load_file_content('linear_iris.onnx')
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
     env.assertEqual(ret, b'OK')
 
@@ -280,7 +280,7 @@ def test_onnx_model_rdb_save_load(env):
 
     env.stop()
     env.start()
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
     env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
     env.assertEqual(len(linear_model), len(model_serialized_after_rdbload))
@@ -294,7 +294,7 @@ def tests_onnx_info(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertFalse('ai_onnxruntime_version' in backends_info)
@@ -312,7 +312,7 @@ def test_parallelism():
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mnist.onnx')
     sample_raw = load_file_content('one.raw')
 
@@ -341,7 +341,7 @@ def test_onnx_use_custom_allocator(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mul_1.onnx')
 
     # Expect using the allocator during model set for allocating the model, its input name and output name:
@@ -405,7 +405,7 @@ def test_onnx_use_custom_allocator_with_GPU(env):
         env.debugPrint("skipping {} since this test if for GPU only".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('mul_1.onnx')
 
     # Expect using the allocator during model set for allocating the model, its input name and output name:
@@ -450,7 +450,7 @@ class TestOnnxKillSwitch:
     def __init__(self):
         self.threads_per_queue = 8
         self.env = Env(moduleArgs='THREADS_PER_QUEUE '+str(self.threads_per_queue)+' MODEL_EXECUTION_TIMEOUT 1000')
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         model_with_inf_loop = load_file_content("model_with_infinite_loop.onnx")
         ret = con.execute_command('AI.MODELSTORE', 'inf_loop_model{1}', 'ONNX', DEVICE, 'BLOB', model_with_inf_loop)
         self.env.assertEqual(ret, b'OK')
@@ -464,17 +464,14 @@ class TestOnnxKillSwitch:
         con.execute_command('AI.TENSORSET', 'outer_scope_input{1}', 'FLOAT', 1, 'VALUES', 42)
 
     def test_basic(self):
-        try:
-            con = self.env.getConnection()
-            con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
-            self.env.assertTrue(False)
-        except Exception as exception:
-            self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
-            self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+        con = get_connection(self.env, '{1}')
+        check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
+                            'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
+                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
+                            error_msg_is_substr=True)
 
     def test_multiple_working_threads(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
 
         # Load another onnx model that will be executed on the same threads that use the kill switch
         model_pb = load_file_content('mnist.onnx')
@@ -486,18 +483,16 @@ class TestOnnxKillSwitch:
         def run_parallel_onnx_sessions(con):
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
-            try:
-                con.execute_command('AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
-                                'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}')
-            except Exception as exception:
-                self.env.assertEqual(type(exception), redis.exceptions.ResponseError)
-                self.env.assertTrue(str(exception).find("Exiting due to terminate flag being set to true") != -1)
+            check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
+                            'AI.MODELEXECUTE', 'inf_loop_model{1}', 'INPUTS', 4, 'outer_scope_input{1}', 'iterations{1}',
+                            'loop_cond{1}', 'loop_input{1}', 'OUTPUTS', 2, 'outer_scope_output{1}', 'loop_output{1}',
+                                error_msg_is_substr=True)
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
-        run_test_multiproc(self.env, 8, run_parallel_onnx_sessions)
+        run_test_multiproc(self.env, '{1}', 8, run_parallel_onnx_sessions)
 
     def test_multiple_devices(self):
-        con = self.env.getConnection()
+        con = get_connection(self.env, '{1}')
         # CPU run queue is created from the start, so if we used a device different than CPU, we should
         # have maximum of 2*THREADS_PER_QUEUE run sessions, and otherwise we should have THREADS_PER_QUEUE.
         devices = {'CPU', DEVICE}

@@ -201,10 +201,6 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     unsigned long long batchsize = 0;
     if (AC_AdvanceIfMatch(&ac, "BATCHSIZE")) {
-        if (backend == RAI_BACKEND_TFLITE) {
-            return RedisModule_ReplyWithError(
-                ctx, "ERR Auto-batching not supported by the TFLITE backend");
-        }
         if (AC_GetUnsignedLongLong(&ac, &batchsize, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for BATCHSIZE");
         }
@@ -212,22 +208,22 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     unsigned long long minbatchsize = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHSIZE")) {
-        if (batchsize == 0) {
-            return RedisModule_ReplyWithError(ctx, "ERR MINBATCHSIZE specified without BATCHSIZE");
-        }
         if (AC_GetUnsignedLongLong(&ac, &minbatchsize, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHSIZE");
+        }
+        if (batchsize == 0 && minbatchsize > 0) {
+            return RedisModule_ReplyWithError(ctx, "ERR MINBATCHSIZE specified without BATCHSIZE");
         }
     }
 
     unsigned long long minbatchtimeout = 0;
     if (AC_AdvanceIfMatch(&ac, "MINBATCHTIMEOUT")) {
-        if (minbatchsize == 0) {
-            return RedisModule_ReplyWithError(ctx,
-                                              "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
-        }
         if (AC_GetUnsignedLongLong(&ac, &minbatchtimeout, 0) != AC_OK) {
             return RedisModule_ReplyWithError(ctx, "ERR Invalid argument for MINBATCHTIMEOUT");
+        }
+        if (minbatchsize == 0 && minbatchtimeout > 0) {
+            return RedisModule_ReplyWithError(ctx,
+                                              "ERR MINBATCHTIMEOUT specified without MINBATCHSIZE");
         }
     }
     RAI_ModelOpts opts = {
@@ -420,31 +416,24 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int blob = 0;
+    int meta = false;
+    int blob = false;
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "BLOB")) {
-            blob = 1;
+            blob = true;
         }
-    }
-
-    if (!meta && !blob) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or BLOB specified");
     }
 
     char *buffer = NULL;
     size_t len = 0;
 
-    if (blob) {
+    if (!meta || blob) {
         RAI_ModelSerialize(mto, &buffer, &len, &err);
-        if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-            printf("ERR: %s\n", err.detail);
-#endif
-            int ret = RedisModule_ReplyWithError(ctx, err.detail);
+        if (RAI_GetErrorCode(&err) != RAI_OK) {
+            int ret = RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
             RAI_ClearError(&err);
             if (*buffer) {
                 RedisModule_Free(buffer);
@@ -459,12 +448,14 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
         return REDISMODULE_OK;
     }
 
-    const int outentries = blob ? 18 : 16;
-    RedisModule_ReplyWithArray(ctx, outentries);
+    // The only case where we return only META, is when META is given but BLOB
+    // was not. Otherwise, we return both META+SOURCE
+    const int out_entries = (meta && !blob) ? 16 : 18;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
     RedisModule_ReplyWithCString(ctx, "backend");
-    const char *backendstr = RAI_GetBackendName(mto->backend);
-    RedisModule_ReplyWithCString(ctx, backendstr);
+    const char *backend_str = RAI_GetBackendName(mto->backend);
+    RedisModule_ReplyWithCString(ctx, backend_str);
 
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, mto->devicestr);
@@ -499,7 +490,8 @@ int RedisAI_ModelGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModule_ReplyWithCString(ctx, "minbatchtimeout");
     RedisModule_ReplyWithLongLong(ctx, (long)mto->opts.minbatchtimeout);
 
-    if (meta && blob) {
+    // This condition is the negation of (meta && !blob)
+    if (!meta || blob) {
         RedisModule_ReplyWithCString(ctx, "blob");
         RAI_ReplyWithChunks(ctx, buffer, len);
         RedisModule_Free(buffer);
@@ -655,34 +647,37 @@ int RedisAI_ScriptGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         return REDISMODULE_ERR;
     }
 
-    int meta = 0;
-    int source = 0;
+    bool meta = false;   // Indicates whether META argument was given.
+    bool source = false; // Indicates whether SOURCE argument was given.
     for (int i = 2; i < argc; i++) {
         const char *optstr = RedisModule_StringPtrLen(argv[i], NULL);
         if (!strcasecmp(optstr, "META")) {
-            meta = 1;
+            meta = true;
         } else if (!strcasecmp(optstr, "SOURCE")) {
-            source = 1;
+            source = true;
         }
     }
-
-    if (!meta && !source) {
-        return RedisModule_ReplyWithError(ctx, "ERR no META or SOURCE specified");
-    }
-
+    // If only SOURCE arg was given, return only the script source.
     if (!meta && source) {
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
         return REDISMODULE_OK;
     }
+    // We return (META+SOURCE) if both args are given, or if none of them was given.
+    // The only case where we return only META data, is if META is given while SOURCE was not.
+    int out_entries = (source || !meta) ? 8 : 6;
+    RedisModule_ReplyWithArray(ctx, out_entries);
 
-    int outentries = source ? 6 : 4;
-
-    RedisModule_ReplyWithArray(ctx, outentries);
     RedisModule_ReplyWithCString(ctx, "device");
     RedisModule_ReplyWithCString(ctx, sto->devicestr);
     RedisModule_ReplyWithCString(ctx, "tag");
     RedisModule_ReplyWithString(ctx, sto->tag);
-    if (source) {
+    RedisModule_ReplyWithCString(ctx, "Entry Points");
+    size_t nEntryPoints = array_len(sto->entryPoints);
+    RedisModule_ReplyWithArray(ctx, nEntryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        RedisModule_ReplyWithCString(ctx, sto->entryPoints[i]);
+    }
+    if (source || !meta) {
         RedisModule_ReplyWithCString(ctx, "source");
         RedisModule_ReplyWithCString(ctx, sto->scriptdef);
     }
@@ -716,7 +711,15 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    if (argc != 5 && argc != 7)
+    RedisModule_Log(ctx, "warning",
+                    "AI.SCRIPTSET command is deprecated and will"
+                    " not be available in future version, you can use AI.SCRIPTSTORE instead");
+    return ScriptSetCommand(ctx, argv, argc);
+}
+
+int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    // AI.SCRIPTSTORE <key> <device> ENTRY_POINTS 1 ep1 SOURCE blob
+    if (argc < 8)
         return RedisModule_WrongArity(ctx);
 
     ArgsCursor ac;
@@ -733,8 +736,25 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         AC_GetRString(&ac, &tag, 0);
     }
 
-    if (AC_IsAtEnd(&ac)) {
-        return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
+    long long nEntryPoints;
+    if (AC_AdvanceIfMatch(&ac, "ENTRY_POINTS")) {
+        if (AC_GetLongLong(&ac, &nEntryPoints, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Non numeric entry points number provided to AI.SCRIPTSTORE command");
+        }
+    } else {
+        return RedisModule_ReplyWithError(
+            ctx, "ERR Insufficient arguments, missing script entry points");
+    }
+
+    array_new_on_stack(const char *, nEntryPoints, entryPoints);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        const char *entryPoint;
+        if (AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
+            return RedisModule_ReplyWithError(
+                ctx, "ERR Insufficient arguments, missing script entry points");
+        }
+        entryPoints = array_append(entryPoints, entryPoint);
     }
 
     size_t scriptlen;
@@ -751,7 +771,7 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RAI_Script *script = NULL;
 
     RAI_Error err = {0};
-    script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+    script = RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
 
     if (err.code == RAI_EBACKENDNOTLOADED) {
         RedisModule_Log(ctx, "warning",
@@ -764,13 +784,11 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
             return ret;
         }
         RAI_ClearError(&err);
-        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+        script =
+            RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
     }
 
     if (err.code != RAI_OK) {
-#ifdef RAI_PRINT_BACKEND_ERRORS
-        printf("ERR: %s\n", err.detail);
-#endif
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
         return ret;
@@ -804,13 +822,6 @@ int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RedisModule_ReplicateVerbatim(ctx);
 
     return REDISMODULE_OK;
-}
-
-/*
- * Todo: this is temporary until we implement the new command, for testing broadcast in DMC
- */
-int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    return RedisAI_ScriptSet_RedisCommand(ctx, argv, argc);
 }
 
 /**
@@ -1098,16 +1109,8 @@ static int RedisAI_RegisterApi(RedisModuleCtx *ctx) {
     REGISTER_API(ScriptRunCtxCreate, ctx);
     REGISTER_API(ScriptRunCtxAddInput, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInput, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInput, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInput, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInput, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInput, ctx);
     REGISTER_API(ScriptRunCtxAddInputList, ctx);
     REGISTER_API(ScriptRunCtxAddTensorInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddIntInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddFloatInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddRStringInputList, ctx);
-    REGISTER_API(ScriptRunCtxAddStringInputList, ctx);
     REGISTER_API(ScriptRunCtxAddOutput, ctx);
     REGISTER_API(ScriptRunCtxNumOutputs, ctx);
     REGISTER_API(ScriptRunCtxOutputTensor, ctx);
@@ -1291,7 +1294,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
 #else
-    if (RedisModule_Init(ctx, "ai-lite", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
+    if (RedisModule_Init(ctx, "ai-light", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
 #endif
@@ -1375,7 +1378,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._modelscan", RedisAI_ModelScan_RedisCommand, "readonly",
-                                  1, 1, 1) == REDISMODULE_ERR)
+                                  0, 0, 0) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.scriptset", RedisAI_ScriptSet_RedisCommand,
@@ -1403,15 +1406,15 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai._scriptscan", RedisAI_ScriptScan_RedisCommand,
-                                  "readonly", 1, 1, 1) == REDISMODULE_ERR)
+                                  "readonly", 0, 0, 0) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.info", RedisAI_Info_RedisCommand, "readonly", 1, 1, 1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
-    if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 1, 1,
-                                  1) == REDISMODULE_ERR)
+    if (RedisModule_CreateCommand(ctx, "ai.config", RedisAI_Config_RedisCommand, "write", 0, 0,
+                                  0) == REDISMODULE_ERR)
         return REDISMODULE_ERR;
 
     if (RedisModule_CreateCommand(ctx, "ai.dagrun", RedisAI_DagRun_RedisCommand,

@@ -13,6 +13,9 @@ typedef enum DAGCommand {
     REDISAI_DAG_CMD_SCRIPTRUN
 } DAGCommand;
 
+#define VALIDATE_DAG_COMMAND(cmd)                                                                  \
+    RedisModule_Assert(cmd >= REDISAI_DAG_CMD_TENSORSET && cmd <= REDISAI_DAG_CMD_SCRIPTRUN);
+
 typedef struct RAI_DagOp {
     DAGCommand commandType;
     RedisModuleString *runkey;

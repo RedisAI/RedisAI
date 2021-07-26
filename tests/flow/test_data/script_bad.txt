@@ -1,0 +1,9 @@
+def bar(tensors: List[Tensor], keys: List[str], args: List[Tensor]):
+    a = tensors[0]
+    b = tensors[1]
+    return a + b
+
+def bar_variadic(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = tensors[0]
+    l = tensors[1:]
+    return a + l[0]

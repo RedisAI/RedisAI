@@ -22,7 +22,7 @@ def skip_if_no_TF(f):
 
 @skip_if_no_TF
 def test_run_mobilenet(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
 
@@ -85,14 +85,14 @@ def test_run_mobilenet(env):
 @skip_if_no_TF
 def test_run_mobilenet_multiproc(env):
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, input_var, output_var, labels, img = load_mobilenet_v2_test_data()
     con.execute_command('AI.MODELSTORE', 'mobilenet{1}', 'TF', DEVICE,
                         'INPUTS', 1, input_var, 'OUTPUTS', 1, output_var, 'BLOB', model_pb)
     ensureSlaveSynced(con, env)
 
-    run_test_multiproc(env, 30, run_mobilenet, (img, input_var, output_var))
+    run_test_multiproc(env, '{1}', 30, run_mobilenet, (img, input_var, output_var))
 
     ensureSlaveSynced(con, env)
 
@@ -117,7 +117,7 @@ def test_run_mobilenet_multiproc(env):
 
 @skip_if_no_TF
 def test_del_tf_model(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -155,7 +155,7 @@ def test_del_tf_model(env):
 
 @skip_if_no_TF
 def test_run_tf_model(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph.pb')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -207,11 +207,11 @@ def test_run_tf_model(env):
         values2 = con2.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         env.assertEqual(values2, values)
 
-    for _ in env.reloadingIterator():
-        env.assertExists('m{1}')
-        env.assertExists('a{1}')
-        env.assertExists('b{1}')
-        env.assertExists('c{1}')
+    env.dumpAndReload()
+    env.assertTrue(con.exists('m{1}'))
+    env.assertTrue(con.exists('a{1}'))
+    env.assertTrue(con.exists('b{1}'))
+    env.assertTrue(con.exists('c{1}'))
 
     con.execute_command('AI.MODELDEL', 'm{1}')
     ensureSlaveSynced(con, env)
@@ -226,7 +226,7 @@ def test_run_tf_model(env):
 
 @skip_if_no_TF
 def test_run_tf2_model(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph_v2.pb')
 
@@ -274,10 +274,10 @@ def test_run_tf2_model(env):
         values2 = con2.execute_command('AI.TENSORGET', 'y{1}', 'VALUES')
         env.assertEqual(values2, values)
 
-    for _ in env.reloadingIterator():
-        env.assertExists('m{1}')
-        env.assertExists('x{1}')
-        env.assertExists('y{1}')
+    env.dumpAndReload()
+    env.assertTrue(con.exists('m{1}'))
+    env.assertTrue(con.exists('x{1}'))
+    env.assertTrue(con.exists('y{1}'))
 
     con.execute_command('AI.MODELDEL', 'm{1}')
     ensureSlaveSynced(con, env)
@@ -292,7 +292,7 @@ def test_run_tf2_model(env):
 
 @skip_if_no_TF
 def test_run_tf_model_errors(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb = load_file_content('graph.pb')
     wrong_model_pb = load_file_content('pt-minimal.pt')
@@ -340,7 +340,7 @@ def test_run_tf_model_autobatch(env):
     if not TEST_PT:
         return
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', 'CPU',
@@ -361,7 +361,7 @@ def test_run_tf_model_autobatch(env):
     ensureSlaveSynced(con, env)
 
     def run():
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2,
                             'd{1}', 'e{1}', 'OUTPUTS', 1, 'f{1}')
         ensureSlaveSynced(con, env)
@@ -383,7 +383,7 @@ def test_run_tf_model_autobatch(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelinfo(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('graph.pb')
 
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -446,32 +446,32 @@ def test_tensorflow_modelinfo(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_disconnect(env):
-    red = env.getConnection()
+    con = get_connection(env, '{1}')
     model_pb = load_file_content('graph.pb')
 
-    ret = red.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command(
+    ret = con.execute_command(
         'AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ret = red.execute_command(
+    ret = con.execute_command(
         'AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     env.assertEqual(ret, b'OK')
 
-    ensureSlaveSynced(red, env)
+    ensureSlaveSynced(con, env)
 
     ret = send_and_disconnect(
-        ('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), red)
+        ('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), con)
     env.assertEqual(ret, None)
 
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     batch_size = 2
     minbatch_size = 2
     model_name = 'model{1}'
@@ -488,7 +488,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
                         'BLOB', img.tobytes())
 
     def run(name=model_name, output_name='output{1}'):
-        con = env.getConnection()
+        con = get_connection(env, '{1}')
         con.execute_command('AI.MODELEXECUTE', name,
                             'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, output_name)
     
@@ -530,7 +530,7 @@ def test_tensorflow_modelrun_with_batch_and_minbatch(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     batch_size = 2
     minbatch_size = 2
     minbatch_timeout = 1000
@@ -562,7 +562,7 @@ def test_tensorflow_modelrun_with_batch_minbatch_and_timeout(env):
 
 @skip_if_no_TF
 def test_tensorflow_modelrun_financialNet(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
 
@@ -596,7 +596,7 @@ def test_tensorflow_modelrun_financialNet(env):
 
 
 def test_tensorflow_modelrun_financialNet_multiproc(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(env)
 
@@ -629,7 +629,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
                                           'classificationTensor{{1}}:{}_{}'.format(tensor_number, repetition))
 
     t = time.time()
-    run_test_multiproc(env, 10,
+    run_test_multiproc(env, '{1}', 10,
                        lambda env: functor_financialNet(env, MAX_TRANSACTIONS, 100) )
     elapsed_time = time.time() - t
     total_ops = len(transaction_tensor)*100
@@ -640,12 +640,11 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
 def test_tensorflow_modelexecute_script_execute_resnet(env):
     if (not TEST_TF or not TEST_PT):
         return
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
     model_name = 'imagenet_model{1}'
     script_name = 'imagenet_script{1}'
     inputvar = 'images'
     outputvar = 'output'
-
 
     model_pb, script, labels, img = load_resnet_test_data()
 
@@ -655,7 +654,7 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
 
-    ret = con.execute_command('AI.SCRIPTSET', script_name, DEVICE, 'SOURCE', script)
+    ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
     image_key = 'image1{1}'
@@ -689,7 +688,7 @@ def test_tensorflow_modelexecute_script_execute_resnet(env):
 
 @skip_if_no_TF
 def test_tf_info(env):
-    con = env.getConnection()
+    con = get_connection(env, '{1}')
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertFalse('ai_TensorFlow_version' in backends_info)
