@@ -1294,7 +1294,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
 #else
-    if (RedisModule_Init(ctx, "ai-lite", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
+    if (RedisModule_Init(ctx, "ai-light", REDISAI_MODULE_VERSION, REDISMODULE_APIVER_1) ==
         REDISMODULE_ERR)
         return REDISMODULE_ERR;
 #endif
