@@ -32,8 +32,6 @@ On ubuntu bionic these can be installed by running:
 
 1. x86\_64 bit linux systems with a GPU
 
-1. jetson devices
-
 **Directory:** opt/build/onnxruntime
 
 **Build options:**

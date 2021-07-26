@@ -560,6 +560,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
+          <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
@@ -567,13 +568,14 @@ workflows:
       - platforms-build:
           context: common
           <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
                 - xenial
                 - bionic
               lite:
-                - "REDISAI_LITE=0 PUSH_GENERAL=1 OFFICIAL=1"
+                - "REDISAI_LITE=0 publish PUSH_GENERAL=1 OFFICIAL=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
