@@ -19,6 +19,8 @@
 #include "execution/background_workers.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 
+RAI_LoadedBackends RAI_backends = {0};
+
 static bool _ValidateFuncExists(RedisModuleCtx *ctx, void *func_ptr, const char *func_name,
                                 const char *backend_name, const char *path) {
     if (func_ptr == NULL) {

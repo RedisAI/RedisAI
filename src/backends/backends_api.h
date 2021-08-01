@@ -3,12 +3,12 @@
 #include <stdint.h>
 #include "redismodule.h"
 
-#ifdef BACKENDS_API_EXTERN
-#define BACKENDS_API extern
+#ifdef BACKENDS_API_MAIN
+#define BACKENDS_API 
 #endif
 
 #ifndef BACKENDS_API
-#define BACKENDS_API
+#define BACKENDS_API extern
 #endif
 
 typedef struct RAI_Tensor RAI_Tensor;

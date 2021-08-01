@@ -1,9 +1,13 @@
 #define REDISMODULE_MAIN
+#define BACKENDS_API_MAIN
 #include "backends/util.h"
 #include "backends/tflite.h"
 #include "util/arr.h"
 #include "libtflite_c/tflite_c.h"
 #include "redis_ai_objects/tensor.h"
+
+
+RAI_LoadedBackends RAI_backends = {0};
 
 int RAI_InitBackendTFLite(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Alloc", ((void **)&RedisModule_Alloc));

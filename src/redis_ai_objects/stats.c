@@ -11,6 +11,8 @@
 #include "stats.h"
 #include "util/string_utils.h"
 
+AI_dict *run_stats = NULL;
+
 long long ustime(void) {
     struct timeval tv;
     long long ust;

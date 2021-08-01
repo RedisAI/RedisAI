@@ -100,7 +100,7 @@ typedef struct RAI_LoadedBackends {
     RAI_LoadedBackend onnx;
 } RAI_LoadedBackends;
 
-RAI_LoadedBackends RAI_backends;
+extern RAI_LoadedBackends RAI_backends;
 
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
 

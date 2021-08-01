@@ -3,6 +3,8 @@
 #include "backends/backends.h"
 #include "background_workers.h"
 
+AI_dict *RunQueues = NULL;
+
 RunQueueInfo *RunQueue_Create(const char *device_str) {
 
     size_t device_str_len = strlen(device_str);

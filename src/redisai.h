@@ -6,12 +6,12 @@
 #define REDISAI_LLAPI_VERSION 1
 #define MODULE_API_FUNC(x)    (*x)
 
-#ifdef REDISAI_EXTERN
-#define REDISAI_API extern
+#ifdef REDISAI_MAIN
+#define REDISAI_API 
 #endif
 
 #ifndef REDISAI_API
-#define REDISAI_API
+#define REDISAI_API extern
 #endif
 
 #ifndef REDISAI_H_INCLUDE

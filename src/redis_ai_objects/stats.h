@@ -25,7 +25,7 @@ struct RedisAI_RunStats {
     long long nerrors;
 };
 
-AI_dict *run_stats;
+extern AI_dict *run_stats;
 
 long long ustime(void);
 mstime_t mstime(void);

@@ -32,7 +32,6 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#include "redisai.h"
 #include "rmutil/args.h"
 #include "rmutil/alloc.h"
 #include "util/arr.h"

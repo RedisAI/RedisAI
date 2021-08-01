@@ -35,7 +35,7 @@ typedef struct OnnxGlobalRunSessions {
     pthread_rwlock_t rwlock;
 } OnnxGlobalRunSessions;
 
-OnnxGlobalRunSessions *onnx_global_run_sessions;
+extern OnnxGlobalRunSessions *onnx_global_run_sessions;
 
 /**
  * @brief This is called whenever Onnx backend is loaded. It creates the global

@@ -7,6 +7,8 @@
 #include "redis_ai_objects/stats.h"
 #include "backends_api.h"
 
+OnnxGlobalRunSessions *onnx_global_run_sessions = NULL;
+
 int RAI_InitGlobalRunSessionsORT() {
     onnx_global_run_sessions = RedisModule_Alloc(sizeof(OnnxGlobalRunSessions));
 

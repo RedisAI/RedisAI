@@ -4,6 +4,7 @@
 #endif
 
 #define REDISMODULE_MAIN
+#define REDISAI_MAIN
 #include "redismodule.h"
 #include "redis_ai_objects/tensor.h"
 #include "execution/command_parser.h"

@@ -11,7 +11,7 @@
 #include "queue.h"
 #include "dictionaries.h"
 
-AI_dict *RunQueues;
+extern AI_dict *RunQueues;
 
 typedef struct RunQueueInfo {
     pthread_mutex_t run_queue_mutex;

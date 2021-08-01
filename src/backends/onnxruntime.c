@@ -1,4 +1,5 @@
 #define REDISMODULE_MAIN
+#define BACKENDS_API_MAIN
 #include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
