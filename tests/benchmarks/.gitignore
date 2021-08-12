@@ -1,0 +1,13 @@
+# benchmark tools output files
+*.json
+*.txt
+*.csv
+
+# dataset related files
+# you should use remote s3 link for large rdbs
+# if you want to add an rdb file to git you need to force it specifically aknowledging it
+datasets/*.rdb
+*.rdb
+
+# profile related artifacts
+profile_*

@@ -297,6 +297,28 @@ test: build
 
 #----------------------------------------------------------------------------------------------
 
+BENCHMARK_ARGS = redisbench-admin run-local
+
+ifneq ($(REMOTE),)
+	BENCHMARK_ARGS = redisbench-admin run-remote
+endif
+
+BENCHMARK_ARGS += --module_path $(realpath $(INSTALLED_TARGET)) \
+				  --dbdir_folder $(realpath $(INSTALL_DIR)) \
+				  --required-module ai
+ifneq ($(BENCHMARK),)
+	BENCHMARK_ARGS += --test $(BENCHMARK)
+endif
+
+ifneq ($(BENCH_ARGS),)
+	BENCHMARK_ARGS += $(BENCH_ARGS)
+endif
+
+benchmark: $(INSTALLED_TARGET)
+	cd ../tests/benchmarks; $(BENCHMARK_ARGS) ; cd ../..
+
+#----------------------------------------------------------------------------------------------
+
 valgrind:
 	$(SHOW)$(ROOT)/tests/flow/tests_setup/valgrind.sh $(realpath $(INSTALLED_TARGET))
 

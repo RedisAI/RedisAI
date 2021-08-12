@@ -1,0 +1,18 @@
+version: 0.2
+name: "cpu-vision-mobilenet-v1-tensorflow-workers_64_autobatching_0_tensorbatchsize_1"
+description: "An image-focused use-case that uses one network “backbone”: MobileNet V1, 
+              which can be considered as one of the standards by the AI community. 
+              To assess inference performance we’re recurring to COCO 2017 validation 
+              dataset (a large-scale object detection, segmentation, and captioning dataset)"
+remote:
+ - type: oss-standalone
+ - setup: redisbloom-m5
+dbconfig:
+  - dataset: "https://s3.amazonaws.com/benchmarks.redislabs/redisai/aibench/cpu-vision-mobilenet-v1-tensorflow.rdb"
+clientconfig:
+  - tool: aibench_run_inference_redisai_vision
+  - parameters:
+    - workers: 64
+    - model: mobilenet_v1_100_224_cpu
+    - batch-size: 1
+    - file: "https://s3.amazonaws.com/benchmarks.redislabs/redisai/aibench/vision_tensors.out"

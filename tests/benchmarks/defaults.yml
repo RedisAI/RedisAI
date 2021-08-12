@@ -1,0 +1,11 @@
+version: 0.1
+exporter:
+  redistimeseries:
+    timemetric: "$.StartTime"
+    metrics:
+      - "$.Totals.overallQuantiles.AllQueries.q0"
+      - "$.Totals.overallQuantiles.AllQueries.q50"
+      - "$.Totals.overallQuantiles.AllQueries.q95"
+      - "$.Totals.overallQuantiles.AllQueries.q99"
+      - "$.Totals.overallQuantiles.AllQueries.q100"
+      - "$.Totals.OverallRates.overallOpsRate"
