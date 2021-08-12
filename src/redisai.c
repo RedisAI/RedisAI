@@ -565,16 +565,9 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.MODELEXECUTE instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.MODELRUN command is deprecated and cannot be used in "
                  "enterprise cluster, use AI.MODELEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and will"
-                        " not be available in future version, you can use AI.MODELEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
