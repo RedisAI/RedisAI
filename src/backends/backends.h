@@ -64,7 +64,7 @@ typedef struct RAI_LoadedBackend {
     int (*model_serialize)(RAI_Model *, char **, size_t *, RAI_Error *);
 
     // ** script_create **:  A callback function pointer that creates a script
-    RAI_Script *(*script_create)(const char *, const char *, RAI_Error *);
+    RAI_Script *(*script_create)(const char *, const char *, const char **, size_t, RAI_Error *);
 
     // ** script_free **:  A callback function pointer that frees a script given
     // the RAI_Script pointer
@@ -82,6 +82,15 @@ typedef struct RAI_LoadedBackend {
 
     // Returns the number of times that Redis accessed backend allocator.
     unsigned long long (*get_memory_access_num)(void);
+
+    // A callback for to use whenever a new device is introduced.
+    int (*add_new_device_cb)(const char *);
+
+    // Kill run session callback (for stopping long runs).
+    void (*stop_long_running_sessions_cb)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
+
+    // Get the number of maximum run sessions that can run.
+    size_t (*get_max_run_sessions)(void);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {
@@ -92,9 +101,12 @@ typedef struct RAI_LoadedBackends {
 } RAI_LoadedBackends;
 
 RAI_LoadedBackends RAI_backends;
-char *RAI_BackendsPath;
 
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
+
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 
-const char *RAI_BackendName(int backend);
+/**
+ * @brief Returns the backend name as string.
+ */
+const char *RAI_GetBackendName(RAI_Backend backend);

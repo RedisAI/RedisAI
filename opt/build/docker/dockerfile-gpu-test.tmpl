@@ -1,6 +1,6 @@
-# BUILD redisfab/redisai:${VERSION}-gpu-${ARCH}-${OSNICK}-test
+# BUILD redisfab/redisai:{{VERSION}}-gpu-{{REDIS_ARCH}}-{{REDIS_OSNICK}}-test
 
-ARG REDIS_VER=6.2.4
+ARG PACK={{REDIS_PACK}}
 
 # OSNICK=bionic|centos7|centos6
 ARG OSNICK=bionic
@@ -13,25 +13,30 @@ ARG OS=ubuntu18.04
 
 ARG CUDA_VER=11.0-cudnn8
 
-ARG PACK=1
-
 #----------------------------------------------------------------------------------------------
-FROM redisfab/redis:${REDIS_VER}-${ARCH}-${OSNICK} AS redis
-FROM nvidia/cuda:${CUDA_VER}-devel-${OS} AS builder
+FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu18.04 AS builder
+
+ARG PACK
 
 SHELL ["/bin/bash", "-c"]
 
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+{% include "templates/gpu.yml" %}
+
+ENV LANG=en_US.UTF-8
+RUN apt-get update
+RUN apt-get install -y locales && \
+    sed -i -e "s/# $LANG.*/$LANG UTF-8/" /etc/locale.gen && \
+    dpkg-reconfigure --frontend=noninteractive locales && \
+    update-locale LANG=$LANG
 
 WORKDIR /build
+ADD ./ /build
 COPY --from=redis /usr/local/ /usr/local/
-
-RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-11.0/lib64:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
-
 COPY ./opt/ opt/
 COPY ./tests/flow/tests_setup/test_requirements.txt tests/flow/tests_setup/
 COPY ./tests/flow/tests_setup/Install_RedisGears.sh tests/flow/tests_setup/
+COPY ./get_deps.sh .
 
 RUN VENV=venv FORCE=1 ./opt/readies/bin/getpy3
 
@@ -40,7 +45,6 @@ RUN set -e ;\
 	./opt/system-setup.py
 
 ARG DEPS_ARGS=""
-COPY ./get_deps.sh .
 RUN set -e ;\
 	. venv/bin/activate ;\
 	if [[ -z $DEPS_ARGS ]]; then \
@@ -50,12 +54,9 @@ RUN set -e ;\
 	fi
 
 ARG BUILD_ARGS=""
-ADD ./ /build
 RUN set -e ;\
 	. venv/bin/activate ;\
 	bash -l -c "make -C opt build GPU=1 $BUILD_ARGS SHOW=1"
-
-ARG PACK
 
 RUN set -e ;\
 	if [[ $PACK == 1 ]]; then \

@@ -1,8 +1,9 @@
-def bar(a, b):
+def bar(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = tensors[0]
+    b = tensors[1]
     return a + b
 
-def bar_variadic(a, args : List[Tensor]):
-    return args[0] + args[1]
-
-def bar_two_lists(a: List[Tensor], b:List[Tensor]):
-    return a[0] + b[0]
+def bar_variadic(tensors: List[Tensor], keys: List[str], args: List[str]):
+    a = tensors[0]
+    l = tensors[1:]
+    return a + l[0]

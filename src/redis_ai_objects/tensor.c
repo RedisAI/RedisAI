@@ -14,7 +14,6 @@
 #include "tensor.h"
 #include "err.h"
 #include "arr.h"
-#include "math.h"
 #include "redisai.h"
 #include "version.h"
 #include "tensor_struct.h"
@@ -128,7 +127,7 @@ int Tensor_DataTypeStr(DLDataType dtype, char *dtypestr) {
 RAI_Tensor *RAI_TensorNew(void) {
     RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(*ret));
     ret->refCount = 1;
-    ret->len = LEN_UNKOWN;
+    ret->len = LEN_UNKNOWN;
     return ret;
 }
 
@@ -153,8 +152,8 @@ RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, in
     for (int64_t i = ndims - 2; i >= 0; --i) {
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
-
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    // Default device is CPU (id -1 is default, means 'no index')
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
     // If we return an empty tensor, we initialize the data with zeros to avoid security
     // issues. Otherwise, we only allocate without initializing (for better performance).
@@ -209,8 +208,8 @@ RAI_Tensor *_TensorCreateWithDLDataTypeAndRString(DLDataType dtype, size_t dtype
     for (int64_t i = ndims - 2; i >= 0; --i) {
         strides[i] *= strides[i + 1] * shape[i + 1];
     }
-
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = 0};
+    // Default device is CPU (id -1 is default, means 'no index')
+    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
     size_t nbytes = len * dtypeSize;
 
     size_t blob_len;
@@ -349,7 +348,6 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest) {
 RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
 
     RAI_Tensor *ret = RAI_TensorNew();
-
     ret->tensor =
         (DLManagedTensor){.dl_tensor = (DLTensor){.device = dl_tensor->dl_tensor.device,
                                                   .data = dl_tensor->dl_tensor.data,
@@ -360,9 +358,11 @@ RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
                                                   .byte_offset = dl_tensor->dl_tensor.byte_offset},
                           .manager_ctx = dl_tensor->manager_ctx,
                           .deleter = dl_tensor->deleter};
-
+    RAI_TensorLength(ret); // This will set the ret->len field.
     return ret;
 }
+
+DLTensor *RAI_TensorGetDLTensor(RAI_Tensor *tensor) { return &tensor->tensor.dl_tensor; }
 
 DLDataType RAI_TensorDataType(RAI_Tensor *t) { return t->tensor.dl_tensor.dtype; }
 
@@ -373,7 +373,7 @@ int RAI_TensorIsDataTypeEqual(RAI_Tensor *t1, RAI_Tensor *t2) {
 }
 
 size_t RAI_TensorLength(RAI_Tensor *t) {
-    if (t->len == LEN_UNKOWN) {
+    if (t->len == LEN_UNKNOWN) {
         int64_t *shape = t->tensor.dl_tensor.shape;
         size_t len = 1;
         for (size_t i = 0; i < t->tensor.dl_tensor.ndim; ++i) {
