@@ -83,7 +83,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     RAI_Tensor *t = NULL;
-    const int parse_result = RAI_parseTensorSetArgs(argv, argc, &t, 1, &err);
+    const int parse_result = RAI_TensorSetParseArgs(argv, argc, &t, 1, &err);
 
     // if the number of parsed args is negative something went wrong
     if (parse_result < 0) {

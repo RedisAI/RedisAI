@@ -598,7 +598,7 @@ int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             currentOp->devicestr = "CPU";
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
+            if (RAI_TensorSetParseArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
                                        rinfo->err) == -1) {
                 goto cleanup;
             }

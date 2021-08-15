@@ -32,6 +32,7 @@ static const char *RAI_DATATYPE_STR_INT64 = "INT64";
 static const char *RAI_DATATYPE_STR_UINT8 = "UINT8";
 static const char *RAI_DATATYPE_STR_UINT16 = "UINT16";
 static const char *RAI_DATATYPE_STR_BOOL = "BOOL";
+static const char *RAI_DATATYPE_STR_STRING = "STRING";
 
 #define TENSOR_NONE                0
 #define TENSOR_VALUES              (1 << 0)
@@ -67,23 +68,6 @@ RAI_Tensor *RAI_TensorNew(void);
  * failed.
  */
 RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims);
-
-/**
- * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
- * the passed 'DLDataType` and with the specified number of dimensions `ndims`,
- * and n-dimension array `dims`. Depending on the passed `tensorAllocMode`, the
- * DLTensor data will be either allocated or no allocation is performed thus
- * enabling shallow copy of data (no alloc)
- *
- * @param dtype DLDataType
- * @param dims n-dimensional array ( the dimension values are copied )
- * @param ndims number of dimensions
- * @param empty True if creating an empty tensor (need to be initialized)
- * @return allocated RAI_Tensor on success, or NULL if the allocation
- * failed.
- */
-RAI_Tensor *RAI_TensorCreateWithDLDataType(DLDataType dtype, long long *dims, int ndims,
-                                           bool empty);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
@@ -366,7 +350,7 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
  * parsing failures
  * @return processed number of arguments on success, or -1 if the parsing failed
  */
-int RAI_parseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity,
+int RAI_TensorSetParseArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity,
                            RAI_Error *error);
 
 /**
