@@ -137,9 +137,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    RedisModule_Log(ctx, "warning",
-                    "AI.MODELSET command is deprecated and will"
-                    " not be available in future version, you can use AI.MODELSTORE instead");
     return ModelSetCommand(ctx, argv, argc);
 }
 
@@ -565,16 +562,9 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.MODELEXECUTE instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.MODELRUN command is deprecated and cannot be used in "
                  "enterprise cluster, use AI.MODELEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and will"
-                        " not be available in future version, you can use AI.MODELEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -711,9 +701,6 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_Log(ctx, "warning",
-                    "AI.SCRIPTSET command is deprecated and will"
-                    " not be available in future version, you can use AI.SCRIPTSTORE instead");
     return ScriptSetCommand(ctx, argv, argc);
 }
 
@@ -960,16 +947,9 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.DAGEXECUTE instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.DAGRUN command is deprecated and cannot be used in "
                  "enterprise cluster, use AI.DAGEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN command is deprecated and will"
-                        " not be available in future version, you can use AI.DAGEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -1005,16 +985,9 @@ int RedisAI_DagExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN_RO command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.DAGEXECUTE_RO instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.DAGRUN_RO command is deprecated and cannot be used in "
-                 "enterprise cluster, use AI.DAGEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN_RO command is deprecated and will"
-                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+                 "enterprise cluster, use AI.DAGEXECUTE_RO instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
