@@ -83,10 +83,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     RAI_Tensor *t = NULL;
-    const int parse_result = RAI_TensorSetParseArgs(argv, argc, &t, 1, &err);
-
-    // if the number of parsed args is negative something went wrong
-    if (parse_result < 0) {
+    const int parse_result = RAI_TensorSetParseArgs(argv, argc, &t, &err);
+    if (parse_result != REDISMODULE_OK) {
         RedisModule_CloseKey(key);
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);

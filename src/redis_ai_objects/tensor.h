@@ -345,12 +345,11 @@ void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
  * @param t Destination tensor to store the parsed data
- * @param enforceArity flag whether to enforce arity checking
  * @param error error data structure to store error message in the case of
  * parsing failures
- * @return processed number of arguments on success, or -1 if the parsing failed
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the parsing failed
  */
-int RAI_TensorSetParseArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, int enforceArity,
+int RAI_TensorSetParseArgs(RedisModuleString **argv, int argc, RAI_Tensor **t,
                            RAI_Error *error);
 
 /**

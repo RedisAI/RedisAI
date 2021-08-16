@@ -186,8 +186,8 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
             currentOp->devicestr = "CPU";
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_TensorSetParseArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
-                                       rinfo->err) == -1) {
+            if (RAI_TensorSetParseArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
+                                       rinfo->err) != REDISMODULE_OK) {
                 return REDISMODULE_ERR;
             }
             currentOp->result = REDISMODULE_OK;

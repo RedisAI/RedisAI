@@ -160,7 +160,7 @@ def test_common_tensorset_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command", exception.__str__())
+        env.assertEqual("a single binary string should come after the BLOB argument in 'AI.TENSORSET' command", exception.__str__())
 
     try:
         con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs{0}', 'FLOAT', 2, 'BLOB')
@@ -168,7 +168,7 @@ def test_common_tensorset_error_replies(env):
     except Exception as e:
         exception = e
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("wrong number of arguments for 'AI.TENSORSET' command", exception.__str__())
+        env.assertEqual("a single binary string should come after the BLOB argument in 'AI.TENSORSET' command", exception.__str__())
 
     # ERR data length does not match tensor shape and type
     try:
