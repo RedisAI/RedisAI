@@ -67,7 +67,7 @@ RAI_Tensor *RAI_TensorNew(void);
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorCreate(const char *dataType, long long *dims, int ndims);
+RAI_Tensor *RAI_TensorCreate(const char *dataType, const long long *dims, int ndims);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
