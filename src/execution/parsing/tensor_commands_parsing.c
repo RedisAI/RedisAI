@@ -19,12 +19,12 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
     }
 
     int data_fmt = TENSOR_NONE;
-    size_t n_dims = 0;
+    int n_dims = 0;
     long long len = 1;
     long long *dims = (long long *)array_new(long long, 1);
-    size_t arg_pos = 3;
+    int arg_pos = 3;
 
-    // go over remaining tensor args (shape and data) after parsing its type.
+    // go over remaining tensor args (shapes and data) after parsing its type.
     for (; arg_pos < argc; arg_pos++) {
         const char *opt = RedisModule_StringPtrLen(argv[arg_pos], NULL);
         if (!strcasecmp(opt, "BLOB")) {
@@ -74,23 +74,15 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
         RedisModuleString *tensor_blob = argv[arg_pos];
         *t = RAI_TensorCreateFromBlob(data_type, data_size, dims, n_dims, tensor_blob, error);
     } else {
-        // If no data was given, we consider the tensor data as a sequence of zeros.
-        bool is_empty = (data_fmt == TENSOR_NONE);
+        // Parse the rest of the arguments (tensor values) and set the values in the tensor.
+        // Note that it is possible that no values were given - create empty tensor in that case.
         *t = RAI_TensorCreateFromValues(data_type, data_size, dims, n_dims, argc-arg_pos, &argv[arg_pos], error);
     }
-    if (!(*t)) {
-        array_free(dims);
+    array_free(dims);
+
+    if (*t == NULL) {
         return REDISMODULE_ERR;
     }
-
-    if (data_fmt == TENSOR_VALUES) {
-        if (_RAI_TensorFillWithValues(arg_pos, argc, argv, *t, len, data_type, error) !=
-            REDISMODULE_OK) {
-            return REDISMODULE_ERR;
-        }
-    }
-
-    array_free(dims);
     return REDISMODULE_OK;
 }
 

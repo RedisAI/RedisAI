@@ -64,39 +64,59 @@ void RAI_RStringDataTensorDeleter(DLManagedTensor *arg) {
     RedisModule_Free(arg);
 }
 
-static size_t _RAI_StringTensorGetDataLen(size_t arg_pos, int argc, RedisModuleString **argv) {
+static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_Tensor *tensor,
+                                        uint64_t *offsets, RAI_Error *err) {
     size_t total_len = 0;
-    for (; arg_pos < argc; arg_pos++) {
+    const char* strings_data[argc];
+
+    // go over the strings and save every string element offset in the entire blob.
+    for (int i = 0; i < argc; i++) {
         size_t str_len;
-        RedisModule_StringPtrLen(argv[arg_pos], &str_len);
-        total_len +=
+        const char *str_data = RedisModule_StringPtrLen(argv[i], &str_len);
+        if (str_data[str_len-1] != '\0') {
+            RAI_SetError(err, RAI_ETENSORSET, "ERR invalid value: strings element must be null-terminated");
+            return REDISMODULE_ERR;
+        }
+        strings_data[i] = str_data;
+        offsets[i] = total_len;
+        total_len += str_len;
     }
+    tensor->tensor.dl_tensor.data = RedisModule_Alloc(total_len);
+    tensor->tensor.dl_tensor.elements_length = offsets;
+
+    // Copy the strings one by one to the data ptr.
+    for (int i = 0; i < argc - 1; i++) {
+        memcpy(RAI_TensorData(tensor) + offsets[i], strings_data[i], offsets[i+1]-offsets[i]);
+    }
+    memcpy(RAI_TensorData(tensor) + offsets[argc-1], strings_data[argc-1], total_len-offsets[argc-1]);
+
+    return REDISMODULE_OK;
 }
 
-static int _RAI_TensorFillWithValues(int arg_pos, int argc, RedisModuleString **argv, RAI_Tensor *t,
-                                     long long len, DLDataType data_type, RAI_Error *error) {
-    for (long long i = 0; (arg_pos < argc) && (i < len); arg_pos++, i++) {
+static int _RAI_TensorFillWithValues(int argc, RedisModuleString **argv, RAI_Tensor *t,
+                                     DLDataType data_type, RAI_Error *error) {
+    for (long long i = 0; i < argc; i++) {
         if (data_type.code == kDLFloat) {
             double val;
-            const int ret_val = RedisModule_StringToDouble(argv[arg_pos], &val);
+            int ret_val = RedisModule_StringToDouble(argv[i], &val);
             if (ret_val != REDISMODULE_OK) {
                 RAI_SetError(error, RAI_ETENSORSET, "ERR invalid value");
                 return REDISMODULE_ERR;
             }
-            const int ret_set = RAI_TensorSetValueFromDouble(t, i, val);
-            if (ret_set == -1) {
-                RAI_SetError(error, RAI_ETENSORSET, "ERR cannot specify values for this datatype");
+            int ret_set = RAI_TensorSetValueFromDouble(t, i, val);
+            if (ret_set != 1) {
+                RAI_SetError(error, RAI_ETENSORSET, "ERR cannot specify values for this data type");
                 return REDISMODULE_ERR;
             }
         } else {
             long long val;
-            const int ret_val = RedisModule_StringToLongLong(argv[arg_pos], &val);
+            const int ret_val = RedisModule_StringToLongLong(argv[i], &val);
             if (ret_val != REDISMODULE_OK || _ValOverflow(val, t)) {
                 RAI_SetError(error, RAI_ETENSORSET, "ERR invalid value");
                 return REDISMODULE_ERR;
             }
             const int ret_set = RAI_TensorSetValueFromLongLong(t, i, val);
-            if (ret_set == -1) {
+            if (ret_set != 1) {
                 RAI_SetError(error, RAI_ETENSORSET, "ERR cannot specify values for this data type");
                 return REDISMODULE_ERR;
             }
@@ -177,37 +197,41 @@ RAI_Tensor *RAI_TensorNew(void) {
     return ret;
 }
 
-RAI_Tensor *RAI_TensorCreateFromValues(const char *type_str, const long long *dims, size_t n_dims,
+RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size, const long long *dims, int n_dims,
                                        int argc, RedisModuleString **argv, RAI_Error *err) {
 
-    RAI_Tensor *new_tensor = RAI_TensorCreate(type_str, dims, (int)n_dims);
-    RedisModule_Assert(new_tensor);
+    RAI_Tensor *new_tensor = _RAI_TensorCreate(data_type, data_size, dims, n_dims);
+    size_t tensor_len = RAI_TensorLength(new_tensor);
 
-    // We consider the empty tensor as contains a sequence of zeros (null-character in case of
-    // string tensor)
-    uint64_t *strings_offsets = NULL;
-    if (empty) {
-        memset(new_tensor->tensor.dl_tensor.data, 0,
-               RAI_TensorDataSize(new_tensor) * RAI_TensorLength(new_tensor));
-
-        data = RedisModule_Calloc(tensor_len, data_type_size);
-        // We consider the empty string tensor as a tensor of empty strings (a sequence of null
-        // characters)
+    // If no values were given, we consider the empty tensor as a sequence of zeros
+    // (null-character in case of string tensor)
+    if (argc == 0) {
+        memset(RAI_TensorData(new_tensor), 0, RAI_TensorByteSize(new_tensor));
         if (data_type.code == kDLString) {
-            strings_offsets = RedisModule_Alloc(tensor_len * sizeof(*strings_offsets));
+            uint64_t *strings_offsets = RedisModule_Alloc(tensor_len * sizeof(*strings_offsets));
             for (size_t i = 0; i < tensor_len; i++) {
                 strings_offsets[i] = i;
             }
+            new_tensor->tensor.dl_tensor.elements_length = strings_offsets;
         }
-    } else {
-        if (data_type.code == kDLString) {
-            size_t data_length = 0;
-            for (size_t i = 0; i <)
-        }
-        data = RedisModule_Alloc(tensor_len * data_type_size);
+        return new_tensor;
     }
 
-    tensor
+    if (data_type.code == kDLString) {
+        uint64_t *offsets = RedisModule_Alloc(tensor_len * sizeof(*offsets));
+        if (_RAI_TensorParseStringValues(argc, argv, new_tensor, offsets, err) != REDISMODULE_OK) {
+            RedisModule_Free(offsets);
+            RAI_TensorFree(new_tensor);
+            return NULL;
+        }
+    } else {
+        // Parse and fill tensor data with numeric values
+        if (_RAI_TensorFillWithValues(argc, argv, new_tensor, data_type, err) != REDISMODULE_OK) {
+            RAI_TensorFree(new_tensor);
+            return NULL;
+        }
+    }
+    return new_tensor;
 }
 
 RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims, int n_dims,
@@ -218,43 +242,32 @@ RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, con
 
     size_t blob_len;
     const char *tensor_blob = RedisModule_StringPtrLen(tensor_blob_rs, &blob_len);
-    uint64_t *offsets = NULL;
     if (data_type.code == kDLString) {
-        // get the length of every individual string in the tensor, set an error and return NULL if
-        // the number of strings in the given blob doesn't match the number of expected elements in
-        // the tensor.
-        offsets = _RAI_TensorGetStringsOffsets(tensor_blob, blob_len, tensor_len, err);
+        // get the offset of every individual string in the blob. Set an error and return NULL if
+        // the number of strings in the given blob doesn't match the tensor length.
+        uint64_t *offsets = _RAI_TensorGetStringsOffsets(tensor_blob, blob_len, tensor_len, err);
         if (offsets == NULL) {
-            RedisModule_Free(shape);
+            RAI_TensorFree(new_tensor);
             return NULL;
         }
+        new_tensor->tensor.dl_tensor.elements_length = offsets;
+        new_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
+
     } else {
         size_t expected_n_bytes = tensor_len * data_size;
         if (blob_len != expected_n_bytes) {
-            RedisModule_Free(shape);
-            RedisModule_Free(strides);
+            RAI_TensorFree(new_tensor);
             RAI_SetError(err, RAI_ETENSORSET,
                          "ERR data length does not match tensor shape and type");
             return NULL;
         }
     }
-    char *data = RedisModule_Alloc(blob_len);
-    memcpy(data, tensor_blob, blob_len);
-    RAI_HoldString(tensor_blob_rs);
 
-    RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
-                                                            .data = data,
-                                                            .ndim = (int)n_dims,
-                                                            .dtype = data_type,
-                                                            .shape = shape,
-                                                            .strides = strides,
-                                                            .byte_offset = 0,
-                                                            .elements_length = offsets},
-                                    .manager_ctx = tensor_blob_rs,
-                                    .deleter = RAI_RStringDataTensorDeleter};
-
-    return ret;
+    // Copy the blob. We must copy instead of increasing the ref count since we don't have
+    // a way of taking ownership on the underline data pointer (this will require introducing
+    // a designated RedisModule API, might be optional in the future)
+    memcpy(RAI_TensorData(new_tensor), tensor_blob, blob_len);
+    return new_tensor;
 }
 
 RAI_Tensor *RAI_TensorCreate(const char *data_type_str, const long long *dims, int n_dims) {
@@ -398,13 +411,12 @@ DLDataType RAI_TensorDataTypeFromString(const char *type_str) {
 RAI_Tensor *RAI_TensorCreateFromDLTensor(DLManagedTensor *dl_tensor) {
 
     RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = *dl_tensor; // takes ownership on the dl_tensor memory.
+    ret->tensor = *dl_tensor; // shallow copy, takes ownership on the dl_tensor memory.
     ret->len = RAI_TensorLength(ret);
     return ret;
 }
 
-//************************************* getters and setters
-//******************************************
+//******************** getters and setters ****************************
 
 int RAI_TensorGetDataTypeStr(DLDataType data_type, char *data_type_str) {
     int result = REDISMODULE_ERR;
@@ -633,24 +645,30 @@ RAI_Tensor *RAI_TensorGetShallowCopy(RAI_Tensor *t) {
 }
 
 void RAI_TensorFree(RAI_Tensor *t) {
-    if (t) {
-        if (__atomic_sub_fetch(&t->refCount, 1, __ATOMIC_RELAXED) <= 0) {
-            if (t->tensor.deleter) {
-                t->tensor.deleter(&t->tensor);
-            } else {
-                if (t->tensor.dl_tensor.shape) {
-                    RedisModule_Free(t->tensor.dl_tensor.shape);
-                }
-                if (t->tensor.dl_tensor.strides) {
-                    RedisModule_Free(t->tensor.dl_tensor.strides);
-                }
-                if (t->tensor.dl_tensor.data) {
-                    RedisModule_Free(t->tensor.dl_tensor.data);
-                }
-                RedisModule_Free(t);
-            }
-        }
+    if (t == NULL) {
+        return;
     }
+    if (__atomic_sub_fetch(&t->refCount, 1, __ATOMIC_RELAXED) > 0) {
+        return;
+    }
+    if (t->tensor.deleter) {
+        t->tensor.deleter(&t->tensor);
+    } else {
+        if (t->tensor.dl_tensor.shape) {
+            RedisModule_Free(t->tensor.dl_tensor.shape);
+        }
+        if (t->tensor.dl_tensor.strides) {
+            RedisModule_Free(t->tensor.dl_tensor.strides);
+        }
+        if (t->tensor.dl_tensor.data) {
+            RedisModule_Free(t->tensor.dl_tensor.data);
+        }
+        if (t->tensor.dl_tensor.elements_length) {
+            RedisModule_Free(t->tensor.dl_tensor.elements_length);
+        }
+        RedisModule_Free(t);
+    }
+
 }
 
 //***************************** retrieve tensor from keyspace *********************
