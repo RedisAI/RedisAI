@@ -90,8 +90,8 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
                                   RedisModuleString *persist_key_name, RAI_Error *err) {
 
     RedisModuleKey *key;
-    const int status =
-        RAI_OpenKey_Tensor(ctx, persist_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE, err);
+    int status =
+        RAI_TensorOpenKey(ctx, persist_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE, err);
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }

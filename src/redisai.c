@@ -13,6 +13,7 @@
 #include "execution/DAG/dag_execute.h"
 #include "execution/utils.h"
 #include "execution/parsing/deprecated.h"
+#include "execution/parsing/tensor_commands_parsing.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/model.h"
@@ -74,8 +75,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RedisModuleKey *key;
     RAI_Error err = {0};
-    const int status =
-        RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
+    int status = RAI_TensorOpenKey(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
@@ -83,7 +83,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     RAI_Tensor *t = NULL;
-    const int parse_result = RAI_TensorSetParseArgs(argv, argc, &t, &err);
+    int parse_result = ParseTensorSetArgs(argv, argc, &t, &err);
     if (parse_result != REDISMODULE_OK) {
         RedisModule_CloseKey(key);
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
@@ -112,17 +112,18 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RAI_Tensor *t;
     RedisModuleKey *key;
     RAI_Error err = {0};
-    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
+    int status = RAI_TensorGetFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
     uint fmt = ParseTensorGetArgs(&err, argv, argc);
+
+    // TENSOR_NONE is returned in case that args are invalid.
     if (fmt == TENSOR_NONE) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
-        // This means that args are invalid.
         return REDISMODULE_ERR;
     }
     ReplyWithTensor(ctx, fmt, t);

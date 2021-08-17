@@ -10,6 +10,7 @@
 #include "execution/DAG/dag_execute.h"
 #include "execution/parsing/dag_parser.h"
 #include "execution/parsing/parse_utils.h"
+#include "execution/parsing/tensor_commands_parsing.h"
 
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
@@ -598,7 +599,7 @@ int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             currentOp->devicestr = "CPU";
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_TensorSetParseArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
+            if (ParseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
                                        rinfo->err) != REDISMODULE_OK) {
                 goto cleanup;
             }
