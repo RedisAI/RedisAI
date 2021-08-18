@@ -511,6 +511,9 @@ long long RAI_TensorDim(RAI_Tensor *t, int i) { return t->tensor.dl_tensor.shape
 size_t RAI_TensorByteSize(RAI_Tensor *t) {
     // TODO: as per dlpack it should be
     //   size *= (t->dtype.bits * t->dtype.lanes + 7) / 8;
+    if (t->tensor.dl_tensor.dtype.code == kDLString) {
+        return *(_RAI_TensorElementsOffsets(t) + RAI_TensorLength(t) - 1);
+    }
     return RAI_TensorDataSize(t) * RAI_TensorLength(t);
 }
 

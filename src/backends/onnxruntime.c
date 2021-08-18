@@ -227,17 +227,31 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
     RAI_Tensor *t0 = ts[0];
     const int ndim = t0->tensor.dl_tensor.ndim;
     int64_t batched_shape[ndim];
+    size_t batched_tensor_len = 1;
     for (size_t i = 1; i < ndim; i++) {
         batched_shape[i] = t0->tensor.dl_tensor.shape[i];
+        batched_tensor_len *= batched_shape[i];
     }
     batched_shape[0] = batch_size;
+    batched_tensor_len *= batch_size;
 
     OrtValue *out;
-    if (count > 1) {
+    if (t0->tensor.dl_tensor.dtype.code == kDLString) {
+        ONNX_VALIDATE_STATUS(
+                ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
+                                            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
+        size_t element_index = 0;
+        for (size_t i = 0; i < RAI_TensorLength(ts[i]); i++) {
+            // todo: go over all strings from all tensors and set them
+
+            ONNX_VALIDATE_STATUS(
+                    ort->FillStringTensorElement(out, , i)
+        }
+);
+    } else if (count > 1) {
         ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                         RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
-
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;
