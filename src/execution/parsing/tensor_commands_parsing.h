@@ -1,4 +1,5 @@
 #pragma once
+
 #include "redismodule.h"
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/tensor.h"
@@ -13,7 +14,7 @@
  * parsing failures
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the parsing failed
  */
-int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_Error *error)
+int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_Error *error);
 
 /**
  * Helper method to parse AI.TENSORGET arguments

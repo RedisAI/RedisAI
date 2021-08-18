@@ -69,7 +69,7 @@ static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_
     size_t total_len = 0;
     const char* strings_data[argc];
 
-    // go over the strings and save every string element offset in the entire blob.
+    // go over the strings and save the offset of *the next* string element position in the blob.
     for (int i = 0; i < argc; i++) {
         size_t str_len;
         const char *str_data = RedisModule_StringPtrLen(argv[i], &str_len);
@@ -78,17 +78,17 @@ static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_
             return REDISMODULE_ERR;
         }
         strings_data[i] = str_data;
-        offsets[i] = total_len;
         total_len += str_len;
+        offsets[i] = total_len;
     }
     tensor->tensor.dl_tensor.data = RedisModule_Alloc(total_len);
     tensor->tensor.dl_tensor.elements_length = offsets;
 
     // Copy the strings one by one to the data ptr.
-    for (int i = 0; i < argc - 1; i++) {
-        memcpy(RAI_TensorData(tensor) + offsets[i], strings_data[i], offsets[i+1]-offsets[i]);
+    memcpy(RAI_TensorData(tensor) , strings_data[0], offsets[0]);
+    for (int i = 1; i < argc; i++) {
+        memcpy(RAI_TensorData(tensor) + offsets[i-1], strings_data[i], offsets[i]-offsets[i-1]);
     }
-    memcpy(RAI_TensorData(tensor) + offsets[argc-1], strings_data[argc-1], total_len-offsets[argc-1]);
 
     return REDISMODULE_OK;
 }
@@ -130,7 +130,7 @@ static uint64_t *_RAI_TensorGetStringsOffsets(const char *tensor_blob, size_t bl
     uint64_t *strings_offsets = RedisModule_Alloc(tensor_len * sizeof(*strings_offsets));
     size_t elements_counter = 0;
     strings_offsets[0] = 0;
-    for (size_t i = 0; i < blob_len - 1; i++) {
+    for (size_t i = 0; i < blob_len; i++) {
         if (tensor_blob[i] == '\0') {
             strings_offsets[elements_counter++] = i + 1;
         }
@@ -252,7 +252,6 @@ RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, con
         }
         new_tensor->tensor.dl_tensor.elements_length = offsets;
         new_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
-
     } else {
         size_t expected_n_bytes = tensor_len * data_size;
         if (blob_len != expected_n_bytes) {
@@ -262,6 +261,8 @@ RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, con
             return NULL;
         }
     }
+    new_tensor->tensor.manager_ctx = RAI_HoldString(tensor_blob_rs);
+    new_tensor->tensor.deleter = RAI_RStringDataTensorDeleter;
 
     // Copy the blob. We must copy instead of increasing the ref count since we don't have
     // a way of taking ownership on the underline data pointer (this will require introducing
