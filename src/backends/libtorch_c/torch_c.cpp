@@ -213,6 +213,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src);
     atDLMTensor->tensor.dl_tensor.shape = const_cast<int64_t *>(src.sizes().data());
     atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t *>(src.strides().data());
+    atDLMTensor->tensor.dl_tensor.elements_length = NULL;
     atDLMTensor->tensor.dl_tensor.byte_offset = 0;
     return &(atDLMTensor->tensor);
 }

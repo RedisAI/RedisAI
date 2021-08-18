@@ -33,9 +33,11 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
+    size_t tensor_len = 1;
     shape = RedisModule_Calloc(ndims, sizeof(*shape));
     for (size_t i = 0; i < ndims; ++i) {
         shape[i] = RedisModule_LoadUnsigned(io);
+        tensor_len *= shape[i];
     }
 
     strides = RedisModule_Calloc(ndims, sizeof(*strides));
@@ -50,6 +52,14 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
+    uint64_t *offsets = NULL;
+    if (dtype.code == kDLString) {
+        offsets = RedisModule_Calloc(tensor_len, sizeof(*offsets));
+        for (size_t i = 0; i < tensor_len; i++) {
+            offsets[i] = RedisModule_LoadUnsigned(io);
+        }
+    }
+
     RAI_Tensor *ret = RAI_TensorNew();
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
@@ -57,7 +67,8 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
                                                             .dtype = dtype,
                                                             .shape = shape,
                                                             .strides = strides,
-                                                            .byte_offset = byte_offset},
+                                                            .byte_offset = byte_offset,
+                                                            .elements_length = offsets},
                                     .manager_ctx = NULL,
                                     .deleter = NULL};
     return ret;

@@ -64,10 +64,15 @@ void RAI_RStringDataTensorDeleter(DLManagedTensor *arg) {
     RedisModule_Free(arg);
 }
 
+static uint64_t *_RAI_TensorElementsOffsets(RAI_Tensor *tensor) {
+    return tensor->tensor.dl_tensor.elements_length;
+}
+
 static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_Tensor *tensor,
-                                        uint64_t *offsets, RAI_Error *err) {
+                                        RAI_Error *err) {
     size_t total_len = 0;
     const char* strings_data[argc];
+    uint64_t *strings_offsets = _RAI_TensorElementsOffsets(tensor);
 
     // go over the strings and save the offset of *the next* string element position in the blob.
     for (int i = 0; i < argc; i++) {
@@ -79,15 +84,16 @@ static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_
         }
         strings_data[i] = str_data;
         total_len += str_len;
-        offsets[i] = total_len;
+        strings_offsets[i] = total_len;
     }
     tensor->tensor.dl_tensor.data = RedisModule_Alloc(total_len);
-    tensor->tensor.dl_tensor.elements_length = offsets;
+    tensor->tensor.dl_tensor.elements_length = strings_offsets;
 
     // Copy the strings one by one to the data ptr.
-    memcpy(RAI_TensorData(tensor) , strings_data[0], offsets[0]);
+    memcpy(RAI_TensorData(tensor) , strings_data[0], strings_offsets[0]);
     for (int i = 1; i < argc; i++) {
-        memcpy(RAI_TensorData(tensor) + offsets[i-1], strings_data[i], offsets[i]-offsets[i-1]);
+        memcpy(RAI_TensorData(tensor) + strings_offsets[i-1], strings_data[i],
+               strings_offsets[i]-strings_offsets[i-1]);
     }
 
     return REDISMODULE_OK;
@@ -150,6 +156,7 @@ static RAI_Tensor *_RAI_TensorCreate(DLDataType data_type, size_t data_type_size
     RAI_Tensor *new_tensor = RAI_TensorNew();
     int64_t *shape = RedisModule_Alloc(n_dims * sizeof(*shape));
     int64_t *strides = NULL;
+    uint64_t *offsets = NULL;
 
     size_t tensor_len = 1;
     for (int64_t i = 0; i < n_dims; ++i) {
@@ -164,6 +171,8 @@ static RAI_Tensor *_RAI_TensorCreate(DLDataType data_type, size_t data_type_size
         for (int i = n_dims - 2; i >= 0; --i) {
             strides[i] *= strides[i + 1] * shape[i + 1];
         }
+    } else {
+        offsets = RedisModule_Alloc(tensor_len * sizeof(*offsets));
     }
 
     // Default device is CPU (id -1 is default, means 'no index')
@@ -181,7 +190,7 @@ static RAI_Tensor *_RAI_TensorCreate(DLDataType data_type, size_t data_type_size
                                                                    .shape = shape,
                                                                    .strides = strides,
                                                                    .byte_offset = 0,
-                                                                   .elements_length = NULL},
+                                                                   .elements_length = offsets},
                                            .manager_ctx = NULL,
                                            .deleter = NULL};
 
@@ -208,19 +217,16 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size, c
     if (argc == 0) {
         memset(RAI_TensorData(new_tensor), 0, RAI_TensorByteSize(new_tensor));
         if (data_type.code == kDLString) {
-            uint64_t *strings_offsets = RedisModule_Alloc(tensor_len * sizeof(*strings_offsets));
+            uint64_t *strings_offsets = _RAI_TensorElementsOffsets(new_tensor);
             for (size_t i = 0; i < tensor_len; i++) {
-                strings_offsets[i] = i;
+                strings_offsets[i] = i+1;
             }
-            new_tensor->tensor.dl_tensor.elements_length = strings_offsets;
         }
         return new_tensor;
     }
 
     if (data_type.code == kDLString) {
-        uint64_t *offsets = RedisModule_Alloc(tensor_len * sizeof(*offsets));
-        if (_RAI_TensorParseStringValues(argc, argv, new_tensor, offsets, err) != REDISMODULE_OK) {
-            RedisModule_Free(offsets);
+        if (_RAI_TensorParseStringValues(argc, argv, new_tensor, err) != REDISMODULE_OK) {
             RAI_TensorFree(new_tensor);
             return NULL;
         }
@@ -315,6 +321,8 @@ RAI_Tensor *RAI_TensorCreateByConcatenatingTensors(RAI_Tensor **tensors, long lo
     size_t data_type_size = RAI_TensorDataSize(tensors[0]);
     RAI_Tensor *ret = _RAI_TensorCreate(data_type, data_type_size, dims, n_dims);
 
+    //todo: support string tensor
+
     // Copy the input tensors data to the new tensor.
     for (size_t i = 0; i < n; i++) {
         memcpy(RAI_TensorData(ret) + batch_offsets[i] * sample_size * data_type_size,
@@ -340,6 +348,12 @@ RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, lon
     size_t data_type_size = RAI_TensorDataSize(t);
     RAI_Tensor *ret = _RAI_TensorCreate(data_type, data_type_size, dims, n_dims);
 
+
+    //todo: support string tensor
+    if (data_type.code == kDLString) {
+
+    }
+
     // Copy the input tensor sliced data to the new tensor.
     memcpy(RAI_TensorData(ret), RAI_TensorData(t) + offset * sample_size * data_type_size,
            len * sample_size * data_type_size);
@@ -362,8 +376,18 @@ int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest) {
     size_t data_type_size = RAI_TensorDataSize(t);
     RAI_Tensor *ret = _RAI_TensorCreate(data_type, data_type_size, dims, n_dims);
 
+    size_t blob_len;
+    if (data_type.code == kDLString) {
+        blob_len = *(_RAI_TensorElementsOffsets(t) + sample_size - 1); // offset of the last element is the len
+        ret->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
+        memcpy(_RAI_TensorElementsOffsets(ret), _RAI_TensorElementsOffsets(t),
+               sample_size*sizeof(*_RAI_TensorElementsOffsets(t)));
+    } else {
+        blob_len = sample_size * data_type_size;
+    }
+
     // Copy the tensor data to the dest tensor.
-    memcpy(RAI_TensorData(ret), RAI_TensorData(t), sample_size * data_type_size);
+    memcpy(RAI_TensorData(ret), RAI_TensorData(t), blob_len);
     *dest = ret;
     return 0;
 }
