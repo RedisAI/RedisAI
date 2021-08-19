@@ -46,8 +46,7 @@ static const char *RAI_DATATYPE_STR_STRING = "STRING";
  */
 RedisModuleType *RAI_TensorRedisType(void);
 
-//************************************* methods for creating a tensor
-//******************************************
+//********************* methods for creating a tensor ***************************
 /**
  * @brief Allocate an empty tensor with no data.
  * @note The new tensor ref count is 1.
@@ -152,8 +151,7 @@ RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, lon
  */
 DLDataType RAI_TensorDataTypeFromString(const char *data_type);
 
-//************************************* getters and setters
-//******************************************
+//*************** getters and setters ******************************
 
 /**
  * @param tensor
@@ -211,12 +209,21 @@ long long RAI_TensorDim(RAI_Tensor *t, int dim);
 size_t RAI_TensorByteSize(RAI_Tensor *t);
 
 /**
- * Return the pointer the the deep learning tensor data
+ * Return the pointer to the tensor data blob (do not copy)
  *
  * @param t input tensor
  * @return direct access to the array data pointer
  */
 char *RAI_TensorData(RAI_Tensor *t);
+
+/**
+ * Return the pointer to the array containing the offset of every string element
+ * in the data array
+ *
+ * @param t input tensor
+ * @return direct access to the offsets array pointer
+ */
+uint64_t *RAI_TensorStringElementsOffsets(RAI_Tensor *tensor);
 
 /**
  * Gets the double value from the given input tensor, at the given array data

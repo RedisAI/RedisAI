@@ -241,13 +241,18 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
                 ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
         size_t element_index = 0;
-        for (size_t i = 0; i < RAI_TensorLength(ts[i]); i++) {
-            // todo: go over all strings from all tensors and set them
-
-            ONNX_VALIDATE_STATUS(
-                    ort->FillStringTensorElement(out, , i)
+        for (size_t i = 0; i < count; i++) {
+            // go over all strings stored in the tensors' data from all tensors and set them in the ORT tensor.
+            uint64_t *offsets = ts[i]->tensor.dl_tensor.elements_length;
+            char str_element0[offsets[0]];
+            strncpy(str_element0, RAI_TensorData(ts[i]), offsets[0]);
+            ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, str_element0 ,element_index++));
+            for (size_t j = 1; j < RAI_TensorLength(ts[i]); j++) {
+                char str_element[offsets[j]-offsets[j-1]];
+                strncpy(str_element, RAI_TensorData(ts[i]) + offsets[j-1], offsets[j]-offsets[j-1]);
+                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, str_element ,element_index++));
+            }
         }
-);
     } else if (count > 1) {
         ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
