@@ -48,17 +48,24 @@ RedisModuleType *RAI_TensorRedisType(void);
 
 //********************* methods for creating a tensor ***************************
 /**
- * @brief Allocate an empty tensor with no data.
- * @note The new tensor ref count is 1.
+ * Allocate the memory for a new tensor and set RAI_Tensor meta-data based on
+ * the passed 'data type` and its size, the specified number of dimensions
+ * `ndims`, and n-dimension array `dims`. Note that tensor data is not initialized!
  *
- * @return RAI_Tensor* - a pointer to the new tensor.
+ * @param data_type represents the data type of tensor elements
+ * @param data_type_size size in bytes of the tensor elements data
+ * @param dims n-dimensional array ( the dimension values are copied )
+ * @param n_dims number of dimensions
+ * @return allocated RAI_Tensor on success, or NULL if the allocation
+ * failed.
  */
-RAI_Tensor *RAI_TensorNew(void);
+RAI_Tensor *RAI_TensorNew(DLDataType data_type, size_t data_type_size,
+                          const long long *dims, int n_dims);
 
 /**
- * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
- * the passed 'dataType` string and with the specified number of dimensions
- * `ndims`, and n-dimension array `dims`.
+ * Allocate the memory and set RAI_Tensor meta-data based on
+ * the passed 'dataType` string, the specified number of dimensions
+ * `ndims`, and n-dimension array `dims`. Note that tensor data is not initialized!
  *
  * @param data_type string containing the data type of tensor elements
  * @param dims n-dimensional array ( the dimension values are copied )
@@ -310,7 +317,7 @@ RAI_Tensor *RAI_TensorGetShallowCopy(RAI_Tensor *t);
  */
 void RAI_TensorFree(RAI_Tensor *t);
 
-//***************************** retrieve tensor from keyspace *********************
+//*************** methods for retrieval and replicating tensor from keyspace ***************
 /**
  * Helper method to open a key handler for the tensor data type
  *
@@ -345,29 +352,24 @@ int RAI_TensorOpenKey(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModu
 int RAI_TensorGetFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RedisModuleKey **key,
                               RAI_Tensor **tensor, int mode, RAI_Error *err);
 
-// todo: leave here or move?
-
 /**
  * Helper method to replicate a tensor via an AI.TENSORSET command to the
  * replicas. This is used on MODELRUN, SCRIPTRUN, DAGRUN as a way to ensure that
- * the results present on replicas match the results present on master ( since
- * multiple modelruns/scripts are not ensured to have the same output values
- * (non-deterministic) ).
+ * the results present on replicas match the results present on master
  *
  * @param ctx Context in which Redis modules operate
  * @param key Destination key name
  * @param t source tensor
  */
-void RedisAI_ReplicateTensorSet(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
+void RAI_TensorReplicate(RedisModuleCtx *ctx, RedisModuleString *key, RAI_Tensor *t);
 
 /**
  * Helper method to return a tensor to the client in a response to AI.TENSORGET
  *
  * @param ctx Context in which Redis modules operate.
- * @param fmt The format in which tensor is returned.
+ * @param fmt The format in which tensor is returned (META and/or VALUES/BLOB).
  * @param t The tensor to reply with.
 
  * @return REDISMODULE_OK in case of success, REDISMODULE_ERR otherwise.
  */
-
-int ReplyWithTensor(RedisModuleCtx *ctx, uint fmt, RAI_Tensor *t);
+int RAI_TensorReply(RedisModuleCtx *ctx, uint fmt, RAI_Tensor *t);

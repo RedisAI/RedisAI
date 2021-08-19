@@ -126,7 +126,7 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-    ReplyWithTensor(ctx, fmt, t);
+    RAI_TensorReply(ctx, fmt, t);
     return REDISMODULE_OK;
 }
 

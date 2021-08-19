@@ -52,7 +52,8 @@ void *RAI_RDBLoadTensor_v2(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
-    RAI_Tensor *ret = RAI_TensorNew();
+    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(RAI_Tensor));
+    ret->refCount = 1;
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
                                                             .ndim = ndims,

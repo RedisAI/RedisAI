@@ -18,7 +18,7 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
-    // For now we only support CPU tensors (except during model and script run)
+    // For now, we only support CPU tensors (except during model and script run)
     assert(device.device_type == kDLCPU);
     if (device.device_id != -1) {
         device.device_id = -1;
@@ -40,15 +40,17 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
         tensor_len *= shape[i];
     }
 
-    strides = RedisModule_Calloc(ndims, sizeof(*strides));
-    for (size_t i = 0; i < ndims; ++i) {
-        strides[i] = RedisModule_LoadUnsigned(io);
+    if (dtype.code != kDLString) {
+        strides = RedisModule_Calloc(ndims, sizeof(*strides));
+        for (size_t i = 0; i < ndims; ++i) {
+            strides[i] = RedisModule_LoadUnsigned(io);
+        }
     }
 
     size_t byte_offset = RedisModule_LoadUnsigned(io);
 
-    size_t len;
-    char *data = RedisModule_LoadStringBuffer(io, &len);
+    size_t blob_len;
+    char *data = RedisModule_LoadStringBuffer(io, &blob_len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
@@ -60,7 +62,11 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
         }
     }
 
-    RAI_Tensor *ret = RAI_TensorNew();
+    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(RAI_Tensor));
+    ret->refCount = 1;
+    ret->len = tensor_len;
+    ret->blobSize = blob_len;
+
     ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
                                                             .data = data,
                                                             .ndim = ndims,
