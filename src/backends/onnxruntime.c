@@ -327,7 +327,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
 
         size_t total_byte_size = elem_count * data_type_size;
         size_t sample_byte_size = total_byte_size / total_batch_size;
-        memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size, RAI_TensorDataSize(output_tensor));
+        memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size, RAI_TensorByteSize(output_tensor));
     } else {
         // Calculate the blob size for this tensor and allocate space for it
         size_t element_index = output_tensor_len / batch_size;
