@@ -255,6 +255,17 @@ int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val);
 int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val);
 
 /**
+ * Gets the a const pointer to the string value from the given input tensor, at the given array data
+ * pointer position (do not copy the string).
+ *
+ * @param t tensor to get the data
+ * @param i dl_tensor data pointer position
+ * @param val value to set the data to
+ * @return 1 on success, or 0 if getting the data failed
+ */
+int RAI_TensorGetValueAsString(RAI_Tensor *t, long long i, const char **val);
+
+/**
  * sets in data_type_str the string representing the associated DLDataType
  *
  * @param data_type DLDataType

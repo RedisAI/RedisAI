@@ -68,6 +68,27 @@ def test_onnx_modelrun_mnist(env):
         env.assertEqual(values2, values)
 
 
+def test_onnx_string_tensors(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    string_tensor_blob = b'input11\0input12\0input21\0input22\0'
+    con.execute_command('AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob)
+    ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'in_tensor{1}', 'OUTPUTS', 1, 'out_tensor{1}')
+    env.assertEqual(ret, b'OK')
+
+    _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'META', 'VALUES')
+    env.assertEqual(tensor_dtype, b'STRING')
+    env.assertEqual(tensor_dim, [2, 2])
+    env.assertEqual(tensor_values, [b'input11', b'input12', b'input21', b'input11'])
+
+
 def test_onnx_modelrun_batchdim_mismatch(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)

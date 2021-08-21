@@ -366,3 +366,43 @@ def test_info_command(env):
     env.assertTrue('ai_children_used_cpu_sys' in cpu.keys())
     env.assertTrue('ai_children_used_cpu_user' in cpu.keys())
     env.assertTrue('ai_queue_CPU_bthread_n1_used_cpu_total' in cpu.keys())
+
+
+def test_string_tensor(env):
+    con = get_connection(env, '{0}')
+
+    # test creation of string tensor from values
+    ret = con.execute_command('AI.TENSORSET', 'string_tensor_from_val{0}', 'STRING', 2, 'VALUES', 'str_val1\0', 'str_val2\0')
+    env.assertEqual(ret, b'OK')
+
+    tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_from_val{0}', 'VALUES')
+    tensor_reply_blob = con.execute_command('AI.TENSORGET', 'string_tensor_from_val{0}', 'BLOB')
+    env.assertEqual(tensor_reply_values, [b'str_val1', b'str_val2'])
+    env.assertEqual(tensor_reply_blob, b'str_val1\0str_val2\0')
+
+    # test creation of string tensor from blob
+    ret = con.execute_command('AI.TENSORSET', 'string_tensor_from_blob{0}', 'STRING', 2, 'BLOB', 'str_blob1\0str_blob2\0')
+    env.assertEqual(ret, b'OK')
+
+    tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_from_blob{0}', 'VALUES')
+    tensor_reply_blob = con.execute_command('AI.TENSORGET', 'string_tensor_from_blob{0}', 'BLOB')
+    env.assertEqual(tensor_reply_values, [b'str_blob1', b'str_blob2'])
+    env.assertEqual(tensor_reply_blob, b'str_blob1\0str_blob2\0')
+
+    # advanced - tensor with more than one dimension
+    ret = con.execute_command('AI.TENSORSET', 'string_tensor_few_dims{0}', 'STRING', 2, 2, 'BLOB',
+                              'str11\0str12\0str21\0str22\0')
+    env.assertEqual(ret, b'OK')
+
+    tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_few_dims{0}', 'VALUES')
+    env.assertEqual(tensor_reply_values, [b'str11', b'str12', b'str21', b'str22'])
+
+    # advanced - tensor with non ascii characters
+    ret = con.execute_command('AI.TENSORSET', 'string_tensor_non-ascii{0}', 'STRING', 2, 'BLOB',
+                              'english\0עברית\0')
+    env.assertEqual(ret, b'OK')
+
+    tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_non-ascii{0}', 'VALUES')
+    env.assertEqual(tensor_reply_values[1].decode('utf-8'), 'עברית')
+
+

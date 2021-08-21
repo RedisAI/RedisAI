@@ -76,7 +76,7 @@ static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_
         memcpy(RAI_TensorData(tensor) + strings_offsets[i], strings_data[i],
                strings_offsets[i+1]-strings_offsets[i]);
     }
-    memcpy(RAI_TensorData(tensor) , strings_data[argc-1], total_len-strings_offsets[argc-1]);
+    memcpy(RAI_TensorData(tensor)+strings_offsets[argc-1] , strings_data[argc-1], total_len-strings_offsets[argc-1]);
 
     return REDISMODULE_OK;
 }
@@ -145,7 +145,17 @@ static int _RAI_TensorReplyWithValues(RedisModuleCtx *ctx, RAI_Tensor *t) {
     DLDataType dtype = RAI_TensorDataType(t);
     RedisModule_ReplyWithArray(ctx, len);
 
-    if (dtype.code == kDLFloat) {
+    if (dtype.code == kDLString) {
+        for (long long i = 0; i < len; i++) {
+            const char *val;
+            int ret = RAI_TensorGetValueAsString(t, i, &val);
+            if (!ret) {
+                RedisModule_ReplyWithError(ctx, "ERR cannot get values for this data type");
+                return REDISMODULE_ERR;
+            }
+            RedisModule_ReplyWithCString(ctx, val);
+        }
+    } else if (dtype.code == kDLFloat) {
         double val;
         for (long long i = 0; i < len; i++) {
             int ret = RAI_TensorGetValueAsDouble(t, i, &val);
@@ -615,6 +625,23 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val) {
             return 0;
         }
     }
+    return 1;
+}
+
+int RAI_TensorGetValueAsString(RAI_Tensor *t, long long i, const char **val) {
+    // Validate that i is in bound
+    if (i < 0 || i > RAI_TensorLength(t)) {
+        return 0;
+    }
+    DLDataType dtype = RAI_TensorDataType(t);
+    char *data = RAI_TensorData(t);
+
+    if (dtype.code != kDLString || dtype.bits != 8) {
+        return 0;
+    }
+    uint64_t *offsets = RAI_TensorStringElementsOffsets(t);
+    char *str_val = data + offsets[i];
+    *val = str_val;
     return 1;
 }
 
