@@ -742,7 +742,7 @@ void RAI_TensorFree(RAI_Tensor *t) {
             RedisModule_Free(t->tensor.dl_tensor.shape);
         }
         if (t->tensor.dl_tensor.strides) {
-            RedisModule_Free(t->tensor.dl_tensor.strides);
+            //RedisModule_Free(t->tensor.dl_tensor.strides);
         }
         if (t->tensor.dl_tensor.data) {
             RedisModule_Free(t->tensor.dl_tensor.data);

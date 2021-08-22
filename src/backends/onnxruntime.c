@@ -211,15 +211,15 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
     }
 }
 
-int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
+int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **input,
                             OrtStatus **status_ptr) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    size_t batch_size = 0;
+    long long batch_size = 0;
     size_t batch_byte_size = 0;
 
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < batches_count; i++) {
         batch_size += ts[i]->tensor.dl_tensor.shape[0];
         batch_byte_size += RAI_TensorByteSize(ts[i]);
     }
@@ -233,7 +233,6 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
         batched_tensor_len *= batched_shape[i];
     }
     batched_shape[0] = batch_size;
-    batched_tensor_len *= batch_size;
 
     OrtValue *out;
     if (t0->tensor.dl_tensor.dtype.code == kDLString) {
@@ -241,28 +240,23 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
                 ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
         size_t element_index = 0;
-        for (size_t i = 0; i < count; i++) {
+        for (size_t i = 0; i < batches_count; i++) {
             // go over all strings stored in the tensors' data from all tensors and set them in the ORT tensor.
             size_t tensor_len = RAI_TensorLength(ts[i]);
-            uint64_t *offsets = ts[i]->tensor.dl_tensor.elements_length;
-            for (size_t j = 0; j < tensor_len-1; j++) {
-                char str_element[offsets[j+1]-offsets[j]];
-                strncpy(str_element, RAI_TensorData(ts[i]) + offsets[j], offsets[j+1]-offsets[j]);
-                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, str_element ,element_index++));
+            uint64_t *offsets = RAI_TensorStringElementsOffsets(ts[i]);
+            for (size_t j = 0; j < tensor_len; j++) {
+                // send a pointer to the position of a string elements (null-terminated) in the blob
+                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, RAI_TensorData(ts[i]) + offsets[j], element_index++));
             }
-            size_t last_element_len = RAI_TensorByteSize(ts[i]) - offsets[tensor_len-1];
-            char str_last_element[last_element_len];
-            strncpy(str_last_element, RAI_TensorData(ts[i]), last_element_len);
-            ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, str_last_element ,element_index));
         }
-    } else if (count > 1) {
+    } else if (batches_count > 1) {
         ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                         RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;
-        for (size_t i = 0; i < count; i++) {
+        for (size_t i = 0; i < batches_count; i++) {
             memcpy(ort_data + offset, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
             offset += RAI_TensorByteSize(ts[i]);
         }
@@ -308,8 +302,8 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, n_dims))
         total_batch_size = dims[0];
 
-        // if batch size is non-negative (meaning we ran a batch), we restore the
-        // original first dimension of this particular tensor.
+        // if batch size is non-negative (meaning this tensor was a part of a larger batch),
+        // we restore the original first dimension of this particular tensor.
         if (batch_size > 0) {
             dims[0] = batch_size;
         } else {
@@ -341,18 +335,17 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         }
         output_tensor->blobSize = blob_len;
         output_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
+        char *tensor_blob = RAI_TensorData(output_tensor);
 
-        // Go over again and copy tensor data elements one by one
+        // Go over again and set tensor data elements one by one
         element_index = batch_offset*(output_tensor_len / batch_size);
         uint64_t *offsets = RAI_TensorStringElementsOffsets(output_tensor);
         offsets[0] = 0;
         for (size_t i = 0; i < output_tensor_len; i++) {
             size_t str_element_len;
             ONNX_VALIDATE_STATUS(ort->GetStringTensorElementLength(v, element_index, &str_element_len));
-            char string_data[str_element_len + 1];
-            ONNX_VALIDATE_STATUS(ort->GetStringTensorElement(v, str_element_len, element_index++, string_data));
-            string_data[str_element_len] = '\0';
-            strncpy(RAI_TensorData(output_tensor) + offsets[i], string_data, str_element_len+1);
+            ONNX_VALIDATE_STATUS(ort->GetStringTensorElement(v, str_element_len, element_index++, tensor_blob + offsets[i]));
+            *(tensor_blob + offsets[i] + str_element_len) = '\0';
             if (i<output_tensor_len-1) {
                 offsets[i+1] = offsets[i]+str_element_len+1;
             }

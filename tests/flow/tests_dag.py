@@ -38,31 +38,25 @@ def test_dagrun_modelexecute_scriptexecute_resnet(env):
     ret = con.execute_command('AI.SCRIPTSTORE', script_name, DEVICE, 'ENTRY_POINTS', 4, 'pre_process_3ch', 'pre_process_4ch', 'post_process', 'ensemble', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
 
-    for opnumber in range(1):
+    for opnumber in range(1,100):
         ret = con.execute_command(
-            # 'AI.DAGEXECUTE', 'PERSIST', '1', temp_key1, '|>',
-            'AI.DAGEXECUTE', 'ROUTING', '{1}', '|>',
+            'AI.DAGEXECUTE', 'PERSIST', '1', class_key, '|>',
             'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
             'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
                          'INPUTS', 1, image_key,
                          'OUTPUTS', 1, temp_key1,  '|>',
             'AI.MODELEXECUTE', model_name,
                          'INPUTS', 1, temp_key1,
-                         'OUTPUTS', 1, temp_key2
+                         'OUTPUTS', 1, temp_key2,  '|>',
+            'AI.SCRIPTEXECUTE',  script_name, 'post_process',
+                          'INPUTS', 1, temp_key2,
+                          'OUTPUTS', 1, class_key
         )
-        env.assertEqual([b'OK',b'OK',b'OK'],ret)
+        env.assertEqual([b'OK',b'OK',b'OK',b'OK'],ret)
 
-        # ret = con.execute_command('AI.TENSORGET', class_key, 'VALUES' )
+        ret = con.execute_command('AI.TENSORGET', class_key, 'VALUES' )
         # tf model has 100 classes [0,999]
-        # env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
-
-        ret = con.execute_command(
-            'AI.DAGEXECUTE', 'ROUTING', '{1}', '|>',
-            'AI.TENSORSET', image_key, 'UINT8', img.shape[1], img.shape[0], 3, 'BLOB', img.tobytes(), '|>',
-            'AI.SCRIPTEXECUTE',  script_name, 'pre_process_3ch',
-            'INPUTS', 1, image_key,
-            'OUTPUTS', 1, temp_key1
-        )
+        env.assertEqual(ret[0]>=0 and ret[0]<1001, True)
 
 
 def test_dag_modelexecute_financialNet_separate_tensorget(env):

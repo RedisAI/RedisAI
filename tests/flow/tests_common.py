@@ -405,4 +405,5 @@ def test_string_tensor(env):
     tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_non-ascii{0}', 'VALUES')
     env.assertEqual(tensor_reply_values[1].decode('utf-8'), 'עברית')
 
+    # test RDB save/load
 
