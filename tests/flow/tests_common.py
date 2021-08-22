@@ -406,4 +406,10 @@ def test_string_tensor(env):
     env.assertEqual(tensor_reply_values[1].decode('utf-8'), 'עברית')
 
     # test RDB save/load
-
+    ret = con.execute_command('SAVE')
+    env.assertEqual(ret, True)
+    env.stop()
+    env.start()
+    con = get_connection(env, '{0}')
+    tensor_after_rdbload = con.execute_command('AI.TENSORGET', 'string_tensor_from_blob{0}', 'BLOB')
+    env.assertEqual(tensor_reply_blob, tensor_after_rdbload)
