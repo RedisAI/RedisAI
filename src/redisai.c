@@ -1280,17 +1280,14 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                         rlecMajorVersion, rlecMinorVersion, rlecPatchVersion, rlecBuild);
     }
 
-    if (redisMajorVersion < 5 ||
-        (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
+    if (redisMajorVersion < 6) {
         RedisModule_Log(ctx, "warning",
-                        "RedisAI requires Redis version equal or greater than 5.0.7");
+                        "RedisAI requires Redis version equal or greater than 6.0.0");
         return REDISMODULE_ERR;
     }
 
-    if (redisMajorVersion >= 6) {
-        if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-    }
+    if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
 
     RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s", REDISAI_MODULE_VERSION,
                     REDISAI_GIT_SHA);
