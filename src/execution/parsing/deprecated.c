@@ -600,7 +600,7 @@ int ParseDAGRunOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops) {
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
             if (ParseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
-                                       rinfo->err) != REDISMODULE_OK) {
+                                   rinfo->err) != REDISMODULE_OK) {
                 goto cleanup;
             }
             currentOp->result = REDISMODULE_OK;

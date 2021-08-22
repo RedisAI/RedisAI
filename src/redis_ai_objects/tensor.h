@@ -59,8 +59,8 @@ RedisModuleType *RAI_TensorRedisType(void);
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorNew(DLDataType data_type, size_t data_type_size,
-                          const long long *dims, int n_dims);
+RAI_Tensor *RAI_TensorNew(DLDataType data_type, size_t data_type_size, const long long *dims,
+                          int n_dims);
 
 /**
  * Allocate the memory and set RAI_Tensor meta-data based on
@@ -89,8 +89,9 @@ RAI_Tensor *RAI_TensorCreate(const char *data_type, const long long *dims, int n
  * @param err used to store error status if one occurs
  * @return allocated RAI_Tensor on success, or NULL if operation failed.
  */
-RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size, const long long *dims, int n_dims,
-                                       int argc, RedisModuleString **argv, RAI_Error *err);
+RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
+                                       const long long *dims, int n_dims, int argc,
+                                       RedisModuleString **argv, RAI_Error *err);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
@@ -105,8 +106,8 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size, c
  * @param err used to store error status if one occurs
  * @return allocated RAI_Tensor on success, or NULL if operation failed.
  */
-RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims, int n_dims,
-                                     RedisModuleString *tensor_blob_rs, RAI_Error *err);
+RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims,
+                                     int n_dims, RedisModuleString *tensor_blob_rs, RAI_Error *err);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.
@@ -309,7 +310,8 @@ int RAI_TensorSetValueFromLongLong(RAI_Tensor *t, long long i, long long val);
  */
 int RAI_TensorSetValueFromDouble(RAI_Tensor *t, long long i, double val);
 
-//************************************** tensor memory management ***********************************
+//************************************** tensor memory management
+//***********************************
 /**
  * Every call to this function, will make the RAI_Tensor 't' requiring an
  * additional call to RAI_TensorFree() in order to really free the tensor.

@@ -76,7 +76,8 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
     } else {
         // Parse the rest of the arguments (tensor values) and set the values in the tensor.
         // Note that it is possible that no values were given - create empty tensor in that case.
-        *t = RAI_TensorCreateFromValues(data_type, data_size, dims, n_dims, argc-arg_pos, &argv[arg_pos], error);
+        *t = RAI_TensorCreateFromValues(data_type, data_size, dims, n_dims, argc - arg_pos,
+                                        &argv[arg_pos], error);
     }
     array_free(dims);
 

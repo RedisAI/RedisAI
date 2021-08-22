@@ -236,17 +236,19 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
 
     OrtValue *out;
     if (t0->tensor.dl_tensor.dtype.code == kDLString) {
-        ONNX_VALIDATE_STATUS(
-                ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
-                                            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
+        ONNX_VALIDATE_STATUS(ort->CreateTensorAsOrtValue(
+            global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
+            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
         size_t element_index = 0;
         for (size_t i = 0; i < batches_count; i++) {
-            // go over all strings stored in the tensors' data from all tensors and set them in the ORT tensor.
+            // go over all strings stored in the tensors' data from all tensors and set them in the
+            // ORT tensor.
             size_t tensor_len = RAI_TensorLength(ts[i]);
             uint64_t *offsets = RAI_TensorStringElementsOffsets(ts[i]);
             for (size_t j = 0; j < tensor_len; j++) {
                 // send a pointer to the position of a string elements (null-terminated) in the blob
-                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(out, RAI_TensorData(ts[i]) + offsets[j], element_index++));
+                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(
+                    out, RAI_TensorData(ts[i]) + offsets[j], element_index++));
             }
         }
     } else if (batches_count > 1) {
@@ -284,7 +286,8 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     int is_tensor;
     ONNX_VALIDATE_STATUS(ort->IsTensor(v, &is_tensor))
     if (!is_tensor) {
-        // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a tensor.
+        // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a
+        // tensor.
         return NULL;
     }
 
@@ -309,7 +312,8 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
         } else {
             batch_size = total_batch_size; // = dims[0]
         }
-        output_tensor = RAI_TensorNew(data_type, data_type_size, (const long long *)dims, (int)n_dims);
+        output_tensor =
+            RAI_TensorNew(data_type, data_type_size, (const long long *)dims, (int)n_dims);
     }
 
     size_t output_tensor_len = RAI_TensorLength(output_tensor);
@@ -323,31 +327,36 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
 
         size_t total_byte_size = elem_count * data_type_size;
         size_t sample_byte_size = total_byte_size / total_batch_size;
-        memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size, RAI_TensorByteSize(output_tensor));
+        memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size,
+               RAI_TensorByteSize(output_tensor));
     } else {
         // Calculate the blob size for this tensor and allocate space for it
-        size_t element_index = batch_offset*(output_tensor_len / batch_size);
+        size_t element_index = batch_offset * (output_tensor_len / batch_size);
         size_t blob_len = 0;
         for (size_t i = 0; i < output_tensor_len; i++) {
             size_t str_element_len;
-            ONNX_VALIDATE_STATUS(ort->GetStringTensorElementLength(v, element_index++, &str_element_len));
-            blob_len += str_element_len + 1; // Add space for null character at the end of every string
+            ONNX_VALIDATE_STATUS(
+                ort->GetStringTensorElementLength(v, element_index++, &str_element_len));
+            blob_len +=
+                str_element_len + 1; // Add space for null character at the end of every string
         }
         output_tensor->blobSize = blob_len;
         output_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
         char *tensor_blob = RAI_TensorData(output_tensor);
 
         // Go over again and set tensor data elements one by one
-        element_index = batch_offset*(output_tensor_len / batch_size);
+        element_index = batch_offset * (output_tensor_len / batch_size);
         uint64_t *offsets = RAI_TensorStringElementsOffsets(output_tensor);
         offsets[0] = 0;
         for (size_t i = 0; i < output_tensor_len; i++) {
             size_t str_element_len;
-            ONNX_VALIDATE_STATUS(ort->GetStringTensorElementLength(v, element_index, &str_element_len));
-            ONNX_VALIDATE_STATUS(ort->GetStringTensorElement(v, str_element_len, element_index++, tensor_blob + offsets[i]));
+            ONNX_VALIDATE_STATUS(
+                ort->GetStringTensorElementLength(v, element_index, &str_element_len));
+            ONNX_VALIDATE_STATUS(ort->GetStringTensorElement(v, str_element_len, element_index++,
+                                                             tensor_blob + offsets[i]));
             *(tensor_blob + offsets[i] + str_element_len) = '\0';
-            if (i<output_tensor_len-1) {
-                offsets[i+1] = offsets[i]+str_element_len+1;
+            if (i < output_tensor_len - 1) {
+                offsets[i + 1] = offsets[i] + str_element_len + 1;
             }
         }
     }
