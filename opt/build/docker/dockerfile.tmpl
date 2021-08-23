@@ -84,8 +84,11 @@ COPY --from=builder /build/install-gpu/ $REDIS_MODULES/
 COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
 {% endif %}
 
-COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+COPY --from"=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
+{% if gpu_build is defined %}
+COPY --from=redis /usr/local/bin/* /usr/local/bin/
+{% endif %}
 
 WORKDIR /data
 EXPOSE 6379
-CMD ["--loadmodule", "/usr/lib/redis/modules/redisai.so"]
+CMD ["/usr/local/bin/redis-server", "--loadmodule", "/usr/lib/redis/modules/redisai.so"]
