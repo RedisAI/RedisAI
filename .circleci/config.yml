@@ -112,7 +112,7 @@ commands:
       - save_cache:
           paths:
             - deps
-          key: build-dependencies-{{ checksum "get_deps.sh" }}
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -260,7 +260,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -294,7 +294,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
