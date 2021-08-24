@@ -541,15 +541,13 @@ long long RAI_TensorDim(RAI_Tensor *t, int i) { return t->tensor.dl_tensor.shape
 size_t RAI_TensorByteSize(RAI_Tensor *t) {
     // TODO: as per dlpack it should be
     //   size *= (t->dtype.bits * t->dtype.lanes + 7) / 8;
-    // todo: change after verify that blob size is initialized properly
-    // if (t->blobSize == 0) {
-    //      t->blobSize = RAI_TensorLength(t) * RAI_TensorDataSize(t);
-    // }
-    // return t->blobSize;
     if (t->tensor.dl_tensor.dtype.code == kDLString) {
         return t->blobSize;
     }
-    return RAI_TensorLength(t) * RAI_TensorDataSize(t);
+    if (t->blobSize == 0) {
+          t->blobSize = RAI_TensorLength(t) * RAI_TensorDataSize(t);
+    }
+    return t->blobSize;
 }
 
 char *RAI_TensorData(RAI_Tensor *t) { return t->tensor.dl_tensor.data; }
@@ -727,8 +725,7 @@ int RAI_TensorSetValueFromDouble(RAI_Tensor *t, long long i, double val) {
     return 1;
 }
 
-//************************************** tensor memory management
-//***********************************
+//******************** tensor memory management *********************************
 
 RAI_Tensor *RAI_TensorGetShallowCopy(RAI_Tensor *t) {
     __atomic_fetch_add(&t->refCount, 1, __ATOMIC_RELAXED);

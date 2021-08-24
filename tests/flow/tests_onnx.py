@@ -94,7 +94,14 @@ def test_onnx_string_tensors(env):
         slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
         env.assertEqual(tensor_values, slave_tensor_values)
 
-    # test batching + string tensors
+
+def test_onnx_string_tensors_batching(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')

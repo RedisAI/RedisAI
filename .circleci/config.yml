@@ -151,7 +151,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
