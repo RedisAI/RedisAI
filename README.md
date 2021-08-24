@@ -98,12 +98,12 @@ Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is requ
 
 ### Running the server
 
-You will need a redis-server version 5.0.7 or greater. This should be
+You will need a redis-server version 6.0 or greater. This should be
 available in most recent distributions:
 
 ```sh
 redis-server --version
-Redis server v=5.0.7 sha=00000000:0 malloc=libc bits=64 build=c49f4faf7c3c647a
+Redis server v=6.2.5 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=c3504d808f2b2793
 ```
 
 To start Redis with the RedisAI module loaded:
