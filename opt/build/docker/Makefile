@@ -61,6 +61,7 @@ make build		# build and optionally publish the docker, from a template file
 	DOCKER_SOURCES=/a/path				# append paths to the template generator
 	PUBLISH=1					# if set, push to dockerhub (requires docker login)
 	DOCKER_OPTS=XXX					# Options to pass to the docker build command
+	GPU=1						# if set, build the GPU docker
 endef
 #------------------------------------------------------------------------------
 
