@@ -86,7 +86,7 @@ COPY --from=builder /build/install-cpu/ $REDIS_MODULES/
 
 COPY --from=builder /build/bin/artifacts/ /var/opt/redislabs/artifacts
 {% if gpu_build is defined %}
-COPY --from=redis /usr/local/bin/* /usr/local/bin/
+COPY --from=redis /usr/local/bin/redis* /usr/local/bin/
 {% endif %}
 
 WORKDIR /data
