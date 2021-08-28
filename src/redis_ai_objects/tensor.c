@@ -385,18 +385,23 @@ RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, lon
     size_t data_type_size = RAI_TensorDataSize(t);
     RAI_Tensor *ret = RAI_TensorNew(data_type, data_type_size, dims, n_dims);
 
+    // Copy the input tensor sliced data to the new tensor.
     if (data_type.code == kDLString) {
-        uint64_t *offsets = RAI_TensorStringElementsOffsets(t);
-        size_t blob_size = offset + len < RAI_TensorLength(t) ? offsets[offset+len] - offsets[offset] :
-                           RAI_TensorByteSize(t) - offsets[offset];
-        //todo: cont from here
+        uint64_t *strings_offsets = RAI_TensorStringElementsOffsets(t);
+        size_t blob_size = offset + len < RAI_TensorLength(t) ?
+                strings_offsets[(offset+len)*sample_size] - strings_offsets[offset*sample_size] :
+                RAI_TensorByteSize(t) - strings_offsets[offset*sample_size];
+        ret->blobSize = blob_size;
+        ret->tensor.dl_tensor.data = RedisModule_Alloc(blob_size);
+        memcpy(RAI_TensorData(ret), RAI_TensorData(t) + strings_offsets[offset*sample_size], blob_size);
+        memcpy(RAI_TensorStringElementsOffsets(ret), strings_offsets + offset, len*sizeof(uint64_t));
     } else {
-        // Copy the input tensor sliced data to the new tensor.
+        size_t blob_size = len * sample_size * data_type_size;
+        ret->tensor.dl_tensor.data = RedisModule_Alloc(blob_size);
         memcpy(RAI_TensorData(ret), RAI_TensorData(t) + offset * sample_size * data_type_size,
-               len * sample_size * data_type_size);
+               blob_size);
+        ret->blobSize = blob_size;
     }
-
-
     return ret;
 }
 
