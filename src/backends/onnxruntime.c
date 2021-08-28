@@ -324,7 +324,7 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
     if (data_type.code != kDLString) {
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(v, (void **)&ort_data))
-
+        output_tensor->tensor.dl_tensor.data = RedisModule_Alloc(RAI_TensorByteSize(output_tensor));
         size_t total_byte_size = elem_count * data_type_size;
         size_t sample_byte_size = total_byte_size / total_batch_size;
         memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size,

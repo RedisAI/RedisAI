@@ -9,14 +9,10 @@
  */
 
 void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
-    int64_t *shape = NULL;
-    int64_t *strides = NULL;
 
     DLDevice device;
     device.device_type = RedisModule_LoadUnsigned(io);
     device.device_id = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
 
     // For now, we only support CPU tensors (except during model and script run)
     assert(device.device_type == kDLCPU);
@@ -30,60 +26,34 @@ void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
     dtype.lanes = RedisModule_LoadUnsigned(io);
 
     size_t ndims = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
-
-    size_t tensor_len = 1;
-    shape = RedisModule_Calloc(ndims, sizeof(*shape));
+    int64_t shape[ndims];
     for (size_t i = 0; i < ndims; ++i) {
         shape[i] = RedisModule_LoadUnsigned(io);
-        tensor_len *= shape[i];
     }
 
-    if (dtype.code != kDLString) {
-        strides = RedisModule_Calloc(ndims, sizeof(*strides));
-        for (size_t i = 0; i < ndims; ++i) {
-            strides[i] = RedisModule_LoadUnsigned(io);
-        }
+    int64_t strides[ndims];
+    for (size_t i = 0; i < ndims; ++i) {
+        strides[i] = RedisModule_LoadUnsigned(io);
     }
-
     size_t byte_offset = RedisModule_LoadUnsigned(io);
 
+    RAI_Error err = {0};
     size_t blob_len;
     char *data = RedisModule_LoadStringBuffer(io, &blob_len);
     if (RedisModule_IsIOError(io))
-        goto cleanup;
+        goto error;
 
-    uint64_t *offsets = NULL;
-    if (dtype.code == kDLString) {
-        offsets = RedisModule_Calloc(tensor_len, sizeof(*offsets));
-        for (size_t i = 0; i < tensor_len; i++) {
-            offsets[i] = RedisModule_LoadUnsigned(io);
-        }
-    }
+    RedisModuleString *rs_data = RedisModule_CreateString(NULL, data, blob_len);
+    RAI_Tensor *t = RAI_TensorCreateFromBlob(dtype, dtype.bits/8, (const long long *)shape,
+                                             (int)ndims, rs_data, &err);
+    RedisModule_FreeString(NULL, rs_data);
+    if (t == NULL)
+        goto error;
 
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(RAI_Tensor));
-    ret->refCount = 1;
-    ret->len = tensor_len;
-    ret->blobSize = blob_len;
+    return t;
 
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
-                                                            .data = data,
-                                                            .ndim = ndims,
-                                                            .dtype = dtype,
-                                                            .shape = shape,
-                                                            .strides = strides,
-                                                            .byte_offset = byte_offset,
-                                                            .elements_length = offsets},
-                                    .manager_ctx = NULL,
-                                    .deleter = NULL};
-    return ret;
-
-cleanup:
-    if (shape)
-        RedisModule_Free(shape);
-    if (strides)
-        RedisModule_Free(strides);
+    error:
+    RAI_ClearError(&err);
     RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
     return NULL;
 }
