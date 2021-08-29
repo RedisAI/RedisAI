@@ -43,7 +43,7 @@ def test_common_tensorset_error_replies(env):
     env.assertEqual(ret, b'OK')
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
-    con.execute_command('SET','non-tensor{0}','value')
+    con.execute_command('SET', 'non-tensor{0}', 'value')
     check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value",
                         'AI.TENSORSET', 'non-tensor{0}', 'INT32', 2, 'unsupported', 2, 3)
 
@@ -75,13 +75,17 @@ def test_common_tensorset_error_replies(env):
     check_error_message(env, con, "invalid value",
                         'AI.TENSORSET', 'z{0}', 'INT8', 2, 'VALUES', -1, -128)
 
-    # ERR insufficient number of args
-    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
-                        'AI.TENSORSET', 'z{0}')
+    # ERR invalid value - string tensor element is not null-terminated
+    check_error_message(env, con, "invalid value: string element must be null-terminated",
+                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'VALUES', 'c-string\0', 'not c-string')
 
     # ERR insufficient number of args
     check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
-                        'AI.TENSORSET', 'z{0}', 'FLOAT')
+                        'AI.TENSORSET')
+
+    # ERR insufficient number of args
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
+                        'AI.TENSORSET', 'z{0}')
 
     # ERR insufficient number of args
     check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
@@ -91,30 +95,29 @@ def test_common_tensorset_error_replies(env):
     check_error_message(env, con, "wrong number of values was given in 'AI.TENSORSET' command",
                         'AI.TENSORSET', 'z{0}', 'FLOAT', 2, 'VALUES', 1)
 
-    try:
-        con.execute_command('AI.TENSORSET', 'blob_tensor_moreargs{0}', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("a single binary string should come after the BLOB argument in 'AI.TENSORSET' command", exception.__str__())
+    # ERR too many values (expected 2)
+    check_error_message(env, con, "wrong number of values was given in 'AI.TENSORSET' command",
+                        'AI.TENSORSET', 'z{0}', 'FLOAT', 2, 'VALUES', 1, 2, 3)
 
-    try:
-        con.execute_command('AI.TENSORSET', 'blob_tensor_lessargs{0}', 'FLOAT', 2, 'BLOB')
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("a single binary string should come after the BLOB argument in 'AI.TENSORSET' command", exception.__str__())
+    # ERR in blob - extra argument
+    check_error_message(env, con, "a single binary string should come after the BLOB argument in 'AI.TENSORSET' command",
+                        'AI.TENSORSET', 'blob_tensor_more_args{0}', 'FLOAT', 2, 'BLOB', '\x00', 'extra-argument')
 
-    # ERR data length does not match tensor shape and type
-    try:
-        con.execute_command('AI.TENSORSET', 'sample_raw_wrong_blob_for_dim{0}', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
-        env.assertFalse(True)
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("data length does not match tensor shape and type", exception.__str__())
+    # ERR in blob - missing argument
+    check_error_message(env, con, "a single binary string should come after the BLOB argument in 'AI.TENSORSET' command",
+                        'AI.TENSORSET', 'blob_tensor_less_args{0}', 'FLOAT', 2, 'BLOB')
+
+    # ERR in blob - blob size is not compatible with tensor meta data
+    check_error_message(env, con, "data length does not match tensor shape and type",
+                        'AI.TENSORSET', 'sample_raw_wrong_blob_for_dim{0}', 'FLOAT', 1, 1, 28, 280, 'BLOB', sample_raw)
+
+    # ERR in string tensor blob - number of strings is not compatible with tensor meta data
+    check_error_message(env, con, "Number of string elements in data blob does not match tensor length",
+                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'BLOB', 'single c-string\0')
+
+    # ERR in string tensor blob - number of strings is not compatible with tensor meta data
+    check_error_message(env, con, "Number of string elements in data blob does not match tensor length",
+                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'BLOB', 'C-string\0followed by a non C-string')
 
 
 def test_common_tensorget(env):
@@ -182,32 +185,33 @@ def test_common_tensorget(env):
 def test_common_tensorget_error_replies(env):
     con = get_connection(env, '{0}')
 
+    # ERR insufficient args
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        'AI.TENSORGET')
+
+    # ERR too many arguments
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        'AI.TENSORGET', 'T_FLOAT{0}', 'META', 'VALUES', 'extra-arg')
+
     # ERR tensor key is empty
-    try:
-        con.execute_command('AI.TENSORGET', 'empty{0}', 'unsupported')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("tensor key is empty or in a different shard",exception.__str__())
+    check_error_message(env, con, "tensor key is empty or in a different shard",
+                        'AI.TENSORGET', 'empty{0}')
 
     # WRONGTYPE Operation against a key holding the wrong kind of value
-    try:
-        con.execute_command('SET', 'non-tensor{0}', 'value')
-        con.execute_command('AI.TENSORGET', 'non-tensor{0}', 'unsupported')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("WRONGTYPE Operation against a key holding the wrong kind of value",exception.__str__())
+    con.execute_command('SET', 'non-tensor{0}', 'value')
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value",
+                        'AI.TENSORGET', 'non-tensor{0}', 'unsupported')
 
-    # ERR unsupported data format
     ret = con.execute_command('AI.TENSORSET', "T_FLOAT{0}", "FLOAT", 2, 'VALUES', 1, 1)
     env.assertEqual(ret, b'OK')
-    try:
-        con.execute_command('AI.TENSORGET', 'T_FLOAT{0}', 'unsupported')
-    except Exception as e:
-        exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
-        env.assertEqual("unsupported data format",exception.__str__())
+
+    # ERR unsupported data format
+    check_error_message(env, con, "unsupported data format",
+                        'AI.TENSORGET', 'T_FLOAT{0}', 'unsupported_format')
+
+    # ERR invalid data format
+    check_error_message(env, con, "both BLOB and VALUES specified",
+                        'AI.TENSORGET', 'T_FLOAT{0}', 'BLOB', 'VALUES')
 
 
 def test_common_tensorset_multiproc(env):
@@ -326,6 +330,14 @@ def test_string_tensor(env):
     env.assertEqual(tensor_reply_values, [b'str_blob1', b'str_blob2'])
     env.assertEqual(tensor_reply_blob, b'str_blob1\0str_blob2\0')
 
+    # test for empty string tensor
+    ret = con.execute_command('AI.TENSORSET', 'empty_string_tensor{0}', 'STRING', 2)
+    env.assertEqual(ret, b'OK')
+    _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'empty_string_tensor{0}', 'META', 'VALUES')
+    env.assertEqual(tensor_dtype, b'STRING')
+    env.assertEqual(tensor_dim, [2])
+    env.assertEqual(tensor_values, [b'', b''])
+
     # advanced - tensor with more than one dimension
     ret = con.execute_command('AI.TENSORSET', 'string_tensor_few_dims{0}', 'STRING', 2, 2, 'BLOB',
                               'str11\0str12\0str21\0str22\0')
@@ -343,12 +355,3 @@ def test_string_tensor(env):
 
     tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_non-ascii{0}', 'VALUES')
     env.assertEqual(tensor_reply_values[1].decode('utf-8'), 'עברית')
-
-    # test RDB save/load
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-    env.stop()
-    env.start()
-    con = get_connection(env, '{0}')
-    tensor_after_rdbload = con.execute_command('AI.TENSORGET', 'string_tensor_from_blob{0}', 'BLOB')
-    env.assertEqual(tensor_reply_blob, tensor_after_rdbload)

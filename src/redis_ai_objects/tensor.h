@@ -102,12 +102,14 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
  * @param data_size the size of every data element in bytes.
  * @param dims array of size ndims, contains the tensor shapes (the dimension values are copied)
  * @param ndims number of dimensions
- * @param tensor_blob_rs RedisModuleString contains the tensor data blob (binary string)
+ * @param tensor_blob a buffer contains the tensor data blob (binary string)
+ * @param blob_len number of bytes in tensor blob
  * @param err used to store error status if one occurs
  * @return allocated RAI_Tensor on success, or NULL if operation failed.
  */
 RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims,
-                                     int n_dims, RedisModuleString *tensor_blob_rs, RAI_Error *err);
+                                     int n_dims, const char *tensor_blob, size_t blob_len,
+                                     RAI_Error *err);
 
 /**
  * Allocate the memory for a new Tensor and copy data fom a tensor to it.

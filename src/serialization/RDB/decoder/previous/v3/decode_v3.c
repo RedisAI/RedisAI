@@ -1,5 +1,5 @@
 #include "decode_v3.h"
-#include "assert.h"
+#include "../v0/decode_v0.h"
 
 /**
  * In case of IO errors, the default return values are:
@@ -8,55 +8,7 @@
  * So only when it is necessary check for IO errors.
  */
 
-void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) {
-
-    DLDevice device;
-    device.device_type = RedisModule_LoadUnsigned(io);
-    device.device_id = RedisModule_LoadUnsigned(io);
-
-    // For now, we only support CPU tensors (except during model and script run)
-    assert(device.device_type == kDLCPU);
-    if (device.device_id != -1) {
-        device.device_id = -1;
-    }
-
-    DLDataType dtype;
-    dtype.bits = RedisModule_LoadUnsigned(io);
-    dtype.code = RedisModule_LoadUnsigned(io);
-    dtype.lanes = RedisModule_LoadUnsigned(io);
-
-    size_t ndims = RedisModule_LoadUnsigned(io);
-    int64_t shape[ndims];
-    for (size_t i = 0; i < ndims; ++i) {
-        shape[i] = RedisModule_LoadUnsigned(io);
-    }
-
-    int64_t strides[ndims];
-    for (size_t i = 0; i < ndims; ++i) {
-        strides[i] = RedisModule_LoadUnsigned(io);
-    }
-    size_t byte_offset = RedisModule_LoadUnsigned(io);
-
-    RAI_Error err = {0};
-    size_t blob_len;
-    char *data = RedisModule_LoadStringBuffer(io, &blob_len);
-    if (RedisModule_IsIOError(io))
-        goto error;
-
-    RedisModuleString *rs_data = RedisModule_CreateString(NULL, data, blob_len);
-    RAI_Tensor *t = RAI_TensorCreateFromBlob(dtype, dtype.bits/8, (const long long *)shape,
-                                             (int)ndims, rs_data, &err);
-    RedisModule_FreeString(NULL, rs_data);
-    if (t == NULL)
-        goto error;
-
-    return t;
-
-    error:
-    RAI_ClearError(&err);
-    RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
-    return NULL;
-}
+void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) { return RAI_RDBLoadTensor_v0(io); }
 
 void *RAI_RDBLoadModel_v3(RedisModuleIO *io) {
 

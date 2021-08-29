@@ -118,7 +118,7 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-    uint fmt = ParseTensorGetArgs(&err, argv, argc);
+    uint fmt = ParseTensorGetFormat(&err, argv, argc);
 
     // TENSOR_NONE is returned in case that args are invalid.
     if (fmt == TENSOR_NONE) {

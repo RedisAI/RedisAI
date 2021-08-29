@@ -132,8 +132,7 @@ static int _RAI_TensorParseStringsBlob(const char *tensor_blob, size_t blob_len,
     }
     if (tensor_blob[blob_len - 1] != '\0' || elements_counter != tensor_len) {
         RAI_SetError(err, RAI_ETENSORSET,
-                     "ERR String tensor blob must contain a sequence of null-terminated"
-                     " strings whose length is the tensor's length");
+                     "ERR Number of string elements in data blob does not match tensor length");
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
@@ -271,14 +270,12 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
 }
 
 RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims,
-                                     int n_dims, RedisModuleString *tensor_blob_rs,
+                                     int n_dims, const char *tensor_blob, size_t blob_len,
                                      RAI_Error *err) {
 
     RAI_Tensor *new_tensor = RAI_TensorNew(data_type, data_size, dims, n_dims);
     size_t tensor_len = RAI_TensorLength(new_tensor);
 
-    size_t blob_len;
-    const char *tensor_blob = RedisModule_StringPtrLen(tensor_blob_rs, &blob_len);
     new_tensor->blobSize = blob_len;
     new_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
     if (data_type.code == kDLString) {
@@ -346,22 +343,23 @@ RAI_Tensor *RAI_TensorCreateByConcatenatingTensors(RAI_Tensor **tensors, long lo
     size_t data_type_size = RAI_TensorDataSize(tensors[0]);
     RAI_Tensor *ret = RAI_TensorNew(data_type, data_type_size, dims, n_dims);
 
-    // get the offsets for every tensor's blob ib the batched tensor blob
+    // get the offsets for every tensor's blob in the batched tensor blob
     batch_offsets[0] = 0;
     for (long long i = 1; i < n; i++) {
-        batch_offsets[i] = batch_offsets[i - 1] + RAI_TensorByteSize(tensors[i-1]);
+        batch_offsets[i] = batch_offsets[i - 1] + RAI_TensorByteSize(tensors[i - 1]);
     }
-    ret->blobSize = batch_offsets[n-1] + RAI_TensorByteSize(tensors[n-1]);
+    ret->blobSize = batch_offsets[n - 1] + RAI_TensorByteSize(tensors[n - 1]);
     ret->tensor.dl_tensor.data = RedisModule_Alloc(ret->blobSize);
 
     // Copy the input tensors data to the new tensor.
     size_t element_ind = 0;
     for (size_t i = 0; i < n; i++) {
-        memcpy(RAI_TensorData(ret) + batch_offsets[i],
-               RAI_TensorData(tensors[i]), RAI_TensorByteSize(tensors[i]));
+        memcpy(RAI_TensorData(ret) + batch_offsets[i], RAI_TensorData(tensors[i]),
+               RAI_TensorByteSize(tensors[i]));
         if (data_type.code == kDLString) {
-            memcpy(RAI_TensorStringElementsOffsets(ret) + element_ind, RAI_TensorStringElementsOffsets(tensors[i]),
-                    RAI_TensorLength(tensors[i]) * sizeof(uint64_t));
+            memcpy(RAI_TensorStringElementsOffsets(ret) + element_ind,
+                   RAI_TensorStringElementsOffsets(tensors[i]),
+                   RAI_TensorLength(tensors[i]) * sizeof(uint64_t));
             element_ind += RAI_TensorLength(tensors[i]);
         }
     }
@@ -388,13 +386,16 @@ RAI_Tensor *RAI_TensorCreateBySlicingTensor(RAI_Tensor *t, long long offset, lon
     // Copy the input tensor sliced data to the new tensor.
     if (data_type.code == kDLString) {
         uint64_t *strings_offsets = RAI_TensorStringElementsOffsets(t);
-        size_t blob_size = offset + len < RAI_TensorLength(t) ?
-                strings_offsets[(offset+len)*sample_size] - strings_offsets[offset*sample_size] :
-                RAI_TensorByteSize(t) - strings_offsets[offset*sample_size];
+        size_t blob_size = offset + len < RAI_TensorLength(t)
+                               ? strings_offsets[(offset + len) * sample_size] -
+                                     strings_offsets[offset * sample_size]
+                               : RAI_TensorByteSize(t) - strings_offsets[offset * sample_size];
         ret->blobSize = blob_size;
         ret->tensor.dl_tensor.data = RedisModule_Alloc(blob_size);
-        memcpy(RAI_TensorData(ret), RAI_TensorData(t) + strings_offsets[offset*sample_size], blob_size);
-        memcpy(RAI_TensorStringElementsOffsets(ret), strings_offsets + offset, len*sizeof(uint64_t));
+        memcpy(RAI_TensorData(ret), RAI_TensorData(t) + strings_offsets[offset * sample_size],
+               blob_size);
+        memcpy(RAI_TensorStringElementsOffsets(ret), strings_offsets + offset,
+               len * sizeof(uint64_t));
     } else {
         size_t blob_size = len * sample_size * data_type_size;
         ret->tensor.dl_tensor.data = RedisModule_Alloc(blob_size);
@@ -560,7 +561,7 @@ size_t RAI_TensorByteSize(RAI_Tensor *t) {
         return t->blobSize;
     }
     if (t->blobSize == 0) {
-          t->blobSize = RAI_TensorLength(t) * RAI_TensorDataSize(t);
+        t->blobSize = RAI_TensorLength(t) * RAI_TensorDataSize(t);
     }
     return t->blobSize;
 }

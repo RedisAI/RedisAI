@@ -20,7 +20,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
 
     int data_fmt = TENSOR_NONE;
     int n_dims = 0;
-    long long len = 1;
+    long long tensor_len = 1;
     long long *dims = (long long *)array_new(long long, 1);
     int arg_pos = 3;
 
@@ -46,7 +46,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
             // if we've found the data_format, then there are no more dimensions
             // check right away if the arity is correct
             size_t remaining_args = argc - 1 - arg_pos;
-            if (remaining_args != len) {
+            if (remaining_args != tensor_len) {
                 array_free(dims);
                 RAI_SetError(error, RAI_ETENSORSET,
                              "ERR wrong number of values was given in 'AI.TENSORSET' command");
@@ -57,7 +57,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
         } else {
             // Otherwise, parse the next tensor shape and append it to its dims.
             long long dimension;
-            const int ret_val = RedisModule_StringToLongLong(argv[arg_pos], &dimension);
+            int ret_val = RedisModule_StringToLongLong(argv[arg_pos], &dimension);
             if (ret_val != REDISMODULE_OK || dimension <= 0) {
                 array_free(dims);
                 RAI_SetError(error, RAI_ETENSORSET,
@@ -66,13 +66,16 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
             }
             n_dims++;
             dims = array_append(dims, dimension);
-            len *= dimension;
+            tensor_len *= dimension;
         }
     }
 
     if (data_fmt == TENSOR_BLOB) {
-        RedisModuleString *tensor_blob = argv[arg_pos];
-        *t = RAI_TensorCreateFromBlob(data_type, data_size, dims, n_dims, tensor_blob, error);
+        RedisModuleString *tensor_blob_rs = argv[arg_pos];
+        size_t blob_len;
+        const char *tensor_blob = RedisModule_StringPtrLen(tensor_blob_rs, &blob_len);
+        *t = RAI_TensorCreateFromBlob(data_type, data_size, dims, n_dims, tensor_blob, blob_len,
+                                      error);
     } else {
         // Parse the rest of the arguments (tensor values) and set the values in the tensor.
         // Note that it is possible that no values were given - create empty tensor in that case.
@@ -87,7 +90,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
     return REDISMODULE_OK;
 }
 
-uint ParseTensorGetArgs(RAI_Error *err, RedisModuleString **argv, int argc) {
+uint ParseTensorGetFormat(RAI_Error *err, RedisModuleString **argv, int argc) {
     uint fmt = TENSOR_NONE;
     if (argc < 2 || argc > 4) {
         RAI_SetError(err, RAI_EDAGBUILDER, "wrong number of arguments for 'AI.TENSORGET' command");

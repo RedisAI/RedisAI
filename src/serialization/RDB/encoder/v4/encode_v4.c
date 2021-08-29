@@ -14,7 +14,6 @@ void RAI_RDBSaveTensor_v4(RedisModuleIO *io, void *value) {
 
     size_t size = RAI_TensorByteSize(tensor);
     RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
-
 }
 
 void RAI_RDBSaveModel_v4(RedisModuleIO *io, void *value) {

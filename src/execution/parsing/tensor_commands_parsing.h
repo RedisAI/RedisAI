@@ -26,4 +26,4 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
  * @return The format in which tensor is returned.
  */
 
-uint ParseTensorGetArgs(RAI_Error *error, RedisModuleString **argv, int argc);
+uint ParseTensorGetFormat(RAI_Error *error, RedisModuleString **argv, int argc);

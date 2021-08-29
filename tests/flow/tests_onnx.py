@@ -316,36 +316,6 @@ def test_onnx_modelrun_disconnect(env):
     env.assertEqual(ret, None)
 
 
-def test_onnx_model_rdb_save_load(env):
-    env.skipOnCluster()
-    if env.useAof or not TEST_ONNX:
-        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    linear_model = load_file_content('linear_iris.onnx')
-
-    con = get_connection(env, '{1}')
-    ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
-    env.assertEqual(ret, b'OK')
-
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-
-    ensureSlaveSynced(con, env)
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-
-    env.stop()
-    env.start()
-    con = get_connection(env, '{1}')
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(linear_model), len(model_serialized_after_rdbload))
-    # Assert in memory model binary is equal to loaded model binary
-    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
-    # Assert input model binary is equal to loaded model binary
-    env.assertTrue(linear_model == model_serialized_after_rdbload)
-
-
 def tests_onnx_info(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
