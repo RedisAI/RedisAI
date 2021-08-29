@@ -75,10 +75,6 @@ def test_common_tensorset_error_replies(env):
     check_error_message(env, con, "invalid value",
                         'AI.TENSORSET', 'z{0}', 'INT8', 2, 'VALUES', -1, -128)
 
-    # ERR invalid value - string tensor element is not null-terminated
-    check_error_message(env, con, "invalid value: string element must be null-terminated",
-                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'VALUES', 'c-string\0', 'not c-string')
-
     # ERR insufficient number of args
     check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
                         'AI.TENSORSET')
@@ -313,7 +309,7 @@ def test_string_tensor(env):
     con = get_connection(env, '{0}')
 
     # test creation of string tensor from values
-    ret = con.execute_command('AI.TENSORSET', 'string_tensor_from_val{0}', 'STRING', 2, 'VALUES', 'str_val1\0', 'str_val2\0')
+    ret = con.execute_command('AI.TENSORSET', 'string_tensor_from_val{0}', 'STRING', 2, 'VALUES', 'str_val1', 'str_val2\0')
     env.assertEqual(ret, b'OK')
 
     tensor_reply_values = con.execute_command('AI.TENSORGET', 'string_tensor_from_val{0}', 'VALUES')

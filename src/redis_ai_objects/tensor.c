@@ -60,15 +60,13 @@ static int _RAI_TensorParseStringValues(int argc, RedisModuleString **argv, RAI_
         size_t str_len;
         const char *str_data = RedisModule_StringPtrLen(argv[i], &str_len);
         if (str_data[str_len - 1] != '\0') {
-            RAI_SetError(err, RAI_ETENSORSET,
-                         "ERR invalid value: string element must be null-terminated");
-            return REDISMODULE_ERR;
+            str_len++;
         }
         strings_offsets[i] = total_len;
         total_len += str_len;
         strings_data[i] = str_data;
     }
-    tensor->tensor.dl_tensor.data = RedisModule_Alloc(total_len);
+    tensor->tensor.dl_tensor.data = RedisModule_Calloc(1, total_len);
     tensor->tensor.dl_tensor.elements_length = strings_offsets;
     tensor->blobSize = total_len;
 
