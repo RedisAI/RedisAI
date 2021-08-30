@@ -187,6 +187,7 @@ RAI_Tensor *RAI_TensorNew(DLDataType data_type, size_t data_type_size, const lon
 
     RAI_Tensor *new_tensor = RedisModule_Alloc(sizeof(RAI_Tensor));
     new_tensor->refCount = 1;
+    new_tensor->blobSize = 0;
 
     // Note that n_dim can be zero (i.e., tensor is a scalar)
     int64_t *shape = RedisModule_Calloc(n_dims, sizeof(*shape));
