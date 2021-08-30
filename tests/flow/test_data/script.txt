@@ -10,5 +10,5 @@ def bar_variadic(tensors: List[Tensor], keys: List[str], args: List[str]):
 
 def long_func(tensors: List[Tensor], keys: List[str], args: List[str]):
     sum=0
-    for i in range(1000000):
+    for i in range(10000000):
         sum+=1
