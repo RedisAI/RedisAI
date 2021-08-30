@@ -296,12 +296,17 @@ def test_pytorch_scriptexecute_errors(env):
 
     check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 'OUTPUTS')
 
-    check_error_message(env, con, "Invalid arguments provided to AI.SCRIPTEXECUTE", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1, '{1}', 'ARGS')
+    check_error_message(env, con, "Invalid arguments provided to AI.SCRIPTEXECUTE",
+                        'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1, '{1}', 'ARGS')
 
-    check_error_message(env, con, "Invalid argument for inputs count in AI.SCRIPTEXECUTE", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
+    check_error_message(env, con, "Invalid argument for inputs count in AI.SCRIPTEXECUTE",
+                        'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 'OUTPUTS')
 
-    check_error_message(env, con, "Invalid value for TIMEOUT",'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1, '{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', 'TIMEOUT', 'TIMEOUT')
+    check_error_message(env, con, "Invalid value for TIMEOUT",
+                        'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', 'TIMEOUT', 'TIMEOUT')
 
+    check_error_message(env, con, "No value provided for TIMEOUT in AI.SCRIPTEXECUTE",
+                        'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', 'TIMEOUT')
 
     if env.isCluster():
         # cross shard

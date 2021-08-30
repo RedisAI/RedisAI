@@ -1,4 +1,5 @@
 import redis
+import time
 
 from includes import *
 from RLTest import Env
@@ -389,13 +390,40 @@ def test_pytorch_scriptexecute_list_input(env):
         env.assertEqual(values2, values)
 
 
-def test_pytorch_scriptinfo(env):
+def test_pytorch_scriptexecute_with_timeout(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    # env.debugPrint("skipping this tests for now", force=True)
-    # return
+    con = get_connection(env, '{$}')
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSTORE', 'my_script{$}', DEVICE,
+                              'ENTRY_POINTS', 2, 'bar', 'long_func', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    def run():
+        con2 = get_connection(env, '{$}')
+        con2.execute_command('AI.SCRIPTEXECUTE', 'my_script{$}', 'long_func', 'KEYS', 1, '{$}')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    # make sure that we have a long operation that RedisAI will run upon sending the following
+    # command, to assure that timeout will occur.
+    time.sleep(0.1)
+    ret = con.execute_command('AI.SCRIPTEXECUTE', 'my_script{$}', 'bar',
+                              'INPUTS', 2, 'a{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}', 'TIMEOUT', 1)
+    env.assertEqual(ret, b'TIMEDOUT')
+    t.join()
+
+
+def test_pytorch_scriptinfo(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
 
     con = get_connection(env, '{1}')
 
