@@ -7,3 +7,8 @@ def bar_variadic(tensors: List[Tensor], keys: List[str], args: List[str]):
     a = tensors[0]
     l = tensors[1:]
     return a + l[0]
+
+def long_func(tensors: List[Tensor], keys: List[str], args: List[str]):
+    sum=0
+    for i in range(1000000):
+        sum+=1
