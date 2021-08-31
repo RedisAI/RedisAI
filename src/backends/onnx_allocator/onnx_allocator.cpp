@@ -21,6 +21,7 @@ private:
 
     std::atomic<unsigned long long> memory_inuse{0};
     std::atomic<unsigned long long> num_allocator_access{0};
+    std::atomic<unsigned long long> max_memory_in_use{0};
     unsigned long long memory_limit = 0;
     OrtMemoryInfo* cpu_memory_info;
     static RAIOrtAllocator* allocator_instance;
@@ -55,6 +56,10 @@ void* RAIOrtAllocator::Alloc(size_t size) {
         throw Ort::Exception("Onnxruntime memory limit exceeded, memory allocation failed.", ORT_RUNTIME_EXCEPTION);
     }
     memory_inuse.fetch_add(allocated_size);
+    if(memory_inuse.load() > max_memory_in_use.load()) {
+        max_memory_in_use.store(cur_memory + allocated_size);
+        RedisModule_Log(nullptr, "warning", "max onnx memory reached: %llu", max_memory_in_use.load());
+    }
     num_allocator_access.fetch_add(1);
     // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
     void **aligned_address = (void **)(((size_t)(allocated_address) + offset) & (~63));

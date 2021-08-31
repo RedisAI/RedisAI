@@ -316,9 +316,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
         ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        //global_allocator = CreateCustomAllocator(1000000);
-        //ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
-        ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator))
+        global_allocator = CreateCustomAllocator(1000000000);
+        ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
+        //ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator))
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
