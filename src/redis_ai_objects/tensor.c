@@ -657,7 +657,7 @@ int RAI_TensorGetValueAsString(RAI_Tensor *t, long long i, const char **val) {
     DLDataType dtype = RAI_TensorDataType(t);
     char *data = RAI_TensorData(t);
 
-    if (dtype.code != kDLString || dtype.bits != 8) {
+    if (dtype.code != kDLString) {
         return 0;
     }
     uint64_t *offsets = RAI_TensorStringElementsOffsets(t);
