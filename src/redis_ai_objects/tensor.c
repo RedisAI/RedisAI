@@ -547,9 +547,7 @@ uint64_t *RAI_TensorStringElementsOffsets(RAI_Tensor *tensor) {
     return tensor->tensor.dl_tensor.elements_length;
 }
 
-int64_t *RAI_TensorShape(RAI_Tensor *tensor) {
-    return tensor->tensor.dl_tensor.shape;
-}
+int64_t *RAI_TensorShape(RAI_Tensor *tensor) { return tensor->tensor.dl_tensor.shape; }
 
 int RAI_TensorGetValueAsDouble(RAI_Tensor *t, long long i, double *val) {
     // Validate that i is in bound

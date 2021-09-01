@@ -60,10 +60,10 @@ TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
         }
     } else if (dtype.code == kDLString) {
         switch (dtype.bits) {
-            case 8:
-                return TF_STRING;
-            default:
-                return 0;
+        case 8:
+            return TF_STRING;
+        default:
+            return 0;
         }
     }
     return 0;
@@ -99,60 +99,69 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
 
-    size_t n_dims = TF_NumDims(tensor);
+    int n_dims = TF_NumDims(tensor);
     int64_t total_batch_size = TF_Dim(tensor, 0);
     total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
-    int64_t shape[n_dims];
+    size_t shape[n_dims];
     for (int i = 0; i < n_dims; ++i) {
         shape[i] = TF_Dim(tensor, i);
     }
     if (batch_size != -1) {
-        shape[0] = batch_size;
+        shape[0] = batch_size; // the TF tensor was batched
     } else {
-        batch_size = total_batch_size;
+        batch_size = total_batch_size; // the TF tensor wasn't batched
     }
 
+    DLDataType data_type = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor));
+    RAI_Tensor *out = RAI_TensorNew(data_type, shape, n_dims);
+    size_t out_tensor_len = RAI_TensorLength(out);
 
-    const size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
+    if (data_type.code == kDLString) {
+        TF_TString *tensor_data = TF_TensorData(tensor);
+        const char *strings_data[out_tensor_len];
+        size_t strings_lengths[out_tensor_len];
 
-    // FIXME: In TF, RunSession allocates memory for output tensors
-    // This means that we either memcpy the tensor data and let
-    // Redis be responsible for the memory, or we reuse the TF
-    // allocated memory, which might not be optimal down the road
-    // Note: on YOLO this has no impact on perf
-#ifdef RAI_COPY_RUN_OUTPUT
-    const size_t len = sample_bytesize * batch_size;
-    char *data = RedisModule_Calloc(len, sizeof(*data));
-    memcpy(data, TF_TensorData(tensor) + sample_bytesize * batch_offset, len);
-#endif
+        // Calculate the blob size for this tensor and allocate space for it
+        size_t element_index = batch_offset * (out_tensor_len / batch_size);
+        size_t blob_len = 0;
+        uint64_t *offsets = RAI_TensorStringElementsOffsets(out);
+        offsets[0] = 0;
+        for (size_t i = 0; i < out_tensor_len; i++) {
+            size_t str_element_len = TF_TString_GetSize(tensor_data + element_index);
+            strings_lengths[i] = str_element_len;
+            strings_data[i] = TF_TString_GetDataPointer(tensor_data + element_index++);
+            offsets[i] = blob_len;
+            blob_len += str_element_len;
+            if (strings_data[i][str_element_len - 1] != '\0') {
+                blob_len++; // Add space for null character at the end of every string
+            }
+        }
+        out->blobSize = blob_len;
+        out->tensor.dl_tensor.data = RedisModule_Calloc(1, blob_len);
 
-    // TODO: use manager_ctx to ensure TF tensor doesn't get deallocated
-    // This applies to outputs
-
-    ret->tensor = (DLManagedTensor){
-        .dl_tensor = (DLTensor){.device = device,
-#ifdef RAI_COPY_RUN_OUTPUT
-                                .data = data,
-#else
-                                .data = TF_TensorData(tensor),
-#endif
-                                .ndim = ndims,
-                                .dtype = RAI_GetDLDataTypeFromTF(TF_TensorType(tensor)),
-                                .shape = shape,
-                                .strides = strides,
-                                .byte_offset = 0},
-        .manager_ctx = NULL,
-        .deleter = NULL};
-
-    return ret;
+        // Go over again and set tensor data elements one by one
+        element_index = batch_offset * (out_tensor_len / batch_size);
+        char *tensor_blob = RAI_TensorData(out);
+        for (size_t i = 0; i < out_tensor_len; i++) {
+            memcpy(tensor_blob + offsets[i], strings_data[i], strings_lengths[i]);
+            TF_TString_Dealloc(tensor_data + element_index++);
+        }
+    } else {
+        size_t non_batched_tensor_size = TF_TensorByteSize(tensor) / total_batch_size;
+        size_t blob_len = non_batched_tensor_size * batch_size;
+        out->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
+        out->blobSize = blob_len;
+        memcpy(RAI_TensorData(out), TF_TensorData(tensor) + non_batched_tensor_size * batch_offset,
+               blob_len);
+    }
+    return out;
 }
 
 void RAI_TFDeallocator(void *data, size_t len, void *arg) {
     // printf("DEALLOCATOR CALLED\n");
     // do nothing, memory is managed by Redis
 }
-
 
 TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
     RedisModule_Assert(count > 0);
@@ -181,14 +190,16 @@ TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
     if (RAI_TensorDataType(t0).code == kDLString) {
         out = TF_AllocateTensor(TF_STRING, batched_shape, RAI_TensorNumDims(t0),
                                 sizeof(TF_TString) * batched_tensor_len);
-        TF_TString* tf_str = (TF_TString *)TF_TensorData(out);
+        // go over the string elements and copy the data to the TF tensor
+        TF_TString *tf_str = (TF_TString *)TF_TensorData(out);
         size_t element_ind = 0;
         for (size_t i = 0; i < count; i++) {
             RAI_Tensor *t = tensors[i];
             uint64_t *offsets = RAI_TensorStringElementsOffsets(t);
             for (size_t j = 0; j < RAI_TensorLength(t); j++) {
                 TF_TString_Init(&tf_str[element_ind]);
-                size_t str_len = j < RAI_TensorLength(t)-1 ? offsets[j+1]-offsets[j] : RAI_TensorByteSize(t)-offsets[j];
+                size_t str_len = j < RAI_TensorLength(t) - 1 ? offsets[j + 1] - offsets[j]
+                                                             : RAI_TensorByteSize(t) - offsets[j];
                 TF_TString_Copy(&tf_str[element_ind++], RAI_TensorData(t) + offsets[j], str_len);
             }
         }
@@ -202,10 +213,9 @@ TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
             offset += tensor_byte_size;
         }
     } else {
-        out = TF_NewTensor(RAI_GetTFDataTypeFromDL(RAI_TensorDataType(t0)),
-                           RAI_TensorShape(t0), RAI_TensorNumDims(t0),
-                           RAI_TensorData(t0), RAI_TensorByteSize(t0), &RAI_TFDeallocator,
-                           NULL);
+        out = TF_NewTensor(RAI_GetTFDataTypeFromDL(RAI_TensorDataType(t0)), RAI_TensorShape(t0),
+                           RAI_TensorNumDims(t0), RAI_TensorData(t0), RAI_TensorByteSize(t0),
+                           &RAI_TFDeallocator, NULL);
     }
     return out;
 }
@@ -459,16 +469,16 @@ void RAI_ModelFreeTF(RAI_Model *model, RAI_Error *error) {
 }
 
 int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
-    TF_Status *status = TF_NewStatus();
-
+    int res = REDISMODULE_ERR;
     const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
-        return 1;
+        return res;
     }
 
-    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
-    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
+    TF_Status *status = TF_NewStatus();
+    size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
     TF_Tensor *inputTensorsValues[ninputs];
     TF_Output inputs[ninputs];
     TF_Tensor *outputTensorsValues[noutputs];
@@ -493,7 +503,6 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
 
     for (size_t i = 0; i < ninputs; ++i) {
         RAI_Tensor *batched_input_tensors[nbatches];
-
         for (size_t b = 0; b < nbatches; ++b) {
             batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
         }
@@ -502,7 +511,7 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
         port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetInputName(model, i));
         port.index = 0;
         if (port.oper == NULL) {
-            return 1;
+            goto cleanup;
         }
         inputs[i] = port;
     }
@@ -512,7 +521,7 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
         port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetOutputName(model, i));
         port.index = 0;
         if (port.oper == NULL) {
-            return 1;
+            goto cleanup;
         }
         outputs[i] = port;
     }
@@ -521,16 +530,9 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
                   outputTensorsValues, noutputs, NULL /* target_opers */, 0 /* ntargets */,
                   NULL /* run_Metadata */, status);
 
-    for (size_t i = 0; i < ninputs; ++i) {
-        TF_DeleteTensor(inputTensorsValues[i]);
-    }
-
     if (TF_GetCode(status) != TF_OK) {
-        char *errorMessage = RedisModule_Strdup(TF_Message(status));
-        RAI_SetError(error, RAI_EMODELRUN, errorMessage);
-        TF_DeleteStatus(status);
-        RedisModule_Free(errorMessage);
-        return 1;
+        RAI_SetError(error, RAI_EMODELRUN, TF_Message(status));
+        goto cleanup;
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
@@ -540,10 +542,9 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
             }
             if (TF_Dim(outputTensorsValues[i], 0) != total_batch_size) {
                 TF_DeleteTensor(outputTensorsValues[i]);
-                TF_DeleteStatus(status);
                 RAI_SetError(error, RAI_EMODELRUN,
                              "ERR Model did not generate the expected batch size");
-                return 1;
+                goto cleanup;
             }
 
             for (size_t b = 0; b < nbatches; b++) {
@@ -559,10 +560,22 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
         }
         TF_DeleteTensor(outputTensorsValues[i]);
     }
+    res = REDISMODULE_OK;
 
+cleanup:
     TF_DeleteStatus(status);
-
-    return 0;
+    for (size_t i = 0; i < ninputs; ++i) {
+        RAI_Tensor *t = RAI_ExecutionCtx_GetInput(ectxs[0], i);
+        // free the underline string buffer for every element
+        if (RAI_TensorDataType(t).code == kDLString) {
+            TF_TString *tf_strings = TF_TensorData(inputTensorsValues[i]);
+            for (size_t j = 0; j < RAI_TensorLength(t); j++) {
+                TF_TString_Dealloc(tf_strings + j);
+            }
+        }
+        TF_DeleteTensor(inputTensorsValues[i]);
+    }
+    return res;
 }
 
 int RAI_ModelSerializeTF(RAI_Model *model, char **buffer, size_t *len, RAI_Error *error) {

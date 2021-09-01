@@ -698,3 +698,60 @@ def test_tf_info(env):
 
     backends_info = get_info_section(con, 'backends_info')
     env.assertTrue('ai_TensorFlow_version' in backends_info)
+
+
+@skip_if_no_TF
+def test_tf_string_tensors(env):
+    con = get_connection(env, '{1}')
+
+    model_pb = load_file_content('identity_string.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'INPUTS', 1, 'input_str',
+                              'OUTPUTS', 1, 'c', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    # Execute tf model whose input is string tensor (with any shape), that outputs the input
+    string_tensor_blob = b'input11\0input12\0input21\0here we want to test a string longer than 24 chars,' \
+                         b' to force heap alloc in tf\0'
+    con.execute_command('AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob)
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'in_tensor{1}', 'OUTPUTS', 1, 'out_tensor{1}')
+    env.assertEqual(ret, b'OK')
+
+    _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'META', 'VALUES')
+    env.assertEqual(tensor_dtype, b'STRING')
+    env.assertEqual(tensor_dim, [2, 2])
+    env.assertEqual(tensor_values, [b'input11', b'input12', b'input21',
+                                    b'here we want to test a string longer than 24 chars, to force heap alloc in tf'])
+
+    if env.useSlaves:
+        slave_con = env.getSlaveConnection()
+        slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
+        env.assertEqual(tensor_values, slave_tensor_values)
+
+
+@skip_if_no_TF
+def test_tf_string_tensors_batching(env):
+    con = get_connection(env, '{1}')
+
+    model_pb = load_file_content('identity_string.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
+                              'INPUTS', 1, 'input_str', 'OUTPUTS', 1, 'c', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'first_batch{1}', 'STRING', 1, 2, 'VALUES', 'this is', 'the first batch')
+    con.execute_command('AI.TENSORSET', 'second_batch{1}', 'STRING', 1, 2, 'VALUES', 'that is', 'the second batch')
+
+    def run():
+        con2 = get_connection(env, '{1}')
+        con2.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'first_batch{1}',
+                                          'OUTPUTS', 1, 'first_output{1}')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'second_batch{1}',
+                                     'OUTPUTS', 1, 'second_output{1}')
+    t.join()
+
+    out_values = con.execute_command('AI.TENSORGET', 'first_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'this is', b'the first batch'])
+    out_values = con.execute_command('AI.TENSORGET', 'second_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'that is', b'the second batch'])
