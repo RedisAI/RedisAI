@@ -58,6 +58,13 @@ TF_DataType RAI_GetTFDataTypeFromDL(DLDataType dtype) {
         default:
             return 0;
         }
+    } else if (dtype.code == kDLString) {
+        switch (dtype.bits) {
+            case 8:
+                return TF_STRING;
+            default:
+                return 0;
+        }
     }
     return 0;
 }
@@ -82,10 +89,11 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     case TF_BOOL:
         return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
+    case TF_STRING:
+        return (DLDataType){.code = kDLString, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
-    return (DLDataType){.bits = 0};
 }
 
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
@@ -154,64 +162,46 @@ void RAI_TFDeallocator(void *data, size_t len, void *arg) {
     // do nothing, memory is managed by Redis
 }
 
-TF_Tensor *RAI_TFTensorFromTensor(RAI_Tensor *t) {
-#ifdef RAI_COPY_RUN_INPUT
-    TF_Tensor *out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-                                       t->tensor.dl_tensor.shape, t->tensor.dl_tensor.ndim,
-                                       RAI_TensorByteSize(t));
-    memcpy(TF_TensorData(out), t->tensor.dl_tensor.data, TF_TensorByteSize(out));
-    return out;
-#else
-    return TF_NewTensor(RAI_GetTFDataTypeFromDL(t->tensor.dl_tensor.dtype),
-                        t->tensor.dl_tensor.shape, t->tensor.dl_tensor.ndim,
-                        t->tensor.dl_tensor.data, RAI_TensorByteSize(t), &RAI_TFDeallocator, NULL);
-#endif /* RAI_COPY_RUN_INPUT */
-}
 
-TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **ts, size_t count) {
+TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
+    RedisModule_Assert(count > 0);
 
-    if (count == 0) {
-        return NULL;
-    }
-
-    size_t batch_size = 0;
+    int64_t batch_size = 0;
     size_t batch_byte_size = 0;
 
     for (size_t i = 0; i < count; i++) {
-        batch_size += ts[i]->tensor.dl_tensor.shape[0];
-        batch_byte_size += RAI_TensorByteSize(ts[i]);
+        batch_size += RAI_TensorDim(tensors[i], 0);
+        batch_byte_size += RAI_TensorByteSize(tensors[i]);
     }
 
-    RAI_Tensor *t0 = ts[0];
-
-    const int ndim = t0->tensor.dl_tensor.ndim;
-    int64_t batched_shape[ndim];
-
-    for (size_t i = 0; i < ndim; i++) {
-        batched_shape[i] = t0->tensor.dl_tensor.shape[i];
-    }
-
+    // get the shapes of the batched tensor: all inner dims should be the same,
+    // so we go over t0 dims.
+    RAI_Tensor *t0 = tensors[0];
+    int n_dim = RAI_TensorNumDims(t0);
+    int64_t batched_shape[n_dim];
     batched_shape[0] = batch_size;
+    for (size_t i = 1; i < n_dim; i++) {
+        batched_shape[i] = RAI_TensorDim(tensors[0], i);
+    }
 
     TF_Tensor *out = NULL;
+    if (RAI_TensorDataType(t0).code == kDLString) {
 
-    if (count > 1) {
-        out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(t0->tensor.dl_tensor.dtype), batched_shape,
-                                t0->tensor.dl_tensor.ndim, batch_byte_size);
-
+    } else if (count > 1) {
+        out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(RAI_TensorDataType(t0)), batched_shape,
+                                RAI_TensorNumDims(t0), batch_byte_size);
         size_t offset = 0;
         for (size_t i = 0; i < count; i++) {
-            size_t tbytesize = RAI_TensorByteSize(ts[i]);
-            memcpy(TF_TensorData(out) + offset, ts[i]->tensor.dl_tensor.data, tbytesize);
-            offset += tbytesize;
+            size_t tensor_byte_size = RAI_TensorByteSize(tensors[i]);
+            memcpy(TF_TensorData(out) + offset, RAI_TensorData(tensors[i]), tensor_byte_size);
+            offset += tensor_byte_size;
         }
     } else {
-        out = TF_NewTensor(RAI_GetTFDataTypeFromDL(t0->tensor.dl_tensor.dtype),
-                           t0->tensor.dl_tensor.shape, t0->tensor.dl_tensor.ndim,
-                           t0->tensor.dl_tensor.data, RAI_TensorByteSize(t0), &RAI_TFDeallocator,
+        out = TF_NewTensor(RAI_GetTFDataTypeFromDL(RAI_TensorDataType(t0)),
+                           RAI_TensorShape(t0), RAI_TensorNumDims(t0),
+                           RAI_TensorData(t0), RAI_TensorByteSize(t0), &RAI_TFDeallocator,
                            NULL);
     }
-
     return out;
 }
 

@@ -220,6 +220,14 @@ char *RAI_TensorData(RAI_Tensor *t);
 uint64_t *RAI_TensorStringElementsOffsets(RAI_Tensor *tensor);
 
 /**
+ * Return the pointer to the array containing the tensors dimensions.
+ *
+ * @param t input tensor
+ * @return direct access to the shpae array pointer
+ */
+int64_t *RAI_TensorShape(RAI_Tensor *tensor);
+
+/**
  * Gets the double value from the given input tensor, at the given array data
  * pointer position
  *
