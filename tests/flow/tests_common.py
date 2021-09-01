@@ -312,7 +312,8 @@ def test_info_command(env):
 def test_string_tensor(env):
     con = get_connection(env, '{0}')
 
-    # test creation of string tensor from values
+    # test creation of string tensor from values - every C-string is valid (null-terminated)
+    # we also allow omitting the final null-character from the string
     ret = con.execute_command('AI.TENSORSET', 'string_tensor_from_val{0}', 'STRING', 2, 'VALUES', 'str_val1', 'str_val2\0')
     env.assertEqual(ret, b'OK')
 
