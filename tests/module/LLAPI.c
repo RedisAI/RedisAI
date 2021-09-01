@@ -294,6 +294,79 @@ int RAI_llapi_DAG_resnet(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
     return RedisModule_ReplyWithSimpleString(ctx, "DAG resnet success");
 }
 
+int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
+    REDISMODULE_NOT_USED(argv);
+
+    if (argc > 1) {
+        RedisModule_WrongArity(ctx);
+        return REDISMODULE_OK;
+    }
+
+    int n_dims = 2;
+    long long dims[] = {1, 4};
+    RAI_Tensor *t = RedisAI_TensorCreate("INVALID", dims, n_dims);
+    if (t != NULL) {
+        return RedisModule_ReplyWithSimpleString(ctx, "invalid tensor create test failed");
+    }
+
+    // create an empty tensor and validate that in contains zeros
+    t = RedisAI_TensorCreate("INT8", dims, n_dims);
+    int8_t expected_blob[8] = {0};
+    if (t == NULL || RedisAI_TensorLength(t) != dims[0] * dims[1] ||
+        memcmp(RedisAI_TensorData(t), expected_blob, 8) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "empty tensor create test failed");
+    }
+    // RedisAI_TensorFree(t);
+
+    // test concatenation of string tensors
+    RAI_Tensor *t1 = RedisAI_TensorCreate("STRING", dims, n_dims);
+    const char *data_blob1 = "only one string\0";
+    if (RedisAI_TensorSetData(t1, data_blob1, strlen(data_blob1) + 1) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "invalid string tensor data set test failed");
+    }
+    data_blob1 = "first\0second\0third\0forth\0";
+    size_t len_data_blob1 = 25;
+    if (RedisAI_TensorSetData(t1, data_blob1, len_data_blob1) != 1) {
+        return RedisModule_ReplyWithSimpleString(ctx, "string tensor data set test failed");
+    }
+    dims[0] = 2;
+    const char *data_blob2 = "A\0B\0C\0D\0E\0F\0G\0H\0";
+    size_t len_data_blob2 = 16;
+    RAI_Tensor *t2 = RedisAI_TensorCreate("STRING", dims, n_dims);
+    if (RedisAI_TensorSetData(t2, data_blob2, len_data_blob2) != 1) {
+        return RedisModule_ReplyWithSimpleString(ctx, "string tensor data set test failed");
+    }
+
+    RAI_Tensor *tensors[] = {t1, t2};
+    RAI_Tensor *batched_tensor = RedisAI_TensorCreateByConcatenatingTensors(tensors, 2);
+    RedisAI_TensorFree(t1);
+    RedisAI_TensorFree(t2);
+    const char *expected_batched_data = "first\0second\0third\0forth\0A\0B\0C\0D\0E\0F\0G\0H\0";
+    size_t expected_batched_data_len = len_data_blob1 + len_data_blob2;
+    if (batched_tensor == NULL || RedisAI_TensorNumDims(batched_tensor) != 2 ||
+        RedisAI_TensorDim(batched_tensor, 0) != 3 || RedisAI_TensorDim(batched_tensor, 1) != 4 ||
+        memcmp(expected_batched_data, RedisAI_TensorData(batched_tensor),
+               expected_batched_data_len) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "string tensor concatenation test failed");
+    }
+
+    // test slicing string tensors
+    t1 = RedisAI_TensorCreateBySlicingTensor(batched_tensor, 0, 1);
+    if (t1 == NULL || RedisAI_TensorNumDims(t1) != 2 || RedisAI_TensorDim(t1, 0) != 1 ||
+        RedisAI_TensorDim(t1, 1) != 4 ||
+        memcmp(data_blob1, RedisAI_TensorData(t1), len_data_blob1) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "string tensor slicing test failed");
+    }
+    t2 = RedisAI_TensorCreateBySlicingTensor(batched_tensor, 1, 2);
+    if (t2 == NULL || RedisAI_TensorNumDims(t2) != 2 || RedisAI_TensorDim(t2, 0) != 2 ||
+        RedisAI_TensorDim(t2, 1) != 4 ||
+        memcmp(data_blob2, RedisAI_TensorData(t2), len_data_blob2) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "string tensor slicing test failed");
+    }
+
+    return RedisModule_ReplyWithSimpleString(ctx, "create tensor test success");
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     REDISMODULE_NOT_USED(argv);
     REDISMODULE_NOT_USED(argc);
@@ -324,6 +397,11 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 
     if (RedisModule_CreateCommand(ctx, "RAI_llapi.DAG_resnet", RAI_llapi_DAG_resnet, "", 0, 0, 0) ==
         REDISMODULE_ERR) {
+        return REDISMODULE_ERR;
+    }
+
+    if (RedisModule_CreateCommand(ctx, "RAI_llapi.CreateTensor", RAI_llapi_CreateTensor, "", 0, 0,
+                                  0) == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
 

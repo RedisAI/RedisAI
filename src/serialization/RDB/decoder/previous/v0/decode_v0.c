@@ -7,7 +7,7 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
     device.device_id = RedisModule_LoadUnsigned(io);
 
     // For now, we only support CPU tensors (except during model and script run)
-    assert(device.device_type == kDLCPU);
+    RedisModule_Assert(device.device_type == kDLCPU);
     if (device.device_id != -1) {
         device.device_id = -1;
     }
@@ -35,8 +35,8 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
     if (RedisModule_IsIOError(io))
         goto error;
 
-    RAI_Tensor *t = RAI_TensorCreateFromBlob(dtype, dtype.bits / 8, (const long long *)shape,
-                                             (int)ndims, data, blob_len, &err);
+    RAI_Tensor *t =
+        RAI_TensorCreateFromBlob(dtype, (const size_t *)shape, (int)ndims, data, blob_len, &err);
     if (t == NULL)
         goto error;
 

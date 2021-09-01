@@ -12,8 +12,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
     // get the tensor data type
     const char *type_str = RedisModule_StringPtrLen(argv[2], NULL);
     DLDataType data_type = RAI_TensorDataTypeFromString(type_str);
-    size_t data_size = data_type.bits / 8;
-    if (data_size == 0) {
+    if (data_type.bits == 0) {
         RAI_SetError(error, RAI_ETENSORSET, "ERR invalid data type");
         return REDISMODULE_ERR;
     }
@@ -21,7 +20,7 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
     int data_fmt = TENSOR_NONE;
     int n_dims = 0;
     long long tensor_len = 1;
-    long long *dims = (long long *)array_new(long long, 1);
+    size_t *dims = array_new(size_t, 1);
     int arg_pos = 3;
 
     // go over remaining tensor args (shapes and data) after parsing its type.
@@ -74,13 +73,12 @@ int ParseTensorSetArgs(RedisModuleString **argv, int argc, RAI_Tensor **t, RAI_E
         RedisModuleString *tensor_blob_rs = argv[arg_pos];
         size_t blob_len;
         const char *tensor_blob = RedisModule_StringPtrLen(tensor_blob_rs, &blob_len);
-        *t = RAI_TensorCreateFromBlob(data_type, data_size, dims, n_dims, tensor_blob, blob_len,
-                                      error);
+        *t = RAI_TensorCreateFromBlob(data_type, dims, n_dims, tensor_blob, blob_len, error);
     } else {
         // Parse the rest of the arguments (tensor values) and set the values in the tensor.
         // Note that it is possible that no values were given - create empty tensor in that case.
-        *t = RAI_TensorCreateFromValues(data_type, data_size, dims, n_dims, argc - arg_pos,
-                                        &argv[arg_pos], error);
+        *t = RAI_TensorCreateFromValues(data_type, dims, n_dims, argc - arg_pos, &argv[arg_pos],
+                                        error);
     }
     array_free(dims);
 

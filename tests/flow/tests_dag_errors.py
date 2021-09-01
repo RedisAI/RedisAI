@@ -280,4 +280,4 @@ def test_dag_error_before_tensorget_op(env):
     env.assertEqual(ret[1], b'OK')
     env.assertEqual(ret[3], b'NA')
     env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
-    env.assertTrue(str(ret[2]).find('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]') >= 0)
+    env.assertTrue('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]' in str(ret[2]))

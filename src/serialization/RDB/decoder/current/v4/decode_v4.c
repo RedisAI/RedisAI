@@ -25,8 +25,8 @@ void *RAI_RDBLoadTensor_v4(RedisModuleIO *io) {
     char *data = RedisModule_LoadStringBuffer(io, &blob_len);
     if (RedisModule_IsIOError(io))
         goto error;
-    RAI_Tensor *t = RAI_TensorCreateFromBlob(data_type, bits / 8, (const long long *)shape, ndims,
-                                             data, blob_len, &err);
+    RAI_Tensor *t =
+        RAI_TensorCreateFromBlob(data_type, (const size_t *)shape, ndims, data, blob_len, &err);
     if (t == NULL)
         goto error;
 

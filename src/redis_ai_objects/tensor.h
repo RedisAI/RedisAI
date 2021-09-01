@@ -49,18 +49,16 @@ RedisModuleType *RAI_TensorRedisType(void);
 //********************* methods for creating a tensor ***************************
 /**
  * Allocate the memory for a new tensor and set RAI_Tensor meta-data based on
- * the passed 'data type` and its size, the specified number of dimensions
+ * the passed 'data type`, the specified number of dimensions
  * `ndims`, and n-dimension array `dims`. Note that tensor data is not initialized!
  *
  * @param data_type represents the data type of tensor elements
- * @param data_type_size size in bytes of the tensor elements data
  * @param dims n-dimensional array ( the dimension values are copied )
  * @param n_dims number of dimensions
  * @return allocated RAI_Tensor on success, or NULL if the allocation
  * failed.
  */
-RAI_Tensor *RAI_TensorNew(DLDataType data_type, size_t data_type_size, const long long *dims,
-                          int n_dims);
+RAI_Tensor *RAI_TensorNew(DLDataType data_type, const size_t *dims, int n_dims);
 
 /**
  * Allocate the memory and set RAI_Tensor meta-data based on
@@ -81,7 +79,6 @@ RAI_Tensor *RAI_TensorCreate(const char *data_type, const long long *dims, int n
  * and n-dimension array `dims`. The tensor will be populated with the given values.
  *
  * @param data_type DLDataType that represents the tensor elements data type.
- * @param data_size the size of every data element in bytes.
  * @param dims array of size ndims, contains the tensor shapes (the dimension values are copied)
  * @param ndims number of dimensions
  * @param argc number of values to store in the vector (the size of argv array)
@@ -89,9 +86,8 @@ RAI_Tensor *RAI_TensorCreate(const char *data_type, const long long *dims, int n
  * @param err used to store error status if one occurs
  * @return allocated RAI_Tensor on success, or NULL if operation failed.
  */
-RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
-                                       const long long *dims, int n_dims, int argc,
-                                       RedisModuleString **argv, RAI_Error *err);
+RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, const size_t *dims, int n_dims,
+                                       int argc, RedisModuleString **argv, RAI_Error *err);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor. Creates a tensor based on
@@ -99,7 +95,6 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
  * and n-dimension array `dims`. The tensor will be populated with the given data blob.
  *
  * @param data_type DLDataType that represents the tensor elements data type.
- * @param data_size the size of every data element in bytes.
  * @param dims array of size ndims, contains the tensor shapes (the dimension values are copied)
  * @param ndims number of dimensions
  * @param tensor_blob a buffer contains the tensor data blob (binary string)
@@ -107,19 +102,8 @@ RAI_Tensor *RAI_TensorCreateFromValues(DLDataType data_type, size_t data_size,
  * @param err used to store error status if one occurs
  * @return allocated RAI_Tensor on success, or NULL if operation failed.
  */
-RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, size_t data_size, const long long *dims,
-                                     int n_dims, const char *tensor_blob, size_t blob_len,
-                                     RAI_Error *err);
-
-/**
- * Allocate the memory for a new Tensor and copy data fom a tensor to it.
- *
- * @param t Source tensor to copy.
- * @param result Destination tensor to copy.
- * @return 0 on success, or 1 if the copy failed
- * failed.
- */
-int RAI_TensorDeepCopy(RAI_Tensor *t, RAI_Tensor **dest);
+RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, const size_t *dims, int n_dims,
+                                     const char *tensor_blob, size_t blob_len, RAI_Error *err);
 
 /**
  * Allocate the memory and initialise the RAI_Tensor, performing a shallow copy
@@ -266,7 +250,7 @@ int RAI_TensorGetValueAsLongLong(RAI_Tensor *t, long long i, long long *val);
  * @param val value to set the data to
  * @return 1 on success, or 0 if getting the data failed
  */
-int RAI_TensorGetValueAsString(RAI_Tensor *t, long long i, const char **val);
+int RAI_TensorGetValueAsCString(RAI_Tensor *t, long long i, const char **val);
 
 /**
  * sets in data_type_str the string representing the associated DLDataType

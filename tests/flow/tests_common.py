@@ -71,6 +71,10 @@ def test_common_tensorset_error_replies(env):
     check_error_message(env, con, "invalid value",
                         'AI.TENSORSET', 'z{0}', 'BOOL', 2, 'VALUES', 1, 2)
 
+    # ERR invalid string value
+    check_error_message(env, con, "C-string value contains null character",
+                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'VALUES', 'valid C-string', 'invalid\0C-string')
+
     # ERR invalid value - overflow
     check_error_message(env, con, "invalid value",
                         'AI.TENSORSET', 'z{0}', 'INT8', 2, 'VALUES', -1, -128)
