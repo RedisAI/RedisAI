@@ -98,30 +98,21 @@ DLDataType RAI_GetDLDataTypeFromTF(TF_DataType dtype) {
 
 RAI_Tensor *RAI_TensorCreateFromTFTensor(TF_Tensor *tensor, size_t batch_offset,
                                          long long batch_size) {
-    RAI_Tensor *ret = RedisModule_Calloc(1, sizeof(RAI_Tensor));
-    ret->refCount = 1;
-    // Default device is CPU (id -1 is default, means 'no index')
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
 
-    const size_t ndims = TF_NumDims(tensor);
-
+    size_t n_dims = TF_NumDims(tensor);
     int64_t total_batch_size = TF_Dim(tensor, 0);
     total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
 
-    int64_t *shape = RedisModule_Calloc(ndims, sizeof(*shape));
-    int64_t *strides = RedisModule_Calloc(ndims, sizeof(*strides));
-    for (int64_t i = 0; i < ndims; ++i) {
+    int64_t shape[n_dims];
+    for (int i = 0; i < n_dims; ++i) {
         shape[i] = TF_Dim(tensor, i);
-        strides[i] = 1;
     }
     if (batch_size != -1) {
         shape[0] = batch_size;
     } else {
         batch_size = total_batch_size;
     }
-    for (int64_t i = ndims - 2; i >= 0; --i) {
-        strides[i] *= strides[i + 1] * shape[i + 1];
-    }
+
 
     const size_t sample_bytesize = TF_TensorByteSize(tensor) / total_batch_size;
 
@@ -180,13 +171,27 @@ TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
     int n_dim = RAI_TensorNumDims(t0);
     int64_t batched_shape[n_dim];
     batched_shape[0] = batch_size;
+    size_t batched_tensor_len = batch_size;
     for (size_t i = 1; i < n_dim; i++) {
-        batched_shape[i] = RAI_TensorDim(tensors[0], i);
+        batched_shape[i] = RAI_TensorDim(tensors[0], (int)i);
+        batched_tensor_len *= batched_shape[i];
     }
 
     TF_Tensor *out = NULL;
     if (RAI_TensorDataType(t0).code == kDLString) {
-
+        out = TF_AllocateTensor(TF_STRING, batched_shape, RAI_TensorNumDims(t0),
+                                sizeof(TF_TString) * batched_tensor_len);
+        TF_TString* tf_str = (TF_TString *)TF_TensorData(out);
+        size_t element_ind = 0;
+        for (size_t i = 0; i < count; i++) {
+            RAI_Tensor *t = tensors[i];
+            uint64_t *offsets = RAI_TensorStringElementsOffsets(t);
+            for (size_t j = 0; j < RAI_TensorLength(t); j++) {
+                TF_TString_Init(&tf_str[element_ind]);
+                size_t str_len = j < RAI_TensorLength(t)-1 ? offsets[j+1]-offsets[j] : RAI_TensorByteSize(t)-offsets[j];
+                TF_TString_Copy(&tf_str[element_ind++], RAI_TensorData(t) + offsets[j], str_len);
+            }
+        }
     } else if (count > 1) {
         out = TF_AllocateTensor(RAI_GetTFDataTypeFromDL(RAI_TensorDataType(t0)), batched_shape,
                                 RAI_TensorNumDims(t0), batch_byte_size);
