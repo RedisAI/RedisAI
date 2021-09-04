@@ -510,3 +510,39 @@ class TestOnnxKillSwitch:
         backends_info = get_info_section(con, 'backends_info')
         self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
                              str(len(devices)*self.threads_per_queue))
+
+
+def test_benchmark_allocator():
+    env = Env(moduleArgs='THREADS_PER_QUEUE 8')
+    con = get_connection(env, '{1}')
+
+    model_pb = load_file_content('mnist.onnx')
+    sample_raw = load_file_content('one.raw')
+    for i in range(50):
+        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
+        env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    inception_pb = load_file_content('inception-v2-9.onnx')
+    for i in range(20):
+        ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
+        env.assertEqual(ret, b'OK')
+    _, _, _, _, img = load_mobilenet_v2_test_data()
+    ret = con.execute_command('AI.TENSORSET', 't{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    x=input()
+
+    def run_parallel_onnx_sessions(con, model, input):
+        for i in range(1000):
+            ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 1, input, 'OUTPUTS', 1, 'b{1}')
+            env.assertEqual(ret, b'OK')
+
+    def run():
+        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('mnist{1}0', 'a{1}'))
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('inception{1}0', 't{1}'))
+    t.join()
