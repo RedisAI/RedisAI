@@ -31,8 +31,8 @@ COPY ./opt/ opt/
 ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
-RUN ./opt/system-setup.py
 RUN ./opt/readies/bin/getupdates
+RUN ./opt/system-setup.py
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
