@@ -37,6 +37,7 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
 
     RAI_Tensor *t =
         RAI_TensorCreateFromBlob(dtype, (const size_t *)shape, (int)ndims, data, blob_len, &err);
+    RedisModule_Free(data);
     if (t == NULL)
         goto error;
 

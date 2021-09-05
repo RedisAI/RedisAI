@@ -315,7 +315,7 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     t = RedisAI_TensorCreate("INT8", dims, n_dims);
     int8_t expected_blob[8] = {0};
     if (t == NULL || RedisAI_TensorLength(t) != dims[0] * dims[1] ||
-        memcmp(RedisAI_TensorData(t), expected_blob, 8) != 0) {
+        memcmp(RedisAI_TensorData(t), expected_blob, 4) != 0) {
         return RedisModule_ReplyWithSimpleString(ctx, "empty tensor create test failed");
     }
     RedisAI_TensorFree(t);
@@ -327,6 +327,7 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     if (RedisAI_TensorSetData(t1, data_blob1, strlen(data_blob1)) != 0) {
         return RedisModule_ReplyWithSimpleString(ctx, "invalid string tensor data set test failed");
     }
+    RedisAI_TensorFree(t1);
     return RedisModule_ReplyWithSimpleString(ctx, "create tensor test success");
 }
 

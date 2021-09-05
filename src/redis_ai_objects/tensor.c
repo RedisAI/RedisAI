@@ -651,6 +651,7 @@ int RAI_TensorSetData(RAI_Tensor *t, const char *data, size_t len) {
         if (_RAI_TensorParseStringsBlob(data, len, RAI_TensorLength(t),
                                         RAI_TensorStringElementsOffsets(t),
                                         &err) != REDISMODULE_OK) {
+            RAI_ClearError(&err);
             return 0;
         }
         RedisModule_Free(RAI_TensorData(t));
