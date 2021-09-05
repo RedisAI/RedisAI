@@ -1,7 +1,10 @@
+import numpy as np
 import sys
 import os
 import subprocess
 import redis
+import time
+
 from includes import *
 from RLTest import Env
 
@@ -521,28 +524,58 @@ def test_benchmark_allocator():
     for i in range(50):
         ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
         env.assertEqual(ret, b'OK')
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+    con.execute_command('AI.TENSORSET', 'mnist_in{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
     inception_pb = load_file_content('inception-v2-9.onnx')
     for i in range(20):
         ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
         env.assertEqual(ret, b'OK')
     _, _, _, _, img = load_mobilenet_v2_test_data()
-    ret = con.execute_command('AI.TENSORSET', 't{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
+    ret = con.execute_command('AI.TENSORSET', 'inception_in{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
 
-    x=input()
+    bert_pb = load_file_content('bert-base-cased.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
+    env.assertEqual(ret, b'OK')
+    bert_in_data = np.random.randint(-2, 1, size=(10,50), dtype=np.int64)
+    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 50, 'BLOB', bert_in_data.tobytes())
+    env.assertEqual(ret, b'OK')
 
     def run_parallel_onnx_sessions(con, model, input):
-        for i in range(1000):
-            ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 1, input, 'OUTPUTS', 1, 'b{1}')
+        for i in range(100):
+            if model == 'bert{1}':
+                ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 3, input, input, input,
+                                          'OUTPUTS', 2, 'res{1}', 'res2{1}')
+            else:
+                ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 1, input, 'OUTPUTS', 1, 'res{1}')
             env.assertEqual(ret, b'OK')
 
-    def run():
-        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('mnist{1}0', 'a{1}'))
+    def run_mnist():
+        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
 
-    t = threading.Thread(target=run)
+    def run_bert():
+        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
+
+    start_time = time.time()
+    t = threading.Thread(target=run_mnist)
     t.start()
 
-    run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('inception{1}0', 't{1}'))
+    t2 = threading.Thread(target=run_bert)
+    t2.start()
+
+    run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
     t.join()
+    t2.join()
+    env.debugPrint("Total execution time is: {}".format(time.time()-start_time), force=True)
+
+
+def test_benchmark_allocator_create_session(env):
+    con = get_connection(env, '{1}')
+
+    bert_pb = load_file_content('bert-base-cased.onnx')
+    start_time = time.time()
+    for _ in range(10):
+        for i in range(10):
+            ret = con.execute_command('AI.MODELSTORE', 'bert{1}'+str(i), 'ONNX', DEVICE, 'BLOB', bert_pb)
+            env.assertEqual(ret, b'OK')
+    env.debugPrint("Total execution time is: {}".format(time.time()-start_time), force=True)
