@@ -252,9 +252,9 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
             }
         }
     } else if (batches_count > 1) {
-        ONNX_VALIDATE_STATUS(ort->CreateTensorAsOrtValue(
-            global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
-            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
+        ONNX_VALIDATE_STATUS(
+            ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
+                                        RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;

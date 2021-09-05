@@ -479,10 +479,12 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
     TF_Status *status = TF_NewStatus();
     size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
     size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
-    TF_Tensor *inputTensorsValues[ninputs];
-    TF_Output inputs[ninputs];
-    TF_Tensor *outputTensorsValues[noutputs];
+
+    TF_Input inputs[ninputs];
     TF_Output outputs[noutputs];
+
+    TF_Tensor *inputTensorsValues[ninputs];
+    TF_Tensor *outputTensorsValues[noutputs];
 
     size_t batch_sizes[nbatches];
     size_t batch_offsets[nbatches];
@@ -507,7 +509,7 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
             batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
         }
         inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
-        TF_Output port;
+        TF_Input port;
         port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetInputName(model, i));
         // this operation must exist in the graph (verified when creating the model)
         RedisModule_Assert(port.oper);
@@ -541,7 +543,8 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
             if (TF_Dim(outputTensorsValues[i], 0) != total_batch_size) {
                 TF_DeleteTensor(outputTensorsValues[i]);
                 RAI_SetError(error, RAI_EMODELRUN,
-                             "ERR Tensorflow batching error: model did not generate the expected batch size");
+                             "ERR Tensorflow batching error: model did not generate the expected "
+                             "batch size");
                 goto cleanup;
             }
 
@@ -556,7 +559,6 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
             RAI_ExecutionCtx_SetOutput(
                 ectxs[0], RAI_TensorCreateFromTFTensor(outputTensorsValues[i], 0, -1), i);
         }
-        TF_DeleteTensor(outputTensorsValues[i]);
     }
     res = REDISMODULE_OK;
 
@@ -572,6 +574,9 @@ cleanup:
             }
         }
         TF_DeleteTensor(inputTensorsValues[i]);
+    }
+    for (size_t i = 0; i < noutputs; i++) {
+        TF_DeleteTensor(outputTensorsValues[i]);
     }
     return res;
 }

@@ -307,7 +307,8 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     // Try to create a tensor with a non-supported data type.
     RAI_Tensor *t = RedisAI_TensorCreate("INVALID", dims, n_dims);
     if (t != NULL) {
-        return RedisModule_ReplyWithSimpleString(ctx, "invalid data type tensor create test failed");
+        return RedisModule_ReplyWithSimpleString(ctx,
+                                                 "invalid data type tensor create test failed");
     }
 
     // create an empty tensor and validate that in contains zeros
@@ -329,7 +330,6 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     return RedisModule_ReplyWithSimpleString(ctx, "create tensor test success");
 }
 
-
 int RAI_llapi_ConcatenateTensors(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     REDISMODULE_NOT_USED(argv);
     if (argc > 1) {
@@ -342,7 +342,7 @@ int RAI_llapi_ConcatenateTensors(RedisModuleCtx *ctx, RedisModuleString **argv, 
 
     // test concatenation of string tensors
     RAI_Tensor *t1 = RedisAI_TensorCreate("STRING", dims, n_dims);
-    const char* data_blob1 = "first\0second\0third\0forth\0";
+    const char *data_blob1 = "first\0second\0third\0forth\0";
     size_t len_data_blob1 = 25;
     if (RedisAI_TensorSetData(t1, data_blob1, len_data_blob1) != 1) {
         return RedisModule_ReplyWithSimpleString(ctx, "string tensor data set test failed");
@@ -385,7 +385,7 @@ int RAI_llapi_SliceTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
     const char *batched_data = "first\0second\0third\0forth\0A\0B\0C\0D\0E\0F\0G\0H\0";
     size_t len_data_batch1 = 25;
     size_t len_data_batch2 = 16;
-    RedisAI_TensorSetData(batched_tensor, batched_data, len_data_batch1+len_data_batch2);
+    RedisAI_TensorSetData(batched_tensor, batched_data, len_data_batch1 + len_data_batch2);
 
     // test slicing string tensors
     RAI_Tensor *t1 = RedisAI_TensorCreateBySlicingTensor(batched_tensor, 0, 1);
@@ -405,7 +405,7 @@ int RAI_llapi_SliceTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int arg
     }
     RedisAI_TensorFree(t1);
     RedisAI_TensorFree(t2);
-    return RedisModule_ReplyWithSimpleString(ctx, "slice tensors test success");
+    return RedisModule_ReplyWithSimpleString(ctx, "slice tensor test success");
 }
 
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
@@ -446,8 +446,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
     }
 
-    if (RedisModule_CreateCommand(ctx, "RAI_llapi.ConcatenateTensors", RAI_llapi_ConcatenateTensors, "", 0, 0,
-                                  0) == REDISMODULE_ERR) {
+    if (RedisModule_CreateCommand(ctx, "RAI_llapi.ConcatenateTensors", RAI_llapi_ConcatenateTensors,
+                                  "", 0, 0, 0) == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
 

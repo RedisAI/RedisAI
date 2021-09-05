@@ -161,7 +161,7 @@ def test_tensor_create(env):
     con = get_connection(env, '{1}')
     ret = con.execute_command("RAI_llapi.CreateTensor")
     env.assertEqual(ret, b'create tensor test success')
-    ret = con.execute_command("RAI_llapi.ConcatenateTensor")
+    ret = con.execute_command("RAI_llapi.ConcatenateTensors")
     env.assertEqual(ret, b'concatenate tensors test success')
     ret = con.execute_command("RAI_llapi.SliceTensor")
     env.assertEqual(ret, b'slice tensor test success')
