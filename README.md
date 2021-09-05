@@ -23,13 +23,13 @@ If you want to run examples, make sure you have [git-lfs](https://git-lfs.github
 To quickly tryout RedisAI, launch an instance using docker:
 
 ```sh
-docker run -p 6379:6379 -it --rm redislabs/redisai:edge-cpu
+docker run -p 6379:6379 -it --rm redislabs/redisai:edge-cpu-xenial
 ```
 
 For docker instance with GPU support, you can launch it from `tensorwerk/redisai-gpu`
 
 ```sh
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu-xenial
 ```
 
 But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
