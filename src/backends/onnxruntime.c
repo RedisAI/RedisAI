@@ -216,7 +216,7 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    size_t batch_size = 0;
+    int64_t batch_size = 0;
     size_t batch_byte_size = 0;
 
     for (size_t i = 0; i < batches_count; i++) {
@@ -226,7 +226,7 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
 
     RAI_Tensor *t0 = ts[0];
     const int ndim = t0->tensor.dl_tensor.ndim;
-    size_t batched_shape[ndim];
+    int64_t batched_shape[ndim];
     size_t batched_tensor_len = 1;
     for (size_t i = 1; i < ndim; i++) {
         batched_shape[i] = t0->tensor.dl_tensor.shape[i];
@@ -237,7 +237,7 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
     OrtValue *out;
     if (t0->tensor.dl_tensor.dtype.code == kDLString) {
         ONNX_VALIDATE_STATUS(ort->CreateTensorAsOrtValue(
-            global_allocator, (int64_t *)batched_shape, t0->tensor.dl_tensor.ndim,
+            global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
         size_t element_index = 0;
         for (size_t i = 0; i < batches_count; i++) {
@@ -253,7 +253,7 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **in
         }
     } else if (batches_count > 1) {
         ONNX_VALIDATE_STATUS(ort->CreateTensorAsOrtValue(
-            global_allocator, (int64_t *)batched_shape, t0->tensor.dl_tensor.ndim,
+            global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
             RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))

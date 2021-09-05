@@ -181,8 +181,8 @@ TF_Tensor *RAI_TFTensorFromTensors(RAI_Tensor **tensors, size_t count) {
     int64_t batched_shape[n_dim];
     batched_shape[0] = batch_size;
     size_t batched_tensor_len = batch_size;
-    for (size_t i = 1; i < n_dim; i++) {
-        batched_shape[i] = RAI_TensorDim(tensors[0], (int)i);
+    for (int i = 1; i < n_dim; i++) {
+        batched_shape[i] = RAI_TensorDim(t0, i);
         batched_tensor_len *= batched_shape[i];
     }
 
@@ -509,20 +509,18 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
         inputTensorsValues[i] = RAI_TFTensorFromTensors(batched_input_tensors, nbatches);
         TF_Output port;
         port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetInputName(model, i));
+        // this operation must exist in the graph (verified when creating the model)
+        RedisModule_Assert(port.oper);
         port.index = 0;
-        if (port.oper == NULL) {
-            goto cleanup;
-        }
         inputs[i] = port;
     }
 
     for (size_t i = 0; i < noutputs; ++i) {
         TF_Output port;
         port.oper = TF_GraphOperationByName(tfGraph, RAI_ModelGetOutputName(model, i));
+        // this operation must exist in the graph (verified when creating the model)
+        RedisModule_Assert(port.oper);
         port.index = 0;
-        if (port.oper == NULL) {
-            goto cleanup;
-        }
         outputs[i] = port;
     }
 
@@ -543,7 +541,7 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
             if (TF_Dim(outputTensorsValues[i], 0) != total_batch_size) {
                 TF_DeleteTensor(outputTensorsValues[i]);
                 RAI_SetError(error, RAI_EMODELRUN,
-                             "ERR Model did not generate the expected batch size");
+                             "ERR Tensorflow batching error: model did not generate the expected batch size");
                 goto cleanup;
             }
 
