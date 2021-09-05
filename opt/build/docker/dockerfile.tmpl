@@ -9,7 +9,7 @@ ARG TEST={{REDIS_TEST}}
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
 {% if gpu_build is defined %}
-FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-ubuntu{{REDIS_CUDA_UBUNTUVERSION}} AS builder
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{REDIS_CUDA_MAPVERSION}} AS builder
 {% else %}
 FROM {{REDIS_OS}} AS builder
 {% endif %}
@@ -32,9 +32,7 @@ ADD ./tests/flow/ tests/flow/
 
 RUN FORCE=1 ./opt/readies/bin/getpy3
 RUN ./opt/system-setup.py
-RUN apt-get update -qq
-RUN apt-get upgrade -yqq
-RUN rm -rf /var/cache/apt
+RUN ./opt/readies/bin/getupdates
 
 ARG DEPS_ARGS=""
 COPY ./get_deps.sh .
@@ -63,7 +61,7 @@ RUN set -e ;\
 
 #----------------------------------------------------------------------------------------------
 {% if gpu_build is defined %}
-FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-ubuntu{{REDIS_CUDA_UBUNTUVERSION}}
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-runtime-{{REDIS_CUDA_MAPVERSION}}
 {% else %}
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 {% endif %}
