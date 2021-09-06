@@ -711,7 +711,8 @@ def test_tf_string_tensors(env):
 
     # Execute tf model whose input is string tensor (with any shape), that outputs the input
     # TF will copy each string and use a designated structure (TF_TString). This structure handles
-    # for short and long strings (24 chars is the threshold)
+    # differently for short and long strings (24 chars is the threshold) - short strings are kept in an array
+    # that TF_TString holds, while long strings are allocated such that TF_TString only holds a pointer to the data.
     string_tensor_blob = b'input11\0input12\0input21\0here we want to test a string longer than 24 chars,' \
                          b' to force heap alloc in tf\0'
     con.execute_command('AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob)
