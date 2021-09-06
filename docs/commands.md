@@ -27,7 +27,7 @@ AI.TENSORSET <key> <type>
 _Arguments_
 
 * **key**: the tensor's key name
-* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8` or `UINT16`
+* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8`, `UINT16`, `BOOL` or `STRING`
 * **shape**: one or more dimensions, or the number of elements per axis, for the tensor
 * **BLOB**: indicates that data is in binary format and is provided via the subsequent `data` argument
 * **VALUES**: indicates that data is numeric and is provided by one or more subsequent `val` arguments
@@ -44,6 +44,8 @@ This will set the key 'mytensor' to the 2x2 RedisAI tensor:
 
 ```
 redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
+OK
+redis> AI.TENSORSET mytensor STRING 1 2 VALUES first second
 OK
 ```
 
