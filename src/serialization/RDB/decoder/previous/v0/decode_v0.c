@@ -17,8 +17,8 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
     dtype.code = RedisModule_LoadUnsigned(io);
     dtype.lanes = RedisModule_LoadUnsigned(io);
 
-    size_t ndims = RedisModule_LoadUnsigned(io);
-    int64_t shape[ndims];
+    int ndims = RedisModule_LoadUnsigned(io);
+    size_t shape[ndims];
     for (size_t i = 0; i < ndims; ++i) {
         shape[i] = RedisModule_LoadUnsigned(io);
     }
@@ -29,22 +29,18 @@ void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
     }
     size_t byte_offset = RedisModule_LoadUnsigned(io);
 
-    RAI_Error err = {0};
     size_t blob_len;
     char *data = RedisModule_LoadStringBuffer(io, &blob_len);
     if (RedisModule_IsIOError(io))
         goto error;
 
-    RAI_Tensor *t =
-        RAI_TensorCreateFromBlob(dtype, (const size_t *)shape, (int)ndims, data, blob_len, &err);
-    RedisModule_Free(data);
-    if (t == NULL)
-        goto error;
+    RAI_Tensor *tensor = RAI_TensorNew(dtype, shape, ndims);
+    tensor->blobSize = blob_len;
+    tensor->tensor.dl_tensor.data = data;
 
-    return t;
+    return tensor;
 
 error:
-    RAI_ClearError(&err);
     RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
     return NULL;
 }

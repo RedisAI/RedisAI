@@ -14,6 +14,12 @@ void RAI_RDBSaveTensor_v4(RedisModuleIO *io, void *value) {
 
     size_t size = RAI_TensorByteSize(tensor);
     RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
+
+    if (tensor->tensor.dl_tensor.dtype.code == kDLString) {
+        for (size_t i = 0; i < RAI_TensorLength(tensor); i++) {
+            RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.elements_length[i]);
+        }
+    }
 }
 
 void RAI_RDBSaveModel_v4(RedisModuleIO *io, void *value) {

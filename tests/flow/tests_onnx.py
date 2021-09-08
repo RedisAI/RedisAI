@@ -90,6 +90,7 @@ def test_onnx_string_tensors(env):
     env.assertEqual(tensor_values, [b'input11', b'input12', b'input21', b'input22'])
 
     if env.useSlaves:
+        ensureSlaveSynced(con, env)
         slave_con = env.getSlaveConnection()
         slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
         env.assertEqual(tensor_values, slave_tensor_values)

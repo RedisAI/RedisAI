@@ -136,8 +136,10 @@ static int _RAI_TensorParseStringsBlob(const char *tensor_blob, size_t blob_len,
         }
     }
     if (tensor_blob[blob_len - 1] != '\0' || elements_counter != tensor_len) {
-        RAI_SetError(err, RAI_ETENSORSET,
-                     "ERR Number of string elements in data blob does not match tensor length");
+        if (err) {
+            RAI_SetError(err, RAI_ETENSORSET,
+                         "ERR Number of string elements in data blob does not match tensor length");
+        }
         return REDISMODULE_ERR;
     }
     return REDISMODULE_OK;
@@ -647,11 +649,9 @@ int RAI_TensorGetValueAsCString(RAI_Tensor *t, long long i, const char **val) {
 int RAI_TensorSetData(RAI_Tensor *t, const char *data, size_t len) {
     DLDataType data_type = RAI_TensorDataType(t);
     if (data_type.code == kDLString) {
-        RAI_Error err = {0};
         if (_RAI_TensorParseStringsBlob(data, len, RAI_TensorLength(t),
                                         RAI_TensorStringElementsOffsets(t),
-                                        &err) != REDISMODULE_OK) {
-            RAI_ClearError(&err);
+                                        NULL) != REDISMODULE_OK) {
             return 0;
         }
         RedisModule_Free(RAI_TensorData(t));

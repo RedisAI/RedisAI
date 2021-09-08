@@ -322,7 +322,7 @@ class test_v4_rdb_load:
     def test_v4_tensor(self):
         key_name = "tensor{1}"
         con = get_connection(self.env, key_name)
-        tensor_rdb = b"\a\x81\x00\x8f\xd3\x10\xd4\x8eD\x04\x02\x00\x02 \x02\x02\x02\x02\x02\x01\x05\b\x01\x00\x00\x00\x02\x00\x00\x00\x00\t\x00Viy\xab4\xbe\xdd\x82"
+        tensor_rdb = b'\x07\x81\x00\x8f\xd3\x10\xd4\x8eD\x04\x02\x00\x02 \x02\x02\x02\x02\x02\x01\x05\x08\x01\x00\x00\x00\x02\x00\x00\x00\x00\t\x00Viy\xab4\xbe\xdd\x82'
         self.env.assertEqual(con.execute_command('FLUSHALL'), True)
         con.restore(key_name, 0, tensor_rdb, True)
         _, tensor_type, _, tensor_shape = con.execute_command('AI.TENSORGET', key_name, 'META')
@@ -331,7 +331,7 @@ class test_v4_rdb_load:
         self.env.assertEqual(values, [1, 2])
 
         # test RDB load of string tensor
-        str_tensor_rdb = b"\a\x81\x00\x8f\xd3\x10\xd4\x8eD\x04\x02\a\x02\b\x02\x01\x02\x02\x05\x12str_val1\x00str_val2\x00\x00\t\x00\xf9;\xe0\xd12.\x06z"
+        str_tensor_rdb = b'\x07\x81\x00\x8f\xd3\x10\xd4\x8eD\x04\x02\x07\x02\x08\x02\x01\x02\x02\x05\x12str_val1\x00str_val2\x00\x02\x00\x02\t\x00\t\x00\x8b\x05Z\x0f:\x877O'
         con.restore('string_tensor{1}', 0, str_tensor_rdb, True)
         _, tensor_type, _, tensor_shape = con.execute_command('AI.TENSORGET', 'string_tensor{1}', 'META')
         self.env.assertEqual([tensor_type, tensor_shape], [b"STRING", [2]])

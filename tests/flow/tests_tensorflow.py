@@ -726,6 +726,7 @@ def test_tf_string_tensors(env):
                                     b'here we want to test a string longer than 24 chars, to force heap alloc in tf'])
 
     if env.useSlaves:
+        ensureSlaveSynced(con, env)
         slave_con = env.getSlaveConnection()
         slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
         env.assertEqual(tensor_values, slave_tensor_values)
