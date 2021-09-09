@@ -524,7 +524,7 @@ def test_benchmark_allocator():
     inception_pb = load_file_content('inception-v2-9.onnx')
     _, _, _, _, img = load_mobilenet_v2_test_data()
     bert_pb = load_file_content('bert-base-cased.onnx')
-    bert_in_data = np.random.randint(-2, 1, size=(10,50), dtype=np.int64)
+    bert_in_data = np.random.randint(-2, 1, size=(10, 100), dtype=np.int64)
 
     for i in range(50):
         ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
@@ -539,11 +539,11 @@ def test_benchmark_allocator():
 
     ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
     env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 50, 'BLOB', bert_in_data.tobytes())
+    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 100, 'BLOB', bert_in_data.tobytes())
     env.assertEqual(ret, b'OK')
 
-    def run_parallel_onnx_sessions(con, model, input):
-        for i in range(100):
+    def run_parallel_onnx_sessions(con, model, input, num_runs):
+        for i in range(num_runs):
             if model == 'bert{1}':
                 ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 3, input, input, input,
                                           'OUTPUTS', 2, 'res{1}', 'res2{1}')
@@ -552,10 +552,10 @@ def test_benchmark_allocator():
             env.assertEqual(ret, b'OK')
 
     def run_mnist():
-        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
+        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 10000))
 
     def run_bert():
-        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
+        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 100))
 
     start_time = time.time()
     t = threading.Thread(target=run_mnist)
@@ -564,7 +564,7 @@ def test_benchmark_allocator():
     t2 = threading.Thread(target=run_bert)
     t2.start()
 
-    run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
+    run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 1000))
     t.join()
     t2.join()
     env.debugPrint("Total execution time of all models with one thread is: {}".format(time.time()-start_time), force=True)
@@ -583,22 +583,22 @@ def test_benchmark_allocator():
 
     ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
     env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 50, 'BLOB', bert_in_data.tobytes())
+    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 100, 'BLOB', bert_in_data.tobytes())
     env.assertEqual(ret, b'OK')
 
     # run only mnist with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 10000))
     env.debugPrint("Total execution time of mnist with multiple threads is: {}".format(time.time()-start_time), force=True)
 
     # run only inception with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 1000))
     env.debugPrint("Total execution time of inception with multiple threads is: {}".format(time.time()-start_time), force=True)
 
     # run only bert with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 100))
     env.debugPrint("Total execution time of bert with multiple threads is: {}".format(time.time()-start_time), force=True)
 
 
