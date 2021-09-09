@@ -516,28 +516,29 @@ class TestOnnxKillSwitch:
 
 
 def test_benchmark_allocator():
-    env = Env(moduleArgs='THREADS_PER_QUEUE 8')
+    env = Env(moduleArgs='THREADS_PER_QUEUE 1')
     con = get_connection(env, '{1}')
 
     model_pb = load_file_content('mnist.onnx')
     sample_raw = load_file_content('one.raw')
+    inception_pb = load_file_content('inception-v2-9.onnx')
+    _, _, _, _, img = load_mobilenet_v2_test_data()
+    bert_pb = load_file_content('bert-base-cased.onnx')
+    bert_in_data = np.random.randint(-2, 1, size=(10,50), dtype=np.int64)
+
     for i in range(50):
         ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
         env.assertEqual(ret, b'OK')
     con.execute_command('AI.TENSORSET', 'mnist_in{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-    inception_pb = load_file_content('inception-v2-9.onnx')
     for i in range(20):
         ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
         env.assertEqual(ret, b'OK')
-    _, _, _, _, img = load_mobilenet_v2_test_data()
     ret = con.execute_command('AI.TENSORSET', 'inception_in{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
     env.assertEqual(ret, b'OK')
 
-    bert_pb = load_file_content('bert-base-cased.onnx')
     ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
     env.assertEqual(ret, b'OK')
-    bert_in_data = np.random.randint(-2, 1, size=(10,50), dtype=np.int64)
     ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 50, 'BLOB', bert_in_data.tobytes())
     env.assertEqual(ret, b'OK')
 
@@ -551,10 +552,10 @@ def test_benchmark_allocator():
             env.assertEqual(ret, b'OK')
 
     def run_mnist():
-        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
+        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
 
     def run_bert():
-        run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
+        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
 
     start_time = time.time()
     t = threading.Thread(target=run_mnist)
@@ -563,10 +564,42 @@ def test_benchmark_allocator():
     t2 = threading.Thread(target=run_bert)
     t2.start()
 
-    run_test_multiproc(env, '{1}', 8, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
+    run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
     t.join()
     t2.join()
-    env.debugPrint("Total execution time is: {}".format(time.time()-start_time), force=True)
+    env.debugPrint("Total execution time of all models with one thread is: {}".format(time.time()-start_time), force=True)
+
+    env = Env(moduleArgs='THREADS_PER_QUEUE 4')
+    for i in range(50):
+        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
+        env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'mnist_in{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+    for i in range(20):
+        ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
+        env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'inception_in{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
+    env.assertEqual(ret, b'OK')
+    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 50, 'BLOB', bert_in_data.tobytes())
+    env.assertEqual(ret, b'OK')
+
+    # run only mnist with multiple threads
+    start_time = time.time()
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}'))
+    env.debugPrint("Total execution time of mnist with multiple threads is: {}".format(time.time()-start_time), force=True)
+
+    # run only inception with multiple threads
+    start_time = time.time()
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}'))
+    env.debugPrint("Total execution time of inception with multiple threads is: {}".format(time.time()-start_time), force=True)
+
+    # run only bert with multiple threads
+    start_time = time.time()
+    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}'))
+    env.debugPrint("Total execution time of bert with multiple threads is: {}".format(time.time()-start_time), force=True)
 
 
 def test_benchmark_allocator_create_session(env):
