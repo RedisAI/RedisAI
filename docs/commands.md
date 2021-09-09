@@ -58,7 +58,7 @@ The possible values for a tensor of type `BOOL` are `0` and `1`. The size of eve
 
 **Examples**
 
-Here are two ways of creating the following boolean tensor: $\begin{equation*} A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \\ \end{bmatrix} \end{equation*}$
+Here are two ways of creating the following boolean tensor: $\begin{equation*} A = \begin{bmatrix} 0 & 1 \\ 0 & 1 \\ \end{bmatrix} \end{equation*}$
 ```
 redis> AI.TENSORSET my_bool_tensor BOOL 2 2 VALUES 0 1 0 1
 OK
@@ -68,7 +68,7 @@ OK
 
 ###String Tensors
 String tensors are tensors in which every element is a single C-string in utf-8 format. A string element can be at any length, and it cannot contain a null-character (unless it is the last character of the string).
-In blob format, the string elements are encoded and concatenated, so that the size of string tensor blob is not a constant given the tensor's shape (unlike the rest of tensor types) 
+In blob format, string elements are encoded and concatenated, so that the size of string tensor blob is not determined given the tensor's shapes (unlike in the rest of tensor types) 
 
 **Examples**
 
