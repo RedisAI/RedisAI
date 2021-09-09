@@ -45,15 +45,40 @@ This will set the key 'mytensor' to the 2x2 RedisAI tensor:
 ```
 redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
 OK
-redis> AI.TENSORSET mytensor STRING 1 2 VALUES first second
-OK
 ```
 
 !!! note "Uninitialized Tensor Values"
-    As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor.
+    As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor (it will contain zeros at all entries).
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
     While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to specifying the values discretely.
+
+###Boolean Tensors
+The possible values for a tensor of type `BOOL` are `0` and `1`. The size of every bool element in a blob should be 1 byte.   
+
+**Examples**
+
+Here are two ways of creating the following boolean tensor: $\begin{equation*} A = \begin{bmatrix} 1 & 2 \\ 3 & 4 \\ \end{bmatrix} \end{equation*}$
+```
+redis> AI.TENSORSET my_bool_tensor BOOL 2 2 VALUES 0 1 0 1
+OK
+redis> AI.TENSORSET my_bool_tensor BOOL 2 2 BLOB "\x00\x01\x00\x01"
+OK
+```
+
+###String Tensors
+String tensors are tensors in which every element is a single C-string in utf-8 format. A string element can be at any length, and it cannot contain a null-character (unless it is the last character of the string).
+In blob format, the string elements are encoded and concatenated, so that the size of string tensor blob is not a constant given the tensor's shape (unlike the rest of tensor types) 
+
+**Examples**
+
+Here are two ways of creating the same 2X2 string tensor:
+```
+redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third forth
+OK
+redis> AI.TENSORSET my_bool_tensor STRING 2 2 BLOB "first\x00second\x00third\x00forth\x00"
+OK
+```
 
 ## AI.TENSORGET
 The **`AI.TENSORGET`** command returns a tensor stored as key's value.

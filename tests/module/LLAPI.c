@@ -320,6 +320,15 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
     }
     RedisAI_TensorFree(t);
 
+    // create an invalid bool tensor
+    t = RedisAI_TensorCreate("BOOL", dims, n_dims);
+    int8_t expected_blob[8] = {0};
+    if (t == NULL || RedisAI_TensorLength(t) != dims[0] * dims[1] ||
+        memcmp(RedisAI_TensorData(t), expected_blob, 4) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "empty tensor create test failed");
+    }
+    RedisAI_TensorFree(t);
+
     // This should fail since the blob contains only one null-terminated string, while the tensor's
     // len should be 4.
     RAI_Tensor *t1 = RedisAI_TensorCreate("STRING", dims, n_dims);

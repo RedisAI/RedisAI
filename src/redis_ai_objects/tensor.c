@@ -122,6 +122,22 @@ static int _RAI_TensorFillWithValues(int argc, RedisModuleString **argv, RAI_Ten
     return REDISMODULE_OK;
 }
 
+static int _RAI_TensorParseBooleansBlob(const char *tensor_blob, size_t blob_len, size_t tensor_len,
+                                       RAI_Error *err) {
+
+    // if we encounter a non-boolean value - return an error
+    for (size_t i = 0; i < blob_len - 1; i++) {
+        if (tensor_blob[i] != 0 && tensor_blob[i] != 1) {
+            if (err) {
+                RAI_SetError(err, RAI_ETENSORSET,
+                             "ERR BOOL tensor elements must be 0 or 1");
+            }
+            return REDISMODULE_ERR;
+        }
+    }
+    return REDISMODULE_OK;
+}
+
 // This will populate the offsets array with the start position of every string element in the blob
 static int _RAI_TensorParseStringsBlob(const char *tensor_blob, size_t blob_len, size_t tensor_len,
                                        uint64_t *offsets, RAI_Error *err) {
@@ -299,6 +315,13 @@ RAI_Tensor *RAI_TensorCreateFromBlob(DLDataType data_type, const size_t *dims, i
             RAI_SetError(err, RAI_ETENSORSET,
                          "ERR data length does not match tensor shape and type");
             return NULL;
+        }
+        if (data_type.code == kDLBool) {
+            if (_RAI_TensorParseBooleansBlob(tensor_blob, blob_len, tensor_len, err) !=
+                REDISMODULE_OK) {
+                RAI_TensorFree(new_tensor);
+                return NULL;
+            }
         }
     }
 
@@ -656,6 +679,11 @@ int RAI_TensorSetData(RAI_Tensor *t, const char *data, size_t len) {
         }
         RedisModule_Free(RAI_TensorData(t));
         t->tensor.dl_tensor.data = RedisModule_Alloc(len);
+    } else if (data_type.code == kDLBool) {
+        if (_RAI_TensorParseBooleansBlob(data, len, RAI_TensorLength(t),
+                                        NULL) != REDISMODULE_OK) {
+            return 0;
+        }
     }
     memcpy(RAI_TensorData(t), data, len);
     t->blobSize = len;
