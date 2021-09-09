@@ -123,14 +123,13 @@ static int _RAI_TensorFillWithValues(int argc, RedisModuleString **argv, RAI_Ten
 }
 
 static int _RAI_TensorParseBooleansBlob(const char *tensor_blob, size_t blob_len, size_t tensor_len,
-                                       RAI_Error *err) {
+                                        RAI_Error *err) {
 
     // if we encounter a non-boolean value - return an error
     for (size_t i = 0; i < blob_len - 1; i++) {
         if (tensor_blob[i] != 0 && tensor_blob[i] != 1) {
             if (err) {
-                RAI_SetError(err, RAI_ETENSORSET,
-                             "ERR BOOL tensor elements must be 0 or 1");
+                RAI_SetError(err, RAI_ETENSORSET, "ERR BOOL tensor elements must be 0 or 1");
             }
             return REDISMODULE_ERR;
         }
@@ -680,8 +679,7 @@ int RAI_TensorSetData(RAI_Tensor *t, const char *data, size_t len) {
         RedisModule_Free(RAI_TensorData(t));
         t->tensor.dl_tensor.data = RedisModule_Alloc(len);
     } else if (data_type.code == kDLBool) {
-        if (_RAI_TensorParseBooleansBlob(data, len, RAI_TensorLength(t),
-                                        NULL) != REDISMODULE_OK) {
+        if (_RAI_TensorParseBooleansBlob(data, len, RAI_TensorLength(t), NULL) != REDISMODULE_OK) {
             return 0;
         }
     }
