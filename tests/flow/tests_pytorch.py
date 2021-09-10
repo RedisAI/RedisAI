@@ -562,48 +562,6 @@ def test_pytorch_modelscan_scriptscan(env):
     env.assertEqual(2, len(ret[1]))
 
 
-def test_pytorch_model_rdb_save_load(env):
-    env.skipOnCluster()
-    if env.useAof or not TEST_PT:
-        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
-        return
-    if DEVICE == "GPU":
-        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    model_pb = load_file_content('pt-minimal.pt')
-
-    con = get_connection(env, '{1}')
-
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
-
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-    _, dtype_memory, _, shape_memory, _, data_memory = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
-
-    ensureSlaveSynced(con, env)
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-
-    env.stop()
-    env.start()
-    con = get_connection(env, '{1}')
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-    _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
-
-    # Assert in memory model metadata is equal to loaded model metadata
-    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
-    # Assert in memory tensor data is equal to loaded tensor data
-    env.assertTrue(dtype_memory == dtype_after_rdbload)
-    env.assertTrue(shape_memory == shape_after_rdbload)
-    env.assertTrue(data_memory == data_after_rdbload)
-
-
 def test_parallelism():
     env = Env(moduleArgs='INTRA_OP_PARALLELISM 1 INTER_OP_PARALLELISM 1')
     if not TEST_PT:

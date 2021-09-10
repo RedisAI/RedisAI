@@ -52,7 +52,7 @@ def test_onnx_modelrun_mnist(env):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
-                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OTUPUTS', 'c{1}')
+                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OUTPUTS', 'c{1}')
 
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
 
@@ -66,6 +66,63 @@ def test_onnx_modelrun_mnist(env):
         con2 = env.getSlaveConnection()
         values2 = con2.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
         env.assertEqual(values2, values)
+
+
+def test_onnx_string_tensors(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    # Execute onnx model whose input is string tensor with shape [2,2], that outputs the input
+    string_tensor_blob = b'input11\0input12\0input21\0input22\0'
+    con.execute_command('AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob)
+    ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'in_tensor{1}', 'OUTPUTS', 1, 'out_tensor{1}')
+    env.assertEqual(ret, b'OK')
+
+    _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'META', 'VALUES')
+    env.assertEqual(tensor_dtype, b'STRING')
+    env.assertEqual(tensor_dim, [2, 2])
+    env.assertEqual(tensor_values, [b'input11', b'input12', b'input21', b'input22'])
+
+    if env.useSlaves:
+        ensureSlaveSynced(con, env)
+        slave_con = env.getSlaveConnection()
+        slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
+        env.assertEqual(tensor_values, slave_tensor_values)
+
+
+def test_onnx_string_tensors_batching(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'first_batch{1}', 'STRING', 1, 2, 'VALUES', 'this is\0', 'the first batch\0')
+    con.execute_command('AI.TENSORSET', 'second_batch{1}', 'STRING', 1, 2, 'VALUES', 'that is\0', 'the second batch\0')
+
+    def run():
+        con2 = get_connection(env, '{1}')
+        con2.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'first_batch{1}', 'OUTPUTS', 1, 'first_output{1}')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'second_batch{1}', 'OUTPUTS', 1, 'second_output{1}')
+    t.join()
+
+    out_values = con.execute_command('AI.TENSORGET', 'first_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'this is', b'the first batch'])
+    out_values = con.execute_command('AI.TENSORGET', 'second_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'that is', b'the second batch'])
 
 
 def test_onnx_modelrun_batchdim_mismatch(env):
@@ -258,36 +315,6 @@ def test_onnx_modelrun_disconnect(env):
 
     ret = send_and_disconnect(('AI.MODELEXECUTE', 'linear{1}', 'INPUTS', 1, 'features{1}', 'OUTPUTS', 1, 'linear_out{1}'), con)
     env.assertEqual(ret, None)
-
-
-def test_onnx_model_rdb_save_load(env):
-    env.skipOnCluster()
-    if env.useAof or not TEST_ONNX:
-        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    linear_model = load_file_content('linear_iris.onnx')
-
-    con = get_connection(env, '{1}')
-    ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
-    env.assertEqual(ret, b'OK')
-
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-
-    ensureSlaveSynced(con, env)
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-
-    env.stop()
-    env.start()
-    con = get_connection(env, '{1}')
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(linear_model), len(model_serialized_after_rdbload))
-    # Assert in memory model binary is equal to loaded model binary
-    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
-    # Assert input model binary is equal to loaded model binary
-    env.assertTrue(linear_model == model_serialized_after_rdbload)
 
 
 def tests_onnx_info(env):

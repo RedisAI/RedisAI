@@ -90,8 +90,8 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
                                   RedisModuleString *persist_key_name, RAI_Error *err) {
 
     RedisModuleKey *key;
-    const int status =
-        RAI_OpenKey_Tensor(ctx, persist_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE, err);
+    int status =
+        RAI_TensorOpenKey(ctx, persist_key_name, &key, REDISMODULE_READ | REDISMODULE_WRITE, err);
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
@@ -101,7 +101,7 @@ static int _StoreTensorInKeySpace(RedisModuleCtx *ctx, RAI_Tensor *tensor,
         return REDISMODULE_ERR;
     }
     // Only if we got until here, tensor is saved in keyspace.
-    RedisAI_ReplicateTensorSet(ctx, persist_key_name, tensor);
+    RAI_TensorReplicate(ctx, persist_key_name, tensor);
     RedisModule_CloseKey(key);
     return REDISMODULE_OK;
 }
@@ -569,7 +569,7 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             if (t == NULL) {
                 RedisModule_ReplyWithSimpleString(ctx, "NA");
             } else {
-                ReplyWithTensor(ctx, currentOp->fmt, t);
+                RAI_TensorReply(ctx, currentOp->fmt, t);
             }
             break;
         }
