@@ -4,7 +4,7 @@ void RAI_AOFRewriteTensor(RedisModuleIO *aof, RedisModuleString *key, void *valu
     RAI_Tensor *tensor = (RAI_Tensor *)value;
 
     char dtypestr[64];
-    Tensor_DataTypeStr(RAI_TensorDataType(tensor), dtypestr);
+    RAI_TensorGetDataTypeStr(RAI_TensorDataType(tensor), dtypestr);
 
     char *data = RAI_TensorData(tensor);
     long long size = RAI_TensorByteSize(tensor);
