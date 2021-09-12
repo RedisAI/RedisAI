@@ -69,8 +69,8 @@ OK
 ```
 
 ###String Tensors
-String tensors are tensors in which every element is a single C-string in utf-8 format. A string element can be at any length, and it cannot contain a null-character (unless it is the last character of the string).
-In blob format, string elements are encoded and concatenated, so that the size of string tensor blob is not determined given the tensor's shapes (unlike in the rest of tensor types) 
+String tensors are tensors in which every element is a single C-string (null-terminated) in utf-8 format. A string element can be at any length, and it cannot contain another null-character except for the terminating one.
+A string tensor blob contains the encoded string elements concatenated, where the null character serves as a delimiter. Note that the size of string tensor blob equals to the total size of its elements, and it is not determined given the tensor's shapes (unlike in the rest of tensor types) 
 
 **Examples**
 
