@@ -45,6 +45,8 @@ This will set the key 'mytensor' to the 2x2 RedisAI tensor:
 ```
 redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
 OK
+redis> AI.TENSORSET mytensor STRING 1 2 VALUES first second
+OK
 ```
 
 !!! note "Uninitialized Tensor Values"
