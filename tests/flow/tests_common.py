@@ -119,6 +119,10 @@ def test_common_tensorset_error_replies(env):
     check_error_message(env, con, "Number of string elements in data blob does not match tensor length",
                         'AI.TENSORSET', 'z{0}', 'STRING', 2, 'BLOB', 'C-string\0followed by a non C-string')
 
+    # ERR in bool tensor blob - element is not 0/1
+    check_error_message(env, con, "BOOL tensor elements must be 0 or 1",
+                        'AI.TENSORSET', 'z{0}', 'BOOL', 2, 'BLOB', "\x02\x01")
+
 
 def test_common_tensorget(env):
     con = get_connection(env, '{0}')
