@@ -516,7 +516,7 @@ class TestOnnxKillSwitch:
 
 
 def test_benchmark_allocator():
-    env = Env(moduleArgs='THREADS_PER_QUEUE 1')
+    env = Env(env='existing-env', moduleArgs='THREADS_PER_QUEUE 1')
     con = get_connection(env, '{1}')
 
     model_pb = load_file_content('mnist.onnx')
@@ -574,7 +574,7 @@ def test_benchmark_allocator():
     total_time = mnist_info+inception_info+bert_info
     env.debugPrint("Avg server time of all models with one thread is: {}".format(float(total_time)/1000000/11100), force=True)
 
-    env = Env(moduleArgs='THREADS_PER_QUEUE 4')
+    env = Env(env='existing-env', moduleArgs='THREADS_PER_QUEUE 4')
 
     for i in range(50):
         ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
