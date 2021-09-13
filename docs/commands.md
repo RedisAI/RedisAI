@@ -69,16 +69,16 @@ OK
 ```
 
 ###String Tensors
-String tensors are tensors in which every element is a single C-string (null-terminated) in utf-8 format. A string element can be at any length, and it cannot contain another null-character except for the terminating one.
+String tensors are tensors in which every element is a single utf-8 string (may or may not be null-terminated). A string element can be at any length, and it cannot contain another null character except for the last one if it is a null-terminated string.
 A string tensor blob contains the encoded string elements concatenated, where the null character serves as a delimiter. Note that the size of string tensor blob equals to the total size of its elements, and it is not determined given the tensor's shapes (unlike in the rest of tensor types) 
 
 **Examples**
 
 Here are two ways of creating the same 2X2 string tensor:
 ```
-redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third forth
+redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third fourth
 OK
-redis> AI.TENSORSET my_bool_tensor STRING 2 2 BLOB "first\x00second\x00third\x00forth\x00"
+redis> AI.TENSORSET my_bool_tensor STRING 2 2 BLOB "first\x00second\x00third\x00fourth\x00"
 OK
 ```
 
@@ -108,51 +108,69 @@ Depending on the specified reply format:
     1. The tensor's shape as an Array consisting of an item per dimension
  * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
  * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
-* Default: **META** and **BLOB** are returned by default, in case that non of the arguments above is specified. 
+* Default: **META** and **BLOB** are returned by default, in case that none of the arguments above is specified. 
 
 
 **Examples**
 
-Given a tensor value stored at the 'mytensor' key:
+Given tensor values stored at 'my_tensor' and _my_str_tensor keys:
 
 ```
-redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
+redis> AI.TENSORSET my_tensor FLOAT 2 2 VALUES 1 2 3 4
+OK
+redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third fourth
 OK
 ```
 
-The following shows how to retrieve the tensor's metadata:
+The following shows how to retrieve the tensors' metadata:
 
 ```
-redis> AI.TENSORGET mytensor META
+redis> AI.TENSORGET my_tensor META
 1) "dtype"
 2) "FLOAT"
 3) "shape"
 4) 1) (integer) 2
    2) (integer) 2
+
+redis> AI.TENSORGET my_str_tensor META
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
 ```
 
-The following shows how to retrieve the tensor's values as an Array:
+The following shows how to retrieve the tensors' values as an Array:
 
 ```
-redis> AI.TENSORGET mytensor VALUES
+redis> AI.TENSORGET my_tensor VALUES
 1) "1"
 2) "2"
 3) "3"
 4) "4"
+
+redis> AI.TENSORGET my_str_tensor VALUES
+1) "first"
+2) "second"
+3) "third"
+4) "fourth"
 ```
 
-The following shows how to retrieve the tensor's binary data as a String:
+The following shows how to retrieve the tensors' binary data as a String:
 
 ```
-redis> AI.TENSORGET mytensor BLOB
+redis> AI.TENSORGET my_tensor BLOB
 "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+
+redis> AI.TENSORGET my_str_tensor BLOB
+"first\x00second\x00third\x00fourth\x00"
 ```
 
 
-The following shows how the combine the retrieval of the tensor's metadata, and the tensor's values as an Array:
+The following shows how the combine the retrieval of the tensors' metadata, and the tensors' values as an Array:
 
 ```
-redis> AI.TENSORGET mytensor META VALUES
+redis> AI.TENSORGET my_tensor META VALUES
 1) "dtype"
 2) "FLOAT"
 3) "shape"
@@ -163,12 +181,24 @@ redis> AI.TENSORGET mytensor META VALUES
    2) "2"
    3) "3"
    4) "4"
+
+redis> AI.TENSORGET my_str_tensor META VALUES
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "values"
+6) 1) "first"
+   2) "second"
+   3) "third"
+   4) "fourth"
 ```
 
-The following shows how the combine the retrieval of the tensor's metadata, and binary data as a String:
+The following shows how the combine the retrieval of the tensors' metadata, and binary data as a String:
 
 ```
-redis> AI.TENSORGET mytensor META BLOB
+redis> AI.TENSORGET my_tensor META BLOB
 1) "dtype"
 2) "FLOAT"
 3) "shape"
@@ -176,6 +206,15 @@ redis> AI.TENSORGET mytensor META BLOB
    2) (integer) 2
 5) "blob"
 6) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+
+redis> AI.TENSORGET my_str_tensor META BLOB
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "blob"
+6) "first\x00second\x00third\x00fourth\x00"
 ```
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
