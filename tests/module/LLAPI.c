@@ -313,10 +313,18 @@ int RAI_llapi_CreateTensor(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
 
     // create an empty tensor and validate that in contains zeros
     t = RedisAI_TensorCreate("INT8", dims, n_dims);
-    int8_t expected_blob[8] = {0};
+    int8_t expected_blob[4] = {0};
     if (t == NULL || RedisAI_TensorLength(t) != dims[0] * dims[1] ||
         memcmp(RedisAI_TensorData(t), expected_blob, 4) != 0) {
         return RedisModule_ReplyWithSimpleString(ctx, "empty tensor create test failed");
+    }
+    RedisAI_TensorFree(t);
+
+    // create an invalid bool tensor
+    t = RedisAI_TensorCreate("BOOL", dims, n_dims);
+    uint8_t data_blob[4] = {2, 0, 0, 0}; // This value is invalid for bool type
+    if (RedisAI_TensorSetData(t, (const char *)data_blob, 4) != 0) {
+        return RedisModule_ReplyWithSimpleString(ctx, "invalid bool tensor data set test failed");
     }
     RedisAI_TensorFree(t);
 
