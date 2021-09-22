@@ -1,5 +1,5 @@
 
-ARG OS=debian:buster
+ARG OS=debian:bullseye
 
 ARG FTLITE_VER=2.0.0
 

@@ -2,7 +2,7 @@
 ROOT=../../..
 
 export VERSION ?= 2.0.0
-OSNICK ?= buster
+OSNICK ?= bullseye
 
 #----------------------------------------------------------------------------------------------
 
@@ -22,8 +22,7 @@ endif
 STEM=libtensorflowlite-$(OS.publish)
 
 DOCKER_OS.bionic=ubuntu:bionic
-DOCKER_OS.stretch=debian:stretch-slim
-DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS.bullseye=debian:bullseye-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
  
 #----------------------------------------------------------------------------------------------

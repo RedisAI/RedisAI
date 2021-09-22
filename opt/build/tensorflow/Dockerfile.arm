@@ -1,7 +1,7 @@
 # BUILD redisfab/libtensorflow:${TF_VER}-cpu-${OSNICK}-${ARCH}
 
-# stretch|bionic|buster
-ARG OSNICK=buster
+# OSNICK=bullseye|centos7|centos8|xenial|bionic
+ARG OSNICK=bullseye
 
 # arm32v7|arm64v8
 ARG ARCH=arm64v8

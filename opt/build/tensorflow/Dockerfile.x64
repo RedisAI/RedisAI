@@ -1,6 +1,6 @@
 # BUILD redisfab/tensorflow:${TF_VER}-x64-${OSNICK}
 
-ARG OS=debian:buster
+ARG OS=debian:bullseye
 
 #----------------------------------------------------------------------------------------------
 # FROM insready/bazel:latest as bazel

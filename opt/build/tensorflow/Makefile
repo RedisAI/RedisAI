@@ -2,7 +2,7 @@
 ROOT=../../..
 
 VERSION ?= 1.15.0
-OSNICK ?= buster
+OSNICK ?= bullseye
 # CPU=1
 # GPU=1
 #   CUDA=version
@@ -17,9 +17,9 @@ MACH:=$(shell uname -m)
 DOCKER_OS.xenial=ubuntu:xenial
 DOCKER_OS.bionic=ubuntu:bionic
 DOCKER_OS.focal=ubuntu:focal
-DOCKER_OS.stretch=debian:stretch-slim
-DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS.bullseye=debian:bullseye-slim
 DOCKER_OS.centos7=centos:7.8.2003
+DOCKER_OS.centos8=centos:8
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
  
 #----------------------------------------------------------------------------------------------

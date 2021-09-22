@@ -1,6 +1,6 @@
 # BUILD redisfab/bazel-${ARCH}:$(BAZ_VER) 
 
-ARG OSNICK=buster
+ARG OSNICK=bullseye
 ARG ARCH=arm64v8
 
 FROM redisfab/${ARCH}-xbuild:${OSNICK}

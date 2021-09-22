@@ -1,7 +1,7 @@
 # BUILD redisfab/libtorch-cpu-${ARCH}:$(PT_VER)
 
-# stretch|bionic|buster
-ARG OSNICK=buster
+# stretch|bionic|bullseye
+ARG OSNICK=bullseye
 
 # arm32v7|arm64v8
 ARG ARCH=aarch64

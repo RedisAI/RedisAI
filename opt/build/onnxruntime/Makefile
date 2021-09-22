@@ -2,7 +2,7 @@
 ROOT=.
 
 VERSION ?= 1.7.1
-OSNICK ?= buster
+OSNICK ?= bullseye
 
 #----------------------------------------------------------------------------------------------
 
@@ -12,9 +12,9 @@ STEM=onnxruntime-linux
 
 KEEP ?= 1
 
+DOCKER_OS.focal=ubuntu:focal
 DOCKER_OS.bionic=ubuntu:bionic
-DOCKER_OS.stretch=debian:stretch-slim
-DOCKER_OS.buster=debian:buster-slim
+DOCKER_OS.bullseye=debian:bullseye-slim
 DOCKER_OS=$(DOCKER_OS.$(OSNICK))
 
 #----------------------------------------------------------------------------------------------
