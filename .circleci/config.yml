@@ -101,7 +101,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -112,7 +112,7 @@ commands:
       - save_cache:
           paths:
             - deps
-          key: v1-dependencies-{{ checksum "get_deps.sh" }}
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}-cpu
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -151,7 +151,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -176,6 +176,9 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-gpu
       - relocate-docker-storage
       - run:
           name: Build
@@ -183,6 +186,10 @@ commands:
             pip3 install --user jinja2
             pushd opt/build/docker
             make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
+      - save_cache:
+          paths:
+            - deps
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}-gpu
       - run:
           name: Test
           command: |
@@ -227,8 +234,12 @@ jobs:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
-      - setup_remote_docker
+      - setup_remote_docker:
+          docker_layer_caching: true
       - checkout-all
+      - restore_cache:
+          keys:
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - setup-automation
 
       # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
@@ -246,6 +257,10 @@ jobs:
             if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
             # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
+      - save_cache:
+          paths:
+            - deps
+          key: v1-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - persist_to_workspace:
           root: bin/
           paths:
@@ -260,7 +275,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -294,7 +309,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          - v1-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
