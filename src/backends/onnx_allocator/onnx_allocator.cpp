@@ -90,7 +90,8 @@ unsigned long long RAIOrtAllocator::MemoryInUse() const {
 }
 
 void RAIOrtAllocator::SetMemoryLimit(unsigned long long max_memory) {
-    memory_limit = max_memory;
+    // max_memory is given in MB
+    memory_limit = 1000000*max_memory;
 }
 
 RAIOrtAllocator *RAIOrtAllocator::GetInstance() {
