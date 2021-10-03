@@ -543,6 +543,8 @@ class TestOnnxKillSwitch:
 
 
 def test_benchmark_allocator():
+    return # currently disabled
+
     env = Env(moduleArgs='THREADS_PER_QUEUE 1')
     con = get_connection(env, '{1}')
 
@@ -643,14 +645,3 @@ def test_benchmark_allocator():
     print(str(con.execute_command('AI.INFO',  'bert{1}')))
     env.debugPrint("Avg server time of bert with multiple threads is: {}".format(float(bert_time)/1000000/100), force=True)
 
-
-def test_benchmark_allocator_create_session(env):
-    con = get_connection(env, '{1}')
-
-    bert_pb = load_file_content('bert-base-cased.onnx')
-    start_time = time.time()
-    for _ in range(10):
-        for i in range(10):
-            ret = con.execute_command('AI.MODELSTORE', 'bert{1}'+str(i), 'ONNX', DEVICE, 'BLOB', bert_pb)
-            env.assertEqual(ret, b'OK')
-    env.debugPrint("Total execution time is: {}".format(time.time()-start_time), force=True)
