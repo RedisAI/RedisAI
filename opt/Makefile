@@ -306,7 +306,7 @@ callgrind:
 #----------------------------------------------------------------------------------------------
 
 docker:
-	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+	${MAKE} -C $(ROOT)/opt/build/docker
 
 docker-gpu-test:
 	$(SHOW)set -e ;\
