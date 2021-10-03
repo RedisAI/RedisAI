@@ -139,8 +139,7 @@ int ScriptRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
     RedisModuleKey *key;
     size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
     for (size_t i = 0; i < ninputs; i++) {
-        const int status =
-            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
+        int status = RAI_TensorGetFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
             RedisModule_Log(ctx, "warning", "could not load input tensor %s from keyspace",
                             RedisModule_StringPtrLen(inkeys[i], NULL));

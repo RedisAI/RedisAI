@@ -1,29 +1,28 @@
-#include "encode_v3.h"
+#include "encode_v4.h"
 
-void RAI_RDBSaveTensor_v3(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveTensor_v4(RedisModuleIO *io, void *value) {
     RAI_Tensor *tensor = (RAI_Tensor *)value;
 
-    size_t ndim = tensor->tensor.dl_tensor.ndim;
-
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.device.device_type);
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.device.device_id);
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.bits);
     RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.code);
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.lanes);
-    RedisModule_SaveUnsigned(io, ndim);
-    for (size_t i = 0; i < ndim; i++) {
-        RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.shape[i]);
-    }
-    for (size_t i = 0; i < ndim; i++) {
-        RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.strides[i]);
-    }
-    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.byte_offset);
-    size_t size = RAI_TensorByteSize(tensor);
+    RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.dtype.bits);
 
+    size_t ndim = tensor->tensor.dl_tensor.ndim;
+    RedisModule_SaveSigned(io, ndim);
+    for (size_t i = 0; i < ndim; i++) {
+        RedisModule_SaveSigned(io, tensor->tensor.dl_tensor.shape[i]);
+    }
+
+    size_t size = RAI_TensorByteSize(tensor);
     RedisModule_SaveStringBuffer(io, tensor->tensor.dl_tensor.data, size);
+
+    if (tensor->tensor.dl_tensor.dtype.code == kDLString) {
+        for (size_t i = 0; i < RAI_TensorLength(tensor); i++) {
+            RedisModule_SaveUnsigned(io, tensor->tensor.dl_tensor.elements_length[i]);
+        }
+    }
 }
 
-void RAI_RDBSaveModel_v3(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveModel_v4(RedisModuleIO *io, void *value) {
     RAI_Model *model = (RAI_Model *)value;
     char *buffer = NULL;
     size_t len = 0;
@@ -69,7 +68,7 @@ void RAI_RDBSaveModel_v3(RedisModuleIO *io, void *value) {
     }
 }
 
-void RAI_RDBSaveScript_v3(RedisModuleIO *io, void *value) {
+void RAI_RDBSaveScript_v4(RedisModuleIO *io, void *value) {
     RAI_Script *script = (RAI_Script *)value;
 
     RedisModule_SaveStringBuffer(io, script->devicestr, strlen(script->devicestr) + 1);

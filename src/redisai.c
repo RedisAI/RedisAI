@@ -13,6 +13,7 @@
 #include "execution/DAG/dag_execute.h"
 #include "execution/utils.h"
 #include "execution/parsing/deprecated.h"
+#include "execution/parsing/tensor_commands_parsing.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/execution_contexts/scriptRun_ctx.h"
 #include "redis_ai_objects/model.h"
@@ -74,8 +75,7 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
 
     RedisModuleKey *key;
     RAI_Error err = {0};
-    const int status =
-        RAI_OpenKey_Tensor(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
+    int status = RAI_TensorOpenKey(ctx, argv[1], &key, REDISMODULE_READ | REDISMODULE_WRITE, &err);
     if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
@@ -83,10 +83,8 @@ int RedisAI_TensorSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     }
 
     RAI_Tensor *t = NULL;
-    const int parse_result = RAI_parseTensorSetArgs(argv, argc, &t, 1, &err);
-
-    // if the number of parsed args is negative something went wrong
-    if (parse_result < 0) {
+    int parse_result = ParseTensorSetArgs(argv, argc, &t, &err);
+    if (parse_result != REDISMODULE_OK) {
         RedisModule_CloseKey(key);
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
@@ -114,20 +112,21 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
     RAI_Tensor *t;
     RedisModuleKey *key;
     RAI_Error err = {0};
-    const int status = RAI_GetTensorFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
+    int status = RAI_TensorGetFromKeyspace(ctx, argv[1], &key, &t, REDISMODULE_READ, &err);
     if (status == REDISMODULE_ERR) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
         return REDISMODULE_ERR;
     }
-    uint fmt = ParseTensorGetArgs(&err, argv, argc);
+    uint fmt = ParseTensorGetFormat(&err, argv, argc);
+
+    // TENSOR_NONE is returned in case that args are invalid.
     if (fmt == TENSOR_NONE) {
         RedisModule_ReplyWithError(ctx, RAI_GetErrorOneLine(&err));
         RAI_ClearError(&err);
-        // This means that args are invalid.
         return REDISMODULE_ERR;
     }
-    ReplyWithTensor(ctx, fmt, t);
+    RAI_TensorReply(ctx, fmt, t);
     return REDISMODULE_OK;
 }
 
@@ -137,9 +136,6 @@ int RedisAI_TensorGet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-    RedisModule_Log(ctx, "warning",
-                    "AI.MODELSET command is deprecated and will"
-                    " not be available in future version, you can use AI.MODELSTORE instead");
     return ModelSetCommand(ctx, argv, argc);
 }
 
@@ -565,16 +561,9 @@ int RedisAI_ModelScan_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  */
 int RedisAI_ModelRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.MODELEXECUTE instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.MODELRUN command is deprecated and cannot be used in "
                  "enterprise cluster, use AI.MODELEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.MODELRUN command is deprecated and will"
-                        " not be available in future version, you can use AI.MODELEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_ModelRun_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -711,9 +700,6 @@ int RedisAI_ScriptDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv
  * AI.SCRIPTSET script_key device [TAG tag] SOURCE script_source
  */
 int RedisAI_ScriptSet_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
-    RedisModule_Log(ctx, "warning",
-                    "AI.SCRIPTSET command is deprecated and will"
-                    " not be available in future version, you can use AI.SCRIPTSTORE instead");
     return ScriptSetCommand(ctx, argv, argc);
 }
 
@@ -960,16 +946,9 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
  */
 int RedisAI_DagRun_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.DAGEXECUTE instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.DAGRUN command is deprecated and cannot be used in "
                  "enterprise cluster, use AI.DAGEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN command is deprecated and will"
-                        " not be available in future version, you can use AI.DAGEXECUTE instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -1005,16 +984,9 @@ int RedisAI_DagExecute_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
  */
 int RedisAI_DagRunRO_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     if (IsEnterprise()) {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN_RO command is deprecated and cannot be used in "
-                        "enterprise cluster, use AI.DAGEXECUTE_RO instead");
         return RedisModule_ReplyWithError(
             ctx, "ERR AI.DAGRUN_RO command is deprecated and cannot be used in "
-                 "enterprise cluster, use AI.DAGEXECUTE instead");
-    } else {
-        RedisModule_Log(ctx, "warning",
-                        "AI.DAGRUN_RO command is deprecated and will"
-                        " not be available in future version, you can use AI.DAGEXECUTE instead");
+                 "enterprise cluster, use AI.DAGEXECUTE_RO instead");
     }
     if (RedisModule_IsKeysPositionRequest(ctx)) {
         return RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(ctx, argv, argc);
@@ -1310,17 +1282,14 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
                         rlecMajorVersion, rlecMinorVersion, rlecPatchVersion, rlecBuild);
     }
 
-    if (redisMajorVersion < 5 ||
-        (redisMajorVersion == 5 && redisMinorVersion == 0 && redisPatchVersion < 7)) {
+    if (redisMajorVersion < 6) {
         RedisModule_Log(ctx, "warning",
-                        "RedisAI requires Redis version equal or greater than 5.0.7");
+                        "RedisAI requires Redis version equal or greater than 6.0.0");
         return REDISMODULE_ERR;
     }
 
-    if (redisMajorVersion >= 6) {
-        if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR)
-            return REDISMODULE_ERR;
-    }
+    if (RedisModule_RegisterInfoFunc(ctx, RAI_moduleInfoFunc) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
 
     RedisModule_Log(ctx, "notice", "RedisAI version %d, git_sha=%s", REDISAI_MODULE_VERSION,
                     REDISAI_GIT_SHA);

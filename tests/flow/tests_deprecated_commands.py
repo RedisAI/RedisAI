@@ -474,6 +474,18 @@ def test_dagrun_common_errors(env):
     check_error_message(env, con, "PERSIST cannot be specified in a read-only DAG",
                         "AI.DAGRUN_RO PERSIST 1 tensor1{1} |> AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10")
 
+    # ERR insufficient args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET")
+
+    # ERR too many args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET a{1} META BLOB extra")
+
+    # ERR insufficient args for tensor set
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORSET")
+
 
 def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):
     if (not TEST_TF or not TEST_PT):

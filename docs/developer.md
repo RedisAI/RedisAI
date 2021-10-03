@@ -132,7 +132,7 @@ docker run `pwd`:/build -it redisai:latest bash
 
 Continue to edit files on your local machine, and rebuild as needed within the docker, by running the command below, from */build* in the docker:
 
-```make -C opt```
+```make -C opt all```
 
 **Building on bare metal**
 
@@ -170,7 +170,7 @@ sudo ./opt/system-setup.py
 
 **Building**
 
-To compile RedisAI, run *make -C opt*, from the root of the repository.
+To compile RedisAI, run *make -C opt all*, from the root of the repository.
 
 ### Testing
 

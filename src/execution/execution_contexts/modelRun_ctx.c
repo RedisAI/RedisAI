@@ -61,7 +61,7 @@ int ModelRunCtx_SetParams(RedisModuleCtx *ctx, RedisModuleString **inkeys,
     size_t ninputs = array_len(inkeys), noutputs = array_len(outkeys);
     for (size_t i = 0; i < ninputs; i++) {
         const int status =
-            RAI_GetTensorFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
+            RAI_TensorGetFromKeyspace(ctx, inkeys[i], &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
             return REDISMODULE_ERR;
         }
