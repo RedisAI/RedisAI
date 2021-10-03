@@ -14,8 +14,10 @@ long long ModelChunkSize = 535822336;     //  size of chunks used to break up mo
                                           //  default is 511 * 1024 * 1024
 long long ThreadPoolSizePerQueue = 1;     //  Number of working threads for device.
 
-long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
-                                        //  before killing onnx run session.
+long long ModelExecutionTimeout = 5000;   //  The maximum time in milliseconds
+                                          //  before killing onnx run session.
+long long BackendMemoryLimit = 0;         //  The maximum amount of memory in MB
+                                          //  that backend is allowed to consume.
 
 static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                                       RedisModuleString *rsval) {
@@ -56,6 +58,11 @@ static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, cons
         if (ret == REDISMODULE_OK) {
             RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT, val);
         }
+    } else if (strcasecmp((key), "BACKEND_MEMORY_LIMIT") == 0) {
+        ret = Config_SetBackendMemoryLimit(rsval);
+        if (ret == REDISMODULE_OK) {
+            RedisModule_Log(ctx, "notice", "%s: %s", REDISAI_INFOMSG_BACKEND_MEMORY_LIMIT, val);
+        }
     } else if (strcasecmp((key), "BACKENDSPATH") == 0) {
         // already taken care of
     } else {
@@ -73,6 +80,8 @@ long long Config_GetModelChunkSize() { return ModelChunkSize; }
 long long Config_GetNumThreadsPerQueue() { return ThreadPoolSizePerQueue; }
 
 long long Config_GetModelExecutionTimeout() { return ModelExecutionTimeout; }
+
+long long Config_GetBackendMemoryLimit() { return BackendMemoryLimit; }
 
 char *Config_GetBackendsPath() { return BackendsPath; }
 
@@ -157,6 +166,16 @@ int Config_SetModelExecutionTimeout(RedisModuleString *timeout) {
         return REDISMODULE_ERR;
     }
     ModelExecutionTimeout = val;
+    return REDISMODULE_OK;
+}
+
+int Config_SetBackendMemoryLimit(RedisModuleString *memory_limit) {
+    long long val;
+    int result = RedisModule_StringToLongLong(memory_limit, &val);
+    if (result != REDISMODULE_OK || val <= 0) {
+        return REDISMODULE_ERR;
+    }
+    BackendMemoryLimit = val;
     return REDISMODULE_OK;
 }
 

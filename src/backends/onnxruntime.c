@@ -41,6 +41,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
     get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
     get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetBackendMemoryLimit", ((void **)&RedisAI_GetMemoryLimit));
     get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
@@ -315,10 +316,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // allocating buffers when creating and running models that run on CPU, and for allocations of
     // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
-        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        //global_allocator = CreateCustomAllocator(10000000000);
-        //ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
-        ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator))
+        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "RedisAI", &env))
+        global_allocator = CreateCustomAllocator(RedisAI_GetMemoryLimit());
+        ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
@@ -327,7 +327,6 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         // a model that defined to run on CPU).
         ONNX_VALIDATE_STATUS(
             ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
-        //ONNX_VALIDATE_STATUS(ort->DisableCpuMemArena(session_options))
     }
 
     // TODO: these options could be configured at the AI.CONFIG level

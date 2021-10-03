@@ -1195,6 +1195,8 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
                                      Config_GetBackendsIntraOpParallelism());
     RedisModule_InfoAddFieldLongLong(ctx, "model_execution_timeout",
                                      Config_GetModelExecutionTimeout());
+    RedisModule_InfoAddFieldLongLong(ctx, "backend_memory_limit",
+                                     Config_GetBackendMemoryLimit());
     _moduleInfo_getBackendsInfo(ctx);
 
     struct rusage self_ru, c_ru;
