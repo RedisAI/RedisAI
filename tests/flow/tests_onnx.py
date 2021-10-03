@@ -516,7 +516,7 @@ class TestOnnxKillSwitch:
 
 
 def test_benchmark_allocator():
-    env = Env(env='existing-env', moduleArgs='THREADS_PER_QUEUE 1')
+    env = Env(moduleArgs='THREADS_PER_QUEUE 1')
     con = get_connection(env, '{1}')
 
     model_pb = load_file_content('mnist.onnx')
@@ -574,7 +574,7 @@ def test_benchmark_allocator():
     total_time = mnist_info+inception_info+bert_info
     env.debugPrint("Avg server time of all models with one thread is: {}".format(float(total_time)/1000000/11100), force=True)
 
-    env = Env(env='existing-env', moduleArgs='THREADS_PER_QUEUE 4')
+    env = Env(moduleArgs='THREADS_PER_QUEUE 4')
 
     for i in range(50):
         ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
@@ -594,27 +594,27 @@ def test_benchmark_allocator():
 
     # run only mnist with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 10000))
+    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 1000))
     env.debugPrint("Total execution time of mnist with multiple threads is: {}".format(time.time()-start_time), force=True)
     mnist_time = con.execute_command('AI.INFO', 'mnist{1}0')[11]
     print(str(con.execute_command('AI.INFO', 'mnist{1}0')))
-    env.debugPrint("Avg server time of mnist with multiple threads is:{}".format(float(mnist_time)/1000000/40000), force=True)
+    env.debugPrint("Avg server time of mnist with multiple threads is:{}".format(float(mnist_time)/1000000/10000), force=True)
 
     # run only inception with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 1000))
+    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 100))
     env.debugPrint("Total execution time of inception with multiple threads is: {}".format(time.time()-start_time), force=True)
     inception_time = con.execute_command('AI.INFO', 'inception{1}0')[11]
     print(str(con.execute_command('AI.INFO', 'inception{1}0')))
-    env.debugPrint("Avg server time of inception with multiple threads is: {}".format(float(inception_time)/1000000/4000), force=True)
+    env.debugPrint("Avg server time of inception with multiple threads is: {}".format(float(inception_time)/1000000/1000), force=True)
 
     # run only bert with multiple threads
     start_time = time.time()
-    run_test_multiproc(env, '{1}', 4, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 100))
+    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 10))
     env.debugPrint("Total execution time of bert with multiple threads is: {}".format(time.time()-start_time), force=True)
     bert_time = con.execute_command('AI.INFO', 'bert{1}')[11]
     print(str(con.execute_command('AI.INFO',  'bert{1}')))
-    env.debugPrint("Avg server time of bert with multiple threads is: {}".format(float(bert_time)/1000000/400), force=True)
+    env.debugPrint("Avg server time of bert with multiple threads is: {}".format(float(bert_time)/1000000/100), force=True)
 
 
 def test_benchmark_allocator_create_session(env):
