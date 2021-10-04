@@ -4,7 +4,7 @@
 
 RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **RedisAI both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
-RedisAI is a joint effort between [Redis Labs](https://www.redislabs.com) and [Tensorwerk](https://tensorwerk.com).
+RedisAI is a joint effort between [Redis](https://www.redis.com) and [Tensorwerk](https://tensorwerk.com).
 
 ## Where Next?
   * The [Introduction](intro.md) is the recommended starting point
@@ -22,8 +22,7 @@ RedisAI is a joint effort between [Redis Labs](https://www.redislabs.com) and [T
 ## Contact Us
 If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
-  * [Forum](https://forum.redislabs.com/c/modules/redisai)
-  * [Gitter chatroom](https://gitter.im/RedisLabs/RedisAI)
+  * [Forum](https://forum.redis.com/c/modules/redisai)
   * [Repository](https://github.com/RedisAI/RedisAI/issues)
 
 ## License
