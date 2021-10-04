@@ -455,21 +455,28 @@ class TestOnnxCustomAllocator:
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
     def test_memory_limit(self):
-        self.env = Env(moduleArgs='BACKEND_MEMORY_LIMIT 10 THREADS_PER_QUEUE 4')
+        self.env = Env(moduleArgs='MODEL_EXECUTION_TIMEOUT 100000 BACKEND_MEMORY_LIMIT 1')
         self.allocator_access_counter = 0
         con = get_connection(self.env, '{1}')
 
         # Try to allocate a model whose size exceeds the memory limit
-        inception_pb = load_file_content('inception-v2-9.onnx')
+        '''inception_pb = load_file_content('inception-v2-9.onnx')
         x=input()
         check_error_message(self.env, con, "Exception during initialization: Onnxruntime memory limit exceeded,"
                                            " memory allocation failed.",
-                            'AI.MODELSTORE', 'inception{1}', 'ONNX', 'CPU', 'BLOB', inception_pb)
+                            'AI.MODELSTORE', 'inception{1}', 'ONNX', 'CPU', 'BLOB', inception_pb)'''
 
         mnist_pb = load_file_content('mnist.onnx')
-        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}', 'ONNX', 'CPU', 'BLOB', mnist_pb)
-        self.env.assertEqual(ret, b'OK')
-        x=input()
+        sample_raw = load_file_content('one.raw')
+        for i in range(30):
+            ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', 'CPU', 'BLOB', mnist_pb)
+            self.env.assertEqual(ret, b'OK')
+        con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+
+        try:
+            ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}0', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+        except Exception as e:
+            print(str(e))
 
 
 class TestOnnxKillSwitch:
