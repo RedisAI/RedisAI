@@ -455,28 +455,40 @@ class TestOnnxCustomAllocator:
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
     def test_memory_limit(self):
-        self.env = Env(moduleArgs='MODEL_EXECUTION_TIMEOUT 100000 BACKEND_MEMORY_LIMIT 1')
+        self.env = Env(moduleArgs='THREADS_PER_QUEUE 8 BACKEND_MEMORY_LIMIT 1')
         self.allocator_access_counter = 0
         con = get_connection(self.env, '{1}')
 
         # Try to allocate a model whose size exceeds the memory limit
-        '''inception_pb = load_file_content('inception-v2-9.onnx')
-        x=input()
+        inception_pb = load_file_content('inception-v2-9.onnx')
         check_error_message(self.env, con, "Exception during initialization: Onnxruntime memory limit exceeded,"
                                            " memory allocation failed.",
-                            'AI.MODELSTORE', 'inception{1}', 'ONNX', 'CPU', 'BLOB', inception_pb)'''
+                            'AI.MODELSTORE', 'inception{1}', 'ONNX', 'CPU', 'BLOB', inception_pb)
 
         mnist_pb = load_file_content('mnist.onnx')
         sample_raw = load_file_content('one.raw')
-        for i in range(30):
-            ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', 'CPU', 'BLOB', mnist_pb)
+
+        # Create 25 different sessions of mnist model, the size of each session in onnx is ~31KB, overall ~770KB
+        for i in range(25):
+            ret = con.execute_command('AI.MODELSTORE', 'mnist_'+str(i)+'{1}', 'ONNX', 'CPU', 'BLOB', mnist_pb)
             self.env.assertEqual(ret, b'OK')
         con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-        try:
-            ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}0', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-        except Exception as e:
-            print(str(e))
+        # As onnx memory consumption is about 0.77MB at this point, and executing mnist session requires an additional
+        # 500KB of memory, we are expected to exceed the memory limit here in a specific operation (the largest one).
+        check_error_message(self.env, con, "Non-zero status code returned while running Conv node."
+                                           " Name:'Convolution110' Status Message:"
+                                           " Onnxruntime memory limit exceeded, memory allocation failed.",
+                            'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+
+        def run_parallel_onnx_sessions(con):
+            check_error_message(self.env, con, "Onnxruntime memory limit exceeded, memory allocation failed.",
+                                'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}',
+                                error_msg_is_substr=True)
+
+        # We run sessions in parallel, all of them should fail. Note that here, we don't know for sure
+        # in which operation the execution would reach the memory limit, as the allocator is shared between the sessions
+        run_test_multiproc(self.env, '{1}', 50, run_parallel_onnx_sessions)
 
 
 class TestOnnxKillSwitch:

@@ -1,5 +1,4 @@
 #define REDISMODULE_MAIN
-#include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
 #include <backends/onnx_timeout.h>

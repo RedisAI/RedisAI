@@ -51,6 +51,7 @@ void* RAIOrtAllocator::Alloc(size_t size) {
     // that onnx made to the allocator.
     size_t cur_memory = memory_inuse.load();
     if (memory_limit && cur_memory + allocated_size > memory_limit) {
+        RedisModule_Free(allocated_address);
         throw Ort::Exception("Onnxruntime memory limit exceeded, memory allocation failed.", ORT_RUNTIME_EXCEPTION);
     }
     memory_inuse.fetch_add(allocated_size);
