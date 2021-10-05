@@ -1,9 +1,9 @@
 #----------------------------------------------------------------------------------------------
 {% if REDIS_ARCH == 'x64' %}
 {% if REDIS_GPU is defined %}
-FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu16.04
 {% else %}
-FROM ubuntu:bionic
+FROM ubuntu:xenial
 {% endif %}
 
 {% elif REDIS_ARCH == 'jetson' %}
@@ -30,7 +30,7 @@ ARG BUILDARGS
 ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
 RUN git clone --single-branch --branch v${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
 WORKDIR /build/onnxruntime
-RUN git fetch --recurse-submodules -j4
+RUN git fetch --recurse-submodules
 RUN ./build.sh --config ${BUILDTYPE} ${BUILDARGS} --update --build --build_shared_lib --parallel
 
 # package
