@@ -1,0 +1,9 @@
+{% set cmake_version = "3.19.7" %}
+RUN wget -q https://github.com/Kitware/CMake/releases/download/v{{cmake_version}}/cmake-{{cmake_version}}-Linux-{{REDIS_CMAKE_ARCH}}.tar.gz -O /tmp/cmake.tgz
+
+WORKDIR /tmp
+RUN tar -zxpf /tmp/cmake.tgz
+RUN mv /tmp/cmake*/bin/* /usr/bin
+RUN mv /tmp/cmake-*/share/cmake* /usr/share/
+
+

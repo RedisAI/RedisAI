@@ -1,0 +1,39 @@
+#----------------------------------------------------------------------------------------------
+{% if REDIS_ARCH == 'x64' %}
+{% if REDIS_GPU is defined %}
+FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu18.04
+{% else %}
+FROM ubuntu:bionic
+{% endif %}
+
+{% elif REDIS_ARCH == 'jetson' %}
+FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
+{% endif %}
+
+ARG ONNXRUNTIME_REPO={{REDIS_ONNX_REPO}}
+ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
+
+{% include 'apt.yml' %}
+
+{% include 'cmake.yml' %}
+
+# build
+WORKDIR /build
+{% if REDIS_GPU is defined %}
+ARG BUILDTYPE=MinSizeRel
+ARG BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda"
+{% else %}
+ARG BUILDTYPE=Release
+ARG BUILDARGS
+{% endif %}
+
+ARG BUILDARGS="--config ${BUILDTYPE} --parallel"
+RUN git clone --single-branch --branch v${ONNXRUNTIME_VER} ${ONNXRUNTIME_REPO} onnxruntime
+WORKDIR /build/onnxruntime
+RUN git fetch --recurse-submodules -j4
+RUN ./build.sh --config ${BUILDTYPE} ${BUILDARGS} --update --build --build_shared_lib --parallel
+
+# package
+ADD ./pack.sh /build
+WORKDIR /build
+RUN ./pack.sh {{REDIS_ONNX_VERSION}} {{REDIS_ARCH}} ${BUILDTYPE} linux {% if REDIS_GPU is defined %} gpu {% endif %}

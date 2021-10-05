@@ -1,0 +1,47 @@
+# default is x64
+ARCH=$(shell ${READIES}/bin/platform --arch)
+OS=$(shell ${READIES}/bin/platform --os)
+REDIS_CMAKE_ARCH=x86_64
+
+# jetson
+ifeq ($(shell test -e /usr/share/doc/nvidia-l4t-jetson-io && echo -n yes),yes)
+ARCH=jetson
+REDIS_CMAKE_ARCH=aarch64
+GPU=1
+endif
+export REDIS_CMAKE_ARCH
+
+# override if necessary in top-level make files
+DEFAULT_DOCKER_TAG=${DOCKER_ORG}/${PRODUCT}:build
+CIDFILE=${PRODUCT}.${ARCH}.cid
+
+ifeq ($(GPU),1)
+REDIS_GPU=1
+VARIANT=gpu
+CIDFILE=${PRODUCT}.${ARCH}.gpu.cid  # this way we can build from the same tree across platforms
+export REDIS_GPU
+endif
+
+ifeq ($(VARIANT),)
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VERSION}.tgz
+else
+BACKEND_NAME=${PRODUCT}-${OS}-${ARCH}-${VARIANT}-${VERSION}.tgz
+endif
+
+S3_URL=redismodules/${PRODUCT}
+
+build:
+	@rm -f ${BACKEND_NAME} *.cid
+	REDIS_ARCH=${ARCH} \
+	${READIES}/bin/dockerwrapper \
+		-d ${CURDIR}/Dockerfile${DOCKER_SUFFIX} \
+		-t ${DEFAULT_DOCKER_TAG} \
+        -S ../dockerparts \
+		-e REDIS \
+		-D "${DOCKER_OPTS}" \
+		${DOCKER_ARGS}
+	docker create --cidfile ${CIDFILE} ${DEFAULT_DOCKER_TAG}
+	docker cp `cat ${CIDFILE}`:/build/${BACKEND_NAME} .
+
+publish:
+	@aws s3 cp ${BACKEND_NAME} s3://$(S3_URL)/ --acl public-read
