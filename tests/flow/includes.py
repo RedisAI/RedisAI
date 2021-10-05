@@ -225,7 +225,7 @@ def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False
         env.assertEqual(type(exception), redis.exceptions.ResponseError)
         if error_msg_is_substr:
             # We only verify that the given error_msg is a substring of the entire error message.
-            env.assertTrue(str(exception).find(error_msg) > 0)
+            env.assertTrue(str(exception).find(error_msg) >= 0)
         else:
             env.assertEqual(error_msg, str(exception))
 

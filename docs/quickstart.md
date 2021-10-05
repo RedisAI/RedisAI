@@ -50,7 +50,7 @@ Use the following script to download and build the libraries of the various Redi
 bash get_deps.sh
 ```
 
-Alternatively, you can run the following to fetch the backends with gpu support.
+Alternatively, you can run the following to fetch the backends with GPU support.
 
 ```sh
 bash get_deps.sh gpu
@@ -60,7 +60,13 @@ bash get_deps.sh gpu
 Once the dependencies have been built, you can build the RedisAI module with:
 
 ```sh
-make -C opt build
+make -C opt
+```
+
+Alternatively, run the following to build RedisAI with GPU support:
+
+```sh
+make -C opt GPU=1
 ```
 
 ## Loading the Module
