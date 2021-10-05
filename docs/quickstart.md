@@ -70,7 +70,7 @@ make -C opt GPU=1
 ```
 
 ## Loading the Module
-To load the module on the same server it was compiled on simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.
+To load the module upon starting the Redis server, simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.
 
 For example, to load the module from the project's path with a server command line switch use the following:
 
