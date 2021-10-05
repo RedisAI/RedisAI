@@ -7,6 +7,7 @@ export REDIS_ONNX_REPO
 PRODUCT=onnxruntime
 DOCKER_ORG=redislabs
 VERSION=${REDIS_ONNX_VERSION}
+OSNICK=xenial
 
 ROOT=.
 

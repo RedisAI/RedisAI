@@ -33,6 +33,7 @@ S3_URL=redismodules/${PRODUCT}
 build:
 	@rm -f ${BACKEND_NAME} *.cid
 	REDIS_ARCH=${ARCH} \
+	REDIS_OSNICK=${OSNICK} \
 	${READIES}/bin/dockerwrapper \
 		-d ${CURDIR}/Dockerfile${DOCKER_SUFFIX} \
 		-t ${DEFAULT_DOCKER_TAG} \
