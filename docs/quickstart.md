@@ -4,17 +4,17 @@ RedisAI is a Redis module. To run it you'll need a Redis server (v5.0.7 or great
 The following sections describe how to get started with RedisAI.
 
 ## Docker
-The quickest way to try RedisAI is by launching its official Docker container images:
+The quickest way to try RedisAI is by launching its official Docker container images.
 
 ### On a CPU only machine
 ```
-docker run -p 6379:6379 redislabs/redisai:edge-cpu
+docker run -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
 ```
 
 ### On a GPU machine
 
 ```
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu-x64-bionic
 ```
 
 ## Download
@@ -27,7 +27,7 @@ You can compile and build the module from its source code. The [Developer](devel
 ### Prerequisites
 * Packages: git, python3, make, wget, g++/clang, & unzip 
 * CMake 3.0 or higher needs to be installed.
-* CUDA needs to be installed for GPU support.
+* CUDA needs to be installed if GPU support is required.
 * Redis v5.0.7 or greater.
 
 ### Get the Source Code
@@ -44,16 +44,16 @@ cd RedisAI
 ```
 
 ### Building the Dependencies
-Use the following script to download and build the libraries of the various RedisAI backends (TensorFlow, PyTorch, ONNXRuntime) for your platform with GPU support:
+Use the following script to download and build the libraries of the various RedisAI backends (TensorFlow, PyTorch, ONNXRuntime) for CPU only:
 
 ```sh
 bash get_deps.sh
 ```
 
-Alternatively, you can run the following to fetch the CPU-only backends.
+Alternatively, you can run the following to fetch the backends with gpu support.
 
 ```sh
-bash get_deps.sh cpu
+bash get_deps.sh gpu
 ```
 
 ### Building the Module
@@ -64,7 +64,7 @@ make -C opt build
 ```
 
 ## Loading the Module
-To load the module on the same server is was compiled on simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.
+To load the module on the same server it was compiled on simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.
 
 For example, to load the module from the project's path with a server command line switch use the following:
 
