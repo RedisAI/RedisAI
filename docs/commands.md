@@ -1143,7 +1143,7 @@ The **AI.CONFIG** command sets the value of configuration directives at run-time
 
 **Redis API**
 ```
-AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>>
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>>
 ```
 
 _Arguments_
