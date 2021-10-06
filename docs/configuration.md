@@ -114,6 +114,34 @@ redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
                INTRA_OP_PARALLELISM 1
 ```
 
+### BACKEND_MEMORY_LIMIT
+_Supported for ONNXRuntime backend only!_
+
+The **BACKEND_MEMORY_LIMIT** configuration option sets the maximum amount of memory in MB that a backend can consume for creating and running inference sessions. By default, 0 means that there will be no memory limit enforcement.
+
+_Expected Value_
+
+An Integer greater or equal than zero.
+
+_Default Value_
+
+0
+
+_Runtime Configurability_
+
+Not supported.
+
+**Examples**
+
+To set the backend memory limit to 50MB, when loading the module from command line use the following:
+
+```sh
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               BACKEND_MEMORY_LIMIT 50
+```
+
+
+
 ### TF, TFLITE, TORCH and ONNX
 The **TF**, **TFLITE**, **TORCH** and **ONNX** configuration options load the TensorFlow, TensorFlow Lite, PyTorch and ONNXRuntime backend libraries, respectively.
 
