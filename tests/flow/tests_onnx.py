@@ -374,7 +374,7 @@ class TestOnnxCustomAllocator:
             return
         self.allocator_access_counter = 0
 
-    def test_cpu_allocator(self):
+    def test_1_cpu_allocator(self):
         con = get_connection(self.env, '{1}')
         model_pb = load_file_content('mul_1.onnx')
 
@@ -412,7 +412,7 @@ class TestOnnxCustomAllocator:
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), 0)
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-    def test_with_gpu(self):
+    def test_2_with_gpu(self):
         if DEVICE == 'CPU':
             self.env.debugPrint("skipping {} since this test if for GPU only".format(sys._getframe().f_code.co_name), force=True)
             return
@@ -454,7 +454,7 @@ class TestOnnxCustomAllocator:
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), 0)
         self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-    def test_memory_limit(self):
+    def test_3_memory_limit(self):
         self.env = Env(moduleArgs='THREADS_PER_QUEUE 8 BACKEND_MEMORY_LIMIT 1')
         self.allocator_access_counter = 0
         con = get_connection(self.env, '{1}')
