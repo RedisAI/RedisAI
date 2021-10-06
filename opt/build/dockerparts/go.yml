@@ -1,0 +1,9 @@
+{% if REDIS_ARCH == 'x64' %}
+{% set archsuffix = 'amd64' %}
+{% elif REDIS_ARCH == 'jetson' %}
+{% set archsuffix = 'arm64' %}
+{% endif %}
+
+RUN wget -q https://golang.org/dl/go1.16.5.linux-{{archsuffix}}.tar.gz -O /tmp/go.tar.gz
+RUN tar -C /usr/local -zxf /tmp/go.tar.gz
+
