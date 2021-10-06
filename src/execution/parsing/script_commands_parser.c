@@ -171,16 +171,15 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
     }
 
     while (argpos < argc) {
-        const char *arg_string = RedisModule_StringPtrLen(argv[argpos], NULL);
+        const char *arg_string = RedisModule_StringPtrLen(argv[argpos++], NULL);
         // Parse timeout arg if given and store it in timeout.
         if (!strcasecmp(arg_string, "TIMEOUT")) {
-            argpos++;
             if (argpos >= argc) {
                 RAI_SetError(error, RAI_ESCRIPTRUN,
                              "ERR No value provided for TIMEOUT in AI.SCRIPTEXECUTE");
                 return REDISMODULE_ERR;
             }
-            if (ParseTimeout(argv[argpos], error, timeout) == REDISMODULE_ERR)
+            if (ParseTimeout(argv[argpos++], error, timeout) == REDISMODULE_ERR)
                 return REDISMODULE_ERR;
             // No other arguments expected after timeout.
             break;
@@ -192,7 +191,6 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
                              "ERR Already Encountered KEYS scope in AI.SCRIPTEXECUTE command");
                 return REDISMODULE_ERR;
             }
-            argpos++;
             keysDone = true;
             if (_ScriptExecuteCommand_ParseKeys(ctx, argv, argc, &argpos, error, sctx) ==
                 REDISMODULE_ERR) {
@@ -207,7 +205,6 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
                              "ERR Already Encountered ARGS scope in AI.SCRIPTEXECUTE command");
                 return REDISMODULE_ERR;
             }
-            argpos++;
             argsDone = true;
             if (_ScriptExecuteCommand_ParseArgs(ctx, argv, argc, &argpos, error, sctx) ==
                 REDISMODULE_ERR) {
@@ -223,7 +220,6 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
                              "ERR Already Encountered INPUTS scope in AI.SCRIPTEXECUTE command");
                 return REDISMODULE_ERR;
             }
-            argpos++;
             inputsDone = true;
             if (_ScriptExecuteCommand_ParseInputs(ctx, argv, argc, &argpos, error, inputs) ==
                 REDISMODULE_ERR) {
@@ -238,7 +234,6 @@ static int _ScriptExecuteCommand_ParseCommand(RedisModuleCtx *ctx, RedisModuleSt
                              "ERR Already Encountered OUTPUTS scope in AI.SCRIPTEXECUTE command");
                 return REDISMODULE_ERR;
             }
-            argpos++;
             outputsDone = true;
             if (_ScriptExecuteCommand_ParseOutputs(ctx, argv, argc, &argpos, error, outputs) ==
                 REDISMODULE_ERR) {

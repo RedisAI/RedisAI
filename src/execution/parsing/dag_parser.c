@@ -3,12 +3,12 @@
 #include "redismodule.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
-#include "redis_ai_objects/tensor.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/command_parser.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_execute.h"
 #include "execution/parsing/deprecated.h"
+#include "execution/parsing/tensor_commands_parsing.h"
 #include "execution/utils.h"
 #include "model_commands_parser.h"
 #include "script_commands_parser.h"
@@ -52,8 +52,7 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         const char *arg_string = RedisModule_StringPtrLen(key_name, &arg_len);
         RAI_Tensor *t;
         RedisModuleKey *key;
-        const int status =
-            RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
+        int status = RAI_TensorGetFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
             RedisModule_Log(ctx, "warning", "Could not LOAD tensor %s from keyspace into DAG",
                             arg_string);
@@ -172,24 +171,25 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
 
         if (!strcasecmp(arg_string, "AI.TENSORGET")) {
             currentOp->commandType = REDISAI_DAG_CMD_TENSORGET;
-            currentOp->devicestr = "CPU";
-            RAI_HoldString(currentOp->argv[1]);
-            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
-            currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
+            currentOp->fmt = ParseTensorGetFormat(rinfo->err, currentOp->argv, currentOp->argc);
             if (currentOp->fmt == TENSOR_NONE) {
                 return REDISMODULE_ERR;
             }
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             continue;
         }
         if (!strcasecmp(arg_string, "AI.TENSORSET")) {
             currentOp->commandType = REDISAI_DAG_CMD_TENSORSET;
+            if (ParseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
+                                   rinfo->err) != REDISMODULE_OK) {
+                return REDISMODULE_ERR;
+            }
             currentOp->devicestr = "CPU";
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
-                                       rinfo->err) == -1) {
-                return REDISMODULE_ERR;
-            }
+            currentOp->result = REDISMODULE_OK;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {

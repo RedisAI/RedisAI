@@ -27,7 +27,7 @@ AI.TENSORSET <key> <type>
 _Arguments_
 
 * **key**: the tensor's key name
-* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8` or `UINT16`
+* **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8`, `UINT16`, `BOOL` or `STRING`
 * **shape**: one or more dimensions, or the number of elements per axis, for the tensor
 * **BLOB**: indicates that data is in binary format and is provided via the subsequent `data` argument
 * **VALUES**: indicates that data is numeric and is provided by one or more subsequent `val` arguments
@@ -45,13 +45,42 @@ This will set the key 'mytensor' to the 2x2 RedisAI tensor:
 ```
 redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
 OK
+redis> AI.TENSORSET mytensor STRING 1 2 VALUES first second
+OK
 ```
 
 !!! note "Uninitialized Tensor Values"
-    As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor.
+    As both `BLOB` and `VALUES` are optional arguments, it is possible to use the `AI.TENSORSET` to create an uninitialized tensor (it will contain zeros at all entries).
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
     While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to specifying the values discretely.
+
+###Boolean Tensors
+The possible values for a tensor of type `BOOL` are `0` and `1`. The size of every bool element in a blob should be 1 byte.   
+
+**Examples**
+
+Here are two ways of creating the following boolean tensor: $\begin{equation*} A = \begin{bmatrix} 0 & 1 \\ 0 & 1 \\ \end{bmatrix} \end{equation*}$
+```
+redis> AI.TENSORSET my_bool_tensor BOOL 2 2 VALUES 0 1 0 1
+OK
+redis> AI.TENSORSET my_bool_tensor BOOL 2 2 BLOB "\x00\x01\x00\x01"
+OK
+```
+
+###String Tensors
+String tensors are tensors in which every element is a single utf-8 string (may or may not be null-terminated). A string element can be at any length, and it cannot contain another null character except for the last one if it is a null-terminated string.
+A string tensor blob contains the encoded string elements concatenated, where the null character serves as a delimiter. Note that the size of string tensor blob equals to the total size of its elements, and it is not determined given the tensor's shapes (unlike in the rest of tensor types) 
+
+**Examples**
+
+Here are two ways of creating the same 2X2 string tensor:
+```
+redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third fourth
+OK
+redis> AI.TENSORSET my_bool_tensor STRING 2 2 BLOB "first\x00second\x00third\x00fourth\x00"
+OK
+```
 
 ## AI.TENSORGET
 The **`AI.TENSORGET`** command returns a tensor stored as key's value.
@@ -79,51 +108,69 @@ Depending on the specified reply format:
     1. The tensor's shape as an Array consisting of an item per dimension
  * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
  * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
-* Default: **META** and **BLOB** are returned by default, in case that non of the arguments above is specified. 
+* Default: **META** and **BLOB** are returned by default, in case that none of the arguments above is specified. 
 
 
 **Examples**
 
-Given a tensor value stored at the 'mytensor' key:
+Given tensor values stored at 'my_tensor' and _my_str_tensor keys:
 
 ```
-redis> AI.TENSORSET mytensor FLOAT 2 2 VALUES 1 2 3 4
+redis> AI.TENSORSET my_tensor FLOAT 2 2 VALUES 1 2 3 4
+OK
+redis> AI.TENSORSET my_str_tensor STRING 2 2 VALUES first second third fourth
 OK
 ```
 
-The following shows how to retrieve the tensor's metadata:
+The following shows how to retrieve the tensors' metadata:
 
 ```
-redis> AI.TENSORGET mytensor META
+redis> AI.TENSORGET my_tensor META
 1) "dtype"
 2) "FLOAT"
 3) "shape"
 4) 1) (integer) 2
    2) (integer) 2
+
+redis> AI.TENSORGET my_str_tensor META
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
 ```
 
-The following shows how to retrieve the tensor's values as an Array:
+The following shows how to retrieve the tensors' values as an Array:
 
 ```
-redis> AI.TENSORGET mytensor VALUES
+redis> AI.TENSORGET my_tensor VALUES
 1) "1"
 2) "2"
 3) "3"
 4) "4"
+
+redis> AI.TENSORGET my_str_tensor VALUES
+1) "first"
+2) "second"
+3) "third"
+4) "fourth"
 ```
 
-The following shows how to retrieve the tensor's binary data as a String:
+The following shows how to retrieve the tensors' binary data as a String:
 
 ```
-redis> AI.TENSORGET mytensor BLOB
+redis> AI.TENSORGET my_tensor BLOB
 "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+
+redis> AI.TENSORGET my_str_tensor BLOB
+"first\x00second\x00third\x00fourth\x00"
 ```
 
 
-The following shows how the combine the retrieval of the tensor's metadata, and the tensor's values as an Array:
+The following shows how the combine the retrieval of the tensors' metadata, and the tensors' values as an Array:
 
 ```
-redis> AI.TENSORGET mytensor META VALUES
+redis> AI.TENSORGET my_tensor META VALUES
 1) "dtype"
 2) "FLOAT"
 3) "shape"
@@ -134,12 +181,24 @@ redis> AI.TENSORGET mytensor META VALUES
    2) "2"
    3) "3"
    4) "4"
+
+redis> AI.TENSORGET my_str_tensor META VALUES
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "values"
+6) 1) "first"
+   2) "second"
+   3) "third"
+   4) "fourth"
 ```
 
-The following shows how the combine the retrieval of the tensor's metadata, and binary data as a String:
+The following shows how the combine the retrieval of the tensors' metadata, and binary data as a String:
 
 ```
-redis> AI.TENSORGET mytensor META BLOB
+redis> AI.TENSORGET my_tensor META BLOB
 1) "dtype"
 2) "FLOAT"
 3) "shape"
@@ -147,6 +206,15 @@ redis> AI.TENSORGET mytensor META BLOB
    2) (integer) 2
 5) "blob"
 6) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
+
+redis> AI.TENSORGET my_str_tensor META BLOB
+1) "dtype"
+2) "STRING"
+3) "shape"
+4) 1) (integer) 2
+   2) (integer) 2
+5) "blob"
+6) "first\x00second\x00third\x00fourth\x00"
 ```
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
@@ -222,8 +290,8 @@ AI.MODELGET <key> [META] [BLOB]
 _Arguments
 
 * **key**: the model's key name
-* **META**: will return the model's meta information on backend, device, tag and batching parameters
-* **BLOB**: will return the model's blob containing the serialized model
+* **META**: will return only the model's meta information on backend, device, tag and batching parameters
+* **BLOB**: will return only the model's blob containing the serialized model
 
 _Return_
 
@@ -237,7 +305,7 @@ An array of alternating key-value pairs as follows:
 1. **INPUTS**: array reply with one or more names of the model's input nodes (applicable only for TensorFlow models)
 1. **OUTPUTS**: array reply with one or more names of the model's output nodes (applicable only for TensorFlow models)
 1. **MINBATCHTIMEOUT**: The time in milliseconds for which the engine will wait before executing a request to run the model, when the number of incoming requests is lower than `MINBATCHSIZE`. When `MINBATCHTIMEOUT` is 0, the engine will not run the model before it receives at least `MINBATCHSIZE` requests.
-1. **BLOB**: a blob containing the serialized model (when called with the `BLOB` argument) as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
+1. **BLOB**: a blob containing the serialized model as a String. If the size of the serialized model exceeds `MODEL_CHUNK_SIZE` (see `AI.CONFIG` command), then an array of chunks is returned. The full serialized model can be obtained by concatenating the chunks.
 
 **Examples**
 
@@ -415,7 +483,7 @@ The **`AI.SCRIPTSTORE`** command stores a [TorchScript](https://pytorch.org/docs
 **Redis API**
 
 ```
-AI.SCRIPTSTORE <key> <device> [TAG tag] ENTRY_POINTS <entry_point_amoint> <entry_point> [<entry_point>...] SOURCE "<script>"
+AI.SCRIPTSTORE <key> <device> [TAG tag] ENTRY_POINTS <entry_points_count> <entry_point> [<entry_point>...] SOURCE "<script>"
 ```
 
 _Arguments_
@@ -427,7 +495,7 @@ _Arguments_
     * **CPU**: a CPU device
     * **GPU**: a GPU device
     * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
-* **ENTRY_POINTS** A list of entry points to be used in the script. Each entry point should have the signature of `def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`. The purpose of each list is as follows:
+* **ENTRY_POINTS** A list of function names in the script to be used as entry points upon execution. Each entry point should have the signature of `def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`. The purpose of each list is as follows:
 * `tensors`: A list holding the input tensors to the function.
 * `keys`: A list of keys that the torch script is about to preform read/write operations on.
 * `args`: A list of additional arguments to the function. If the desired argument is not from type string, it is up to the caller to cast it to the right type, within the script.
@@ -510,18 +578,18 @@ AI.SCRIPTGET <key> [META] [SOURCE]
 _Arguments_
 
 * **key**: the script's key name
-* **META**: will return the script's meta information on device and tag
-* **SOURCE**: will return a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
+* **META**: will return only the script's meta information on device, tag and entry points.
+* **SOURCE**: will return only the string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
 
 An array with alternating entries that represent the following key-value pairs:
-!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag [SOURCE source]`.
+!!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag ENTRY_POINTS [entry_point ...] SOURCE source`.
 
 1. **DEVICE**: the script's device as a String
 2. **TAG**: the scripts's tag as a String
 3. **SOURCE**: the script's source code as a String
-4. **ENTRY_POINTS** will return an array containing the script entry points
+4. **ENTRY_POINTS** will return an array containing the script entry point functions
 
 **Examples**
 
@@ -570,7 +638,7 @@ OK
 
 ## AI.SCRIPTEXECUTE
 
-The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It a list of keys, input tensors and addtional script args.
+The **`AI.SCRIPTEXECUTE`** command runs a script stored as a key's value on its specified device. It receives a list of Redis keys, a list of input tensors and an additional list of arguments to be used in the script.
 
 The run request is put in a queue and is executed asynchronously by a worker thread. The client that had issued the run request is blocked until the script run is completed. When needed, tensors data is automatically copied to the device prior to execution.
 
@@ -583,25 +651,25 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 
 ```
 AI.SCRIPTEXECUTE <key> <function> 
-[KEYS n <key> [keys...]]
-[INPUTS m <input> [input ...]]
-[ARGS k <arg> [arg...]]
-[OUTPUTS k <output> [output ...] [TIMEOUT t]]+
+[KEYS <keys_count> <key> [keys...]]
+[INPUTS <input_count> <input> [input ...]]
+[ARGS <args_count> <arg> [arg...]]
+[OUTPUTS <outputs_count> <output> [output ...]]
+[TIMEOUT t]
 ```
 
 _Arguments_
 
-* **key**: the script's key name
-* **function**: the name of the function to run
-* **KEYS**: Either a squence of key names that the script will access before, during and after its execution, or a tag which all those keys share. 
-* **INPUTS**: Denotes the beginning of the input parameters list, followed by its length and one or more input tensors.
-* **ARGS**: A list additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
-
+* **key**: the script's key name.
+* **function**: the name of the entry point function to run.
+* **KEYS**: Denotes the beginning of a list of Redis key names that the script will access to during its execution, for both read and/or write operations.
+* **INPUTS**: Denotes the beginning of the input tensors list, followed by its length and one or more input tensors.
+* **ARGS**: Denotes the beginning of a list of additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 
 Note:
-Either `KEYS` or `INPUTS` scopes should be provided this command (one or both scopes are acceptable). Those scopes indicate keyspace access and such, the right shard to execute the command at. Redis will verify that all potional key accesses are done to the right shard.
+Either `KEYS` or `INPUTS` scopes should be provided this command (one or both scopes are acceptable). Those scopes indicate keyspace access and such, the right shard to execute the command at. Redis will verify that all potential key accesses are done to the right shard.
 
 _Return_
 
@@ -612,26 +680,11 @@ A simple 'OK' string, a simple `TIMEDOUT` string, or an error.
 The following is an example of running the previously-created 'myscript' on two input tensors:
 
 ```
-redis> AI.TENSORSET mytensor1 FLOAT 1 VALUES 40
-OK
-redis> AI.TENSORSET mytensor2 FLOAT 1 VALUES 2
-OK
-redis> AI.SCRIPTEXECUTE myscript addtwo KEYS 3 mytensor1 mytensor2 result INPUTS 2 mytensor1 mytensor2 OUTPUTS 1 result
-OK
-redis> AI.TENSORGET result VALUES
-1) FLOAT
-2) 1) (integer) 1
-3) 1) "42"
-```
-
-Note: The above command could be executed with a shorter version, given all the keys are tagged with the same tag:
-
-```
 redis> AI.TENSORSET mytensor1{tag} FLOAT 1 VALUES 40
 OK
 redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 2
 OK
-redis> AI.SCRIPTEXECUTE myscript{tag} addtwo KEYS 1 {tag} INPUTS 2 mytensor1{tag} mytensor2{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addtwo INPUTS 2 mytensor1{tag} mytensor2{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -652,7 +705,7 @@ redis> AI.TENSORSET mytensor2{tag} FLOAT 1 VALUES 1
 OK
 redis> AI.TENSORSET mytensor3{tag} FLOAT 1 VALUES 1
 OK
-redis> AI.SCRIPTEXECUTE myscript{tag} addn keys 1 {tag} INPUTS 3 mytensor1{tag} mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
+redis> AI.SCRIPTEXECUTE myscript{tag} addn INPUTS 3 mytensor1{tag} mytensor2{tag} mytensor3{tag} OUTPUTS 1 result{tag}
 OK
 redis> AI.TENSORGET result{tag} VALUES
 1) FLOAT
@@ -660,10 +713,10 @@ redis> AI.TENSORGET result{tag} VALUES
 3) 1) "42"
 ```
 
-Note: for the time being, as `AI.SCRIPTSET` is still avialable to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str]` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they apear.
+Note: for the time being, as `AI.SCRIPTSET` is still available to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str]` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they appear.
 
 ### Redis Commands support.
-In RedisAI TorchScript now supports simple (non-blocking) Redis commnands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
+In RedisAI TorchScript now supports simple (non-blocking) Redis commands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
 
 ```
 def redis_int_to_tensor(redis_value: int):
@@ -692,13 +745,13 @@ The command receives 3 inputs:
 Return value - the model execution output tensors (List of torch.Tensor)
 The following script creates two tensors, and executes the (tensorflow) model which is stored under the name 'tf_mul{1}' with these two tensors as inputs.
 ```
-def test_model_execute(keys:List[str]):
+def test_model_execute(tensors: List[Tensor], keys: List[str], args: List[str]):
     a = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     b = torch.tensor([[2.0, 3.0], [2.0, 3.0]])
     return redisAI.model_execute(keys[0], [a, b], 1) # assume keys[0] is the model name stored in RedisAI.
 ```
 ```
-redis> AI.SCRIPTEXECUTE redis_scripts{1} test_model_execute KEYS 1 {1} LIST_INPUTS 1 tf_mul{1} OUTPUTS 1 y{1}
+redis> AI.SCRIPTEXECUTE redis_scripts{1} test_model_execute KEYS 1 tf_mul{1} OUTPUTS 1 y{1}
 OK
 redis> AI.TENSORGET y{1} VALUES
 1) (float) 4
@@ -833,9 +886,9 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 **Redis API**
 
 ```
-AI.DAGEXECUTE [[LOAD <n> <key-1> <key-2> ... <key-n>] |
-          [PERSIST <n> <key-1> <key-2> ... <key-n>] |
-          [ROUTING <routing_tag>]]
+AI.DAGEXECUTE [LOAD <n> <key-1> <key-2> ... <key-n>]
+          [PERSIST <n> <key-1> <key-2> ... <key-n>]
+          [ROUTING <routing_tag>]
           [TIMEOUT t]
           |> <command> [|>  command ...]
 ```
@@ -844,7 +897,7 @@ _Arguments_
 
 * **LOAD**: denotes the beginning of the input tensors keys' list, followed by the number of keys, and one or more key names
 * **PERSIST**: denotes the beginning of the output tensors keys' list, followed by the number of keys, and one or more key names
-* **ROUTING**: denotes the a key name or a tag that will assist in routing the dag execution command to the right shard. Redis will verify that all potential key accesses are done to within the target shard.
+* **ROUTING**: denotes a key to be used in the DAG or a tag that will assist in routing the dag execution command to the right shard. Redis will verify that all potential key accesses are done to within the target shard.
 
 _While each of the LOAD, PERSIST and ROUTING sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
 * **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned

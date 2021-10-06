@@ -239,6 +239,8 @@ def test_pytorch_scriptset(env):
 
     ret = con.execute_command('AI.SCRIPTSET', 'ket{1}', DEVICE, 'TAG', 'asdf', 'SOURCE', script)
     env.assertEqual(ret, b'OK')
+    _, device, _, tag, _, entry_points, _, source = con.execute_command('AI.SCRIPTGET', 'ket{1}')
+    env.assertEqual([device, tag, entry_points, source], [bytes(DEVICE, "utf8"), b"asdf", [], script])
 
     ensureSlaveSynced(con, env)
 
@@ -471,6 +473,18 @@ def test_dagrun_common_errors(env):
     # ERR persist in not allowed in AI.DAGEXECUTE_RO
     check_error_message(env, con, "PERSIST cannot be specified in a read-only DAG",
                         "AI.DAGRUN_RO PERSIST 1 tensor1{1} |> AI.TENSORSET tensor1{1} FLOAT 1 2 VALUES 5 10")
+
+    # ERR insufficient args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET")
+
+    # ERR too many args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET a{1} META BLOB extra")
+
+    # ERR insufficient args for tensor set
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
+                        "AI.DAGRUN |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORSET")
 
 
 def test_dagrun_modelrun_multidevice_resnet_ensemble_alias(env):

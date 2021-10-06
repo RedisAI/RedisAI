@@ -1,4 +1,5 @@
 import redis
+import time
 
 from includes import *
 from RLTest import Env
@@ -229,6 +230,33 @@ def test_pytorch_modelinfo(env):
     env.assertEqual(info_dict_0['errors'], 0)
 
 
+def test_pytorch_scriptget(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    con.execute_command('DEL', 'EMPTY{1}')
+    # ERR no script at key from SCRIPTGET
+    check_error_message(env, con, "script key is empty", 'AI.SCRIPTGET', 'EMPTY{1}')
+
+    con.execute_command('SET', 'NOT_SCRIPT{1}', 'BAR')
+    # ERR wrong type from SCRIPTGET
+    check_error_message(env, con, "WRONGTYPE Operation against a key holding the wrong kind of value", 'AI.SCRIPTGET', 'NOT_SCRIPT{1}')
+
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSTORE', 'my_script{1}', DEVICE, 'TAG', 'my_tag',
+                              'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    # return meta + source
+    _, device, _, tag, _, entry_points, _, source = con.execute_command('AI.SCRIPTGET', 'my_script{1}')
+    env.assertEqual([device, tag, entry_points, source], [bytes(DEVICE, "utf8"), b"my_tag", [b'bar', b'bar_variadic'], script])
+    # return source only
+    source = con.execute_command('AI.SCRIPTGET', 'my_script{1}', 'SOURCE')
+    env.assertEqual(source, script)
+
+
 def test_pytorch_scriptdel(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
@@ -362,13 +390,40 @@ def test_pytorch_scriptexecute_list_input(env):
         env.assertEqual(values2, values)
 
 
-def test_pytorch_scriptinfo(env):
+def test_pytorch_scriptexecute_with_timeout(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    # env.debugPrint("skipping this tests for now", force=True)
-    # return
+    con = get_connection(env, '{$}')
+    script = load_file_content('script.txt')
+    ret = con.execute_command('AI.SCRIPTSTORE', 'my_script{$}', DEVICE,
+                              'ENTRY_POINTS', 2, 'bar', 'long_func', 'SOURCE', script)
+    env.assertEqual(ret, b'OK')
+
+    con.execute_command('AI.TENSORSET', 'a{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{$}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    def run():
+        con2 = get_connection(env, '{$}')
+        con2.execute_command('AI.SCRIPTEXECUTE', 'my_script{$}', 'long_func', 'KEYS', 1, '{$}')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    # make sure that we have a long operation that RedisAI will run upon sending the following
+    # command, to assure that timeout will occur.
+    time.sleep(0.1)
+    ret = con.execute_command('AI.SCRIPTEXECUTE', 'my_script{$}', 'bar',
+                              'INPUTS', 2, 'a{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}', 'TIMEOUT', 1)
+    env.assertEqual(ret, b'TIMEDOUT')
+    t.join()
+
+
+def test_pytorch_scriptinfo(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
 
     con = get_connection(env, '{1}')
 
@@ -505,48 +560,6 @@ def test_pytorch_modelscan_scriptscan(env):
 
     env.assertEqual(2, len(ret[0]))
     env.assertEqual(2, len(ret[1]))
-
-
-def test_pytorch_model_rdb_save_load(env):
-    env.skipOnCluster()
-    if env.useAof or not TEST_PT:
-        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
-        return
-    if DEVICE == "GPU":
-        env.debugPrint("skipping {} since it's hanging CI".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    model_pb = load_file_content('pt-minimal.pt')
-
-    con = get_connection(env, '{1}')
-
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TORCH', DEVICE, 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
-
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-    _, dtype_memory, _, shape_memory, _, data_memory = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
-
-    ensureSlaveSynced(con, env)
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-
-    env.stop()
-    env.start()
-    con = get_connection(env, '{1}')
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'm{1}', 'BLOB')
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
-    _, dtype_after_rdbload, _, shape_after_rdbload, _, data_after_rdbload = con.execute_command('AI.TENSORGET', 'c{1}', 'META', 'VALUES')
-
-    # Assert in memory model metadata is equal to loaded model metadata
-    env.assertTrue(model_serialized_memory[1:6] == model_serialized_after_rdbload[1:6])
-    # Assert in memory tensor data is equal to loaded tensor data
-    env.assertTrue(dtype_memory == dtype_after_rdbload)
-    env.assertTrue(shape_memory == shape_after_rdbload)
-    env.assertTrue(data_memory == data_after_rdbload)
 
 
 def test_parallelism():

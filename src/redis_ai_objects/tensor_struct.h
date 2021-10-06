@@ -9,4 +9,5 @@ typedef struct RAI_Tensor {
     DLManagedTensor tensor;
     size_t len;
     long long refCount;
+    size_t blobSize;
 } RAI_Tensor;

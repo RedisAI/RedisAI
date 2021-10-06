@@ -74,7 +74,8 @@ valgrind_config() {
 
 	RLTEST_ARGS+="\
 		--use-valgrind \
-		--vg-suppressions $VALGRIND_SUPRESSIONS"
+		--vg-suppressions $VALGRIND_SUPRESSIONS
+		--cluster_node_timeout 60000"
 }
 
 valgrind_summary() {

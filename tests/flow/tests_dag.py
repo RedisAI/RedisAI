@@ -401,9 +401,9 @@ def test_dagexecute_modelexecute_multidevice_resnet(env):
                             'AI.SCRIPTEXECUTE',  script_name, 'wrong_fn',
                             'INPUTS', 1, image_key,
                             'OUTPUTS', 1, temp_key1)
-    env.assertEquals(b'OK', ret[0])
-    env.assertEquals(type(ret[1]), redis.exceptions.ResponseError)
-    env.assertEquals("Function does not exist: wrong_fn",  ret[1].__str__())
+    env.assertEqual(b'OK', ret[0])
+    env.assertEqual(type(ret[1]), redis.exceptions.ResponseError)
+    env.assertEqual("Function does not exist: wrong_fn",  ret[1].__str__())
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
                         'AI.DAGEXECUTE', 'ROUTING', '{1}',
@@ -581,11 +581,11 @@ def test_dagexecute_modelexecute_multidevice_resnet_ensemble_alias(env):
                         'INPUTS', 1, temp_key1,
                         'OUTPUTS', 1, class_key_0)
 
-    env.assertEquals(b'OK', ret[0])
-    env.assertEquals(b'OK', ret[1])
-    env.assertEquals(b'OK', ret[2])
-    env.assertEquals(b'OK', ret[3])
-    env.assertEquals(b'NA', ret[5])
+    env.assertEqual(b'OK', ret[0])
+    env.assertEqual(b'OK', ret[1])
+    env.assertEqual(b'OK', ret[2])
+    env.assertEqual(b'OK', ret[3])
+    env.assertEqual(b'NA', ret[5])
     env.assertEqual(type(ret[4]), redis.exceptions.ResponseError)
     env.assertTrue("list index out of range" in  ret[4].__str__())
 
