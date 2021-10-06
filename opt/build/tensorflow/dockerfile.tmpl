@@ -1,13 +1,4 @@
-{% if REDIS_ARCH == 'x64' %}
-{% if REDIS_GPU is defined %}
-FROM nvidia/cuda:11.0-cudnn8-devel-ubuntu16.04
-{% else %}
-FROM ubuntu:xenial
-{% endif %}
-
-{% elif REDIS_ARCH == 'jetson' %}
-FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
-{% endif %}
+{% include 'base_image.tmpl' %}
 
 {% include 'apt.yml' %}
 
