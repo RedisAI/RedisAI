@@ -289,7 +289,7 @@ fi
 
 ################################################################################### ONNXRUNTIME
 
-ORT_VERSION="1.7.1"
+ORT_VERSION="1.9.0"
 
 if [[ $WITH_ORT != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $ONNXRUNTIME

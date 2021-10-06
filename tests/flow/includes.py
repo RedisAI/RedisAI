@@ -32,6 +32,10 @@ print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 MAX_TRANSACTIONS=100
 
 
+# returns the test name and line number from which a helper function within this file was called
+def get_caller_pos():
+    return "{}:{}".format(sys._getframe(2).f_code.co_name, sys._getframe(2).f_lineno)
+
 def ensureSlaveSynced(con, env, timeout_ms=0):
     if env.useSlaves:
         # When WAIT returns, all the previous write commands
@@ -43,7 +47,7 @@ def ensureSlaveSynced(con, env, timeout_ms=0):
         except Exception as ex:
             # Error in converting to int
             env.debugPring(str(ex), force=True)
-            env.assertFalse(True)
+            env.assertFalse(True, message=get_caller_pos())
             return
         env.assertEqual(number_replicas, 1)
 
@@ -220,23 +224,23 @@ def load_file_content(file_name):
 def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False):
     try:
         con.execute_command(*command)
-        env.assertFalse(True)
+        env.assertFalse(True, message=get_caller_pos())
     except Exception as exception:
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
         if error_msg_is_substr:
             # We only verify that the given error_msg is a substring of the entire error message.
-            env.assertTrue(str(exception).find(error_msg) > 0)
+            env.assertTrue(str(exception).find(error_msg) >= 0, message=get_caller_pos())
         else:
-            env.assertEqual(error_msg, str(exception))
+            env.assertEqual(error_msg, str(exception), message=get_caller_pos())
 
 
 def check_error(env, con, *command):
     try:
         con.execute_command(*command)
-        env.assertFalse(True)
+        env.assertFalse(True, message=get_caller_pos())
     except Exception as e:
         exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError)
+        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
 
 
 # Returns a dict with all the fields of a certain section from INFO MODULES command

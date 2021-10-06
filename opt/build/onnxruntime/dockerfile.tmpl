@@ -24,7 +24,7 @@ WORKDIR /build
 {% set BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda" %}
 {% else %}
 {% set BUILDTYPE="Release" %}
-{% set BUILDARGS="" %}
+{% set BUILDARGS="--cmake_extra_defines onnxruntime_DISABLE_EXTERNAL_INITIALIZERS=ON" %}
 {% endif %}
 
 ARG BUILDARGS="--config {{BUILDTYPE}} --parallel"

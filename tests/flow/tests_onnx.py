@@ -1,3 +1,4 @@
+import shutil
 import sys
 import os
 import subprocess
@@ -428,3 +429,21 @@ class TestOnnxKillSwitch:
         backends_info = get_info_section(con, 'backends_info')
         self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
                              str(len(devices)*self.threads_per_queue))
+
+
+def test_forbidden_external_initializers(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+    if DEVICE != 'CPU':
+        return
+    con = get_connection(env, '{1}')
+
+    # move the external initializer to the redis' current dir (tests/flow/logs)
+    external_initializer_model = load_file_content("model_with_external_initializers.onnx")
+    shutil.copy(ROOT+"/tests/flow/test_data/Pads.bin", ROOT+"/tests/flow/logs")
+    check_error_message(env, con, "Initializer tensors with external data is not allowed.",
+                        'AI.MODELSTORE', 'ext_initializers_model{1}', 'ONNX', DEVICE,
+                        'BLOB', external_initializer_model)
+
+    os.remove(ROOT+"/tests/flow/logs/Pads.bin")
