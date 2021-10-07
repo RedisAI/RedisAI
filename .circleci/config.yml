@@ -101,7 +101,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - v1.2-dependencies-{{ checksum "get_deps.sh" }}-cpu
+          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -112,7 +112,7 @@ commands:
       - save_cache:
           paths:
             - deps
-          key: v1.2-dependencies-{{ checksum "get_deps.sh" }}-cpu
+          key: v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -178,7 +178,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - v1.2-dependencies-{{ checksum "get_deps.sh" }}-gpu
+          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-gpu
       - relocate-docker-storage
       - run:
           name: Build
@@ -189,7 +189,7 @@ commands:
       - save_cache:
           paths:
             - deps
-          key: v1.2-dependencies-{{ checksum "get_deps.sh" }}-gpu
+          key: v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-gpu
       - run:
           name: Test
           command: |
@@ -239,7 +239,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1.2-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - setup-automation
 
       # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
@@ -260,7 +260,7 @@ jobs:
       - save_cache:
           paths:
             - deps
-          key: v1.2-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+          key: v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - persist_to_workspace:
           root: bin/
           paths:
@@ -275,7 +275,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1.2-dependencies-{{ checksum "get_deps.sh" }}-cpu
+          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -309,7 +309,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1.2-dependencies-{{ checksum "get_deps.sh" }}-cpu
+          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
