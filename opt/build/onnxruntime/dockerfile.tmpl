@@ -1,4 +1,24 @@
-{% include 'base_image.tmpl' %}
+{% if REDIS_OSNICK == "xenial" %}
+{% set cuda_suffix_os = "ubuntu16.04" %}
+{% elif REDIS_OSNICK == "bionic" %}
+{% set cuda_suffix_os = "ubuntu18.04" %}
+{% endif %}
+
+{% if REDIS_ARCH == 'jetson' %}
+FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
+{% endif %}
+
+{% if REDIS_ARCH == 'x64' %}
+{% if REDIS_GPU is defined %}
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{cuda_suffix_os}}
+{% else %}
+{% if REDIS_OSNICK == "xenial" %}
+FROM ubuntu:xenial
+{% elif REDIS_OSNICK == "bionic" %}
+FROM ubuntu:bionic
+{% endif %}
+{% endif %}
+{% endif %}
 
 ARG ONNXRUNTIME_REPO={{REDIS_ONNX_REPO}}
 ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
