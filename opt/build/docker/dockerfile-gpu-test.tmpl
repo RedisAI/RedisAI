@@ -11,7 +11,7 @@ ARG ARCH=x64
 # OS=ubuntu18.04|ubuntu16.04|centos7
 ARG OS=ubuntu18.04
 
-ARG CUDA_VER=11.0-cudnn8
+ARG CUDA_VER=11.2-cudnn8
 
 #----------------------------------------------------------------------------------------------
 FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}} AS redis
