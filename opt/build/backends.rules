@@ -1,3 +1,5 @@
+# PRODUCT var is the backend name, without any other configuration (set in each backend's corresponding makefile)
+
 # default is x64
 ARCH=$(shell ${READIES}/bin/platform --arch)
 OS=$(shell ${READIES}/bin/platform --os)
