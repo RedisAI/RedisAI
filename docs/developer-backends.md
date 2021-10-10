@@ -15,7 +15,7 @@ Buiding the backends requires installation of the following tools:
 1. docker
 1. jinja2  jinja is used to generate the platform dockerfile from a *dockerfile.tmpl* that can be found in the directory of a given backend listed below.
 
-On ubuntu bionic these can be installed by running:
+On ubuntu bionic these can be installed by running the following. Similarly, one can use and activate a virtualenv.
 
 * sudo apt install python3 python3-dev make docker
 * pip install --user jinja
@@ -31,8 +31,6 @@ On ubuntu bionic these can be installed by running:
 1. x86\_64 bit linux systems
 
 1. x86\_64 bit linux systems with a GPU
-
-1. jetson devices
 
 **Directory:** opt/build/onnxruntime
 
