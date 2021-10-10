@@ -32,7 +32,7 @@ of complexity incrementally.
 
 **redisai.c**
 
-This is the entry point of the RedisAI module, responsible for registering the new commands and types in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of RedisAI objects (Tensor, Script, Model and DAG) low level APIs to other Redis modules.
+This is the entry point of the RedisAI module, responsible for registering the new commands and types in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of RedisAI objects (Tensor, Script, Model and DAG) low-level-APIs to other Redis modules.
 
 **redisai.h**
 
@@ -58,6 +58,14 @@ The execution directory contains the following sub-directories:
 * DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and send its operation to the appropriate execution queues.
 * execution_context - contains the structure and methods for running an instance of a Model and Script in RedisAI.
 * parsing - here we can find the parsing logic execution related RedisAI commands.
+
+**config directory**
+
+Contains methods for parsing, retrieving and setting RedisAI configuration parameters (both load time and run time) and their initial values. 
+
+**serialization directory**
+
+Contains methods for serializing RedisAI types by Redis in RDB load, RDB save and AOF rewrite routines. 
 
 **backends directory**
 
