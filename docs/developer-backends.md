@@ -15,7 +15,7 @@ Buiding the backends requires installation of the following tools:
 1. docker
 1. jinja2
 
-On ubuntu bionic these can be installed by running:
+On ubuntu bionic these can be installed by running the following. Similarly, one can use and activate a virtualenv.
 
 * sudo apt install python3 python3-dev make docker
 * pip install --user jinja
