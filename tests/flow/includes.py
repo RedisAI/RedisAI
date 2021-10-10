@@ -32,9 +32,11 @@ print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 MAX_TRANSACTIONS=100
 
 
-# returns the test name and line number from which a helper function within this file was called
+# returns the test name and line number from which a helper function within this file was called.
+# For example, if an assertion fails in check_error_message function, and the caller function to check_error_message
+# is in tests_onnx.py line 25, this should return: "tests_onnx:py:25"
 def get_caller_pos():
-    return "{}:{}".format(sys._getframe(2).f_code.co_name, sys._getframe(2).f_lineno)
+    return f'{sys._getframe(2).f_code.co_filename.split("/")[-1]}:{sys._getframe(2).f_lineno}'
 
 def ensureSlaveSynced(con, env, timeout_ms=0):
     if env.useSlaves:
