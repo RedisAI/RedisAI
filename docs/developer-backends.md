@@ -4,7 +4,7 @@ This document describes how a backend for RedisAI can be built, from this reposi
 
 To follow these instructions, this repository must be cloned with all of its submodules (i.e *git clone --recursive https://github.com/RedisLabsModules/redisai*)
 
-GNU Make is used as a runner for the dockerfile generator. Python is the language used for the generator script, and jinja is the templating library used to create the docker file from the template.
+GNU Make is used as a runner for the dockerfile generator. Python is the language used for the generator script, and jinja is the templating library used to create the docker file from a template *dockerfile.tmpl* that can be found in the directory of a given backend listed below.
 
 ## Tools
 
@@ -13,7 +13,7 @@ Buiding the backends requires installation of the following tools:
 1. gnu make
 1. python (3.0 or higher)
 1. docker
-1. jinja2  jinja is used to generate the platform dockerfile from a *dockerfile.tmpl* that can be found in the directory of a given backend listed below.
+1. jinja2
 
 On ubuntu bionic these can be installed by running:
 
@@ -32,8 +32,6 @@ On ubuntu bionic these can be installed by running:
 
 1. x86\_64 bit linux systems with a GPU
 
-1. jetson devices
-
 **Directory:** opt/build/onnxruntime
 
 **Build options:**
@@ -42,7 +40,4 @@ On ubuntu bionic these can be installed by running:
 
 1. To build with GPU support on x86\_64 run *make GPU=1*
 
-1. Should you want to build multiple targets from a shared directory, run *make DOCKER_SUFFIX=<yoursuffix>* on your target system. For example, if building on an arm and x64 workload, from a shared directory run:
-    * On x86: make DOCKER\_SUFFIX=x86\_64
-
-    * On arm: make DOCKER\_SUFFIX=arm
+Note: onnxruntime library is built with DISABLE_EXTERNAL_INITIALIZERS=ON build flag. This means that loading ONNX models that use external files to store the initial (usually very large) values of the model's operations, is invalid. That is, initializers values must be part of the serialized model (which is the standard use case)  
