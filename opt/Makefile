@@ -36,7 +36,7 @@ make build      # compile and link
   PROFILE=1       # enable profiling compile flags (and debug symbols) for release type.
                   # You can consider this as build type release with debug symbols and -fno-omit-frame-pointer
   VARIANT=name    # build variant `name`
-  WHY=1           # explain CMake decisions (into /tmp/cmake.why) 
+  WHY=1           # explain CMake decisions (into /tmp/cmake.why)
 make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
@@ -77,9 +77,12 @@ device selection options (fetch, build, and test):
   GPU=1         # build for GPU
   CUDA=1        # build for GPU
   JETSON=1      # build for Nvidia Jetson
+
+enterprise variant
+  REDISAI_LITE=1        # build RedisAI LITE
 endef
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 override GPU:=$(or $(findstring $(CUDA),1),$(findstring $(GPU),1))
 
@@ -97,7 +100,7 @@ DEPS_FLAGS += CPU=1
 DEVICE=cpu
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 SRCDIR=..
 BINDIR=$(BINROOT)/src
@@ -110,7 +113,7 @@ INSTALLED_TARGET=$(INSTALL_DIR)/redisai.so
 
 BACKENDS_PATH ?= $(INSTALL_DIR)/backends
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 CMAKE_FILES += \
 	$(SRCDIR)/CMakeLists.txt \
@@ -127,6 +130,10 @@ ifeq ($(PROFILE),1)
 USE_PROFILE=on
 else
 USE_PROFILE=off
+endif
+
+ifeq ($(REDISAI_LITE),1)
+CMAKE_FLAGS += -DBUILD_REDISAI_LITE=on
 endif
 
 CMAKE_FLAGS += \
@@ -165,7 +172,7 @@ include $(MK)/defs
 
 include $(MK)/rules
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 #prebuild:
 #	$(SHOW)if [ ! -d $(DEPS_DIR) ]; then echo $$'Dependencies are not in place.\nPlease run \'make fetch\'.'; exit 1; fi
@@ -190,7 +197,7 @@ else
 	-$(SHOW)$(MAKE) -C $(BINDIR) clean
 endif
 
-#---------------------------------------------------------------------------------------------- 
+#----------------------------------------------------------------------------------------------
 
 setup:
 	@echo Setting up system...
@@ -222,15 +229,17 @@ endif
 pack: $(INSTALLED_TARGET)
 	$(SHOW)find $(INSTALL_DIR) -name "*.so" -exec chmod +x {} \;
 	$(SHOW)mkdir -p $(ROOT)/bin/artifacts
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) ./pack.sh
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
+ifneq ($(REDISAI_LITE), 1)
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) ./pack.sh
+else
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=light ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
+endif
 
 #----------------------------------------------------------------------------------------------
 
 export GEN ?= 1
 export SLAVES ?= 1
-export AOF ?= 1
 export CLUSTER ?= 1
 
 define UNIT_TESTS
@@ -246,9 +255,9 @@ $(SHOW)\
 DEVICE=$(DEVICE) \
 MODULE=$(realpath $(INSTALLED_TARGET)) \
 CLUSTER=$(CLUSTER) \
-GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+GEN=$(GEN) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
-$(ROOT)/tests/flow/tests.sh
+$(ROOT)/tests/flow/tests_setup/tests.sh
 endef
 
 unit_tests: build
@@ -262,10 +271,10 @@ flow_tests: build
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_setup/tests.sh
 
 	$(COVERAGE_COLLECT_REPORT)
 
@@ -280,24 +289,24 @@ test: build
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
-		$(ROOT)/tests/flow/tests.sh
+		$(ROOT)/tests/flow/tests_setup/tests.sh
 	$(COVERAGE_COLLECT_REPORT)
 
 #----------------------------------------------------------------------------------------------
 
 valgrind:
-	$(SHOW)$(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)$(ROOT)/tests/flow/tests_setup/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 callgrind:
-	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/valgrind.sh $(realpath $(INSTALLED_TARGET))
+	$(SHOW)CALLGRIND=1 $(ROOT)/tests/flow/tests_setup/valgrind.sh $(realpath $(INSTALLED_TARGET))
 
 #----------------------------------------------------------------------------------------------
 
 docker:
-	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+	${MAKE} -C $(ROOT)/opt/build/docker
 
 docker-gpu-test:
 	$(SHOW)set -e ;\

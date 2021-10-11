@@ -32,7 +32,7 @@ RAI_Model *RAI_ModelCreateTFLite(RAI_Backend backend, const char *devicestr, RAI
         dl_device = kDLCPU;
         break;
     case RAI_DEVICE_GPU:
-        dl_device = kDLGPU;
+        dl_device = kDLCUDA;
         break;
     default:
         RAI_SetError(error, RAI_EMODELCONFIGURE, "ERR Error configuring model: unsupported device");
@@ -135,16 +135,16 @@ void RAI_ModelFreeTFLite(RAI_Model *model, RAI_Error *error) {
     model->model = NULL;
 }
 
-int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
+int RAI_ModelRunTFLite(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error) {
 
-    const size_t nbatches = array_len(mctxs);
+    const size_t nbatches = array_len(ectxs);
     if (nbatches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return 1;
     }
 
-    const size_t ninputs = array_len(mctxs[0]->inputs);
-    const size_t noutputs = array_len(mctxs[0]->outputs);
+    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
 
     RAI_Tensor *inputs[ninputs];
 
@@ -156,9 +156,9 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     size_t total_batch_size = 0;
 
     if (nbatches > 1) {
-        if (array_len(mctxs[0]->inputs) > 0) {
+        if (ninputs > 0) {
             for (size_t b = 0; b < nbatches; ++b) {
-                batch_sizes[b] = RAI_TensorDim(mctxs[b]->inputs[0].tensor, 0);
+                batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
                 total_batch_size += batch_sizes[b];
             }
             batch_offsets[0] = 0;
@@ -171,7 +171,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
             RAI_Tensor *batch[nbatches];
 
             for (size_t b = 0; b < nbatches; b++) {
-                batch[b] = mctxs[b]->inputs[i].tensor;
+                batch[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
             }
 
             inputs[i] = RAI_TensorCreateByConcatenatingTensors(batch, nbatches);
@@ -179,7 +179,7 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
     } else {
         for (size_t i = 0; i < ninputs; ++i) {
-            inputs[i] = RAI_TensorGetShallowCopy(mctxs[0]->inputs[i].tensor);
+            inputs[i] = RAI_TensorGetShallowCopy(RAI_ExecutionCtx_GetInput(ectxs[0], i));
             inputs_dl[i] = &inputs[i]->tensor;
         }
     }
@@ -189,7 +189,8 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
     }
 
     char *error_descr = NULL;
-    tfliteRunModel(mctxs[0]->model->model, ninputs, inputs_dl, noutputs, outputs_dl, &error_descr);
+    tfliteRunModel(RAI_ModelGetModel(model), ninputs, inputs_dl, noutputs, outputs_dl,
+                   &error_descr);
 
     // Always free input tensors after run.
     for (size_t i = 0; i < ninputs; ++i) {
@@ -217,11 +218,13 @@ int RAI_ModelRunTFLite(RAI_ModelRunCtx **mctxs, RAI_Error *error) {
         }
         if (nbatches > 1) {
             for (size_t b = 0; b < nbatches; b++) {
-                mctxs[b]->outputs[i].tensor = RAI_TensorCreateBySlicingTensor(
-                    output_tensor, batch_offsets[b], batch_sizes[b]);
+                RAI_ExecutionCtx_SetOutput(ectxs[b],
+                                           RAI_TensorCreateBySlicingTensor(
+                                               output_tensor, batch_offsets[b], batch_sizes[b]),
+                                           i);
             }
         } else {
-            mctxs[0]->outputs[i].tensor = RAI_TensorGetShallowCopy(output_tensor);
+            RAI_ExecutionCtx_SetOutput(ectxs[0], RAI_TensorGetShallowCopy(output_tensor), i);
         }
         RAI_TensorFree(output_tensor);
         RedisModule_Free(outputs_dl[i]);

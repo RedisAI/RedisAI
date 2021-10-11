@@ -5,6 +5,8 @@ import sys
 import time
 from multiprocessing import Process
 import threading
+
+import redis
 from numpy.random import default_rng
 import numpy as np
 from skimage.io import imread
@@ -29,22 +31,27 @@ print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
-def ensureSlaveSynced(con, env, timeout_ms=5000):
+
+# returns the test name and line number from which a helper function within this file was called.
+# For example, if an assertion fails in check_error_message function, and the caller function to check_error_message
+# is in tests_onnx.py line 25, this should return: "tests_onnx:py:25"
+def get_caller_pos():
+    return f'{sys._getframe(2).f_code.co_filename.split("/")[-1]}:{sys._getframe(2).f_lineno}'
+
+def ensureSlaveSynced(con, env, timeout_ms=0):
     if env.useSlaves:
         # When WAIT returns, all the previous write commands
         # sent in the context of the current connection are
         # guaranteed to be received by the number of replicas returned by WAIT.
         wait_reply = con.execute_command('WAIT', '1', timeout_ms)
-        number_replicas = 0
         try:
             number_replicas = int(wait_reply)
-        # does not contain anything convertible to int
-        except ValueError as verr:
-            pass
-        # Exception occurred while converting to int
         except Exception as ex:
-            pass
-        env.assertTrue(number_replicas >= 1)
+            # Error in converting to int
+            env.debugPring(str(ex), force=True)
+            env.assertFalse(True, message=get_caller_pos())
+            return
+        env.assertEqual(number_replicas, 1)
 
 
 # Ensures command is sent and forced disconnect
@@ -94,6 +101,31 @@ def load_resnet_test_data():
 
     return model_pb, script, labels, img
 
+def load_resnet_test_data_old():
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data/imagenet')
+    labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
+    image_filename = os.path.join(test_data_path, 'dog.jpg')
+    model_filename = os.path.join(test_data_path, 'resnet50.pb')
+    script_filename = os.path.join(test_data_path, 'data_processing_script_old.txt')
+
+    with open(script_filename, 'rb') as f:
+        script = f.read()
+
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    with open(labels_filename, 'r') as f:
+        labels = json.load(f)
+
+    img_height, img_width = 224, 224
+
+    img = imread(image_filename)
+    img = resize(img, (img_height, img_width), mode='constant', anti_aliasing=True)
+    img = img.astype(np.uint8)
+
+    return model_pb, script, labels, img
+
+
 def load_mobilenet_v1_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
     labels_filename = os.path.join(test_data_path, 'imagenet_class_index.json')
@@ -115,6 +147,7 @@ def load_mobilenet_v1_test_data():
     img = img.astype(np.float32)
 
     return model_pb, input_var, output_var, labels, img
+
 
 def load_mobilenet_v2_test_data():
     test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
@@ -162,15 +195,15 @@ def run_mobilenet(con, img, input_var, output_var):
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
                         'BLOB', img.tobytes())
 
-    con.execute_command('AI.MODELRUN', 'mobilenet{1}',
-                        'INPUTS', 'input{1}', 'OUTPUTS', 'output{1}')
+    con.execute_command('AI.MODELEXECUTE', 'mobilenet{1}',
+                        'INPUTS', 1, 'input{1}', 'OUTPUTS', 1, 'output{1}')
 
 
-def run_test_multiproc(env, n_procs, fn, args=tuple()):
+def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
     def tmpfn():
-        con = env.getConnection()
+        con = env.getConnectionByKey(routing_hint, None)
         fn(con, *args)
         return 1
 
@@ -180,3 +213,45 @@ def run_test_multiproc(env, n_procs, fn, args=tuple()):
         procs.append(p)
 
     [p.join() for p in procs]
+
+
+# Load a model/script from a file located in test_data dir.
+def load_file_content(file_name):
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    filename = os.path.join(test_data_path, file_name)
+    with open(filename, 'rb') as f:
+        return f.read()
+
+
+def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False):
+    try:
+        con.execute_command(*command)
+        env.assertFalse(True, message=get_caller_pos())
+    except Exception as exception:
+        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+        if error_msg_is_substr:
+            # We only verify that the given error_msg is a substring of the entire error message.
+            env.assertTrue(str(exception).find(error_msg) >= 0, message=get_caller_pos())
+        else:
+            env.assertEqual(error_msg, str(exception), message=get_caller_pos())
+
+
+def check_error(env, con, *command):
+    try:
+        con.execute_command(*command)
+        env.assertFalse(True, message=get_caller_pos())
+    except Exception as e:
+        exception = e
+        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+
+
+# Returns a dict with all the fields of a certain section from INFO MODULES command
+def get_info_section(con, section):
+    sections = ['ai_versions', 'ai_git', 'ai_load_time_configs', 'ai_backends_info', 'ai_cpu']
+    section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
+    return {k.split(":")[0]: k.split(":")[1]
+            for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
+
+
+def get_connection(env, routing_hint):
+    return env.getConnectionByKey(routing_hint, None)

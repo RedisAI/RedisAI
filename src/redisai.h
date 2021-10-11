@@ -75,6 +75,7 @@ REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateByConcatenatingTenso
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_TensorCreateBySlicingTensor)(RAI_Tensor *t,
                                                                              long long offset,
                                                                              long long len);
+
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorLength)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataSize)(RAI_Tensor *t);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_TensorDataType)(RAI_Tensor *t);
@@ -139,12 +140,23 @@ REDISAI_API int MODULE_API_FUNC(RedisAI_GetScriptFromKeyspace)(RedisModuleCtx *c
 REDISAI_API void MODULE_API_FUNC(RedisAI_ScriptFree)(RAI_Script *script, RAI_Error *err);
 REDISAI_API RAI_ScriptRunCtx *MODULE_API_FUNC(RedisAI_ScriptRunCtxCreate)(RAI_Script *script,
                                                                           const char *fnname);
+// Deprecated, use RedisAI_ScriptRunCtxAddInputTensor instead.
 REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInput)(RAI_ScriptRunCtx *sctx,
                                                               RAI_Tensor *inputTensor,
                                                               RAI_Error *err);
+
+// Deprecated, use RedisAI_ScriptRunCtxAddTensorInputList instead.
 REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddInputList)(RAI_ScriptRunCtx *sctx,
                                                                   RAI_Tensor **inputTensors,
                                                                   size_t len, RAI_Error *err);
+
+REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddTensorInput)(RAI_ScriptRunCtx *sctx,
+                                                                    RAI_Tensor *inputTensor);
+
+REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddTensorInputList)(RAI_ScriptRunCtx *sctx,
+                                                                        RAI_Tensor **inputTensors,
+                                                                        size_t count);
+
 REDISAI_API int MODULE_API_FUNC(RedisAI_ScriptRunCtxAddOutput)(RAI_ScriptRunCtx *sctx);
 REDISAI_API size_t MODULE_API_FUNC(RedisAI_ScriptRunCtxNumOutputs)(RAI_ScriptRunCtx *sctx);
 REDISAI_API RAI_Tensor *MODULE_API_FUNC(RedisAI_ScriptRunCtxOutputTensor)(RAI_ScriptRunCtx *sctx,
@@ -264,7 +276,9 @@ static int RedisAI_Initialize(RedisModuleCtx *ctx) {
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptFree);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxCreate);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInput);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddTensorInput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddInputList);
+    REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddTensorInputList);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxAddOutput);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxNumOutputs);
     REDISAI_MODULE_INIT_FUNCTION(ctx, ScriptRunCtxOutputTensor);

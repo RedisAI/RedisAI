@@ -1,0 +1,22 @@
+{
+  "service_id": "single_module_test_cycle",
+  "name": "redisai{{VARIANT}} automation-testing",
+  "properties": {
+    "sut_version": "master",
+    "email_recipients": "redisaidev-aaaacob2o7eeecrhkqwua77kku@redislabs.slack.com",
+    "sut_environments": [],
+    "tools_environment": {},
+    "modules_version": "master",
+    "test_names_modules": [
+        "{{RS_MODULE}}"
+    ],
+    "cycle_environments_setup": [
+      {
+        "teardown": true,
+        "name": "bionic-amd64-aws",
+        "concurrency": 1,
+		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_FILE_PREFIX}}/snapshots/{{RS_MODULE_FILE_PREFIX}}-cpu.linux-bionic-x64.master{{VARIANT}}.zip"
+      }
+    ]
+  }
+}

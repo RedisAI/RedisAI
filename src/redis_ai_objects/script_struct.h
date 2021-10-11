@@ -2,6 +2,19 @@
 
 #include "config/config.h"
 #include "tensor_struct.h"
+#include "util/dict.h"
+
+typedef enum {
+    UNKOWN,
+    TENSOR,
+    INT,
+    FLOAT,
+    STRING,
+    TENSOR_LIST,
+    INT_LIST,
+    FLOAT_LIST,
+    STRING_LIST
+} TorchScriptFunctionArgumentType;
 
 typedef struct RAI_Script {
     void *script;
@@ -14,17 +27,5 @@ typedef struct RAI_Script {
     RedisModuleString *tag;
     long long refCount;
     void *infokey;
+    char **entryPoints;
 } RAI_Script;
-
-typedef struct RAI_ScriptCtxParam {
-    RAI_Tensor *tensor;
-} RAI_ScriptCtxParam;
-
-typedef struct RAI_ScriptRunCtx {
-    size_t ctxtype;
-    RAI_Script *script;
-    char *fnname;
-    RAI_ScriptCtxParam *inputs;
-    RAI_ScriptCtxParam *outputs;
-    int variadic;
-} RAI_ScriptRunCtx;

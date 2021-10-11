@@ -1,8 +1,9 @@
-#include "dag_parser.h"
 #include "dag_builder.h"
+#include "execution/parsing/dag_parser.h"
 #include "util/string_utils.h"
 #include "execution/run_info.h"
-#include "execution/modelRun_ctx.h"
+#include "execution/execution_contexts/modelRun_ctx.h"
+#include "execution/execution_contexts/scriptRun_ctx.h"
 
 // Store the given arguments from the string in argv array and their amount in argc.
 int _StringToRMArray(const char *dag, RedisModuleString ***argv, int *argc, RAI_Error *err) {
@@ -58,9 +59,9 @@ RAI_DAGRunOp *RAI_DAGCreateModelRunOp(RAI_Model *model) {
     RAI_InitDagOp(&op);
 
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
-    op->mctx = mctx;
+    op->ectx = (RAI_ExecutionCtx *)mctx;
     op->devicestr = model->devicestr;
-    op->runkey = RAI_HoldString(NULL, (RedisModuleString *)model->infokey);
+    op->runkey = RAI_HoldString((RedisModuleString *)model->infokey);
     return (RAI_DAGRunOp *)op;
 }
 
@@ -70,9 +71,9 @@ RAI_DAGRunOp *RAI_DAGCreateScriptRunOp(RAI_Script *script, const char *func_name
     RAI_InitDagOp(&op);
 
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
-    op->sctx = sctx;
+    op->ectx = (RAI_ExecutionCtx *)sctx;
     op->devicestr = script->devicestr;
-    op->runkey = RAI_HoldString(NULL, (RedisModuleString *)script->infokey);
+    op->runkey = RAI_HoldString((RedisModuleString *)script->infokey);
     return (RAI_DAGRunOp *)op;
 }
 
@@ -94,14 +95,14 @@ int RAI_DAGAddRunOp(RAI_DAGRunCtx *run_info, RAI_DAGRunOp *DAGop, RAI_Error *err
 
     RAI_DagOp *op = (RAI_DagOp *)DAGop;
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)run_info;
-    if (op->mctx) {
-        RAI_Model *model = op->mctx->model;
-        if (ModelGetNumInputs(model) != array_len(op->inkeys)) {
+    if (op->commandType == REDISAI_DAG_CMD_MODELRUN) {
+        RAI_Model *model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)op->ectx);
+        if (RAI_ModelGetNumInputs(model) != array_len(op->inkeys)) {
             RAI_SetError(err, RAI_EDAGBUILDER,
                          "Number of keys given as INPUTS does not match model definition");
             return REDISMODULE_ERR;
         }
-        if (ModelGetNumOutputs(model) != array_len(op->outkeys)) {
+        if (RAI_ModelGetNumOutputs(model) != array_len(op->outkeys)) {
             RAI_SetError(err, RAI_EDAGBUILDER,
                          "Number of keys given as OUTPUTS does not match model definition");
             return REDISMODULE_ERR;
@@ -162,7 +163,7 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
         }
     }
 
-    if (ParseDAGOps(rinfo, new_ops) != REDISMODULE_OK) {
+    if (ParseDAGExecuteOps(rinfo, new_ops, false) != REDISMODULE_OK) {
         RAI_SetError(err, RAI_GetErrorCode(rinfo->err), RAI_GetError(rinfo->err));
         goto cleanup;
     }
@@ -170,6 +171,12 @@ int RAI_DAGAddOpsFromString(RAI_DAGRunCtx *run_info, const char *dag, RAI_Error 
     res = REDISMODULE_OK;
 
 cleanup:
+    if (res != REDISMODULE_OK) {
+        // Release the ops in case of an error (otherwise the ownership is given to run_info)
+        for (size_t i = 0; i < array_len(new_ops); i++) {
+            RAI_FreeDagOp(new_ops[i]);
+        }
+    }
     array_free(new_ops);
     for (size_t i = 0; i < argc; i++) {
         RedisModule_FreeString(NULL, argv[i]);
