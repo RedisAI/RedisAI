@@ -179,7 +179,7 @@ The module includes a basic set of unit tests and integration tests, split acros
 To run all tests in a Python virtualenv, follow these steps:
 
     $ mkdir -p .env
-    $ virtualenv .env
+    $ python3 -m venv .env
     $ source .env/bin/activate
     $ pip install -r tests/flow/tests_setup/test_requirements.txt
     $ make -C opt test
@@ -187,7 +187,7 @@ To run all tests in a Python virtualenv, follow these steps:
 **Integration tests**
 
 Integration tests are based on RLTest, and specific setup parameters can be provided
-to configure tests. By default the tests will be ran for all backends and common commands, and with variation of persistency and replication.
+to configure tests. By default the tests will run for all backends and common commands, and with variation of persistency and replication.
 
 To understand what test options are available simply run:
 
