@@ -11,8 +11,9 @@
 #include "config/config.h"
 #include "redis_ai_objects/err.h"
 #include "redis_ai_objects/tensor.h"
-#include "redis_ai_objects/model_struct.h"
-#include "redis_ai_objects/script_struct.h"
+#include "redis_ai_objects/model.h"
+#include "redis_ai_objects/script.h"
+#include "execution/execution_contexts/execution_ctx.h"
 
 /*
  * To register a new backend to be loaded by the module, the backend needs to
@@ -25,7 +26,7 @@
  * the RAI_ModelOpts.
  *
  * * ** model_run **:  A callback function pointer that runs a model given the
- * RAI_ModelRunCtx pointer.
+ * RAI_Model pointer and an array of RAI_ExecutionCtx pointers.
  *
  * * ** model_serialize **:  A callback function pointer that serializes a model
  * given the RAI_Model pointer.
@@ -36,7 +37,7 @@
  * the RAI_Script pointer.
  *
  * * ** script_run **:  A callback function pointer that runs a model given the
- * RAI_ScriptRunCtx pointer.
+ * RAI_Script pointer and .
  */
 typedef struct RAI_LoadedBackend {
     // ** model_create_with_nodes **:  A callback function pointer that creates a
@@ -55,15 +56,15 @@ typedef struct RAI_LoadedBackend {
     void (*model_free)(RAI_Model *, RAI_Error *);
 
     // ** model_run **:  A callback function pointer that runs a model given the
-    // RAI_ModelRunCtx pointer
-    int (*model_run)(RAI_ModelRunCtx **, RAI_Error *);
+    // RAI_Model pointer and an array of RAI_ExecutionCtx pointers
+    int (*model_run)(RAI_Model *, RAI_ExecutionCtx **, RAI_Error *);
 
     // ** model_serialize **:  A callback function pointer that serializes a model
     // given the RAI_Model pointer
     int (*model_serialize)(RAI_Model *, char **, size_t *, RAI_Error *);
 
     // ** script_create **:  A callback function pointer that creates a script
-    RAI_Script *(*script_create)(const char *, const char *, RAI_Error *);
+    RAI_Script *(*script_create)(const char *, const char *, const char **, size_t, RAI_Error *);
 
     // ** script_free **:  A callback function pointer that frees a script given
     // the RAI_Script pointer
@@ -71,7 +72,7 @@ typedef struct RAI_LoadedBackend {
 
     // ** script_run **:  A callback function pointer that runs a model given the
     // RAI_ScriptRunCtx pointer
-    int (*script_run)(RAI_ScriptRunCtx *, RAI_Error *);
+    int (*script_run)(RAI_Script *, const char *function, RAI_ExecutionCtx *, RAI_Error *);
 
     // Returns the backend version.
     const char *(*get_version)(void);
@@ -81,6 +82,15 @@ typedef struct RAI_LoadedBackend {
 
     // Returns the number of times that Redis accessed backend allocator.
     unsigned long long (*get_memory_access_num)(void);
+
+    // A callback for to use whenever a new device is introduced.
+    int (*add_new_device_cb)(const char *);
+
+    // Kill run session callback (for stopping long runs).
+    void (*stop_long_running_sessions_cb)(RedisModuleCtx *, RedisModuleEvent, uint64_t, void *);
+
+    // Get the number of maximum run sessions that can run.
+    size_t (*get_max_run_sessions)(void);
 } RAI_LoadedBackend;
 
 typedef struct RAI_LoadedBackends {
@@ -91,9 +101,12 @@ typedef struct RAI_LoadedBackends {
 } RAI_LoadedBackends;
 
 RAI_LoadedBackends RAI_backends;
-char *RAI_BackendsPath;
 
 int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path);
+
 int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 
-const char *RAI_BackendName(int backend);
+/**
+ * @brief Returns the backend name as string.
+ */
+const char *RAI_GetBackendName(RAI_Backend backend);

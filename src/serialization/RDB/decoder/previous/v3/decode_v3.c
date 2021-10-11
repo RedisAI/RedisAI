@@ -1,5 +1,5 @@
-#include "decode_v2.h"
-#include "assert.h"
+#include "decode_v3.h"
+#include "../v0/decode_v0.h"
 
 /**
  * In case of IO errors, the default return values are:
@@ -8,68 +8,9 @@
  * So only when it is necessary check for IO errors.
  */
 
-void *RAI_RDBLoadTensor_v2(RedisModuleIO *io) {
-    int64_t *shape = NULL;
-    int64_t *strides = NULL;
+void *RAI_RDBLoadTensor_v3(RedisModuleIO *io) { return RAI_RDBLoadTensor_v0(io); }
 
-    DLDevice device;
-    device.device_type = RedisModule_LoadUnsigned(io);
-    device.device_id = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
-
-    // For now we only support CPU tensors (except during model and script run)
-    assert(device.device_type == kDLCPU);
-    assert(device.device_id == 0);
-
-    DLDataType dtype;
-    dtype.bits = RedisModule_LoadUnsigned(io);
-    dtype.code = RedisModule_LoadUnsigned(io);
-    dtype.lanes = RedisModule_LoadUnsigned(io);
-
-    size_t ndims = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
-
-    shape = RedisModule_Calloc(ndims, sizeof(*shape));
-    for (size_t i = 0; i < ndims; ++i) {
-        shape[i] = RedisModule_LoadUnsigned(io);
-    }
-
-    strides = RedisModule_Calloc(ndims, sizeof(*strides));
-    for (size_t i = 0; i < ndims; ++i) {
-        strides[i] = RedisModule_LoadUnsigned(io);
-    }
-
-    size_t byte_offset = RedisModule_LoadUnsigned(io);
-
-    size_t len;
-    char *data = RedisModule_LoadStringBuffer(io, &len);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
-
-    RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
-                                                            .data = data,
-                                                            .ndim = ndims,
-                                                            .dtype = dtype,
-                                                            .shape = shape,
-                                                            .strides = strides,
-                                                            .byte_offset = byte_offset},
-                                    .manager_ctx = NULL,
-                                    .deleter = NULL};
-    return ret;
-
-cleanup:
-    if (shape)
-        RedisModule_Free(shape);
-    if (strides)
-        RedisModule_Free(strides);
-    RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
-    return NULL;
-}
-
-void *RAI_RDBLoadModel_v2(RedisModuleIO *io) {
+void *RAI_RDBLoadModel_v3(RedisModuleIO *io) {
 
     char *devicestr = NULL;
     RedisModuleString *tag = NULL;
@@ -111,8 +52,8 @@ void *RAI_RDBLoadModel_v2(RedisModuleIO *io) {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
         .minbatchtimeout = minbatchtimeout,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     size_t len = RedisModule_LoadUnsigned(io);
@@ -203,21 +144,35 @@ cleanup:
     return NULL;
 }
 
-void *RAI_RDBLoadScript_v2(RedisModuleIO *io) {
+void *RAI_RDBLoadScript_v3(RedisModuleIO *io) {
     RedisModuleString *tag = NULL;
     char *devicestr = NULL;
     char *scriptdef = NULL;
+    size_t nEntryPoints = 0;
+    char **entryPoints = NULL;
     RAI_Error err = {0};
 
-    devicestr = RedisModule_LoadStringBuffer(io, NULL);
+    size_t len;
+    devicestr = RedisModule_LoadStringBuffer(io, &len);
     tag = RedisModule_LoadString(io);
 
-    size_t len;
     scriptdef = RedisModule_LoadStringBuffer(io, &len);
     if (RedisModule_IsIOError(io))
         goto cleanup;
 
-    RAI_Script *script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+    nEntryPoints = (size_t)RedisModule_LoadUnsigned(io);
+    entryPoints = array_new(char *, nEntryPoints);
+
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        char *entryPoint = RedisModule_LoadStringBuffer(io, &len);
+        if (RedisModule_IsIOError(io)) {
+            goto cleanup;
+        }
+        entryPoints = array_append(entryPoints, entryPoint);
+    }
+
+    RAI_Script *script = RAI_ScriptCompile(devicestr, tag, scriptdef, (const char **)entryPoints,
+                                           nEntryPoints, &err);
 
     if (err.code == RAI_EBACKENDNOTLOADED) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
@@ -228,7 +183,8 @@ void *RAI_RDBLoadScript_v2(RedisModuleIO *io) {
             goto cleanup;
         }
         RAI_ClearError(&err);
-        script = RAI_ScriptCreate(devicestr, tag, scriptdef, &err);
+        script = RAI_ScriptCompile(devicestr, tag, scriptdef, (const char **)entryPoints,
+                                   nEntryPoints, &err);
     }
 
     if (err.code != RAI_OK) {
@@ -248,6 +204,10 @@ void *RAI_RDBLoadScript_v2(RedisModuleIO *io) {
     RedisModule_FreeString(NULL, tag);
     RedisModule_Free(devicestr);
     RedisModule_Free(scriptdef);
+    for (size_t i = 0; i < nEntryPoints; i++) {
+        RedisModule_Free(entryPoints[i]);
+    }
+    array_free(entryPoints);
     return script;
 cleanup:
     if (devicestr)
@@ -256,5 +216,11 @@ cleanup:
         RedisModule_Free(scriptdef);
     if (tag)
         RedisModule_FreeString(NULL, tag);
+    if (entryPoints) {
+        for (size_t i = 0; i < nEntryPoints; i++) {
+            RedisModule_Free(entryPoints[i]);
+        }
+        array_free(entryPoints);
+    }
     return NULL;
 }

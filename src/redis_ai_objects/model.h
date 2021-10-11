@@ -117,12 +117,32 @@ int ModelExecute_ReportKeysPositions(RedisModuleCtx *ctx, RedisModuleString **ar
 /**
  * @brief  Returns the number of inputs in the model definition.
  */
-size_t ModelGetNumInputs(RAI_Model *model);
+size_t RAI_ModelGetNumInputs(RAI_Model *model);
+
+/**
+ * @brief Returns the input name in a given index.
+ */
+const char *RAI_ModelGetInputName(RAI_Model *model, size_t index);
 
 /**
  * @brief  Returns the number of outputs in the model definition.
  */
-size_t ModelGetNumOutputs(RAI_Model *model);
+size_t RAI_ModelGetNumOutputs(RAI_Model *model);
+
+/**
+ * @brief Returns the output name in a given index.
+ */
+const char *RAI_ModelGetOutputName(RAI_Model *model, size_t index);
+
+/**
+ * @brief Returns the RAI_Model object internal session object.
+ */
+void *RAI_ModelGetSession(RAI_Model *model);
+
+/**
+ * @brief Returns the RAI_Model object internal model object.
+ */
+void *RAI_ModelGetModel(RAI_Model *model);
 
 /**
  * @brief  Returns the redis module type representing a model.

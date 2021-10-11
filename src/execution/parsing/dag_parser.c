@@ -3,12 +3,12 @@
 #include "redismodule.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
-#include "redis_ai_objects/tensor.h"
 #include "execution/execution_contexts/modelRun_ctx.h"
 #include "execution/command_parser.h"
 #include "execution/DAG/dag.h"
 #include "execution/DAG/dag_execute.h"
 #include "execution/parsing/deprecated.h"
+#include "execution/parsing/tensor_commands_parsing.h"
 #include "execution/utils.h"
 #include "model_commands_parser.h"
 #include "script_commands_parser.h"
@@ -52,8 +52,7 @@ static int _ParseDAGLoadArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int 
         const char *arg_string = RedisModule_StringPtrLen(key_name, &arg_len);
         RAI_Tensor *t;
         RedisModuleKey *key;
-        const int status =
-            RAI_GetTensorFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
+        int status = RAI_TensorGetFromKeyspace(ctx, key_name, &key, &t, REDISMODULE_READ, err);
         if (status == REDISMODULE_ERR) {
             RedisModule_Log(ctx, "warning", "Could not LOAD tensor %s from keyspace into DAG",
                             arg_string);
@@ -172,24 +171,25 @@ int ParseDAGExecuteOps(RedisAI_RunInfo *rinfo, RAI_DagOp **ops, bool ro) {
 
         if (!strcasecmp(arg_string, "AI.TENSORGET")) {
             currentOp->commandType = REDISAI_DAG_CMD_TENSORGET;
-            currentOp->devicestr = "CPU";
-            RAI_HoldString(currentOp->argv[1]);
-            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
-            currentOp->fmt = ParseTensorGetArgs(rinfo->err, currentOp->argv, currentOp->argc);
+            currentOp->fmt = ParseTensorGetFormat(rinfo->err, currentOp->argv, currentOp->argc);
             if (currentOp->fmt == TENSOR_NONE) {
                 return REDISMODULE_ERR;
             }
+            currentOp->devicestr = "CPU";
+            RAI_HoldString(currentOp->argv[1]);
+            currentOp->inkeys = array_append(currentOp->inkeys, currentOp->argv[1]);
             continue;
         }
         if (!strcasecmp(arg_string, "AI.TENSORSET")) {
             currentOp->commandType = REDISAI_DAG_CMD_TENSORSET;
+            if (ParseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor,
+                                   rinfo->err) != REDISMODULE_OK) {
+                return REDISMODULE_ERR;
+            }
             currentOp->devicestr = "CPU";
             RAI_HoldString(currentOp->argv[1]);
             currentOp->outkeys = array_append(currentOp->outkeys, currentOp->argv[1]);
-            if (RAI_parseTensorSetArgs(currentOp->argv, currentOp->argc, &currentOp->outTensor, 0,
-                                       rinfo->err) == -1) {
-                return REDISMODULE_ERR;
-            }
+            currentOp->result = REDISMODULE_OK;
             continue;
         }
         if (!strcasecmp(arg_string, "AI.MODELEXECUTE")) {
@@ -245,7 +245,7 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
     bool load_complete = false;
     bool persist_complete = false;
     bool timeout_complete = false;
-    bool keys_complete = false;
+    bool routing_complete = false;
 
     // The first arg is "AI.DAGEXECUTE(_RO) (or deprecated AI.DAGRUN(_RO))", so we go over from the
     // next arg.
@@ -280,12 +280,20 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
             persist_complete = true;
             continue;
         }
-        if (!strcasecmp(arg_string, "KEYS") && !keys_complete && chainingOpCount == 0) {
-            const int parse_result = ParseKeysArgs(ctx, &argv[arg_pos], argc - arg_pos, rinfo->err);
-            if (parse_result <= 0)
+        if (!strcasecmp(arg_string, "ROUTING") && !routing_complete && chainingOpCount == 0) {
+            arg_pos++;
+            if (arg_pos == argc) {
+                RAI_SetError(rinfo->err, RAI_EDAGBUILDER, "ERR Missing ROUTING value");
                 return REDISMODULE_ERR;
-            arg_pos += parse_result;
-            keys_complete = true;
+            }
+            if (!VerifyKeyInThisShard(ctx, argv[arg_pos++])) {
+                RAI_SetError(
+                    rinfo->err, RAI_EDAGBUILDER,
+                    "ERR ROUTING value specified in the command hash to slot which does not "
+                    "belong to the current shard");
+                return REDISMODULE_ERR;
+            }
+            routing_complete = true;
             continue;
         }
         if (!strcasecmp(arg_string, "TIMEOUT") && !timeout_complete && chainingOpCount == 0) {
@@ -317,10 +325,10 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
     // commands).
     if (!strncasecmp(RedisModule_StringPtrLen(argv[0], NULL), "AI.DAGEXECUTE",
                      strlen("AI.DAGEXECUTE"))) {
-        if (!load_complete && !persist_complete && !keys_complete) {
+        if (!load_complete && !persist_complete && !routing_complete) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR AI.DAGEXECUTE and AI.DAGEXECUTE_RO commands must "
-                         "contain at least one out of KEYS, LOAD, PERSIST keywords");
+                         "contain at least one out of ROUTING, LOAD, PERSIST keywords");
             return REDISMODULE_ERR;
         }
     }
@@ -334,9 +342,9 @@ int DAGInitialParsing(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleSt
 int ParseDAGExecuteCommand(RedisAI_RunInfo *rinfo, RedisModuleCtx *ctx, RedisModuleString **argv,
                            int argc, bool dag_ro) {
 
-    // The minimal command is of the form: AI.DAGEXECUTE(_RO) KEYS/LOAD/PERSIST 1 <key> |>
+    // The minimal command is of the form: AI.DAGEXECUTE(_RO) ROUTING/LOAD/PERSIST 1 <key> |>
     // AI.TENSORGET <key>
-    if (argc < 7) {
+    if (argc < 6) {
         if (dag_ro) {
             RAI_SetError(rinfo->err, RAI_EDAGBUILDER,
                          "ERR missing arguments for 'AI.DAGEXECUTE_RO' command");

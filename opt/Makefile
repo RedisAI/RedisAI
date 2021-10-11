@@ -232,7 +232,7 @@ pack: $(INSTALLED_TARGET)
 ifneq ($(REDISAI_LITE), 1)
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) ./pack.sh
 else
-	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=lite ./pack.sh
+	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=light ./pack.sh
 	$(SHOW)DEVICE=$(DEVICE) BINDIR=$(ROOT)/bin/artifacts INSTALL_DIR=$(INSTALL_DIR) BRANCH=$(BRANCH) RAMP=1 DEPS=$(PACK_DEPS) VARIANT=rce  ./pack.sh
 endif
 
@@ -240,7 +240,6 @@ endif
 
 export GEN ?= 1
 export SLAVES ?= 1
-export AOF ?= 1
 export CLUSTER ?= 1
 
 define UNIT_TESTS
@@ -256,7 +255,7 @@ $(SHOW)\
 DEVICE=$(DEVICE) \
 MODULE=$(realpath $(INSTALLED_TARGET)) \
 CLUSTER=$(CLUSTER) \
-GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+GEN=$(GEN) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
 $(ROOT)/tests/flow/tests_setup/tests.sh
 endef
@@ -272,7 +271,7 @@ flow_tests: build
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests_setup/tests.sh
@@ -290,7 +289,7 @@ test: build
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
 		TESTMOD=$(realpath $(BINDIR)/tests/module/testmod.so) \
 		CLUSTER=$(CLUSTER) \
-		GEN=$(GEN) AOF=$(AOF) SLAVES=$(SLAVES) \
+		GEN=$(GEN) SLAVES=$(SLAVES) \
 		VALGRIND=$(VALGRIND) \
 		REDIS=$(REDIS) \
 		$(ROOT)/tests/flow/tests_setup/tests.sh
@@ -307,7 +306,7 @@ callgrind:
 #----------------------------------------------------------------------------------------------
 
 docker:
-	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+	${MAKE} -C $(ROOT)/opt/build/docker
 
 docker-gpu-test:
 	$(SHOW)set -e ;\

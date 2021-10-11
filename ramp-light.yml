@@ -1,13 +1,13 @@
-display_name: RedisAI-Lite
+display_name: RedisAI Light
 author: Tensorwerk and RedisLabs
 email: support@redislabs.com
 description: Serving tensors and executing deep learning graphs
 homepage: https://oss.redislabs.com/redisai/
 license: Redis Source Available License v1.0
-command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai-lite/{{NUMVER}}/deps"
+command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai-light/{{NUMVER}}/deps"
 # command_line_args: "BACKENDSPATH /var/opt/redislabs/modules/ai/{{NUMVER}}/deps/backends"
-min_redis_version: "5.0.7"
-min_redis_pack_version: "5.4.14"
+min_redis_version: "6.0.0"
+min_redis_pack_version: "6.0.12"
 capabilities:
     - types
     - hash_policy
@@ -19,7 +19,7 @@ capabilities:
     - backup_restore
     - replica_of
     - flash
-    - resharding
+    - reshard_rebalance
 dependencies:
     {{NAME_tensorflow}}:
         url: http://redismodules.s3.amazonaws.com/redisai/{{PATH_tensorflow}}
