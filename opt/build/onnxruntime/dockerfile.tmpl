@@ -30,8 +30,8 @@ ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
 # build
 WORKDIR /build
 {% if REDIS_GPU is defined %}
-{% set BUILDTYPE="MinSizeRel" %}
-{% set BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda" %}
+{% set BUILDTYPE="Release" %}
+{% set BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda --cmake_extra_defines onnxruntime_DISABLE_EXTERNAL_INITIALIZERS=ON"%}
 {% else %}
 {% set BUILDTYPE="Release" %}
 {% set BUILDARGS="--cmake_extra_defines onnxruntime_DISABLE_EXTERNAL_INITIALIZERS=ON" %}

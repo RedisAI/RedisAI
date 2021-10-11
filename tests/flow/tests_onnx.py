@@ -436,9 +436,6 @@ def test_forbidden_external_initializers(env):
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
-    # The DISABLE_EXTERNAL_INITIALIZERS flag is used for CPU build only
-    if DEVICE != 'CPU':
-        return
     con = get_connection(env, '{1}')
 
     # move the external initializer to the redis' current dir (tests/flow/logs)

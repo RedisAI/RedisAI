@@ -99,9 +99,9 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
-      - restore_cache:
-          keys:
-          - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
+      #- restore_cache:
+      #    keys:
+      #    - v1.2.5-dependencies-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
