@@ -81,7 +81,7 @@ To set the model execution timeout to 1 second from the command line use the fol
 
 ```
 redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
-               MODEL_EXECUTION_TIMEOUT 1
+               MODEL_EXECUTION_TIMEOUT 1000
 ```
 
 ## Backend

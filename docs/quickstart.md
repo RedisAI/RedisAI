@@ -60,12 +60,14 @@ bash get_deps.sh gpu
 Once the dependencies have been built, you can build the RedisAI module with:
 
 ```sh
+make -C opt clean ALL=1
 make -C opt
 ```
 
 Alternatively, run the following to build RedisAI with GPU support:
 
 ```sh
+make -C opt clean ALL=1
 make -C opt GPU=1
 ```
 

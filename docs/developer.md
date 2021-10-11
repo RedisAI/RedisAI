@@ -38,7 +38,7 @@ This is the entry point of the RedisAI module, responsible for registering the n
 
 The header file that contains the module's low-level-API. This file should be copied to a Redis module that plan on using RedisAI objects and functionality via low-level-API. Note that every function in redisai.h is named "RedisAI_{X}", and detailed description for it can be found under the name "RAI_{X}" in RedisAI header files.  
 
-**redis_ai_types directory**
+**redis_ai_types**
 
 Contains the callbacks that are required for the new Tensor, Model and Script types. These callbacks are used by Redis server for data management and persistence.   
 
@@ -46,18 +46,18 @@ Contains the callbacks that are required for the new Tensor, Model and Script ty
 
 Contains the internal implementation of the basic RedisAI objects - Tensor, Model and Script.
 For each object there is a header file that contains the helper methods for both creating, populating, managing and freeing the data structure.
-This also includes `stats.h` where you can find the structure and headers that create, initialize, get, reset, and free run-time statics, like call count, error count, and aggregate durations of Model and Script execution sessions. Note that the statistics are ephemeral, meaning that they are not persisted to the Redis key space, and are reset when the server is restarted.
+This directory also includes `stats.h` where you can find the structure and headers that create, initialize, get, reset, and free run-time statistics, like call count, error count, and aggregate durations of Model and Script execution sessions. Note that the statistics are ephemeral, meaning that they are not persisted to the Redis key space, and are reset when the server is restarted.
 
 **execution**
 
-Contains the files and logic that are responsible for RedisAI execution commands. The structure of RedisAI "execution plan" can be found in `run_info.h` along with the headers that create, initialize, get, and free this structure .
-Every execution is represented as a DAG (directional acyclic graph) of one or more operation. Execution requests are queued and executed asynchronously. `run_queue_info.h` contains the structure for managing per-device queues that are used for decoupling the work from the main thread to the background worker threads.
+Contains the files and logic that are responsible for RedisAI execution commands. The structure of RedisAI "execution plan" can be found in `run_info.h` along with the headers that create, initialize, get, and free this structure.
+Every execution is represented as a DAG (directional acyclic graph) of one or more operations. Execution requests are queued and executed asynchronously. `run_queue_info.h` contains the structure for managing per-device queues that are used for decoupling the work from the main thread to the background worker threads.
 `background_workers.c` contains the loop that every worker runs in the process of execution requests.    
 The execution directory contains the following sub-directories:
 
-* DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and sending its operation to the appropriate execution queues.
+* DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and sending its operations to the appropriate execution queues.
 * execution_context - contains the structure and methods for running an instance of a Model and Script in RedisAI.
-* parsing - here we can find the parsing logic execution related RedisAI commands.
+* parsing - here we can find the parsing logic of execution related RedisAI commands.
 
 **config**
 
@@ -117,16 +117,6 @@ make
 make GPU=1
 ```
 
-After this, you can run the created docker and mount your source code with the following command, from within the RedisAI folder.
-Assuming that the docker was built for ubuntu bionic machine with cpu-only support (the default parameters) from master branch, you can run:
-
-```
-docker run -v "`pwd`:/build" -it redislabs/redisai:edge-cpu-bionic bash
-```
-
-Continue to edit files on your local machine, and rebuild as needed within the docker, by running the command below, from */build* in the docker:
-
-```make -C opt all```
 
 **Building on bare metal**
 
