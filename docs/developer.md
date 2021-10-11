@@ -42,32 +42,32 @@ The header file that contains the module's low-level-API. This file should be co
 
 Contains the callbacks that are required for the new Tensor, Model and Script types. These callbacks are used by Redis server for data management and persistence.   
 
-**redis_ai_objects directory**
+**redis_ai_objects**
 
 Contains the internal implementation of the basic RedisAI objects - Tensor, Model and Script.
 For each object there is a header file that contains the helper methods for both creating, populating, managing and freeing the data structure.
 This also includes `stats.h` where you can find the structure and headers that create, initialize, get, reset, and free run-time statics, like call count, error count, and aggregate durations of Model and Script execution sessions. Note that the statistics are ephemeral, meaning that they are not persisted to the Redis key space, and are reset when the server is restarted.
 
-**execution directory**
+**execution**
 
-Contains the files and logic that are responsible for RedisAI execution commands. The structure of RedisAI "execution plan" can be found in `run_info.h` along with and headers that create, initialize, get, and free this structure .
+Contains the files and logic that are responsible for RedisAI execution commands. The structure of RedisAI "execution plan" can be found in `run_info.h` along with the headers that create, initialize, get, and free this structure .
 Every execution is represented as a DAG (directional acyclic graph) of one or more operation. Execution requests are queued and executed asynchronously. `run_queue_info.h` contains the structure for managing per-device queues that are used for decoupling the work from the main thread to the background worker threads.
 `background_workers.c` contains the loop that every worker runs in the process of execution requests.    
 The execution directory contains the following sub-directories:
 
-* DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and send its operation to the appropriate execution queues.
+* DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and sending its operation to the appropriate execution queues.
 * execution_context - contains the structure and methods for running an instance of a Model and Script in RedisAI.
 * parsing - here we can find the parsing logic execution related RedisAI commands.
 
-**config directory**
+**config**
 
 Contains methods for parsing, retrieving and setting RedisAI configuration parameters (both load time and run time) and their initial values. 
 
-**serialization directory**
+**serialization**
 
 Contains methods for serializing RedisAI types by Redis in RDB load, RDB save and AOF rewrite routines. 
 
-**backends directory**
+**backends**
 
 Contains the interface for supporting a backend library that can be loaded by the module.
 
@@ -102,11 +102,11 @@ This directory also include the implementations code required to support the fol
 
 You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that.
 
-### Configring your system
+### Configuring your system
 
 **Building in a docker (x86_64)**
 
-The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules. This assumes that you have jinja installed, as the docker files are geneated from the dockerfile.tmpl in the *opt/build/docker* directory.
+The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules. This assumes that you have jinja installed, as the docker files are generated from the dockerfile.tmpl in the *opt/build/docker* directory.
 
 ```
 git clone --recursive https://github.com/RedisAI/RedisAI
@@ -117,10 +117,11 @@ make
 make GPU=1
 ```
 
-After this, you can run the create docker and mount your source code with the following command, from within the RedisAI folder.
+After this, you can run the created docker and mount your source code with the following command, from within the RedisAI folder.
+Assuming that the docker was built for ubuntu bionic machine with cpu-only support (the default parameters) from master branch, you can run:
 
 ```
-docker run `pwd`:/build -it redisai:latest bash
+docker run -v "`pwd`:/build" -it redislabs/redisai:edge-cpu-bionic bash
 ```
 
 Continue to edit files on your local machine, and rebuild as needed within the docker, by running the command below, from */build* in the docker:
