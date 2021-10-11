@@ -47,10 +47,17 @@ else
 	fi
 fi
 
-git submodule update --init --recursive || true
+#git submodule update --init --recursive || true
 
-OS=$(python3 $HERE/opt/readies/bin/platform --os)
-ARCH=$(python3 $HERE/opt/readies/bin/platform --arch)
+if [ -f ${HERE}/opt/readies/bin/platform ]; then
+    OS=$(python3 $HERE/opt/readies/bin/platform --os)
+    ARCH=$(python3 $HERE/opt/readies/bin/platform --arch)
+else
+    OS=`uname -s | tr '[:upper:]' '[:lower:]'`
+    uname -m|grep aarch64 || ARCH=x64
+    uname -m|grep x86 || ARCH=arm64v8
+fi
+
 
 # avoid wget warnings on macOS
 [[ $OS == macos ]] && export LC_ALL=en_US.UTF-8
@@ -70,13 +77,13 @@ MKL=mkl
 ONNXRUNTIME=onnxruntime
 
 ######################################################################################## DLPACK
-DLPACK_VERSION="v0.4"
+DLPACK_VERSION="v0.5_RAI"
 if [[ $WITH_DLPACK != 0 ]]; then
 	[[ $FORCE == 1 ]] && rm -rf $DLPACK
 
 	if [[ ! -d $DLPACK ]]; then
 		echo "Cloning dlpack ..."
-		git clone --depth 1 --branch $DLPACK_VERSION https://github.com/dmlc/dlpack.git $DLPACK
+		git clone --depth 1 --branch $DLPACK_VERSION https://github.com/RedisAI/dlpack.git $DLPACK
 		echo "Done."
 	else
 		echo "dlpack is in place."
@@ -235,7 +242,7 @@ if [[ $WITH_PT != 0 ]]; then
 		LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
 
 		if [[ $PT_REPACK == 1 ]]; then
-			PT_VERSION=$PT_VERSION GPU=$GPU $HERE/opt/build/libtorch/repack.sh
+			PT_VERSION=$PT_VERSION GPU=$GPU OS=${OS} ARCH=${ARCH} $HERE/opt/build/libtorch/repack.sh
 		else
 			LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 

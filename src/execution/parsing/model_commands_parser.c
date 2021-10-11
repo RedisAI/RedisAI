@@ -140,7 +140,7 @@ int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, Redis
 
     RAI_ModelRunCtx *mctx = RAI_ModelRunCtxCreate(model);
     currentOp->commandType = REDISAI_DAG_CMD_MODELRUN;
-    currentOp->mctx = mctx;
+    currentOp->ectx = (RAI_ExecutionCtx *)mctx;
     currentOp->devicestr = mctx->model->devicestr;
 
     if (rinfo->single_op_dag) {

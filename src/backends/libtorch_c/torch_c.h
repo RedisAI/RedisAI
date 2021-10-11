@@ -11,14 +11,13 @@ extern "C" {
 typedef struct TorchFunctionInputCtx {
     DLManagedTensor **tensorInputs;
     size_t tensorCount;
-    int32_t *intInputs;
-    size_t intCount;
-    float *floatInputs;
-    size_t floatCount;
-    RedisModuleString **stringsInputs;
-    size_t stringCount;
-    size_t *listSizes;
-    size_t listCount;
+    RedisModuleString **args;
+    size_t argsCount;
+    RedisModuleString **keys;
+    size_t keysCount;
+    bool hasEntryPoint; // TODO: remove this when SCRIPTRUN is EOL. Indication that the script was
+                        // stored with SCRIPTSET and not SCRIPTSTORE, such that it has no entry
+                        // point, so execution is best effort.
 } TorchFunctionInputCtx;
 
 /**
@@ -46,33 +45,16 @@ void *torchLoadModel(const char *model, size_t modellen, DLDeviceType device, in
                      char **error);
 
 /**
- * @brief  Validate SCRIPTEXECUTE or LLAPI script execute inputs according to the funciton schema.
- *
- * @param schema Fuction argument types (schema).
- * @param nArguments Number of arguments in the function.
- * @param inputsCtx Function execution context containing the information about given inputs.
- * @param error Error string to be populated in case of an exception.
- * @return true If the user provided inputs from types and order that matches the schema.
- * @return false Otherwise.
- */
-bool torchMatchScriptSchema(TorchScriptFunctionArgumentType *schema, size_t nArguments,
-                            TorchFunctionInputCtx *inputsCtx, char **error);
-
-/**
  * @brief Executes a function in a script.
- * @note Should be called after torchMatchScriptSchema verication.
  * @param scriptCtx Executes a function in a script.
  * @param fnName Function name.
- * @param schema Fuction argument types (schema).
- * @param nArguments Number of arguments in the function.
  * @param inputsCtx unction execution context containing the information about given inputs.
  * @param outputs Array of output tensor (placeholders).
  * @param nOutputs Number of output tensors.
  * @param error Error string to be populated in case of an exception.
  */
-void torchRunScript(void *scriptCtx, const char *fnName, TorchScriptFunctionArgumentType *schema,
-                    size_t nArguments, TorchFunctionInputCtx *inputsCtx, DLManagedTensor **outputs,
-                    long nOutputs, char **error);
+void torchRunScript(void *scriptCtx, const char *fnName, TorchFunctionInputCtx *inputsCtx,
+                    DLManagedTensor **outputs, long nOutputs, char **error);
 
 /**
  * @brief Executes a model.
@@ -166,25 +148,55 @@ size_t torchScript_FunctionCount(void *scriptCtx);
 const char *torchScript_FunctionName(void *scriptCtx, size_t fn_index);
 
 /**
- * @brief Return the number of arguments in the fuction numbered fn_index in the script.
+ * @brief Return the number of arguments of a given fuction in the script.
  *
  * @param scriptCtx Script context.
- * @param fn_index Function number.
+ * @param functionName Function name.
  * @return size_t Number of arguments.
  */
-size_t torchScript_FunctionArgumentCount(void *scriptCtx, size_t fn_index);
+size_t torchScript_FunctionArgumentCountByFunctionName(void *scriptCtx, const char *functionName);
 
 /**
- * @brief Rerturns the type of the argument at arg_index of function numbered fn_index in the
+ * @brief Returns the type of the argument at arg_index of a given function in the
  * script.
  *
  * @param scriptCtx Script context.
- * @param fn_index Function number.
+ * @param functionName Function name.
  * @param arg_index Argument number.
  * @return TorchScriptFunctionArgumentType The type of the argument in RedisAI enum format.
  */
-TorchScriptFunctionArgumentType torchScript_FunctionArgumentype(void *scriptCtx, size_t fn_index,
-                                                                size_t arg_index);
+TorchScriptFunctionArgumentType
+torchScript_FunctionArgumentTypeByFunctionName(void *scriptCtx, const char *functionName,
+                                               size_t arg_index);
+
+/**
+ * @brief Returns if function with a given name exists in the script
+ *
+ * @param scriptCtx Script context.
+ * @param functionName Function name.
+ * @return true If the function exists.
+ * @return false If the function does not exists.
+ */
+bool torchScript_FunctionExists(void *scriptCtx, const char *functionName);
+
+/**
+ * @brief Creates a new dltensor representation from torch tensor, by taking
+ * ownership on the tensor and keeping it in the manager_context field. The tensor
+ * data will be freed by calling the deleter function on the manager context field.
+ * @param src - A pointer to torch tensor.
+ * @returns The newly created DLManaged tensor.
+ */
+DLManagedTensor *torchTensorPtrToManagedDLPack(const void *src);
+
+/**
+ * @brief Creates a new torch tensor from a RedisAI tensor, by using its data
+ * and store it in torch_tensor pointer. Note that the ownership of the tensor
+ * is transferred to the torch tensor, and it will be released by calling the
+ * created deleter function, which is RAI_TensorFree
+ * @param src - the input RAI tensor
+ * @param torch_tensor - place holder for the newly created torch tensor.
+ */
+void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor);
 
 #ifdef __cplusplus
 }

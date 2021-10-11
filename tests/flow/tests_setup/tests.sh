@@ -34,7 +34,6 @@ help() {
 		
 		DEVICE=cpu|gpu  Device for testing
 		GEN=0|1         General tests
-		AOF=0|1         Tests with --test-aof
 		SLAVES=0|1      Tests with --test-slaves
 		
 		TEST=test        Run specific test (e.g. test.py:test_name)
@@ -75,7 +74,8 @@ valgrind_config() {
 
 	RLTEST_ARGS+="\
 		--use-valgrind \
-		--vg-suppressions $VALGRIND_SUPRESSIONS"
+		--vg-suppressions $VALGRIND_SUPRESSIONS
+		--cluster_node_timeout 60000"
 }
 
 valgrind_summary() {
@@ -109,7 +109,6 @@ DEVICE=${DEVICE:-cpu}
 
 GEN=${GEN:-1}
 SLAVES=${SLAVES:-0}
-AOF=${AOF:-0}
 
 GDB=${GDB:-0}
 
@@ -144,8 +143,7 @@ check_redis_server
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
-[[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 1" run_tests "--env oss-cluster"
+[[ $CLUSTER == 1 ]] && RLTEST_ARGS+=" --env oss-cluster --shards-count 3" run_tests "--env oss-cluster"
 [[ $VALGRIND != 1 && $SLAVES == 1 ]] && RLTEST_ARGS+=" --use-slaves" run_tests "--use-slaves"
-[[ $AOF == 1 ]] && RLTEST_ARGS+=" --use-aof" run_tests "--use-aof"
 # [[ $VALGRIND == 1 ]] && valgrind_summary
 exit 0

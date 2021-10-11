@@ -17,7 +17,7 @@ const char *ScriptCommand_GetFunctionName(RedisModuleString *functionName) {
     return functionName_cstr;
 }
 
-int ParseKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Error *err) {
+int ValidateKeysArgs(RedisModuleCtx *ctx, RedisModuleString **argv, int argc, RAI_Error *err) {
     if (argc < 3) {
         RAI_SetError(err, RAI_EDAGBUILDER, "ERR Missing arguments after KEYS keyword");
         return -1;
