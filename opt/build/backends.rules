@@ -1,7 +1,10 @@
+# PRODUCT var is the backend name, without any other configuration (set in each backend's corresponding makefile)
+
 # default is x64
 ARCH=$(shell ${READIES}/bin/platform --arch)
 OS=$(shell ${READIES}/bin/platform --os)
 REDIS_CMAKE_ARCH=x86_64
+DOCKER_ORG=redislabs
 
 # jetson
 ifeq ($(shell test -e /usr/share/doc/nvidia-l4t-jetson-io && echo -n yes),yes)
@@ -46,3 +49,17 @@ build:
 
 publish:
 	@aws s3 cp ${BACKEND_NAME} s3://$(S3_URL)/ --acl public-read
+
+# ---------------------------------------------------------------------------------------------------
+define HELP
+make build> # build the backend, tagging the docker image so that the files can be copied out of it
+	OSNICK=<>			# optional base operating system (xenial, bionic, etc)
+	REDIS_CUDA_VERSION=<>		# optional cuda version to override
+	DOCKER_SUFFIX=<>		# optional suffix for the generated dockerfile
+	GPU=1				# if set, build the GPU
+make publish > # upload the generated artifacts to s3 same
+	GPU=1				# if set, upload the GPU artifact (defaults to cpu)
+endef
+# ---------------------------------------------------------------------------------------------------
+include ${READIES}/mk/help.defs
+include ${READIES}/mk/help.rules

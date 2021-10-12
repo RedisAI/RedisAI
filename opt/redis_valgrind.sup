@@ -28,6 +28,13 @@
 
 {
    ignore_unversioned_libs
+   Memcheck:Overlap
+   ...
+   obj:*/libonnxruntime.so*
+}
+
+{
+   ignore_unversioned_libs
    Memcheck:Leak
    ...
    obj:*/libtorch.so*
