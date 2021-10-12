@@ -400,7 +400,7 @@ jobs:
       enabled: true
       docker_layer_caching: true
       resource_class: gpu.nvidia.small
-      image: ubuntu-1604-cuda-11.1:202012-01
+      image: ubuntu-2004-cuda-11.2:202103-01
 
     steps:
       - only_run_if_forked_pull_request
