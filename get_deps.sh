@@ -29,9 +29,9 @@ if [[ $1 == --help || $1 == help ]]; then
 		VERBOSE=1          Print commands
 		FORCE=1            Download even if present
 		WITH_DLPACK=0      Skip dlpack
-		WITH_TF=0          Skip Tensorflow or download from S3 repo
-		WITH_TFLITE=0      Skip TensorflowLite  or download from S3 repo
-		WITH_PT=0          Skip PyTorch or download from S3 repo
+		WITH_TF=0          Skip Tensorflow or download official version
+		WITH_TFLITE=0      Skip TensorflowLite or download official version
+		WITH_PT=0          Skip PyTorch or download official version
 		WITH_ORT=0         Skip OnnxRuntime or download from S3 repo
 		OS=                Set, to override the platform OS
 		ARCH=0             Set, to override the platform ARCH
@@ -99,17 +99,17 @@ clean_and_fetch() {
     echo "Done."
 }
 
-# This is fot torch backend, which comes in a zip file
+# This is foר torch backend, which comes in a zip file
 clean_and_fetch_torch() {
   archive=$1
   src_url=$2
 
-  [[ $FORCE == 1 ]] && rm -rf ${product}  # FORCE is from the env
-  [[ $FORCE != 1 ]] && [[ -d ${product} ]]  && echo "${product} is in place, skipping. Set FORCE=1 to override. Continuing." && return
-  echo "Installing ${product} from ${src_url} in `pwd`..."
-
-  wget -q -O archive src_url
-
+  [[ $FORCE == 1 ]] && rm -rf libtorch  # FORCE is from the env
+  [[ $FORCE != 1 ]] && [[ -d libtorch ]]  && echo "libtorch is in place, skipping. Set FORCE=1 to override. Continuing." && return
+  echo "Installing libtorch from ${src_url} in `pwd`..."
+  LIBTORCH_ZIP=libtorch-${DEVICE}-${PT_VERSION}.zip
+  wget -q -O ${LIBTORCH_ZIP} ${src_url}
+  unzip -q -o ${LIBTORCH_ZIP}
 }
 
 
@@ -181,14 +181,13 @@ fi # WITH_TFLITE
 ####################################################################################### LIBTORCH
 
 PT_BUILD=cpu
-PT_ARCH=x86_64
 if [[ $OS == linux ]]; then
     PT_OS=linux
     if [[ $GPU == 1 ]]; then
         PT_BUILD=cu111
     fi
     if [[ $ARCH == x64 ]]; then
-        PT_REPACK=1
+        PT_ARCH=x86_64
     else
         echo "Only x64 is supported currently"
     fi
@@ -225,6 +224,7 @@ if [[ $OS == linux ]]; then
     fi
 else
     echo "Only Linux OS is supported currently"
+fi
 
 ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
 if [[ $WITH_ORT != 0 ]]; then
