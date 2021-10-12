@@ -239,7 +239,7 @@ jobs:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - setup-automation
 
       # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
