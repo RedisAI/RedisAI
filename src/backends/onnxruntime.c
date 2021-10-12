@@ -346,6 +346,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
         // a model that defined to run on CPU).
         ONNX_VALIDATE_STATUS(
             ort->AddSessionConfigEntry(session_options, "session.use_env_allocators", "1"))
+        ONNX_VALIDATE_STATUS(ort->DisableCpuMemArena(session_options))
     }
 
     // TODO: these options could be configured at the AI.CONFIG level

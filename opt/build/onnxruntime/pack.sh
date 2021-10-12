@@ -1,7 +1,7 @@
 #!/bin/bash
 
 set -e
-VER="$1"  # 1.8.0
+VER="$1"  # 1.9.0
 PLATFORM="$2"  # x64|jetson
 BUILDTYPE="$3"  # Release
 BASEOS="$4"  # linux (mac future?)
@@ -23,9 +23,12 @@ cd onnxruntime/
 git rev-parse HEAD > ../pack/GIT_COMMIT_ID
 cd ..
 cp onnxruntime/include/onnxruntime/core/session/onnxruntime_c_api.h pack/include/
-cp onnxruntime/include/onnxruntime/core/providers/cuda/cuda_provider_factory.h pack/include/
+cp onnxruntime/include/onnxruntime/core/session/onnxruntime_cxx_api.h pack/include/
+cp onnxruntime/include/onnxruntime/core/session/onnxruntime_cxx_inline.h pack/include/
+cp onnxruntime/include/onnxruntime/core/framework/provider_options.h pack/include/
+cp onnxruntime/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h pack/include/
 cd pack/lib/
 ln -s libonnxruntime.so.${VER} libonnxruntime.so
 cd ../..
-mv pack ${target}
-tar czf ${target}.tgz ${target}/
+mv pack onnxruntime-linux-${PLATFORM}-${VER}
+tar czf onnxruntime-linux-${PLATFORM}-${VER}.tgz onnxruntime-linux-${PLATFORM}-${VER}/

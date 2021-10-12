@@ -1,10 +1,8 @@
-import numpy as np
+import shutil
 import sys
 import os
 import subprocess
 import redis
-import time
-
 from includes import *
 from RLTest import Env
 
@@ -558,106 +556,18 @@ class TestOnnxKillSwitch:
                              str(len(devices)*self.threads_per_queue))
 
 
-def test_benchmark_allocator(env):
-    return # currently disabled
+def test_forbidden_external_initializers(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
 
-    env = Env(moduleArgs='THREADS_PER_QUEUE 1')
     con = get_connection(env, '{1}')
 
-    model_pb = load_file_content('mnist.onnx')
-    sample_raw = load_file_content('one.raw')
-    inception_pb = load_file_content('inception-v2-9.onnx')
-    _, _, _, _, img = load_mobilenet_v2_test_data()
-    bert_pb = load_file_content('bert-base-cased.onnx')
-    bert_in_data = np.random.randint(-2, 1, size=(10, 100), dtype=np.int64)
+    # move the external initializer to the redis' current dir (tests/flow/logs)
+    external_initializer_model = load_file_content("model_with_external_initializers.onnx")
+    shutil.copy(ROOT+"/tests/flow/test_data/Pads.bin", ROOT+"/tests/flow/logs")
+    check_error_message(env, con, "Initializer tensors with external data is not allowed.",
+                        'AI.MODELSTORE', 'ext_initializers_model{1}', 'ONNX', DEVICE,
+                        'BLOB', external_initializer_model)
 
-    for i in range(50):
-        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
-        env.assertEqual(ret, b'OK')
-    con.execute_command('AI.TENSORSET', 'mnist_in{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-
-    for i in range(20):
-        ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
-        env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'inception_in{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
-    env.assertEqual(ret, b'OK')
-
-    ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 100, 'BLOB', bert_in_data.tobytes())
-    env.assertEqual(ret, b'OK')
-
-    def run_parallel_onnx_sessions(con, model, input, num_runs):
-        for i in range(num_runs):
-            if model == 'bert{1}':
-                ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 3, input, input, input,
-                                          'OUTPUTS', 2, 'res{1}', 'res2{1}')
-            else:
-                ret = con.execute_command('AI.MODELEXECUTE', model, 'INPUTS', 1, input, 'OUTPUTS', 1, 'res{1}')
-            env.assertEqual(ret, b'OK')
-
-    def run_mnist():
-        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 10000))
-
-    def run_bert():
-        run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 100))
-
-    start_time = time.time()
-    t = threading.Thread(target=run_mnist)
-    t.start()
-
-    t2 = threading.Thread(target=run_bert)
-    t2.start()
-
-    run_test_multiproc(env, '{1}', 1, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 1000))
-    t.join()
-    t2.join()
-    env.debugPrint("Total execution time of all models with one thread is: {}".format(time.time()-start_time), force=True)
-    mnist_info = con.execute_command('AI.INFO', 'mnist{1}0')[11]
-    inception_info = con.execute_command('AI.INFO', 'inception{1}0')[11]
-    bert_info = con.execute_command('AI.INFO', 'bert{1}')[11]
-    total_time = mnist_info+inception_info+bert_info
-    env.debugPrint("Avg server time of all models with one thread is: {}".format(float(total_time)/1000000/11100), force=True)
-
-    env = Env(moduleArgs='THREADS_PER_QUEUE 4')
-
-    for i in range(50):
-        ret = con.execute_command('AI.MODELSTORE', 'mnist{1}'+str(i), 'ONNX', DEVICE, 'BLOB', model_pb)
-        env.assertEqual(ret, b'OK')
-    con.execute_command('AI.TENSORSET', 'mnist_in{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
-
-    for i in range(20):
-        ret = con.execute_command('AI.MODELSTORE', 'inception{1}'+str(i), 'ONNX', DEVICE, 'BLOB', inception_pb)
-        env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'inception_in{1}', 'FLOAT', 1, 3, 224, 224, 'BLOB', img.tobytes())
-    env.assertEqual(ret, b'OK')
-
-    ret = con.execute_command('AI.MODELSTORE', 'bert{1}', 'ONNX', DEVICE, 'BLOB', bert_pb)
-    env.assertEqual(ret, b'OK')
-    ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 100, 'BLOB', bert_in_data.tobytes())
-    env.assertEqual(ret, b'OK')
-
-    # run only mnist with multiple threads
-    start_time = time.time()
-    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('mnist{1}0', 'mnist_in{1}', 1000))
-    env.debugPrint("Total execution time of mnist with multiple threads is: {}".format(time.time()-start_time), force=True)
-    mnist_time = con.execute_command('AI.INFO', 'mnist{1}0')[11]
-    print(str(con.execute_command('AI.INFO', 'mnist{1}0')))
-    env.debugPrint("Avg server time of mnist with multiple threads is:{}".format(float(mnist_time)/1000000/10000), force=True)
-
-    # run only inception with multiple threads
-    start_time = time.time()
-    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('inception{1}0', 'inception_in{1}', 100))
-    env.debugPrint("Total execution time of inception with multiple threads is: {}".format(time.time()-start_time), force=True)
-    inception_time = con.execute_command('AI.INFO', 'inception{1}0')[11]
-    print(str(con.execute_command('AI.INFO', 'inception{1}0')))
-    env.debugPrint("Avg server time of inception with multiple threads is: {}".format(float(inception_time)/1000000/1000), force=True)
-
-    # run only bert with multiple threads
-    start_time = time.time()
-    run_test_multiproc(env, '{1}', 10, run_parallel_onnx_sessions, ('bert{1}', 'bert_in{1}', 10))
-    env.debugPrint("Total execution time of bert with multiple threads is: {}".format(time.time()-start_time), force=True)
-    bert_time = con.execute_command('AI.INFO', 'bert{1}')[11]
-    print(str(con.execute_command('AI.INFO',  'bert{1}')))
-    env.debugPrint("Avg server time of bert with multiple threads is: {}".format(float(bert_time)/1000000/100), force=True)
-
+    os.remove(ROOT+"/tests/flow/logs/Pads.bin")
