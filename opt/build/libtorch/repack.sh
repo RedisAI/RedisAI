@@ -71,9 +71,7 @@ if [[ $OS == linux ]]; then
 			LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
 		fi
 	fi
-elif [[ $OS == macos ]]; then
-	LIBTORCH_ARCHIVE=libtorch-${PT_OS}-${PT_VERSION}.zip
-fi
+
 
 [[ -z $LIBTORCH_URL ]] && LIBTORCH_URL=https://download.pytorch.org/libtorch/$PT_BUILD/$LIBTORCH_ARCHIVE
 
