@@ -30,5 +30,5 @@ cp onnxruntime/include/onnxruntime/core/providers/cpu/cpu_provider_factory.h pac
 cd pack/lib/
 ln -s libonnxruntime.so.${VER} libonnxruntime.so
 cd ../..
-mv pack onnxruntime-linux-${PLATFORM}-${VER}
-tar czf onnxruntime-linux-${PLATFORM}-${VER}.tgz onnxruntime-linux-${PLATFORM}-${VER}/
+mv pack ${target}
+tar czf ${target}.tgz ${target}/
