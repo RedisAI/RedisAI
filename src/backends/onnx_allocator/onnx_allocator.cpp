@@ -56,9 +56,9 @@ void* RAIOrtAllocator::Alloc(size_t size) {
     }
     memory_inuse.fetch_add(allocated_size);
     num_allocator_access.fetch_add(1);
-    // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
+    // This operation guarantees that "aligned_address" is the closest 64-aligned address to ("allocated_address"+size_t).
     void **aligned_address = (void **)(((size_t)(allocated_address) + offset) & (~63));
-    // This stores the address p1 right before p2 (so we can retrieve it when we free).
+    // This stores the address "allocated_address" right before "aligned_address" (so we can retrieve it when we free).
     aligned_address[-1] = allocated_address;
     return aligned_address;
 }

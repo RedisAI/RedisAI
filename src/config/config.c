@@ -14,10 +14,10 @@ long long ModelChunkSize = 535822336;     //  size of chunks used to break up mo
                                           //  default is 511 * 1024 * 1024
 long long ThreadPoolSizePerQueue = 1;     //  Number of working threads for device.
 
-long long ModelExecutionTimeout = 5000;   //  The maximum time in milliseconds
-                                          //  before killing onnx run session.
-long long BackendMemoryLimit = 0;         //  The maximum amount of memory in MB
-                                          //  that backend is allowed to consume.
+long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
+                                        //  before killing onnx run session.
+long long BackendMemoryLimit = 0;       //  The maximum amount of memory in MB
+                                        //  that backend is allowed to consume.
 
 static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                                       RedisModuleString *rsval) {
