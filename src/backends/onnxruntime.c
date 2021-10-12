@@ -1,5 +1,4 @@
 #define REDISMODULE_MAIN
-#include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
 #include <backends/onnx_timeout.h>
@@ -391,9 +390,7 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
         ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        ONNX_VALIDATE_STATUS(ort->CreateCustomDeviceAllocator(
-            ORT_API_VERSION, AllocatorAlloc, AllocatorFree, AllocatorInfo, &global_allocator))
-        ONNX_VALIDATE_STATUS(ort->RegisterCustomDeviceAllocator(env, global_allocator))
+        ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator));
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
