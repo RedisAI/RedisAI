@@ -221,6 +221,11 @@ jobs:
           platform: debian
 
   platforms-build:
+    machine:
+      enabled: true
+      docker_layer_caching: true
+      resource_class: small
+      image: ubuntu-2004:202107-02
     parameters:
       lite:  # LITE value during make
         type: string
@@ -228,15 +233,20 @@ jobs:
         type: string
       target:  # CPU|GPU
         type: string
-    docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
-      - setup_remote_docker:
-          docker_layer_caching: true
       - checkout-all
+      - run:
+          name: Relocate docker overlay2 dir
+          command: |
+            sudo systemctl stop docker
+            sudo mkdir -p /var2/lib/docker
+            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
+            sudo mkdir /var/lib/docker/overlay2
+            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            sudo systemctl start docker
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
@@ -341,45 +351,6 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - valgrind-general-steps
-
-#  build-macos:
-#    macos:
-#      xcode: 11.3.0
-#    steps:
-#      - abort_for_docs
-#      - run:
-#          name: Fix macOS Python installation
-#          command: |
-#            brew reinstall -f python2
-#      - build-steps:
-#          platform: macos
-#
-#  build-multiarch-docker:
-#    machine:
-#      enabled: true
-#      image: cimg/base:2020.01
-#    steps:
-#      - abort_for_docs
-#      - checkout-all
-#      - run:
-#          name: Checkout LFS
-#          command: |
-#            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-#            sudo apt-get install -y git-lfs
-#            git lfs install
-#            git lfs pull
-#      - run:
-#          name: Setup Docker client experimental features
-#          command: |
-#            sudo ./opt/readies/bin/getdocker --just-enable-exp
-#            docker version
-#      - run:
-#          name: Build
-#          command: |
-#            sudo docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-#            cd opt/build/docker
-#            make build
-#            sudo make publish
 
   # internal PRs execute build-and-test either in a workflow or
   # via a github action trigger
