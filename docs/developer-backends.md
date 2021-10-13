@@ -1,13 +1,13 @@
 # RedisAI Development Backends
 
 This document describes how ONNXRuntime backend can be built from this repository.
-We build ONNXRuntime library with DISABLE_EXTERNAL_INITIALIZERS=ON build flag, which is not the default configuration. This means that loading ONNX models that use external files to store the initial (usually very large) values of the model's operations, is invalid. That is, initializers values must be part of the serialized model, which is also the standard use case.
+We build the ONNXRuntime library with the DISABLE_EXTERNAL_INITIALIZERS=ON build flag. As a result, loading ONNX models that use external files to store the initial (usually very large) values of the model's operations, is invalid. Hence, initialization values must be part of the serialized model, which is also the standard use case.
 
 It is compiled in a docker, which is responsible for the configuration and installation of all tools required the build process.
 
 To follow these instructions, this repository must be cloned with all of its submodules (i.e *git clone --recursive https://github.com/redisai/redisai*)
 
-GNU Make is used as a runner for the dockerfile generator. Python is the language used for the generator script, and jinja is the templating library used to create the docker file from a template *dockerfile.tmpl* that can be found in the `/opt/build/onnxruntime` directory.
+GNU Make is used as a runner for the dockerfile generator. Python is the language used for the generator script, and jinja is the templating library used to create the docker file from the template *dockerfile.tmpl*, located in the `/opt/build/onnxruntime` directory.
 
 ### Tools
 
@@ -24,7 +24,7 @@ On ubuntu bionic these can be installed by running the following steps, to insta
 sudo apt install python3 python3-dev make docker
 python3 -m venv /path/to/venv
 source /path/to/venv/bin/activate
-pip install jinja
+pip install jinja2
 ```
 
 -------
