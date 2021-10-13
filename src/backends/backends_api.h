@@ -37,11 +37,19 @@ BACKENDS_API uintptr_t (*RedisAI_GetThreadsCount)(void);
 BACKENDS_API long long (*RedisAI_GetNumThreadsPerQueue)(void);
 
 /**
- * @return The maximal number of milliseconds that a model run session should run
+ * @return The maximum number of milliseconds that a model run session should run
  * before it is terminated forcefully (load time config).
- * Currently supported only fo onnxruntime backend.
+ * Currently supported only for onnxruntime backend.
  */
 BACKENDS_API long long (*RedisAI_GetModelExecutionTimeout)(void);
+
+/**
+ * @return The maximum number of memory (in MB) that a backend can consume
+ * for creating and running inference sessions. When memory limit is exceeded, operation
+ * is not permitted and an error is returned.
+ * Currently supported only for onnxruntime backend.
+ */
+BACKENDS_API long long (*RedisAI_GetMemoryLimit)(void);
 
 /**
  * The following functions are part of RedisAI low level API (the full low level

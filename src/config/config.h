@@ -26,6 +26,7 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define REDISAI_INFOMSG_INTER_OP_PARALLELISM    "Setting INTER_OP_PARALLELISM parameter to"
 #define REDISAI_INFOMSG_MODEL_CHUNK_SIZE        "Setting MODEL_CHUNK_SIZE parameter to"
 #define REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT "Setting MODEL_EXECUTION_TIMEOUT parameter to"
+#define REDISAI_INFOMSG_BACKEND_MEMORY_LIMIT    "Setting BACKEND_MEMORY_LIMIT parameter to"
 
 /**
  * Get number of threads used for parallelism between independent operations, by
@@ -55,6 +56,13 @@ long long Config_GetNumThreadsPerQueue(void);
  * before killing it. Currently supported only for onnxruntime backend.
  */
 long long Config_GetModelExecutionTimeout(void);
+
+/**
+ * @return Memory limit in MB for backend. This is the maximum amount of memory
+ * that can be consumed by the backend for creating and running sessions.
+ * Currently supported only for onnxruntime backend.
+ */
+long long Config_GetBackendMemoryLimit(void);
 
 /**
  * @return Returns the backends path string.
@@ -113,10 +121,18 @@ int Config_SetModelChunkSize(RedisModuleString *chunk_size_string);
 
 /**
  * Set the maximum time in ms that onnx backend allow running a model.
- * @param onnx_max_runtime - string containing the max runtime (in ms)
+ * @param timeout - string containing the max runtime (in ms)
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
 int Config_SetModelExecutionTimeout(RedisModuleString *timeout);
+
+/**
+ * Set the memory limit in MB for backends allocations.
+ * @param memory_limit - maximum memory consumption by backend. If values is zero,
+ * there will be no enforcement of any memory limit.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int Config_SetBackendMemoryLimit(RedisModuleString *memory_limit);
 
 /**
  * Load time configuration parser

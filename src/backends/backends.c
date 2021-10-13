@@ -50,6 +50,8 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
         *targetFuncPtr = Config_GetModelExecutionTimeout;
     } else if (strcmp("GetThreadsCount", func_name) == 0) {
         *targetFuncPtr = BGWorker_GetThreadsCount;
+    } else if (strcmp("GetBackendMemoryLimit", func_name) == 0) {
+        *targetFuncPtr = Config_GetBackendMemoryLimit;
 
         // Export RedisAI low level API functions.
     } else if (strcmp("RedisAI_InitError", func_name) == 0) {

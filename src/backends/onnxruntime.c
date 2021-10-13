@@ -6,6 +6,7 @@
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
+#include "onnx_allocator/onnx_allocator.h"
 
 #include "onnxruntime_c_api.h"
 #include "backends_api.h"
@@ -21,63 +22,7 @@ OrtEnv *env = NULL;
 // For model that run on GPU, onnx will not use the custom allocator (redis allocator), but
 // the onnx allocator for GPU. But for the auxiliary allocations of the input and output names,
 // we will use the custom global allocator for models that run on GPU as well.
-OrtMemoryInfo *mem_info = NULL;
 OrtAllocator *global_allocator = NULL;
-unsigned long long OnnxMemory = 0;
-unsigned long long OnnxMemoryAccessCounter = 0;
-
-const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
-    (void)allocator;
-    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    if (mem_info != NULL) {
-        return mem_info;
-    }
-    if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
-        return NULL;
-    }
-    return mem_info;
-}
-
-// Allocate address with 64-byte alignment to cope with onnx optimizations.
-void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
-
-    (void)ptr;
-    // Allocate an additional 63 bytes to ensure that we can return an address which is
-    // 64-byte aligned, and an additional space in the size of a pointer to store
-    // the address that RedisModule_Alloc returns.
-    int offset = 63 + sizeof(void *);
-    void *allocated_address = (void *)RedisModule_Alloc(size + offset);
-    size_t allocated_size = RedisModule_MallocSize(allocated_address);
-    // Update the total number of bytes that onnx is using and the number of accesses
-    // that onnx made to the allocator.
-    atomic_fetch_add(&OnnxMemory, allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
-    void **aligned_address = (void **)(((size_t)(allocated_address) + offset) & (~63));
-    // This stores the address p1 right before p2 (so we can retrieve it when we free).
-    aligned_address[-1] = allocated_address;
-    return aligned_address;
-}
-
-void AllocatorFree(OrtAllocator *ptr, void *aligned_address) {
-    (void)ptr;
-    if (aligned_address == NULL) {
-        return;
-    }
-    // Retrieve the address that we originally received from RedisModule_Alloc
-    // (this is the address that we need to sent to RedisModule_Free).
-    void *allocated_address = ((void **)aligned_address)[-1];
-    size_t allocated_size = RedisModule_MallocSize(allocated_address);
-    // Update the total number of bytes that onnx is using and the number of accesses
-    // that onnx made to the allocator.
-    atomic_fetch_sub(&OnnxMemory, allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return RedisModule_Free(allocated_address);
-}
-
-unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
-
-unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     // Export redis callbacks.
@@ -95,6 +40,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
     get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
     get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetBackendMemoryLimit", ((void **)&RedisAI_GetMemoryLimit));
     get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
@@ -389,8 +335,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // allocating buffers when creating and running models that run on CPU, and for allocations of
     // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
-        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        ONNX_VALIDATE_STATUS(ort->GetAllocatorWithDefaultOptions(&global_allocator));
+        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "RedisAI", &env))
+        global_allocator = CreateCustomAllocator(RedisAI_GetMemoryLimit());
+        ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
