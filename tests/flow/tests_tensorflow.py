@@ -759,3 +759,14 @@ def test_tf_string_tensors_batching(env):
     env.assertEqual(out_values, [b'this is', b'the first batch'])
     out_values = con.execute_command('AI.TENSORGET', 'second_batch{1}', 'VALUES')
     env.assertEqual(out_values, [b'that is', b'the second batch'])
+
+@skip_if_no_TF
+def test_bad_execution_model(env):
+    con = get_connection(env, '{1}')
+
+    model_pb = load_file_content('frozen_bad_model.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE, 'INPUTS', 1, 'x', 'OUTPUTS', 1, 'Identity', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'my_str_tensor{1}', 'STRING', 4, 'BLOB', "how do I extract keys from a dict into a list?\x00debug public static void main(string[] args) {...}\x00should I use def main()\x00type hinting for list?\x00")
+    env.assertEqual(ret, b'OK')
+    check_error(env, con, 'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'my_str_tensor{1}', 'OUTPUTS', 1, 'foo{1}')
