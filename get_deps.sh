@@ -99,7 +99,7 @@ clean_and_fetch() {
     echo "Done."
 }
 
-# This is foר torch backend, which comes in a zip file
+# This is for torch backend, which comes in a zip file
 clean_and_fetch_torch() {
   archive=$1
   src_url=$2
