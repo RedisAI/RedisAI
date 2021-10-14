@@ -2,7 +2,7 @@
 PRODUCT=redisai
 DOCKER_ORG=redislabs
 REDIS_VERSION=6.2.5
-REDIS_CUDA_VERSION=11.0-cudnn8
+REDIS_CUDA_VERSION=11.2.2-cudnn8
 REDISAI_LITE=0
 
 PACK=1 # to fetch the artifacts

@@ -303,7 +303,8 @@ def test_info_command(env):
     env.assertEqual(list(git.keys()), ['ai_git_sha'])
     load_time_configs = get_info_section(con, 'load_time_configs')
     env.assertEqual(list(load_time_configs.keys()), ['ai_threads_per_queue', 'ai_inter_op_parallelism',
-                                               'ai_intra_op_parallelism', 'ai_model_execution_timeout'])
+                                                     'ai_intra_op_parallelism', 'ai_model_execution_timeout',
+                                                     'ai_backend_memory_limit'])
     # minimum cpu properties
     cpu = get_info_section(con, 'cpu')
     env.assertTrue('ai_self_used_cpu_sys' in cpu.keys())

@@ -413,7 +413,7 @@ def test_pytorch_scriptexecute_with_timeout(env):
 
     # make sure that we have a long operation that RedisAI will run upon sending the following
     # command, to assure that timeout will occur.
-    time.sleep(0.1)
+    time.sleep(0.5)
     ret = con.execute_command('AI.SCRIPTEXECUTE', 'my_script{$}', 'bar',
                               'INPUTS', 2, 'a{$}', 'b{$}', 'OUTPUTS', 1, 'c{$}', 'TIMEOUT', 1)
     env.assertEqual(ret, b'TIMEDOUT')

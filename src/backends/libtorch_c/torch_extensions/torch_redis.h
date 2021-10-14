@@ -34,6 +34,5 @@ std::vector<torch::Tensor> modelExecute(const std::string &model_key,
                                         const std::vector<torch::Tensor> &inputs,
                                         int64_t num_outputs);
 
-static auto registry = torch::RegisterOperators("redis::execute", &redisExecute)
-                           .op("redis::asList", &asList)
-                           .op("redisAI::model_execute", &modelExecute);
+// Register Redis and RedisAI costume ops in torch
+void registerRedisOps(void);

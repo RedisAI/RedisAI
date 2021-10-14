@@ -51,7 +51,7 @@ int RAI_InitBackendTorch(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisAI_ModelRunCtxOutputTensor", ((void **)&RedisAI_ModelRunCtxOutputTensor));
     get_api_fn("RedisAI_ModelRunCtxFree", ((void **)&RedisAI_ModelRunCtxFree));
     get_api_fn("RedisAI_ModelRun", ((void **)&RedisAI_ModelRun));
-
+    torchRegisterRedisOps();
     return REDISMODULE_OK;
 }
 

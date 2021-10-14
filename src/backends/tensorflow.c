@@ -530,8 +530,10 @@ int RAI_ModelRunTF(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error)
                   outputTensorsValues, noutputs, NULL /* target_opers */, 0 /* ntargets */,
                   NULL /* run_Metadata */, status);
 
+    bool delete_output = true;
     if (TF_GetCode(status) != TF_OK) {
         RAI_SetError(error, RAI_EMODELRUN, TF_Message(status));
+        delete_output = false;
         goto cleanup;
     }
 
@@ -575,8 +577,10 @@ cleanup:
         }
         TF_DeleteTensor(inputTensorsValues[i]);
     }
-    for (size_t i = 0; i < noutputs; i++) {
-        TF_DeleteTensor(outputTensorsValues[i]);
+    if (delete_output) {
+        for (size_t i = 0; i < noutputs; i++) {
+            TF_DeleteTensor(outputTensorsValues[i]);
+        }
     }
     return res;
 }
