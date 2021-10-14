@@ -170,9 +170,16 @@ sudo ./opt/system-setup.py
 
 **Building**
 
-To compile RedisAI, run *make -C opt all*, from the root of the repository.
+Before compiling RedisAI module, make sure that you have the backends' shared libraries in the `deps` directory. These can be easily obtained by running:
+```./get_deps```
+or
+```./get_deps gpu```
+for having GPU support.
+Except for ONNXRuntime backend which is stored in a S3 bucket, other backends' binary files are downloaded directly from their official websites.
+Further details about building ONNXRuntime backend for RedisAI is described in [this document](developer-backends.md).
 
-Build the backends is described in [this document](developer-backends.md).
+To compile RedisAI, run `make -C opt` or `make -C opt GPU=1`, from the root of the repository. This will create the module's shared library `redisai.so` in `instali-cpu`/`install-gpu` directory respectively. 
+
 
 ### Testing
 

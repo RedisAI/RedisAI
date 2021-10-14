@@ -5,6 +5,13 @@
 #include "torch_redis.h"
 #include "../torch_c.h"
 
+static torch::RegisterOperators registry;
+void registerRedisOps(void) {
+    registry = torch::RegisterOperators("redis::execute", &redisExecute)
+                           .op("redis::asList", &asList)
+                           .op("redisAI::model_execute", &modelExecute);
+}
+
 torch::IValue IValueFromRedisReply(RedisModuleCtx *ctx, RedisModuleCallReply *reply){
 
     int reply_type = RedisModule_CallReplyType(reply);
@@ -23,7 +30,7 @@ torch::IValue IValueFromRedisReply(RedisModuleCtx *ctx, RedisModuleCallReply *re
             return torch::IValue(intValue);
         }
         case REDISMODULE_REPLY_ARRAY: {
-            c10::impl::GenericList vec = c10::impl::GenericList(c10::AnyType::create());
+            c10::List<c10::IValue> vec(c10::AnyType::get());
             size_t len = RedisModule_CallReplyLength(reply);
             for (auto i = 0; i < len; ++i) {
                 RedisModuleCallReply *subReply = RedisModule_CallReplyArrayElement(reply, i);
