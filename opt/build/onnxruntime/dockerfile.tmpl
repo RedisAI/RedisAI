@@ -1,0 +1,48 @@
+{% if REDIS_OSNICK == "xenial" %}
+{% set cuda_suffix_os = "ubuntu16.04" %}
+{% elif REDIS_OSNICK == "bionic" %}
+{% set cuda_suffix_os = "ubuntu18.04" %}
+{% endif %}
+
+{% if REDIS_ARCH == 'jetson' %}
+FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
+{% endif %}
+
+{% if REDIS_ARCH == 'x64' %}
+{% if REDIS_GPU is defined %}
+FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{cuda_suffix_os}}
+{% else %}
+{% if REDIS_OSNICK == "xenial" %}
+FROM ubuntu:xenial
+{% elif REDIS_OSNICK == "bionic" %}
+FROM ubuntu:bionic
+{% endif %}
+{% endif %}
+{% endif %}
+
+ARG ONNXRUNTIME_REPO={{REDIS_ONNX_REPO}}
+ARG ONNXRUNTIME_VER={{REDIS_ONNX_VERSION}}
+
+{% include 'apt.yml' %}
+
+{% include 'cmake.yml' %}
+
+# build
+WORKDIR /build
+{% if REDIS_GPU is defined %}
+{% set BUILDTYPE="Release" %}
+{% set BUILDARGS="--use_cuda --cudnn_home /usr/local/cuda --cuda_home /usr/local/cuda --cmake_extra_defines onnxruntime_DISABLE_EXTERNAL_INITIALIZERS=ON"%}
+{% else %}
+{% set BUILDTYPE="Release" %}
+{% set BUILDARGS="--cmake_extra_defines onnxruntime_DISABLE_EXTERNAL_INITIALIZERS=ON" %}
+{% endif %}
+
+ARG BUILDARGS="--config {{BUILDTYPE}} --parallel"
+RUN git clone --single-branch --branch v{{REDIS_ONNX_VERSION}} {{REDIS_ONNX_REPO}} onnxruntime
+WORKDIR /build/onnxruntime
+RUN ./build.sh --config {{BUILDTYPE}} {{BUILDARGS}} --update --build --build_shared_lib --parallel
+
+# package
+ADD ./pack.sh /build
+WORKDIR /build
+RUN ./pack.sh {{REDIS_ONNX_VERSION}} {{REDIS_ARCH}} {{BUILDTYPE}} linux {% if REDIS_GPU is defined %} gpu {% endif %}

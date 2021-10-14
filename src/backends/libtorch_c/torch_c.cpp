@@ -165,6 +165,10 @@ torch::Tensor fromDLPack(const DLTensor *src) {
                             torch::device(device).dtype(stype));
 }
 
+extern "C" void torchRegisterRedisOps(void) {
+    registerRedisOps();
+}
+
 extern "C" void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor) {
     DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(src);
     at::DeviceType device_type = getATenDeviceType(dl_tensor->device.device_type);
