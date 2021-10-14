@@ -57,10 +57,18 @@ commands:
             fi
 
   relocate-docker-storage:
+    description: >-
+      If this runs in parallel it can slaughter docker builds due to behaviour in the overlay2
+      tree having missing bits. This mitigates that by ensuring we run it only once. This could
+      have parallelization consequences if everything lines up.
     steps:
       - run:
           name: Relocate docker overlay2 dir
           command: |
+            if [ -f /tmp/relocate_storage ]; then
+                exit 0
+            fi
+            touch /tmp/relocate_storage
             sudo systemctl stop docker
             sudo mkdir -p /var2/lib/docker
             sudo mv /var/lib/docker/overlay2 /var2/lib/docker
@@ -238,15 +246,7 @@ jobs:
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
+      - relocate-docker-storage
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
@@ -538,21 +538,21 @@ workflows:
   build_and_package:
     jobs:
 
-      - lint:
-          <<: *on-any-branch
-      - build-and-test:
-          <<: *on-any-branch
-          <<: *after-linter
-      - build-and-test-gpu:
-          <<: *on-integ-branch
-          <<: *after-linter
-      - build-and-test-gpu-for-forked-prs:
-          <<: *on-any-branch
-          <<: *after-linter
+#      - lint:
+#          <<: *on-any-branch
+#      - build-and-test:
+#          <<: *on-any-branch
+#          <<: *after-linter
+#      - build-and-test-gpu:
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - build-and-test-gpu-for-forked-prs:
+#          <<: *on-any-branch
+#          <<: *after-linter
       - platforms-build:
           context: common
-          <<: *after-build-and-test
-          <<: *on-master-version-tags-and-dockertests
+#          <<: *after-build-and-test
+#          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -560,36 +560,36 @@ workflows:
                 - bionic
                 - centos8
               lite:
-                - "REDISAI_LITE=0 PUBLISH=1"
+                - "REDISAI_LITE=0" # PUBLISH=1"
                 - "REDISAI_LITE=1"
               target:
                 - "CPU=1"
                 - "GPU=1"
-      - coverage:
-          context: common
-          <<: *on-dev-branches
-          <<: *after-linter
-      - valgrind-general-for-forked-prs:
-          <<: *on-any-branch
-          <<: *after-linter
-      - valgrind:
-          name: valgrind-cluster
-          test_args: GEN=0
-          <<: *on-integ-branch
-          <<: *after-linter
-      - deploy-snapshot:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-master-version-tags-and-dockertests
-      - deploy-release:
-          context: common
-          <<: *after-platform-builds
-          <<: *on-version-tags
-      - release-automation:
-          context: common
-          <<: *on-version-tags
-          requires:
-            - deploy-release
+#      - coverage:
+#          context: common
+#          <<: *on-dev-branches
+#          <<: *after-linter
+#      - valgrind-general-for-forked-prs:
+#          <<: *on-any-branch
+#          <<: *after-linter
+#      - valgrind:
+#          name: valgrind-cluster
+#          test_args: GEN=0
+#          <<: *on-integ-branch
+#          <<: *after-linter
+#      - deploy-snapshot:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-master-version-tags-and-dockertests
+#      - deploy-release:
+#          context: common
+#          <<: *after-platform-builds
+#          <<: *on-version-tags
+#      - release-automation:
+#          context: common
+#          <<: *on-version-tags
+#          requires:
+#            - deploy-release
 
 #  nightly:
 #    triggers:
