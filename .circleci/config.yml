@@ -288,7 +288,6 @@ jobs:
   platforms-build-gpu:
     machine:
       enabled: true
-      docker_layer_caching: true
       resource_class: medium
       image: ubuntu-2004:202107-02
     parameters:
