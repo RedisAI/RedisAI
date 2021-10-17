@@ -583,21 +583,21 @@ workflows:
   build_and_package:
     jobs:
 
-#      - lint:
-#          <<: *on-any-branch
-#      - build-and-test:
-#          <<: *on-any-branch
-#          <<: *after-linter
-#      - build-and-test-gpu:
-#          <<: *on-integ-branch
-#          <<: *after-linter
-#      - build-and-test-gpu-for-forked-prs:
-#          <<: *on-any-branch
-#          <<: *after-linter
+      - lint:
+          <<: *on-any-branch
+      - build-and-test:
+          <<: *on-any-branch
+          <<: *after-linter
+      - build-and-test-gpu:
+          <<: *on-integ-branch
+          <<: *after-linter
+      - build-and-test-gpu-for-forked-prs:
+          <<: *on-any-branch
+          <<: *after-linter
       - platforms-build-cpu:
           context: common
-#          <<: *after-build-and-test
-#          <<: *on-master-version-tags-and-dockertests
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -605,13 +605,13 @@ workflows:
                 - bionic
                 - centos8
               lite:
-                - "REDISAI_LITE=0" # PUBLISH=1"
+                - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
 
       - platforms-build-gpu:
           context: common
-#          <<: *after-build-and-test
-#          <<: *on-master-version-tags-and-dockertests
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -619,33 +619,33 @@ workflows:
                 - bionic
                 - centos8
               lite:
-                - "REDISAI_LITE=0"
+                - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
-#      - coverage:
-#          context: common
-#          <<: *on-dev-branches
-#          <<: *after-linter
-#      - valgrind-general-for-forked-prs:
-#          <<: *on-any-branch
-#          <<: *after-linter
-#      - valgrind:
-#          name: valgrind-cluster
-#          test_args: GEN=0
-#          <<: *on-integ-branch
-#          <<: *after-linter
-#      - deploy-snapshot:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-master-version-tags-and-dockertests
-#      - deploy-release:
-#          context: common
-#          <<: *after-platform-builds
-#          <<: *on-version-tags
-#      - release-automation:
-#          context: common
-#          <<: *on-version-tags
-#          requires:
-#            - deploy-release
+      - coverage:
+          context: common
+          <<: *on-dev-branches
+          <<: *after-linter
+      - valgrind-general-for-forked-prs:
+          <<: *on-any-branch
+          <<: *after-linter
+      - valgrind:
+          name: valgrind-cluster
+          test_args: GEN=0
+          <<: *on-integ-branch
+          <<: *after-linter
+      - deploy-snapshot:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-master-version-tags-and-dockertests
+      - deploy-release:
+          context: common
+          <<: *after-platform-builds
+          <<: *on-version-tags
+      - release-automation:
+          context: common
+          <<: *on-version-tags
+          requires:
+            - deploy-release
 
 #  nightly:
 #    triggers:
