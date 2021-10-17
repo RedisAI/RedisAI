@@ -1,0 +1,59 @@
+# BUILD redisfab/libtensorflow:${TF_VER}-cpu-${OSNICK}-${ARCH}
+
+# stretch|bionic|buster
+ARG OSNICK=buster
+
+# arm32v7|arm64v8
+ARG ARCH=arm64v8
+
+#----------------------------------------------------------------------------------------------
+FROM redisfab/${ARCH}-jdk-xbuild:${OSNICK}
+
+RUN [ "cross-build-start" ]
+
+ARG ARCH
+
+ARG TF_BRANCH=r1.15
+ARG TF_VER=1.15.0
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV TF_IGNORE_MAX_BAZEL_VERSION=1
+
+WORKDIR /build
+
+RUN apt-get -qq update
+RUN apt-get -q install -y git build-essential python3 python3-dev python3-pip wget
+
+RUN set -e ;\
+	wget -q -O /usr/local/bin/bazel https://s3.amazonaws.com/redismodules/bazel/bazel-0.24.1.${ARCH} ;\
+	chmod +x /usr/local/bin/bazel
+
+RUN pip3 install wheel setuptools
+RUN pip3 install six numpy mock
+RUN pip3 install keras_applications==1.0.6 --no-deps
+RUN pip3 install keras_preprocessing==1.0.5 --no-deps
+
+# RUN set -e ;\
+# 	mkdir -p /usr/share/man/man1 ;\
+# 	apt-get -q install -y openjdk-11-jdk
+
+RUN set -e ;\
+	git clone --single-branch --branch ${TF_BRANCH} --recursive https://github.com/tensorflow/tensorflow.git ;\
+	cd tensorflow ;\
+	git checkout v${TF_VER}
+
+RUN set -e ;\
+	cd tensorflow ;\
+	patch -p1 -i ../tf-1.15.0-arm64v8.patch
+
+RUN set -e ;\
+	cd tensorflow ;\
+	./configure ;\
+	bazel build --jobs $(ncpus) --config=opt //tensorflow:libtensorflow.so
+
+ADD ./opt/readies/ /build/readies/
+ADD ./opt/build/tensorflow/collect.py /build/
+
+RUN  ./collect.py
+
+RUN [ "cross-build-end" ]

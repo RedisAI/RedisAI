@@ -1,0 +1,86 @@
+--- old/tensorflow/lite/python/interpreter.py	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/python/interpreter.py	2019-07-20 15:11:41.659061160 +0000
+@@ -305,3 +305,7 @@
+ 
+   def reset_all_variables(self):
+     return self._interpreter.ResetVariableTensors()
++
++  def set_num_threads(self, i):
++    return self._interpreter.SetNumThreads(i)
++
+--- old/tensorflow/lite/python/interpreter_wrapper/interpreter_wrapper.cc	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/python/interpreter_wrapper/interpreter_wrapper.cc	2019-07-20 15:12:36.115293826 +0000
+@@ -446,5 +446,10 @@
+   Py_RETURN_NONE;
+ }
+ 
++PyObject* InterpreterWrapper::SetNumThreads(int i) {
++	  interpreter_->SetNumThreads(i);
++	    Py_RETURN_NONE;
++}
++
+ }  // namespace interpreter_wrapper
+ }  // namespace tflite
+--- old/tensorflow/lite/python/interpreter_wrapper/interpreter_wrapper.h	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/python/interpreter_wrapper/interpreter_wrapper.h	2019-07-20 15:13:38.971563310 +0000
+@@ -72,6 +72,8 @@
+   // should be the interpreter object providing the memory.
+   PyObject* tensor(PyObject* base_object, int i);
+ 
++  PyObject* SetNumThreads(int i);
++
+  private:
+   // Helper function to construct an `InterpreterWrapper` object.
+   // It only returns InterpreterWrapper if it can construct an `Interpreter`.
+--- old/tensorflow/lite/tools/make/Makefile	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/tools/make/Makefile	2019-07-20 15:14:13.823713121 +0000
+@@ -150,7 +150,7 @@
+ 	CORE_CC_EXCLUDE_SRCS += tensorflow/lite/mmap_allocation_disabled.cc
+ endif
+ 
+-BUILD_WITH_NNAPI=true
++BUILD_WITH_NNAPI=false
+ ifeq ($(BUILD_TYPE),micro)
+ 	BUILD_WITH_NNAPI=false
+ endif
+--- old/tensorflow/lite/tools/make/targets/aarch64_makefile.inc	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/tools/make/targets/aarch64_makefile.inc	2019-07-20 15:16:40.396345748 +0000
+@@ -9,12 +9,16 @@
+     -march=armv8-a \
+     -funsafe-math-optimizations \
+     -ftree-vectorize \
++    -flax-vector-conversions \
++    -fomit-frame-pointer \
+     -fPIC
+ 
+   CFLAGS += \
+     -march=armv8-a \
+     -funsafe-math-optimizations \
+     -ftree-vectorize \
++    -flax-vector-conversions \
++    -fomit-frame-pointer \
+     -fPIC
+ 
+   LDFLAGS := \
+@@ -28,6 +32,7 @@
+     -lstdc++ \
+     -lpthread \
+     -lm \
+-    -ldl
++    -ldl \
++    -rt
+ 
+ endif
+--- old/tensorflow/lite/build_def.bzl	2019-06-18 22:48:23.000000000 +0000
++++ new/tensorflow/lite/build_def.bzl	2019-07-20 15:18:18.836772593 +0000
+@@ -32,6 +32,10 @@
+             "/DTF_COMPILE_LIBRARY",
+             "/wd4018",  # -Wno-sign-compare
+         ],
++	str(Label("//tensorflow:linux_aarch64")): [
++            "-flax-vector-conversions",
++            "-fomit-frame-pointer",
++        ],
+         "//conditions:default": [
+             "-Wno-sign-compare",
+         ],
