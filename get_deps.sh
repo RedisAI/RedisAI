@@ -8,6 +8,11 @@ TF_VERSION="2.6.0"
 TFLITE_VERSION="2.0.0"
 PT_VERSION="1.9.0"
 
+if [[ $JETSON == 1 ]]; then
+    PT_VERSION="1.7.0"
+    TF_VERSION="2.4.0"
+fi
+
 ###### END VERSIONS ######
 
 error() {
@@ -26,12 +31,13 @@ if [[ $1 == --help || $1 == help ]]; then
 		Argument variables:
 		CPU=1              Get CPU dependencies
 		GPU=1              Get GPU dependencies
+		JETSON=1           Get Jetson dependencies
 		VERBOSE=1          Print commands
 		FORCE=1            Download even if present
 		WITH_DLPACK=0      Skip dlpack
-		WITH_TF=0          Skip Tensorflow or download official version
-		WITH_TFLITE=0      Skip TensorflowLite or download official version
-		WITH_PT=0          Skip PyTorch or download official version
+		WITH_TF=0          Skip Tensorflow or download from S3 repo
+		WITH_TFLITE=0      Skip TensorflowLite  or download from S3 repo
+		WITH_PT=0          Skip PyTorch or download from S3 repo
 		WITH_ORT=0         Skip OnnxRuntime or download from S3 repo
 		OS=                Set, to override the platform OS
 		ARCH=0             Set, to override the platform ARCH
@@ -80,39 +86,22 @@ DEPS_DIR=$HERE/deps/$OS-$ARCH-$DEVICE
 mkdir -p ${DEPS_DIR}
 cd ${DEPS_DIR}
 
-
-# Get the backend from its URL if is not already found and unpack it
 clean_and_fetch() {
     product=$1
     archive=$2
-    src_url=$3
-    no_fetch=$4
+    srcurl=$3
+    nofetch=$4
 
 	[[ $FORCE == 1 ]] && rm -rf ${product}  # FORCE is from the env
     [[ $FORCE != 1 ]] && [[ -d ${product} ]]  && echo "${product} is in place, skipping. Set FORCE=1 to override. Continuing." && return
-	echo "Installing ${product} from ${src_url} in `pwd`..."
-	[[ ! -e ${archive} ]] && [[ -z ${no_fetch} ]] && wget -q ${src_url}
+	echo "Installing ${product} from ${srcurl} in `pwd`..."
+	[[ ! -e ${archive} ]] && [[ -z ${nofetch} ]] && wget -q ${srcurl}
 	rm -rf ${product}.x
 	mkdir ${product}.x
 	tar xzf ${archive} --no-same-owner --strip-components=1 -C ${product}.x
 	mv ${product}.x ${product}
     echo "Done."
 }
-
-# This is for torch backend, which comes in a zip file
-clean_and_fetch_torch() {
-  archive=$1
-  src_url=$2
-
-  [[ $FORCE == 1 ]] && rm -rf libtorch  # FORCE is from the env
-  [[ $FORCE != 1 ]] && [[ -d libtorch ]]  && echo "libtorch is in place, skipping. Set FORCE=1 to override. Continuing." && return
-  echo "Installing libtorch from ${src_url} in `pwd`..."
-  LIBTORCH_ZIP=libtorch-${DEVICE}-${PT_VERSION}.zip
-  wget -q -O ${LIBTORCH_ZIP} ${src_url}
-  unzip -q -o ${LIBTORCH_ZIP}
-}
-
-
 
 ######################################################################################### DLPACK
 if [[ $WITH_DLPACK != 0 ]]; then
@@ -129,7 +118,7 @@ else
 fi
 
 ################################################################################## LIBTENSORFLOW
-
+#
 
 if [[ $OS == linux ]]; then
     TF_OS="linux"
@@ -140,12 +129,27 @@ if [[ $OS == linux ]]; then
     fi
     if [[ $ARCH == x64 ]]; then
         TF_ARCH=x86_64
+
         LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
-    else
-        echo "Only x64 is supported currently"
+    elif [[ $ARCH == arm64v8 ]]; then
+        TF_ARCH=arm64
+        if [[ $JETSON == 1 ]]; then
+            TF_BUILD="gpu-jetson"
+        fi
+        LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+    elif [[ $ARCH == arm32v7 ]]; then
+        TF_ARCH=arm
+        LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+    TF_OS=darwin
+    TF_BUILD=cpu
+    TF_ARCH=x86_64
+    if [[ $WITH_TF == S3 ]]; then
+        LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+    else
+        LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+    fi
 fi
 
 LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
@@ -153,25 +157,28 @@ LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
 if [[ $WITH_TF != 0 ]]; then
     clean_and_fetch libtensorflow ${LIBTF_ARCHIVE} ${LIBTF_URL_BASE}/${LIBTF_ARCHIVE}
 else
-	  echo "Skipping TensorFlow."
+	echo "Skipping TensorFlow."
 fi # WITH_TF
 
 ################################################################################## LIBTFLITE
+#
 
 LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
 if [[ $OS == linux ]]; then
     TFLITE_OS="linux"
     if [[ $ARCH == x64 ]]; then
         TFLITE_ARCH=x86_64
-    else
-        echo "Only x64 is supported currently"
+    elif [[ $ARCH == arm64v8 ]]; then
+        TFLITE_ARCH=arm64
+    elif [[ $ARCH == arm32v7 ]]; then
+        TFLITE_ARCH=arm
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+    TFLITE_OS=darwin
+    TFLITE_ARCH=x86_64
 fi
 
 LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
-
 if [[ $WITH_TFLITE != 0 ]]; then
     clean_and_fetch libtensorflow-lite ${LIBTFLITE_ARCHIVE} ${LIBTF_URL_BASE}/${LIBTFLITE_ARCHIVE}
 else
@@ -179,36 +186,50 @@ else
 fi # WITH_TFLITE
 
 ####################################################################################### LIBTORCH
-
+PT_REPACK=0
 PT_BUILD=cpu
+PT_ARCH=x86_64
 if [[ $OS == linux ]]; then
     PT_OS=linux
     if [[ $GPU == 1 ]]; then
         PT_BUILD=cu111
     fi
+
     if [[ $ARCH == x64 ]]; then
-        PT_ARCH=x86_64
-    else
-        echo "Only x64 is supported currently"
+        PT_REPACK=1
+    elif [[ $ARCH == arm64v8 ]]; then
+        PT_ARCH=arm64
+    elif [[ $ARCH == arm32v7 ]]; then
+        PT_ARCH=arm
     fi
-else
-    echo "Only Linux OS is supported currently"
+
+    if [[ $JETSON == 1 ]]; then
+        PT_BUILD=cu102-jetson
+        PT_ARCH=arm64
+    fi
+
+elif [[ $OS == macos ]]; then
+    PT_OS=macos
+    PT_REPACK=1
 fi
 
-if [[ $GPU != 1 ]]; then
-  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-else
-  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-fi
-LIBTORCH_URL=https://download.pytorch.org/libtorch/$PT_BUILD/$LIBTORCH_ARCHIVE
+LIBTORCH_ARCHIVE=libtorch-${PT_BUILD}-${PT_OS}-${PT_ARCH}-${PT_VERSION}.tar.gz
+LIBTORCH_URL=https://s3.amazonaws.com/redismodules/pytorch/$LIBTORCH_ARCHIVE
 
-if [[ $WITH_PT != 0 ]]; then
-    clean_and_fetch_torch ${LIBTORCH_ARCHIVE} ${LIBTORCH_URL}
+if [[ $PT_REPACK == 1 ]]; then
+    echo "Using repack.sh from ${HERE}/opt/build/libtorch/repack.sh"
+    PT_VERSION=$PT_VERSION GPU=$GPU OS=${OS} ARCH=${ARCH} $HERE/opt/build/libtorch/repack.sh
+fi
+
+if [[ $WITH_PT != 0 ]] && [ $PT_REPACK != 1 ]; then
+    clean_and_fetch libtorch ${LIBTORCH_ARCHIVE}  ${LIBTORCH_URL}
+elif [[ $PT_REPACK == 1 ]]; then
+    clean_and_fetch libtorch ${LIBTORCH_ARCHIVE}  ${LIBTORCH_URL} 1
 else
-	echo "Skipping libtorch."
+	echo "SKipping libtorch."
 fi # WITH_PT
 
-############################################################################# ONNX
+#############################################################################
 
 ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
 ORT_BUILD=""
@@ -219,16 +240,20 @@ if [[ $OS == linux ]]; then
     fi
     if [[ $ARCH == x64 ]]; then
         ORT_ARCH=x64
-    else
-        echo "Only x64 is supported currently"
+    elif [[ $ARCH == arm64v8 ]]; then
+        ORT_ARCH=arm64
+    elif [[ $ARCH == arm32v7 ]]; then
+        ORT_ARCH=arm
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+    ORT_OS=osx
+    ORT_ARCH=x64
+    ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 fi
 
 ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
 if [[ $WITH_ORT != 0 ]]; then
-    clean_and_fetch onnxruntime ${ORT_ARCHIVE}  ${ORT_URL_BASE}/${ORT_ARCHIVE}
+    clean_and_fetch onnxruntime  ${ORT_ARCHIVE}  ${ORT_URL_BASE}/${ORT_ARCHIVE}
 else
 	echo "Skipping ONNXRuntime."
 fi # WITH_ORT
