@@ -20,7 +20,7 @@ This page is intended to provide clarity on how to obtain the benchmark numbers 
 ## Methodology and Infrastructure checklist
 As stated previously we encourage the community to run the benchmarks on their own infrastructure and specific use case. As part of a reproducible and stable metodology we recommend that for each tested version/variation:
 
-- Monitoring should be used to assert that the machines running the the benchmark client do not become the performance bottleneck.
+- Monitoring should be used to assert that the machines running the benchmark client do not become the performance bottleneck.
 
 - A minimum of 3 distinct full repetitions, and reported as a result the median (q50), q95, q99, overall achievable inference throughput, and if possible ( and recommended ) the referral to the full spectrum of latencies. Furthermore, benchmarks should be run for a sufficiently long time.
 
