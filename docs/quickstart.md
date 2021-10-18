@@ -27,8 +27,8 @@ You can compile and build the module from its source code. The [Developer](devel
 ### Prerequisites
 * Packages: git, python3, make, wget, g++/clang, & unzip 
 * CMake 3.0 or higher needs to be installed.
-* CUDA needs to be installed if GPU support is required.
-* Redis v5.0.7 or greater.
+* CUDA 11.2 or higher needs to be installed if GPU support is required.
+* Redis v6.0.0 or greater.
 
 ### Get the Source Code
 You can obtain the module's source code by cloning the project's repository using git like so:

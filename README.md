@@ -7,159 +7,29 @@
 # RedisAI
 [![Forum](https://img.shields.io/badge/Forum-RedisAI-blue)](https://forum.redislabs.com/c/modules/redisai)
 [![Discord](https://img.shields.io/discord/697882427875393627?style=flat-square)](https://discord.gg/rTQm7UZ)
+RedisAI is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **RedisAI both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
-A Redis module for serving tensors and executing deep learning models.
+RedisAI is a joint effort between [Redis](https://www.redis.com) and [Tensorwerk](https://tensorwerk.com).
 
-## Cloning
-If you want to run examples, make sure you have [git-lfs](https://git-lfs.github.com) installed when you clone.
+## Where Next?
+* The [Introduction](https://oss.redis.com/redisai/intro/) is the recommended starting point
+* The [Quickstart](https://oss.redis.com/redisai/quickstart/) page provides information about building, installing and running RedisAI
+* The [Commands](https://oss.redis.com/redisai/commands/) page is a reference of the RedisAI API
+* The [Clients](https://oss.redis.com/redisai/clients/) page lists RedisAI clients by programming language
+* The [Configuration](https://oss.redis.com/redisai/configuration/) page explains how to configure RedisAI
+* The [Performance](https://oss.redis.com/redisai/performance/) page provides instructions for running benchmarks with RedisAI 
+* The [Developer](https://oss.redis.com/redisai/developer/) page has more information about the design and implementation of the RedisAI module
 
-## Quickstart
+## Quick Links
+* [Source code repository](https://github.com/RedisAI/RedisAI)
+* [Releases](https://github.com/RedisAI/RedisAI/releases)
+* [Docker image](https://hub.docker.com/r/redislabs/redisai/)
 
-1. [Docker](#docker)
-2. [Build](#building)
+## Contact Us
+If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
-## Docker
-
-To quickly tryout RedisAI, launch an instance using docker:
-
-```sh
-docker run -p 6379:6379 -it --rm redislabs/redisai:edge-cpu-xenial
-```
-
-For docker instance with GPU support, you can launch it from `tensorwerk/redisai-gpu`
-
-```sh
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:edge-gpu-xenial
-```
-
-But if you'd like to build the docker image, you need a machine that has Nvidia driver (CUDA 10.0), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
-
-```sh
-docker build -f Dockerfile-gpu -t redisai-gpu .
-docker run -p 6379:6379 --gpus all -it --rm redisai-gpu
-```
-
-Note that Redis config is located at `/usr/local/etc/redis/redis.conf` which can be overridden with a volume mount
-
-
-### Give it a try
-
-On the client, set the model
-```sh
-redis-cli -x AI.MODELSTORE foo TF CPU INPUTS 2 a b OUTPUTS 1 c BLOB < tests/test_data/graph.pb
-```
-
-Then create the input tensors, run the computation graph and get the output tensor (see `load_model.sh`). Note the signatures:
-* `AI.TENSORSET tensor_key data_type dim1..dimN [BLOB data | VALUES val1..valN]`
-* `AI.MODELRUN graph_key INPUTS input_key1 ... OUTPUTS output_key1 ...`
-```sh
-redis-cli
-> AI.TENSORSET bar FLOAT 2 VALUES 2 3
-> AI.TENSORSET baz FLOAT 2 VALUES 2 3
-> AI.MODELRUN foo INPUTS bar baz OUTPUTS jez
-> AI.TENSORGET jez META VALUES
-1) dtype
-2) FLOAT
-3) shape
-4) 1) (integer) 2
-5) values
-6) 1) "4"
-   2) "9"
-```
-
-## Building
-
-You should obtain the module's source code and submodule using git like so:
-
-```sh
-git clone --recursive https://github.com/RedisAI/RedisAI
-```
-
-This will checkout and build and download the libraries for the backends (TensorFlow, PyTorch, ONNXRuntime) for your platform. Note that this requires CUDA 10.0 to be installed.
-
-```sh
-bash get_deps.sh
-```
-
-Alternatively, run the following to only fetch the CPU-only backends even on GPU machines.
-
-```sh
-bash get_deps.sh cpu
-```
-
-Once the dependencies are downloaded, build the module itself. Note that
-CMake 3.0 or higher is required.
-
-```sh
-ALL=1 make -C opt clean build
-```
-
-Note: in order to use the PyTorch backend on Linux, at least `gcc 4.9.2` is required.
-
-### Running the server
-
-You will need a redis-server version 6.0 or greater. This should be
-available in most recent distributions:
-
-```sh
-redis-server --version
-Redis server v=6.2.5 sha=00000000:0 malloc=jemalloc-5.2.1 bits=64 build=c3504d808f2b2793
-```
-
-To start Redis with the RedisAI module loaded:
-
-```sh
-redis-server --loadmodule install-cpu/redisai.so
-```
-
-## Client libraries
-
-Some languages have client libraries that provide support for RedisAI's commands:
-
-| Project            | Language              | License      | Author                                           | URL                                                         |
-| -------            | --------              | -------      | ------                                           | ---                                                         |
-| JRedisAI           | Java                  | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/JRedisAI)               |
-| redisai-py         | Python                | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-py)             |
-| redisai-go         | Go                    | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-go)             |
-| redisai-js         | Typescript/Javascript | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisai-js)             |
-| redis-modules-sdk  | TypeScript            | BSD-3-Clause | [Dani Tseitlin](https://github.com/danitseitlin) | [Github](https://github.com/danitseitlin/redis-modules-sdk) |
-| redis-modules-java | Java                  | Apache-2.0   | [dengliming](https://github.com/dengliming)      | [Github](https://github.com/dengliming/redis-modules-java)  |
-| smartredis         | C++                   | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
-| smartredis         | C                     | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
-| smartredis         | Fortran               | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
-| smartredis         | Python                | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
-
-
-
-
-
-## Backend Dependancy
-
-RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), TensorFlow Lite, and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
-
-
-| RedisAI | PyTorch | TensorFlow | TFLite | ONNXRuntime   |
-|:--------|:-------:|:----------:|:------:|:-------------:|
-| 0.1.0   | 1.0.1   | 1.12.0     | None   | None          |
-| 0.2.1   | 1.0.1   | 1.12.0     | None   | None          |
-| 0.3.1   | 1.1.0   | 1.12.0     | None   | 0.4.0         |
-| 0.4.0   | 1.2.0   | 1.14.0     | None   | 0.5.0         |
-| 0.9.0   | 1.3.1   | 1.14.0     | 2.0.0  | 1.0.0         |
-| 1.0.0   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
-| master  | 1.7.0   | 1.15.0     | 2.0.0  | 1.2.0         |
-
-Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/tests/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x. Note that a frozen graph will be executed using the TensorFlow 1.15 backend. Should any 2.0 ops be not supported on the 1.15 after freezing, please open an Issue.
-
-## Documentation
-
-Read the docs at [redisai.io](http://redisai.io). Checkout our [showcase repo](https://github.com/RedisAI/redisai-examples) for a lot of examples written using different client libraries.
-
-## Mailing List / Forum
-
-Got questions? Feel free to ask at the [RedisAI Forum](https://forum.redislabs.com/c/modules/redisai)
+* [Forum](https://forum.redis.com/c/modules/redisai)
+* [Repository](https://github.com/RedisAI/RedisAI/issues)
 
 ## License
-
-Redis Source Available License Agreement - see [LICENSE](LICENSE)
-
-Copyright 2020, [Redis Labs, Inc](https://redislabs.com)
+RedisAI is licensed under the [Redis Source Available License Agreement](https://github.com/RedisAI/RedisAI/blob/master/LICENSE).
