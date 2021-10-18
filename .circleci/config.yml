@@ -57,6 +57,10 @@ commands:
             fi
 
   relocate-docker-storage:
+    description: >-
+      If this runs in parallel it can slaughter docker builds due to behaviour in the overlay2
+      tree having missing bits. This mitigates that by ensuring we run it only once. This could
+      have parallelization consequences if everything lines up.
     steps:
       - run:
           name: Relocate docker overlay2 dir
@@ -90,6 +94,25 @@ commands:
       - run:
           name: Checkout submodules
           command: git submodule update --init --recursive
+
+  docker-build-steps:
+    parameters:
+      lite:  # LITE value during make
+        type: string
+      osnick:  # OSNICK value for the base platform of the docker
+        type: string
+      target:  # CPU|GPU
+        type: string
+    steps:
+      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
+      - run:
+          name: Build for platform
+          command: |
+            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
+          no_output_timeout: 40m
 
   build-steps:
     parameters:
@@ -220,53 +243,68 @@ jobs:
       - build-steps:
           platform: debian
 
-  platforms-build:
+  platforms-build-cpu:
+    docker:
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
+    parameters:
+      lite:  # LITE value during make
+        type: string
+      osnick:  # OSNICK value for the base platform of the docker
+        type: string
+      target:  # OSNICK value for the base platform of the docker
+        type: string
+        default: "CPU=1"
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - setup_remote_docker
+      - checkout-all
+      - restore_cache:
+          keys:
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+      - setup-automation
+      - docker-build-steps:
+          lite: "<<parameters.lite>>"
+          osnick: "<<parameters.osnick>>"
+          target: "<<parameters.target>>"
+      - save_cache:
+          paths:
+            - deps
+          key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*
+
+
+  platforms-build-gpu:
     machine:
       enabled: true
-      docker_layer_caching: true
-      resource_class: small
+      resource_class: medium
       image: ubuntu-2004:202107-02
     parameters:
       lite:  # LITE value during make
         type: string
       osnick:  # OSNICK value for the base platform of the docker
         type: string
-      target:  # CPU|GPU
+      target:  # OSNICK value for the base platform of the docker
         type: string
+        default: "GPU=1"
     steps:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
-      - run:
-          name: Relocate docker overlay2 dir
-          command: |
-            sudo systemctl stop docker
-            sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
-            sudo systemctl start docker
+      - relocate-docker-storage
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - setup-automation
-
-      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
-      - run:
-          name: Build for platform
-          command: |
-            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
-            pushd opt/build/docker
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
-          no_output_timeout: 40m
+      - docker-build-steps:
+          lite: "<<parameters.lite>>"
+          osnick: "<<parameters.osnick>>"
+          target: "<<parameters.target>>"
       - save_cache:
           paths:
             - deps
@@ -530,7 +568,8 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    - platforms-build
+    - platforms-build-gpu
+    - platforms-build-cpu
 
 #### define workflows
 workflows:
@@ -549,7 +588,7 @@ workflows:
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
           <<: *after-linter
-      - platforms-build:
+      - platforms-build-cpu:
           context: common
           <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
@@ -562,9 +601,20 @@ workflows:
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
-              target:
-                - "CPU=1"
-                - "GPU=1"
+
+      - platforms-build-gpu:
+          context: common
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
+          matrix:
+            parameters:
+              osnick:
+                - xenial
+                - bionic
+                - centos8
+              lite:
+                - "REDISAI_LITE=0 PUBLISH=1"
+                - "REDISAI_LITE=1"
       - coverage:
           context: common
           <<: *on-dev-branches
