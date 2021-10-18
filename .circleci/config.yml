@@ -65,7 +65,6 @@ commands:
       - run:
           name: Relocate docker overlay2 dir
           command: |
-            touch /tmp/relocate_storage
             sudo systemctl stop docker
             sudo mkdir -p /var2/lib/docker
             sudo mv /var/lib/docker/overlay2 /var2/lib/docker
@@ -113,12 +112,6 @@ commands:
             pushd opt/build/docker
             docker login -u redisfab -p $DOCKER_REDISFAB_PWD
             make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
           no_output_timeout: 40m
 
   build-steps:
