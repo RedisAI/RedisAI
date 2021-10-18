@@ -575,7 +575,8 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    - platforms-build
+    - platforms-build-gpu
+    - platforms-build-cpu
 
 #### define workflows
 workflows:
