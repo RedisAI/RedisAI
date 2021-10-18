@@ -1,5 +1,5 @@
 # RedisAI Quickstart
-RedisAI is a Redis module. To run it you'll need a Redis server (v5.0.7 or greater), the module's shared library, and its dependencies.
+RedisAI is a Redis module. To run it you'll need a Redis server (v6.0.0 or greater), the module's shared library, and its dependencies.
 
 The following sections describe how to get started with RedisAI.
 
@@ -12,14 +12,11 @@ docker run -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
 ```
 
 ### On a GPU machine
-
+For GPU support you will need a machine you'll need a machine that has Nvidia driver (CUDA 11.2) nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker) 
 ```
 docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu-x64-bionic
 ```
 
-## Download
-
-A pre-compiled version can be downloaded from [RedisLabs download center](https://redislabs.com/download-center/modules/).
 
 ## Building
 You can compile and build the module from its source code. The [Developer](developer.md) page has more information about the design and implementation of the RedisAI module and how to contribute.
