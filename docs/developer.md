@@ -32,57 +32,46 @@ of complexity incrementally.
 
 **redisai.c**
 
-This is the entry point of the RedisAI module, responsible for registering the new commands in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of Tensor, Script and Model APIs to other Modules.
+This is the entry point of the RedisAI module, responsible for registering the new commands and types in the Redis server, and containing all command functions to be called. This file is also responsible for exporting of RedisAI objects (Tensor, Script, Model and DAG) low-level-APIs to other Redis modules.
 
-**tensor.h**
+**redisai.h**
 
-Contains the helper methods for both creating, populating, managing and freeing the Tensor data structure, as well as the methods for managing, parsing and replying to tensor related commands or operations.
+The header file that contains the module's low-level-API. This file should be copied to a Redis module that plan on using RedisAI objects and functionality via low-level-API. Note that every function in redisai.h is named "RedisAI_{X}", and detailed description for it can be found under the name "RAI_{X}" in RedisAI header files.  
 
-**model.h**
+**redis_ai_types**
 
-Contains the helper methods for creating, populating, managing and freeing the Model data structure. Also contains methods for managing, parsing and replying to model related commands or operations, that take place in the context of the Redis main thread.
+Contains the callbacks that are required for the new Tensor, Model and Script types. These callbacks are used by Redis server for data management and persistence.   
 
-The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
+**redis_ai_objects**
 
-**script.h**
+Contains the internal implementation of the basic RedisAI objects - Tensor, Model and Script.
+For each object there is a header file that contains the helper methods for both creating, populating, managing and freeing the data structure.
+This directory also includes `stats.h` where you can find the structure and headers that create, initialize, get, reset, and free run-time statistics, like call count, error count, and aggregate durations of Model and Script execution sessions. Note that the statistics are ephemeral, meaning that they are not persisted to the Redis key space, and are reset when the server is restarted.
 
-Contains the helper methods for creating, populating, managing and freeing the PyTorch Script data structure. Also contains methods for managing, parsing and replying to script related commands or operations, that take place in the context of the Redis main thread.
+**execution**
 
-The helper methods that are related to async background work are available at `model_script_run_session.h` header file.
+Contains the files and logic that are responsible for RedisAI execution commands. The structure of RedisAI "execution plan" can be found in `run_info.h` along with the headers that create, initialize, get, and free this structure.
+Every execution is represented as a DAG (directional acyclic graph) of one or more operations. Execution requests are queued and executed asynchronously. `run_queue_info.h` contains the structure for managing per-device queues that are used for decoupling the work from the main thread to the background worker threads.
+`background_workers.c` contains the loop that every worker runs in the process of execution requests.    
+The execution directory contains the following sub-directories:
 
-**dag.h**
+* DAG - contains the methods for creating, initializing and freeing DAG operations, methods for building DAG from low-level API, and methods for running the DAG commands in the background, and replying to DAG structured commands. Also, this contains methods for validating the entire DAG and sending its operations to the appropriate execution queues.
+* execution_context - contains the structure and methods for running an instance of a Model and Script in RedisAI.
+* parsing - here we can find the parsing logic of execution related RedisAI commands.
 
-Contains the helper methods for parsing, running the command in the background, and replying to DAG structured commands.
+**config**
 
-**run_info.h**
+Contains methods for parsing, retrieving and setting RedisAI configuration parameters (both load time and run time) and their initial values. 
 
-Contains the structure and headers that create, initialize, get, reset, and free the structures that represent the context in which RedisAI blocking commands operate, namely `RedisAI_RunInfo` and the `RAI_DagOp`.
+**serialization**
 
-**model_script_run_session.h**
+Contains methods for serializing RedisAI types by Redis in RDB load, RDB save and AOF rewrite routines. 
 
-Contains the methods that are related to async background work that was triggered by either `MODELRUN` or `AI.SCRIPTRUN` commands, and called from `RedisAI_Run_ThreadMain`.
+**backends**
 
-This file also contains the function signatures of the reply callbacks to be called in order to reply to the clients, after the background work on `AI.MODELRUN` and `AI.SCRIPTRUN` is done.
+Contains the interface for supporting a backend library that can be loaded by the module.
 
-**background_workers.h**
-
-Contains the structure for managing per-device queues that are used for decoupling the work from the main thread to the background worker threads. For each of the incoming `AI.MODELRUN`, `AI.SCRIPTRUN`, and `AI.DAGRUN` commands, the request is queued and then executed asynchronously to one the device queues.
-
-**stats.h**
-
-Contains the structure and headers that create, initialize, get, reset, and free run-time statics, like call count, error count, and aggregate durations of `AI.MODELRUN` and `AI.SCRIPTRUN` sessions.
-
-The statistics are ephemeral, meaning that they are not persisted to the Redis key space, and are reset when the server is restarted.
-
-**err.h**
-
-Contains the structure and headers of an API for creating, initializing, getting, resetting, and freeing errors of the different backends.
-
-**backends.h and backends directory**
-
-Contains the structure and headers methods required to register a new backend that can be loaded by the module.
-
-To do so, the backend needs to implement and export the following methods:
+The usage in a certain backend capabilities is enabled when it is implement and export (a subset of) the following methods that appear in `backends.h`:
 
 * `model_create_with_nodes`: A callback function pointer that creates a
   model given the `RAI_ModelOpts` and input and output nodes.
@@ -90,30 +79,34 @@ To do so, the backend needs to implement and export the following methods:
 the `RAI_ModelOpts`.
 * `model_run`: A callback function pointer that runs a model given the
 `RAI_ModelRunCtx` pointer.
+* `model_free`:  A callback function pointer that frees a model given the
+  `RAI_Model` pointer
 * `model_serialize`: A callback function pointer that serializes a model
 given the `RAI_Model` pointer.
 * `script_create`: A callback function pointer that creates a script.
 * `script_free`: A callback function pointer that frees a script given
 the `RAI_Script` pointer.
-* `script_run`: A callback function pointer that runs a model given the
+* `script_run`: A callback function pointer that runs a script given the
 `RAI_ScriptRunCtx` pointer.
 
-Within the `backends` folder you will find the implementations code required to support the following DL/ML identifiers and respective backend libraries:
+Note: there are additional methods to retrieve backend info and apply advanced features that appear in `backends.h`. These methods can be implemented in the backend and exported as well.
 
-* **TF**: `tensorflow.h` and `tensorflow.c` exporting the functions to to register the TensorFlow backend
-* **TFLITE**: `tflite.h` and `tflite.c` exporting the functions to to register the TensorFlow Lite backend
-* **TORCH**: `torch.h` and `torch.c` exporting the functions to to register the PyTorch backend
-* **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to to register the ONNXRuntime backend
+This directory also include the implementations code required to support the following DL/ML identifiers and respective backend libraries:
+
+* **TF**: `tensorflow.h` and `tensorflow.c` exporting the functions to register the TensorFlow backend
+* **TFLITE**: `tflite.h` and `tflite.c` exporting the functions to register the TensorFlow Lite backend
+* **TORCH**: `torch.h` and `torch.c` exporting the functions to register the PyTorch backend. This is the only backend that can create and run scripts.
+* **ONNX**: `onnxruntime.h` and `onnxruntime.c` exporting the functions to register the ONNXRuntime backend. This backend has several additional capabilities. First, it uses Redis allocator for its memory management. Therefore, the backend memory consumption can be monitored with `INFO MODULES` command, and limited with `BACKEND_MEMORY_LIMIT` configuration. Moreover, Onnxruntime has a "kill switch" mechanism that allows setting a global timeout for running models with `MODEL_EXECUTION_TIMEOUT` configuration, after which execution is terminated immediately. 
 
 ## Building and Testing
 
 You can compile and build the module from its source code - refer to the [Building and Running section](quickstart.md#building-and-running) of the Quickstart page for instructions on how to do that.
 
-### Configring your system
+### Configuring your system
 
 **Building in a docker (x86_64)**
 
-The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules. This assumes that you have jinja installed, as the docker files are geneated from the dockerfile.tmpl in the *opt/build/docker* directory.
+The RedisAI source code can be mounted in a docker, and built there, but edited from the external operating system. This assumes that you are running a modern version of docker, and that you are making a recursive clone of this repository and all of its submodules. This assumes that you have jinja installed, as the docker files are generated from the dockerfile.tmpl in the *opt/build/docker* directory.
 
 ```
 git clone --recursive https://github.com/RedisAI/RedisAI
@@ -124,15 +117,6 @@ make
 make GPU=1
 ```
 
-After this, you can run the create docker and mount your source code with the following command, from within the RedisAI folder.
-
-```
-docker run `pwd`:/build -it redisai:latest bash
-```
-
-Continue to edit files on your local machine, and rebuild as needed within the docker, by running the command below, from */build* in the docker:
-
-```make -C opt all```
 
 **Building on bare metal**
 
@@ -194,7 +178,7 @@ The module includes a basic set of unit tests and integration tests, split acros
 To run all tests in a Python virtualenv, follow these steps:
 
     $ mkdir -p .env
-    $ virtualenv .env
+    $ python3 -m venv .env
     $ source .env/bin/activate
     $ pip install -r tests/flow/tests_setup/test_requirements.txt
     $ make -C opt test
@@ -202,7 +186,7 @@ To run all tests in a Python virtualenv, follow these steps:
 **Integration tests**
 
 Integration tests are based on RLTest, and specific setup parameters can be provided
-to configure tests. By default the tests will be ran for all backends and common commands, and with variation of persistency and replication.
+to configure tests. By default the tests will run for all backends and common commands, and with variation of persistency and replication.
 
 To understand what test options are available simply run:
 

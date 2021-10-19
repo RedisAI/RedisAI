@@ -121,10 +121,10 @@ Backend libraries are dynamically loaded as needed, but can also be loaded durin
     * [Backend configuration](configuration.md#backend)
 
 ## Getting Started
-The easiest way to get a standalone Redis server with RedisAI bootstrapped locally is to use the official RedisAI Docker container image:
+The easiest way to get a standalone Redis server with RedisAI bootstrapped locally is to use the official RedisAI Docker container image (to run on cpu in x64 machine with ubuntu 18 in following example):
 
 ```
-docker run -d --name redisai -p 6379:6379 redislabs/redisai:latest
+docker run -d --name redisai -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
 ```
 
 ??? info "Further reference"
@@ -153,7 +153,7 @@ Copy the command to your cli and hit the `<ENTER>` on your keyboard to execute i
 
 !!! example "Example: setting a tensor"
     ```
-    $ docker exec -it redisgears redis-cli
+    $ docker exec -it redisai redis-cli
     127.0.0.1:6379> AI.TENSORSET tA FLOAT 2 VALUES 2 3
     OK
     ```
@@ -182,7 +182,7 @@ RedisAI Tensors are used as inputs and outputs in the execution of models and sc
     ```
     127.0.0.1:6379> AI.TENSORGET tA META VALUES
     1) dtype
-    2) INT8
+    2) FLOAT
     3) shape
     4) 1) (integer) 2
     5) values
@@ -260,9 +260,9 @@ AI.MODELEXECUTE mymodel INPUTS 2 tA tB OUTPUTS 1 tResult
     OK
     ```
 
-The first argument to `AI.MODELEXECUTE` is the name of the key at which the RedisAI Model is stored. The names of RedisAI Tensor keys that follow the `INPUTS` and `input_count>` arguments are used as input for the model. Similarly, following the `OUTPUTS` and `output_count>`arguments are the key names of RedisAI Tensors that the model outputs.
+The first argument to `AI.MODELEXECUTE` is the name of the key at which the RedisAI Model is stored. The names of RedisAI Tensor keys that follow the `INPUTS` and `<input_count>` arguments are used as input for the model. Similarly, following the `OUTPUTS` and `<output_count>`arguments are the key names of RedisAI Tensors that the model outputs.
 
-The inputs for the example are the tensors stored under the 'tA' and 'tB' keys. Once the model's run had finished, a new RedisAI Tensor key called 'tResult' is created and stores the model's output.
+The inputs for the example are the tensors stored under the 'tA' and 'tB' keys. Once the model's run had finished, a new RedisAI Tensor key called 'tModel' is created and stores the model's output.
 
 !!! example "Example: fetching the model's output"
 
@@ -306,28 +306,31 @@ RedisAI makes it possible to run [TorchScript](https://pytorch.org/docs/stable/j
 
 The RedisAI Script data structure is managed via a set of dedicated commands, similarly to the models. A RedisAI Script key is:
 
-* Created with the [`AI.SCRIPTSET` command](commands.md#aiscriptset)
-* Run with the [`AI.SCRIPTRUN` command](commands.md#aiscriptrun)
+* Created with the [`AI.SCRIPTSTORE` command](commands.md#aiscriptstore)
+* Run with the [`AI.SCRIPTEXECUTE` command](commands.md#aiscriptexecute)
 * Deleted with the [`AI.SCRIPTDEL` command](commands.md#aiscriptdel)
 
 We can create a RedisAI Script that performs the same computation as the 'graph.pb' model. The script can look like this:
 
 ```py
-def multiply(a, b):
-    return a * b
+def multiply(tensors: List[Tensor], keys: List[str], args: List[str]):
+    return tensors[0] * tensors[1]
 ```
 
-Assuming that the script is stored in the 'myscript.py' file it can be uploaded via command line and the `AI.SCRIPTSET` command as follows:
+Assuming that the script is stored in the 'myscript.py' file it can be uploaded via command line and the `AI.SCRIPTSTORE` command as follows:
 
 ```
-cat myscript.py | docker exec -i redisai redis-cli -x AI.SCRIPTSET myscript CPU SOURCE
+cat myscript.py | docker exec -i redisai redis-cli -x AI.SCRIPTSTORE myscript CPU ENTRY_POINTS 1 multiply SOURCE
 ```
 
-This will store the PyTorch Script from 'myscript.py' under the 'myscript' key and will associate it with the CPU device for execution. Once loaded, the script can be run with the following:
+This will store the PyTorch Script from 'myscript.py' under the 'myscript' key and will associate it with the CPU device for execution. Once loaded, a function within the script that was pre-declared as "entry point" ('multiply' in our example) can be run with the following command:
 
 ```
-AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
+AI.SCRIPTEXECUTE myscript multiply INPUTS 2 tA tB OUTPUTS 1 tScript
 ```
+Note that the signature of every entry point function within the script should be as following:
+`def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`
+The tensors that were stored under the given INPUTS names can be accessed from the `tensors` list (the first argument to the function), according to the inputs order. In the above example, `AI.SCRIPTEXECUTE` command triggers the `multiply` function in the script where `tensors = [tA, tB]`. 
 
 !!! example "Example: running a script"
 
@@ -336,7 +339,7 @@ AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
     OK
     127.0.0.1:6379> AI.TENSORSET tB FLOAT 2 VALUES 3 5
     OK
-    127.0.0.1:6379> AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
+    127.0.0.1:6379> AI.SCRIPTEXECUTE myscript multiply INPUTS 2 tA tB OUTPUTS 1 tScript
     OK
     127.0.0.1:6379> AI.TENSORGET tScript VALUES
     1) FLOAT
@@ -344,6 +347,7 @@ AI.SCRIPTRUN myscript multiply INPUTS tA tB OUTPUTS tScript
     3) 1) "6"
        2) "15"
     ```
+Moreover, it is possible to run 'native' Redis commands from within a TorchScript in RedisAI, and even executing a model in RedisAI. These capabilities enable RedisAI users to run end-to-end processes with their data. Further details and examples can be found under [`AI.SCRIPTEXECUTE` command](commands.md#aiscriptexecute)  
 
 ## Where Next?
 This covers the basics of RedisAI's data structures and capabilities. For more information refer to:

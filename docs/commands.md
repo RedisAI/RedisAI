@@ -30,7 +30,7 @@ _Arguments_
 * **type**: the tensor's data type can be one of: `FLOAT`, `DOUBLE`, `INT8`, `INT16`, `INT32`, `INT64`, `UINT8`, `UINT16`, `BOOL` or `STRING`
 * **shape**: one or more dimensions, or the number of elements per axis, for the tensor
 * **BLOB**: indicates that data is in binary format and is provided via the subsequent `data` argument
-* **VALUES**: indicates that data is numeric and is provided by one or more subsequent `val` arguments
+* **VALUES**: indicates that data is given by values and is provided by one or more subsequent `val` arguments
 
 _Return_
 
@@ -97,7 +97,7 @@ _Arguments_
 * **META**: returns the tensor's metadata
 * **format**: the tensor's reply format can be one of the following:
     * **BLOB**: returns the binary representation of the tensor's data
-    * **VALUES**: returns the numerical representation of the tensor's data
+    * **VALUES**: returns the actual values of the tensor's data
 
 _Return_
 
@@ -107,7 +107,7 @@ Depending on the specified reply format:
     1. The tensor's data type as a String
     1. The tensor's shape as an Array consisting of an item per dimension
  * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
- * **VALUES**: Array containing the numerical representation of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
+ * **VALUES**: Array containing the values of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
 * Default: **META** and **BLOB** are returned by default, in case that none of the arguments above is specified. 
 
 
@@ -218,7 +218,7 @@ redis> AI.TENSORGET my_str_tensor META BLOB
 ```
 
 !!! important "Using `BLOB` is preferable to `VALUES`"
-    While it is possible to get the tensor as binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to returning the values discretely.
+    While it is possible to get the tensor as binary data or by values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to returning the values discretely.
 
 ## AI.MODELSTORE
 The **`AI.MODELSTORE`** command stores a model as the value of a key.
@@ -227,7 +227,7 @@ The **`AI.MODELSTORE`** command stores a model as the value of a key.
 
 ```
 AI.MODELSTORE <key> <backend> <device>
-    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m [MINBATCHTIMEOUT t]]]
+    [TAG <tag>] [BATCHSIZE <n> [MINBATCHSIZE <m> [MINBATCHTIMEOUT <t>]]]
     [INPUTS <input_count> <name> ...] [OUTPUTS <output_count> <name> ...] BLOB <model>
 ```
 
@@ -246,7 +246,7 @@ _Arguments_
 * **TAG**: an optional string for tagging the model such as a version number or any arbitrary identifier
 * **BATCHSIZE**: when provided with an `n` that is greater than 0, the engine will batch incoming requests from multiple clients that use the model with input tensors of the same shape. When `AI.MODELEXECUTE` (or `AI.MODELRUN`) is called the requests queue is visited and input tensors from compatible requests are concatenated along the 0th (batch) dimension until `n` is exceeded. The model is then run for the entire batch and the results are unpacked back to the individual requests unblocking their respective clients. If the batch size of the inputs to of first request in the queue exceeds `BATCHSIZE`, the request is served immediately (default value: 0).
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELEXECUTE` until the batch's size had reached `m`. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0), unless `MINBATCHTIMEOUT` is provided.
-* **MINBATCHTIMEOUT**: when provided with a `t` (expressed in milliseconds) that is greater than 0, the engine will trigger a run even though `MINBATCHSIZE` has not been reached after `t` milliseconds from the time a `MODELEXECUTE` (or the enclosing `DAGRUN`) is enqueued. This only applies to cases where both `BATCHSIZE` and `MINBATCHSIZE` are greater than 0.
+* **MINBATCHTIMEOUT**: when provided with a `t` (expressed in milliseconds) that is greater than 0, the engine will trigger a run even though `MINBATCHSIZE` has not been reached after `t` milliseconds from the time a `MODELEXECUTE` (or the enclosing `DAGEXECUTE`) is enqueued. This only applies to cases where both `BATCHSIZE` and `MINBATCHSIZE` are greater than 0.
 * **INPUTS**: denotes that one or more names of the model's input nodes are following, applicable only for TensorFlow models (specifying INPUTS for other backends will cause an error)
 * **input_count**: a positive number that indicates the number of following input nodes (also applicable only for TensorFlow) 
 * **OUTPUTS**: denotes that one or more names of the model's output nodes are following, applicable only for TensorFlow models (specifying OUTPUTS for other backends will cause an error)
@@ -268,14 +268,14 @@ OK
 
 ## AI.MODELSET
 _This command is deprecated and will not be available in future versions. consider using AI.MODELSTORE command instead._
-The **`AI.MODELSET`** command stores a model as the value of a key. The command's arguments and effect are both exactly the same as `AI.MODELEXECUTE` command, except that <input_count> and <output_count> arguments should not be specified for TF backend. 
+The **`AI.MODELSET`** command stores a model as the value of a key. The command's arguments and effect are both exactly the same as `AI.MODELEXECUTE` command, except that `<input_count>` and `<output_count>` arguments should not be specified for TF backend. 
 
 **Redis API**
 
 ```
 AI.MODELSET <key> <backend> <device>
-    [TAG tag] [BATCHSIZE n [MINBATCHSIZE m [MNBATCHTIMEOUT t]]]
-    [INPUTS <name> ...] [OUTPUTS name ...] BLOB <model>
+    [TAG <tag>] [BATCHSIZE <n> [MINBATCHSIZE <m> [MNBATCHTIMEOUT <t>]]]
+    [INPUTS <name> ...] [OUTPUTS <name> ...] BLOB <model>
 ```
 
 ## AI.MODELGET
@@ -287,7 +287,7 @@ The **`AI.MODELGET`** command returns a model's metadata and blob stored as a ke
 AI.MODELGET <key> [META] [BLOB]
 ```
 
-_Arguments
+_Arguments_
 
 * **key**: the model's key name
 * **META**: will return only the model's meta information on backend, device, tag and batching parameters
@@ -364,7 +364,7 @@ redis> AI.MODELDEL mymodel
 OK
 ```
 
-!!! note "The `AI.MODELDEL` vis a vis the `DEL` command"
+!!! note "The `AI.MODELDEL` vs. the `DEL` command"
     The `AI.MODELDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
 
@@ -495,10 +495,12 @@ _Arguments_
     * **CPU**: a CPU device
     * **GPU**: a GPU device
     * **GPU:0**, ..., **GPU:n**: a specific GPU device on a multi-GPU system
-* **ENTRY_POINTS** A list of function names in the script to be used as entry points upon execution. Each entry point should have the signature of `def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`. The purpose of each list is as follows:
-* `tensors`: A list holding the input tensors to the function.
-* `keys`: A list of keys that the torch script is about to preform read/write operations on.
-* `args`: A list of additional arguments to the function. If the desired argument is not from type string, it is up to the caller to cast it to the right type, within the script.
+* **ENTRY_POINTS** A list of function names in the script to be used as entry points upon execution. Each entry point should have the signature of:
+`def entry_point(tensors: List[Tensor], keys: List[str], args: List[str])`.
+The purpose of each list is as follows:
+    * `tensors`: A list holding the input tensors to the function.
+    * `keys`: A list of keys that the torch script is about to preform read/write operations on.
+    * `args`: A list of additional arguments to the function. If the desired argument is not from type string, it is up to the caller to cast it to the right type, within the script.
 * **script**: a string containing [TorchScript](https://pytorch.org/docs/stable/jit.html) source code
 
 _Return_
@@ -632,7 +634,7 @@ redis> AI.SCRIPTDEL myscript
 OK
 ```
 
-!!! note "The `AI.SCRIPTDEL` vis a vis the `DEL` command"
+!!! note "The `AI.SCRIPTDEL` vs. the `DEL` command"
     The `AI.SCRIPTDEL` is equivalent to the [Redis `DEL` command](https://redis.io/commands/del) and should be used in its stead. This ensures compatibility with all deployment options (i.e., stand-alone vs. cluster, OSS vs. Enterprise).
 
 
@@ -713,7 +715,7 @@ redis> AI.TENSORGET result{tag} VALUES
 3) 1) "42"
 ```
 
-Note: for the time being, as `AI.SCRIPTSET` is still available to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str]` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they appear.
+Note: for the time being, as `AI.SCRIPTSET` is still available to use, `AI.SCRIPTEXECUTE` still supports running functions that are part of scripts stored with `AI.SCRIPTSET` or imported from old RDB/AOF files. Meaning calling `AI.SCRIPTEXECUTE` over a function without the dedicated signature of `(tensors: List[Tensor], keys: List[str], args: List[str])` will yield a "best effort" execution to match the deprecated API `AI.SCRIPTRUN` function execution. This will map `INPUTS` tensors only, to their counterpart input arguments in the function, according to the order which they appear.
 
 ### Redis Commands support.
 In RedisAI TorchScript now supports simple (non-blocking) Redis commands via the `redis.execute` API. The following script gets a key name (`x{1}`), and an `int` value (3). First, the script `SET`s the value in the key. Next, the script `GET`s the value back from the key, and sets it in a tensor which is eventually stored under the key 'y{1}'. Note that the inputs are `str` and `int`. The script sets and gets the value and set it into a tensor.
@@ -739,10 +741,12 @@ redis> AI.TENSORGET y{1} VALUES
 ### RedisAI model execution support.
 RedisAI TorchScript also supports executing models which are stored in RedisAI by calling `redisAI.model_execute` command. 
 The command receives 3 inputs:
-1. model name (string)
-2. model inputs (List of torch.Tensor)
-3. number of model outputs (int)
-Return value - the model execution output tensors (List of torch.Tensor)
+* model name (string)
+* model inputs (List of torch.Tensor)
+* number of model outputs (int)
+
+* Return value - the model execution output tensors (List of torch.Tensor)
+
 The following script creates two tensors, and executes the (tensorflow) model which is stored under the name 'tf_mul{1}' with these two tensors as inputs.
 ```
 def test_model_execute(tensors: List[Tensor], keys: List[str], args: List[str]):
@@ -764,7 +768,7 @@ redis> AI.TENSORGET y{1} VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI.SCRIPTRUN
-_This command is deprecated and will not be available in future versions. consider using AI.MODELEXECUTE command instead._   
+_This command is deprecated and will not be available in future versions. consider using AI.SCRIPTEXECUTE command instead._   
 
 The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors and store output tensors.
 
@@ -874,7 +878,7 @@ The **`AI.DAGEXECUTE`** command specifies a direct acyclic graph of operations t
 
 It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
-By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
+By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it in local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
 Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify a tag or key which will assist for the routing of the DAG execution on the right shard in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `ROUTING`.  
 
@@ -900,6 +904,7 @@ _Arguments_
 * **ROUTING**: denotes a key to be used in the DAG or a tag that will assist in routing the dag execution command to the right shard. Redis will verify that all potential key accesses are done to within the target shard.
 
 _While each of the LOAD, PERSIST and ROUTING sections are optional (and may appear at most once in the command), the command must contain **at least one** of these 3 keywords._
+
 * **TIMEOUT**: an optional argument, denotes the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 * **|> command**: the chaining operator, that denotes the beginning of a RedisAI command, followed by one of RedisAI's commands. Command splitting is done by the presence of another `|>`. The supported commands are:
     * `AI.TENSORSET`
@@ -909,7 +914,6 @@ _While each of the LOAD, PERSIST and ROUTING sections are optional (and may appe
 
 
 `AI.MODELEXECUTE` and `AI.SCRIPTEXECUTE` commands can run on models or scripts that were set on different devices. RedisAI will analyze the DAG and execute commands in parallel if they are located on different devices and their inputs are available.
-Note that KEYS should not be specified in `AI.SCRIPTEXECUTE` commands of the DAG. 
 
 _Return_
 
@@ -1139,7 +1143,7 @@ The **AI.CONFIG** command sets the value of configuration directives at run-time
 
 **Redis API**
 ```
-AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>>
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>>
 ```
 
 _Arguments_
