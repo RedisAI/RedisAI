@@ -95,7 +95,6 @@ valgrind_summary() {
 #----------------------------------------------------------------------------------------------
 
 run_tests() {
-  printf "\nRunning tests on ${DEVICE}\n\n"
 	local title="$1"
 	[[ ! -z $title ]] && { $ROOT/opt/readies/bin/sep -0; printf "Tests with $title:\n\n"; }
 	cd $ROOT/tests/flow

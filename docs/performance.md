@@ -69,7 +69,7 @@ memtier_benchmark --clients 50 --threads 4 --requests 10000 --pipeline 1 --json-
 
 ## Using onnx_benchmark
 
-`onnx_benchmark` is a simple python script that is used for loading and benchmarking RedisAI+ONNXRuntime performance on CPU. It uses the following 3 renowned models:
+`onnx_benchmark` is a simple python script that is used for loading and benchmarking RedisAI+ONNXRuntime performance on CPU, using a single shard. It uses the following 3 renowned models:
 1. “small" model - [mnist](https://en.wikipedia.org/wiki/MNIST_database) (26.5 KB)
 2. "medium" model - [inception v2](https://towardsdatascience.com/a-simple-guide-to-the-versions-of-the-inception-network-7fc52b863202) (45 MB)
 3. "large" model - [bert-base-cased](https://huggingface.co/bert-base-cased) (433 MB)
@@ -84,7 +84,7 @@ The script can receive the following arguments as inputs:
 - `--num_runs_inception` The number of requests per client that is running inception run sessions. Default value: 50
 - `--num_runs_bert` The number of requests per client that is running bert run sessions. Default value: 5
 
-The following command will run `onnx_benchmark` from RedisAI root directory (using the default arguments):
+To run the benchmark, first you should build RedisAI for CPU as described in the [quick start](quickstart.md) section. The following command will run `onnx_benchmark` from RedisAI root directory (using the default arguments):
 
 ```python3 tests/flow/onnx_benchmark.py --num_threads 1 --num_parallel_clients 20 --num_runs_mnist 500 --num_runs_inception 50 --num_runs_bert 5```
 
