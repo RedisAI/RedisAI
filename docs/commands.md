@@ -335,8 +335,9 @@ redis> AI.MODELGET mymodel META
 You can also save it to the local file 'model.ext' with [`redis-cli`](https://redis.io/topics/cli) like so:
 
 ```
-$ redis-cli --raw AI.MODELGET mymodel BLOB > model.ext
+$ redis-cli AI.MODELGET mymodel BLOB > model.ext
 ```
+Note that for the time being, redis-cli adds additional linefeed character to redirected output so that the model blob retrieved with redis-cli will have an additional linefeed character.
 
 ## AI.MODELDEL
 The **`AI.MODELDEL`** deletes a model stored as a key's value.
