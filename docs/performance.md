@@ -3,9 +3,11 @@
 To get an early sense of what RedisAI is capable of, you can test it with:
 - [`redis-benchmark`](https://redis.io/topics/benchmarks): Redis includes the redis-benchmark utility that simulates running commands done by N clients at the same time sending M total queries (it is similar to the Apache's ab utility).
 
-- [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark): from [Redis Labs](https://redislabs.com/) is a NoSQL Redis and Memcache traffic generation and benchmarking tool.
+- [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark): from [Redis](https://redislabs.com/) is a NoSQL Redis and Memcache traffic generation and benchmarking tool.
 
--  [`aibench`](https://github.com/RedisAI/aibench):  a collection of Go programs that are used to generate datasets and then benchmark the inference performance of various Model Servers.
+- `onnx_benchmark`: a quick tool that benchmarks the inference performance of ONNXRuntime backend for different model sizes.
+
+- [`aibench`](https://github.com/RedisAI/aibench):  a collection of Go programs that are used to generate datasets and then benchmark the inference performance of various Model Servers.
 
 
 This page is intended to provide clarity on how to obtain the benchmark numbers and links to the most recent results. We encourage developers, data scientists, and architects to run these benchmarks for themselves on their particular hardware, datasets, and Model Servers and pull request this documentation with links for the actual numbers.
@@ -64,6 +66,27 @@ The following example will:
 ```
 memtier_benchmark --clients 50 --threads 4 --requests 10000 --pipeline 1 --json-out-file results.json --command "AI.MODELEXECUTE model_key INPUTS input_count input1 ... OUTPUTS output_count output1 ..." --command "AI.SCRIPTEXECUTE script_key entry_point INPUTS input_count input1 ... OUTPUTS output_count output1 ..."
 ```
+
+## Using onnx_benchmark
+
+`onnx_benchmark` is a simple python script that is used for loading and benchmarking RedisAI+ONNXRuntime performance on CPU, using a single shard. It uses the following 3 renowned models:
+1. “small" model - [mnist](https://en.wikipedia.org/wiki/MNIST_database) (26.5 KB)
+2. "medium" model - [inception v2](https://towardsdatascience.com/a-simple-guide-to-the-versions-of-the-inception-network-7fc52b863202) (45 MB)
+3. "large" model - [bert-base-cased](https://huggingface.co/bert-base-cased) (433 MB)
+
+To simulate a situation where the memory consumption is high from the beginning, the script is loading mnist model under 50 different keys, inception model under 20 different keys and bert model (once). 
+Then, it will execute parallel and sequential inference sessions of all 3 models, and will print the performance results to the screen.
+
+The script can receive the following arguments as inputs:
+- `--num_threads` The number of RedisAI working threads that can execute sessions in parallel. Default value: 1.
+- `--num_parallel_clients` The number of parallel clients that send consecutive run requests per model. Default value: 20.
+- `--num_runs_mnist` The number of requests per client that is running mnist run sessions. Default value: 500
+- `--num_runs_inception` The number of requests per client that is running inception run sessions. Default value: 50
+- `--num_runs_bert` The number of requests per client that is running bert run sessions. Default value: 5
+
+To run the benchmark, first you should build RedisAI for CPU as described in the [quick start](quickstart.md) section. The following command will run `onnx_benchmark` from RedisAI root directory (using the default arguments):
+
+```python3 tests/flow/onnx_benchmark.py --num_threads 1 --num_parallel_clients 20 --num_runs_mnist 500 --num_runs_inception 50 --num_runs_bert 5```
 
 ## Using aibench
 

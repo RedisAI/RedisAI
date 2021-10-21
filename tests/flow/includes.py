@@ -25,9 +25,8 @@ TEST_PT = os.environ.get("TEST_PT") != "0" and os.environ.get("WITH_PT") != "0"
 TEST_ONNX = os.environ.get("TEST_ONNX") != "0" and os.environ.get("WITH_ORT") != "0"
 COV = os.environ.get("COV") != "0" and os.environ.get("COV") != "0"
 DEVICE = os.environ.get('DEVICE', 'CPU').upper().encode('utf-8', 'ignore').decode('utf-8')
+print(f'\nRunning inference sessions on {DEVICE}\n')
 VALGRIND = os.environ.get("VALGRIND") == "1"
-print("Running tests on {}\n".format(DEVICE))
-print("Using a max of {} iterations per test\n".format(MAX_ITERATIONS))
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
