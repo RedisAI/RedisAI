@@ -38,6 +38,21 @@ bool RedisAI_DagComplete(RedisAI_RunInfo *rinfo);
 bool RedisAI_DagError(RedisAI_RunInfo *rinfo);
 
 /**
+ * @brief Get an indication if the dag run reached the timeout.
+ *
+ * @param rinfo of RedisAI DAG run.
+ * @return true if there a timeout.
+ */
+bool RedisAI_DagTimeout(RedisAI_RunInfo *rinfo);
+
+/**
+ * @brief Set that the dag run reached the timeout in the dag global pointer.
+ *
+ * @param rinfo of RedisAI DAG run.
+ */
+void RedisAI_DagSetTimeout(RedisAI_RunInfo *rinfo);
+
+/**
  * Get current DAG op for the given device. An op is current if it's
  * the first unrealized op for the device. Since rinfo carries information
  * on what queue it has been placed in, there's no need to pass the device
@@ -144,8 +159,8 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
  * @param argc Redis command number of arguments
  * @return
  */
-int RedisAI_DagRun_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx, RedisModuleString **argv,
-                                                    int argc);
+int RedisAI_DagExecute_IsKeysPositionRequest_ReportKeys(RedisModuleCtx *ctx,
+                                                        RedisModuleString **argv, int argc);
 
 /**
  * @brief This callback is called at the end of a DAG run and performs unblock client and reply.

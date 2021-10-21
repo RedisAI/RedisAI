@@ -1,0 +1,8 @@
+# given the cuda version, generate the paths so that we don't manually maintain them
+{% set cuda_list = REDIS_CUDA_VERSION.split("-") %}
+{% set cuda_parts = cuda_list[0].split(".") %}
+{% set cuda_version = cuda_parts[0] + "." + cuda_parts[1] %}
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+RUN echo export LD_LIBRARY_PATH=/usr/local/cuda/lib64:/usr/local/cuda-{{cuda_version}}/lib64:/usr/local/cuda-{{cuda_version}}/compat/:$LD_LIBRARY_PATH > /etc/profile.d/cuda.sh
+

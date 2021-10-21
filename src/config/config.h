@@ -16,71 +16,58 @@ typedef enum {
 
 typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 
-//#define RAI_COPY_RUN_INPUT
 #define RAI_COPY_RUN_OUTPUT
 #define RAI_PRINT_BACKEND_ERRORS
-#define REDISAI_DEFAULT_THREADS_PER_QUEUE     1
-#define REDISAI_DEFAULT_INTRA_OP_PARALLELISM  0
-#define REDISAI_DEFAULT_INTER_OP_PARALLELISM  0
-#define REDISAI_DEFAULT_MODEL_CHUNK_SIZE      535822336 // (511 * 1024 * 1024)
-#define REDISAI_ERRORMSG_PROCESSING_ARG       "ERR error processing argument"
-#define REDISAI_ERRORMSG_THREADS_PER_QUEUE    "ERR error setting THREADS_PER_QUEUE to"
-#define REDISAI_ERRORMSG_INTRA_OP_PARALLELISM "ERR error setting INTRA_OP_PARALLELISM to"
-#define REDISAI_ERRORMSG_INTER_OP_PARALLELISM "ERR error setting INTER_OP_PARALLELISM to"
 
-#define REDISAI_INFOMSG_THREADS_PER_QUEUE    "Setting THREADS_PER_QUEUE parameter to"
-#define REDISAI_INFOMSG_INTRA_OP_PARALLELISM "Setting INTRA_OP_PARALLELISM parameter to"
-#define REDISAI_INFOMSG_INTER_OP_PARALLELISM "Setting INTER_OP_PARALLELISM parameter to"
-#define REDISAI_INFOMSG_MODEL_CHUNK_SIZE     "Setting MODEL_CHUNK_SIZE parameter to"
+#define REDISAI_ERRORMSG_PROCESSING_ARG "ERR error processing argument"
+
+#define REDISAI_INFOMSG_THREADS_PER_QUEUE       "Setting THREADS_PER_QUEUE parameter to"
+#define REDISAI_INFOMSG_INTRA_OP_PARALLELISM    "Setting INTRA_OP_PARALLELISM parameter to"
+#define REDISAI_INFOMSG_INTER_OP_PARALLELISM    "Setting INTER_OP_PARALLELISM parameter to"
+#define REDISAI_INFOMSG_MODEL_CHUNK_SIZE        "Setting MODEL_CHUNK_SIZE parameter to"
+#define REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT "Setting MODEL_EXECUTION_TIMEOUT parameter to"
+#define REDISAI_INFOMSG_BACKEND_MEMORY_LIMIT    "Setting BACKEND_MEMORY_LIMIT parameter to"
 
 /**
  * Get number of threads used for parallelism between independent operations, by
  * backend.
- * @return number of threads used for parallelism between independent
- * operations, by backend
  */
-long long getBackendsInterOpParallelism();
-
-/**
- * Set number of threads used for parallelism between independent operations, by
- * backend.
- *
- * @param num_threads
- * @return 0 on success, or 1  if failed
- */
-int setBackendsInterOpParallelism(long long num_threads);
+long long Config_GetBackendsInterOpParallelism(void);
 
 /**
  * Get number of threads used within an individual op for parallelism, by
  * backend.
- * @return number of threads used within an individual op for parallelism, by
- * backend.
  */
-long long getBackendsIntraOpParallelism();
-
-/**
- * Set number of threads used within an individual op for parallelism, by
- * backend.
- *
- * @param num_threads
- * @return 0 on success, or 1  if failed
- */
-int setBackendsIntraOpParallelism(long long num_threads);
+long long Config_GetBackendsIntraOpParallelism(void);
 
 /**
  * @return size of chunks (in bytes) in which models are split for
  * set, get, serialization and replication.
  */
-long long getModelChunkSize();
+long long Config_GetModelChunkSize(void);
 
 /**
- * Set size of chunks (in bytes) in which models are split for set,
- * get, serialization and replication.
- *
- * @param size
- * @return 0 on success, or 1  if failed
+ * @brief Return the number of working threads per device in RedisAI.
  */
-int setModelChunkSize(long long size);
+long long Config_GetNumThreadsPerQueue(void);
+
+/**
+ * @return Number of milliseconds that a model session is allowed to run
+ * before killing it. Currently supported only for onnxruntime backend.
+ */
+long long Config_GetModelExecutionTimeout(void);
+
+/**
+ * @return Memory limit in MB for backend. This is the maximum amount of memory
+ * that can be consumed by the backend for creating and running sessions.
+ * Currently supported only for onnxruntime backend.
+ */
+long long Config_GetBackendMemoryLimit(void);
+
+/**
+ * @return Returns the backends path string.
+ */
+char *Config_GetBackendsPath(void);
 
 /**
  * Helper method for AI.CONFIG LOADBACKEND <backend_identifier>
@@ -89,72 +76,69 @@ int setModelChunkSize(long long size);
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR otherwise.
  */
-int RedisAI_Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
+int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
  * Helper method for AI.CONFIG BACKENDSPATH
  * <default_location_of_backend_libraries>
- *
- * @param ctx Context in which Redis modules operate
  * @param path string containing backend path
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
  */
-int RedisAI_Config_BackendsPath(RedisModuleCtx *ctx, const char *path);
+void Config_SetBackendsPath(const char *path);
 
 /**
  * Set number of threads used for parallelism between RedisAI independent
- * blocking commands ( AI.DAGRUN, AI.SCRIPTRUN, AI.MODELRUN ).
- *
+ * blocking commands (AI.DAGEXECUTE, AI.SCRIPTEXECUTE, AI.MODELEXECUTE).
  * @param num_threads_string string containing thread number
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RedisAI_Config_QueueThreads(RedisModuleString *num_threads_string);
+int Config_SetQueueThreadsNum(RedisModuleString *num_threads_string);
 
 /**
  * Set number of threads used for parallelism between independent operations, by
  * backend.
- *
  * @param num_threads_string string containing thread number
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
-int RedisAI_Config_InterOperationParallelism(RedisModuleString *num_threads_string);
+int Config_SetInterOperationParallelism(RedisModuleString *num_threads_string);
 
 /**
  * Set number of threads used within an individual op for parallelism, by
  * backend.
- *
  * @param num_threads_string string containing thread number
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
-int RedisAI_Config_IntraOperationParallelism(RedisModuleString *num_threads_string);
+int Config_SetIntraOperationParallelism(RedisModuleString *num_threads_string);
 
 /**
  * Set size of chunks in which model payloads are split for set,
  * get, serialization and replication.
- *
  * @param chunk_size_string string containing chunk size (in bytes)
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RedisAI_Config_ModelChunkSize(RedisModuleString *chunk_size_string);
+int Config_SetModelChunkSize(RedisModuleString *chunk_size_string);
 
 /**
- *
- * @param ctx Context in which Redis modules operate
- * @param key
- * @param val
+ * Set the maximum time in ms that onnx backend allow running a model.
+ * @param timeout - string containing the max runtime (in ms)
  * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
  */
-int RAI_configParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
-                         RedisModuleString *rsval);
+int Config_SetModelExecutionTimeout(RedisModuleString *timeout);
+
+/**
+ * Set the memory limit in MB for backends allocations.
+ * @param memory_limit - maximum memory consumption by backend. If values is zero,
+ * there will be no enforcement of any memory limit.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if failed
+ */
+int Config_SetBackendMemoryLimit(RedisModuleString *memory_limit);
 
 /**
  * Load time configuration parser
- *
  * @param ctx Context in which Redis modules operate
  * @param argv Redis command arguments, as an array of strings
  * @param argc Redis command number of arguments
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR  if the DAGRUN failed
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if failed
  */
-int RAI_loadTimeConfig(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc);
+int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv, int argc);

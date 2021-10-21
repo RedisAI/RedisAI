@@ -20,7 +20,7 @@ class RedisAISetup(paella.Setup):
         self.install_downloaders()
         self.pip_install("wheel")
 
-        self.install("git unzip patchelf")
+        self.install("git unzip")
         if self.osnick != 'centos8':
             self.install("coreutils") # for realpath
 
@@ -71,13 +71,13 @@ class RedisAISetup(paella.Setup):
     def common_last(self):
         self.run("%s/bin/getclang --format" % READIES)
         if self.platform == "arm":
-            self.run("%s/bin/getcmake" % READIES)
+            self.run("%s/bin/getcmake --from-repo" % READIES)
         else:
-            self.run("%s/bin/getcmake --no-repo" % READIES)
+            self.run("%s/bin/getcmake" % READIES)
 
         self.run("{PYTHON} {READIES}/bin/getrmpytools".format(PYTHON=self.python, READIES=READIES))
 
-        self.pip_install("-r %s/tests/flow/test_requirements.txt" % ROOT)
+        self.pip_install("-r %s/tests/flow/tests_setup/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")

@@ -2,62 +2,45 @@
 #include "assert.h"
 
 void *RAI_RDBLoadTensor_v0(RedisModuleIO *io) {
-    int64_t *shape = NULL;
-    int64_t *strides = NULL;
-
     DLDevice device;
     device.device_type = RedisModule_LoadUnsigned(io);
     device.device_id = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
 
-    // For now we only support CPU tensors (except during model and script run)
-    assert(device.device_type == kDLCPU);
-    assert(device.device_id == 0);
+    // For now, we only support CPU tensors (except during model and script run)
+    RedisModule_Assert(device.device_type == kDLCPU);
+    if (device.device_id != -1) {
+        device.device_id = -1;
+    }
 
     DLDataType dtype;
     dtype.bits = RedisModule_LoadUnsigned(io);
     dtype.code = RedisModule_LoadUnsigned(io);
     dtype.lanes = RedisModule_LoadUnsigned(io);
 
-    size_t ndims = RedisModule_LoadUnsigned(io);
-    if (RedisModule_IsIOError(io))
-        goto cleanup;
-
-    shape = RedisModule_Calloc(ndims, sizeof(*shape));
+    int ndims = RedisModule_LoadUnsigned(io);
+    size_t shape[ndims];
     for (size_t i = 0; i < ndims; ++i) {
         shape[i] = RedisModule_LoadUnsigned(io);
     }
 
-    strides = RedisModule_Calloc(ndims, sizeof(*strides));
+    int64_t strides[ndims];
     for (size_t i = 0; i < ndims; ++i) {
         strides[i] = RedisModule_LoadUnsigned(io);
     }
-
     size_t byte_offset = RedisModule_LoadUnsigned(io);
 
-    size_t len;
-    char *data = RedisModule_LoadStringBuffer(io, &len);
+    size_t blob_len;
+    char *data = RedisModule_LoadStringBuffer(io, &blob_len);
     if (RedisModule_IsIOError(io))
-        goto cleanup;
+        goto error;
 
-    RAI_Tensor *ret = RAI_TensorNew();
-    ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
-                                                            .data = data,
-                                                            .ndim = ndims,
-                                                            .dtype = dtype,
-                                                            .shape = shape,
-                                                            .strides = strides,
-                                                            .byte_offset = byte_offset},
-                                    .manager_ctx = NULL,
-                                    .deleter = NULL};
-    return ret;
+    RAI_Tensor *tensor = RAI_TensorNew(dtype, shape, ndims);
+    tensor->blobSize = blob_len;
+    tensor->tensor.dl_tensor.data = data;
 
-cleanup:
-    if (shape)
-        RedisModule_Free(shape);
-    if (strides)
-        RedisModule_Free(strides);
+    return tensor;
+
+error:
     RedisModule_LogIOError(io, "error", "Experienced a short read while reading a tensor from RDB");
     return NULL;
 }
@@ -104,8 +87,8 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
     RAI_ModelOpts opts = {
         .batchsize = batchsize,
         .minbatchsize = minbatchsize,
-        .backends_intra_op_parallelism = getBackendsIntraOpParallelism(),
-        .backends_inter_op_parallelism = getBackendsInterOpParallelism(),
+        .backends_intra_op_parallelism = Config_GetBackendsIntraOpParallelism(),
+        .backends_inter_op_parallelism = Config_GetBackendsInterOpParallelism(),
     };
 
     buffer = RedisModule_LoadStringBuffer(io, &len);
@@ -120,7 +103,7 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, backend);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default backend");
+            RedisModule_Log(ctx, "warning", "Could not load default backend");
             RAI_ClearError(&err);
             goto cleanup;
         }
@@ -131,7 +114,7 @@ void *RAI_RDBLoadModel_v0(RedisModuleIO *io) {
 
     if (err.code != RAI_OK) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
-        RedisModule_Log(ctx, "error", "%s", err.detail);
+        RedisModule_Log(ctx, "warning", "%s", err.detail);
         RAI_ClearError(&err);
         goto cleanup;
     }
@@ -179,7 +162,8 @@ cleanup:
     if (buffer)
         RedisModule_Free(buffer);
 
-    RedisModule_LogIOError(io, "error", "Experienced a short read while reading a model from RDB");
+    RedisModule_LogIOError(io, "warning",
+                           "Experienced a short read while reading a model from RDB");
     return NULL;
 }
 
@@ -205,7 +189,7 @@ void *RAI_RDBLoadScript_v0(RedisModuleIO *io) {
         RedisModuleCtx *ctx = RedisModule_GetContextFromIO(io);
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
-            RedisModule_Log(ctx, "error", "Could not load default TORCH backend\n");
+            RedisModule_Log(ctx, "warning", "Could not load default TORCH backend\n");
             RAI_ClearError(&err);
             goto cleanup;
         }

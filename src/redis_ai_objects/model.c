@@ -19,9 +19,8 @@
 #include "util/arr.h"
 #include "util/dict.h"
 #include "util/string_utils.h"
-#include "execution/run_info.h"
-#include "execution/DAG/dag.h"
-#include "execution/utils.h"
+
+extern RedisModuleType *RedisAI_ModelType;
 
 RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModuleString *tag,
                            RAI_ModelOpts opts, size_t ninputs, const char **inputs, size_t noutputs,
@@ -60,7 +59,7 @@ RAI_Model *RAI_ModelCreate(RAI_Backend backend, const char *devicestr, RedisModu
 
     if (model) {
         if (tag) {
-            model->tag = RAI_HoldString(NULL, tag);
+            model->tag = RAI_HoldString(tag);
         } else {
             model->tag = RedisModule_CreateString(NULL, "", 0);
         }
@@ -107,58 +106,6 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
     RAI_RemoveStatsEntry(model->infokey);
 
     RedisModule_Free(model);
-}
-
-int RAI_ModelRun(RAI_ModelRunCtx **mctxs, long long n, RAI_Error *err) {
-    int ret;
-
-    if (n == 0) {
-        RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Nothing to run");
-        return REDISMODULE_ERR;
-    }
-
-    RAI_ModelRunCtx **mctxs_arr = array_newlen(RAI_ModelRunCtx *, n);
-    for (int i = 0; i < n; i++) {
-        mctxs_arr[i] = mctxs[i];
-    }
-
-    switch (mctxs_arr[0]->model->backend) {
-    case RAI_BACKEND_TENSORFLOW:
-        if (!RAI_backends.tf.model_run) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TF");
-            return REDISMODULE_ERR;
-        }
-        ret = RAI_backends.tf.model_run(mctxs_arr, err);
-        break;
-    case RAI_BACKEND_TFLITE:
-        if (!RAI_backends.tflite.model_run) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TFLITE");
-            return REDISMODULE_ERR;
-        }
-        ret = RAI_backends.tflite.model_run(mctxs_arr, err);
-        break;
-    case RAI_BACKEND_TORCH:
-        if (!RAI_backends.torch.model_run) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: TORCH");
-            return REDISMODULE_ERR;
-        }
-        ret = RAI_backends.torch.model_run(mctxs_arr, err);
-        break;
-    case RAI_BACKEND_ONNXRUNTIME:
-        if (!RAI_backends.onnx.model_run) {
-            RAI_SetError(err, RAI_EBACKENDNOTLOADED, "ERR Backend not loaded: ONNX");
-            return REDISMODULE_ERR;
-        }
-        ret = RAI_backends.onnx.model_run(mctxs_arr, err);
-        break;
-    default:
-        RAI_SetError(err, RAI_EUNSUPPORTEDBACKEND, "ERR Unsupported backend");
-        return REDISMODULE_ERR;
-    }
-
-    array_free(mctxs_arr);
-
-    return ret;
 }
 
 RAI_Model *RAI_ModelGetShallowCopy(RAI_Model *model) {
@@ -272,11 +219,10 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyName, mode);
     if (RedisModule_KeyType(key) == REDISMODULE_KEYTYPE_EMPTY) {
         RedisModule_CloseKey(key);
-#ifndef LITE
+#ifndef REDISAI_LITE
         RedisModule_Log(ctx, "warning", "could not load %s from keyspace, key doesn't exist",
                         RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
-        return REDISMODULE_ERR;
 #else
         if (VerifyKeyInThisShard(ctx, keyName)) { // Relevant for enterprise cluster.
             RAI_SetError(err, RAI_EKEYEMPTY, "ERR model key is empty");
@@ -285,10 +231,12 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
                          "ERR CROSSSLOT Keys in request don't hash to the same slot");
         }
 #endif
+        return REDISMODULE_ERR;
     }
     if (RedisModule_ModuleTypeGetType(key) != RedisAI_ModelType) {
         RedisModule_CloseKey(key);
-        RedisModule_Log(ctx, "error", "%s is not a model", RedisModule_StringPtrLen(keyName, NULL));
+        RedisModule_Log(ctx, "warning", "%s is not a model",
+                        RedisModule_StringPtrLen(keyName, NULL));
         RAI_SetError(err, RAI_EMODELRUN, REDISMODULE_ERRORMSG_WRONGTYPE);
         return REDISMODULE_ERR;
     }
@@ -297,32 +245,18 @@ int RAI_GetModelFromKeyspace(RedisModuleCtx *ctx, RedisModuleString *keyName, RA
     return REDISMODULE_OK;
 }
 
-RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }
+inline size_t RAI_ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
 
-size_t ModelGetNumInputs(RAI_Model *model) { return model->ninputs; }
+inline size_t RAI_ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
 
-size_t ModelGetNumOutputs(RAI_Model *model) { return model->noutputs; }
-
-int RAI_ModelRunAsync(RAI_ModelRunCtx *mctx, RAI_OnFinishCB ModelAsyncFinish, void *private_data) {
-
-    RedisAI_RunInfo *rinfo = NULL;
-    RAI_InitRunInfo(&rinfo);
-
-    rinfo->single_op_dag = 1;
-    rinfo->OnFinish = (RedisAI_OnFinishCB)ModelAsyncFinish;
-    rinfo->private_data = private_data;
-
-    RAI_DagOp *op;
-    RAI_InitDagOp(&op);
-    op->commandType = REDISAI_DAG_CMD_MODELRUN;
-    op->devicestr = mctx->model->devicestr;
-    op->mctx = mctx;
-
-    rinfo->dagOps = array_append(rinfo->dagOps, op);
-    rinfo->dagOpCount = 1;
-    if (DAG_InsertDAGToQueue(rinfo) != REDISMODULE_OK) {
-        RAI_FreeRunInfo(rinfo);
-        return REDISMODULE_ERR;
-    }
-    return REDISMODULE_OK;
+inline const char *RAI_ModelGetInputName(RAI_Model *model, size_t index) {
+    return model->inputs[index];
 }
+
+const char *RAI_ModelGetOutputName(RAI_Model *model, size_t index) { return model->outputs[index]; }
+
+inline void *RAI_ModelGetSession(RAI_Model *model) { return model->session; }
+
+inline void *RAI_ModelGetModel(RAI_Model *model) { return model->model; }
+
+RedisModuleType *RAI_ModelRedisType(void) { return RedisAI_ModelType; }

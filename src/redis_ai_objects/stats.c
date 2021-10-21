@@ -27,11 +27,11 @@ void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType
                         RAI_Backend backend, const char *devicestr, RedisModuleString *tag) {
     struct RedisAI_RunStats *rstats = NULL;
     rstats = RedisModule_Calloc(1, sizeof(struct RedisAI_RunStats));
-    rstats->key = RAI_HoldString(NULL, key);
+    rstats->key = RAI_HoldString(key);
     rstats->type = runtype;
     rstats->backend = backend;
     rstats->devicestr = RedisModule_Strdup(devicestr);
-    rstats->tag = RAI_HoldString(NULL, tag);
+    rstats->tag = RAI_HoldString(tag);
 
     AI_dictAdd(run_stats, (void *)key, (void *)rstats);
 

@@ -11,59 +11,13 @@
 
 #include "redismodule.h"
 #include "redis_ai_objects/err.h"
-#include "redis_ai_objects/model.h"
-#include "redis_ai_objects/script.h"
-#include "redis_ai_objects/model_struct.h"
+#include "execution/DAG/dag_op.h"
 #include "util/arr.h"
 #include "util/dict.h"
-
-typedef enum DAGCommand {
-    REDISAI_DAG_CMD_NONE = 0,
-    REDISAI_DAG_CMD_TENSORSET,
-    REDISAI_DAG_CMD_TENSORGET,
-    REDISAI_DAG_CMD_MODELRUN,
-    REDISAI_DAG_CMD_SCRIPTRUN
-} DAGCommand;
-
-enum RedisAI_DAGMode { REDISAI_DAG_READONLY_MODE = 0, REDISAI_DAG_WRITE_MODE };
-
-typedef struct RAI_DagOp {
-    int commandType;
-    RedisModuleString *runkey;
-    RedisModuleString **inkeys;
-    RedisModuleString **outkeys;
-    size_t *inkeys_indices;
-    size_t *outkeys_indices;
-    RAI_Tensor *outTensor; // The tensor to upload in TENSORSET op.
-    RAI_ModelRunCtx *mctx;
-    RAI_ScriptRunCtx *sctx;
-    uint fmt; // This is relevant for TENSORGET op.
-    char *devicestr;
-    int result; // REDISMODULE_OK or REDISMODULE_ERR
-    long long duration_us;
-    RAI_Error *err;
-    RedisModuleString **argv;
-    int argc;
-} RAI_DagOp;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/**
- * Allocate the memory and initialise the RAI_DagOp.
- * @param result Output parameter to capture allocated RAI_DagOp.
- * @return REDISMODULE_OK on success, or REDISMODULE_ERR if the allocation
- * failed.
- */
-int RAI_InitDagOp(RAI_DagOp **result);
-
-/**
- * Frees the memory allocated of RAI_DagOp
- * @param ctx Context in which Redis modules operate
- * @param RAI_DagOp context in which RedisAI command operates.
- */
-void RAI_FreeDagOp(RAI_DagOp *dagOp);
 
 typedef struct RedisAI_RunInfo RedisAI_RunInfo;
 
@@ -163,24 +117,6 @@ void RAI_ContextWriteLock(RedisAI_RunInfo *rinfo);
  * @param rinfo context in which RedisAI blocking command operate.
  */
 void RAI_ContextUnlock(RedisAI_RunInfo *rinfo);
-
-/**
- * Obtain the batch size for the provided DAG operation, that is, the
- * size of the tensor in the zero-th dimension
- * @param op DAG operation to operate on
- * @return size of the batch for op
- */
-size_t RAI_RunInfoBatchSize(struct RAI_DagOp *op);
-
-/**
- * Find out whether two DAG operations are batchable. That means they must be
- * two MODELRUN operations with the same model, where respective inputs have
- * compatible shapes (all dimensions except the zero-th must match)
- * @param op1 first DAG operation
- * @param op2 second DAG operation
- * @return 1 if batchable, 0 otherwise
- */
-int RAI_RunInfoBatchable(struct RAI_DagOp *op1, struct RAI_DagOp *op2);
 
 /**
  * Retreive the ModelRunCtx of a DAG runInfo that contains a single op of type

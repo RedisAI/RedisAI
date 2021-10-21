@@ -4,6 +4,7 @@
 #include "redismodule.h"
 #include "tensorflow/lite/model.h"
 #include "tensorflow/lite/interpreter.h"
+#include "tensorflow/lite/util.h"
 #include "tensorflow/lite/kernels/register.h"
 #include "tensorflow/lite/tools/evaluation/utils.h"
 
@@ -42,11 +43,16 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
         dtype.bits = 16;
         dtype.code = DLDataTypeCode::kDLFloat;
         break;
+    case kTfLiteBool:
+        dtype.bits = 8;
+        dtype.code = DLDataTypeCode::kDLBool;
+        break;
     default:
         break;
     }
     return dtype;
 }
+
 
 static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id) {
     DLDevice device;
@@ -55,23 +61,6 @@ static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id
     return device;
 }
 
-#if 0
-static at::DeviceType getATenDeviceType(DLDeviceType device_type) {
-  switch (device_type) {
-    case DLDeviceType::kDLCPU:
-      return at::DeviceType::CPU;
-    case DLDeviceType::kDLGPU:
-      return at::DeviceType::CUDA;
-    case DLDeviceType::kDLOpenCL:
-      return at::DeviceType::OPENCL;
-    case DLDeviceType::kDLROCM:
-      return at::DeviceType::HIP;
-    default:
-      throw std::logic_error("Unsupported device_type: " + std::to_string(device_type));
-  }
-  return at::DeviceType::CPU; // impossible
-}
-#endif
 
 size_t dltensorBytes(DLManagedTensor *t) {
     int64_t *shape = t->dl_tensor.shape;
@@ -88,31 +77,55 @@ size_t dltensorBytes(DLManagedTensor *t) {
 void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tflite_input,
                         DLManagedTensor *input) {
     TfLiteTensor *tensor = interpreter->tensor(tflite_input);
-
     size_t nbytes = dltensorBytes(input);
+    DLDataType dltensor_type = input->dl_tensor.dtype;
+    const char *type_mismatch_msg = "Input tensor type doesn't match the type expected"
+                            " by the model definition";
 
     switch (tensor->type) {
     case kTfLiteUInt8:
-        memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
-        break;
+       if (dltensor_type.code != kDLUInt || dltensor_type.bits != 8) {
+           throw std::logic_error(type_mismatch_msg);
+       }
+       memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
+       break;
     case kTfLiteInt64:
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 64) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int64_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt32:
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 32) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int32_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt16:
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 16) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int16_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteInt8:
+        if (dltensor_type.code != kDLInt || dltensor_type.bits != 8) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<int8_t>(tflite_input), input->dl_tensor.data, nbytes);
         break;
     case kTfLiteFloat32:
+        if (dltensor_type.code != kDLFloat || dltensor_type.bits != 32) {
+            throw std::logic_error(type_mismatch_msg);
+        }
         memcpy(interpreter->typed_tensor<float>(tflite_input), input->dl_tensor.data, nbytes);
         break;
+    case kTfLiteBool:
+        if (dltensor_type.code != kDLBool || dltensor_type.bits != 8) {
+            throw std::logic_error(type_mismatch_msg);
+        }
+        memcpy(interpreter->typed_tensor<bool>(tflite_input), input->dl_tensor.data, nbytes);
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as input tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported input data type");
     }
@@ -174,9 +187,11 @@ DLManagedTensor *toManagedDLPack(std::shared_ptr<tflite::Interpreter> interprete
     case kTfLiteFloat32:
         memcpy(dl_tensor.data, interpreter->typed_tensor<float>(tflite_output), tensor->bytes);
         break;
+    case kTfLiteBool:
+        memcpy(dl_tensor.data, interpreter->typed_tensor<bool>(tflite_output), tensor->bytes);
+        break;
     case kTfLiteFloat16:
         throw std::logic_error("Float16 not currently supported as output tensor data type");
-        break;
     default:
         throw std::logic_error("Unsupported output data type");
     }
@@ -231,7 +246,7 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     }
 
 #if RAI_TFLITE_USE_CUDA
-    if (device == DLDeviceType::kDLGPU) {
+    if (device == DLDeviceType::kDLCUDA) {
         tflite::Interpreter::TfLiteDelegatePtr delegate =
             tflite::evaluation::CreateGPUDelegate(model.get());
         if (interpreter_->ModifyGraphWithDelegate(std::move(delegate)) != kTfLiteOk) {
@@ -326,6 +341,38 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
     if (n_outputs != tflite_outputs.size()) {
         _setError("Inconsistent number of outputs", error);
         return;
+    }
+
+    // NOTE: TFLITE requires all tensors in the graph to be explicitly
+    // preallocated before input tensors are memcopied. These are cached
+    // in the session, so we need to check if for instance the batch size
+    // has changed or the shape has changed in general compared to the
+    // previous run and in that case we resize input tensors and call
+    // the AllocateTensor function manually.
+    bool need_reallocation = false;
+    std::vector<int> dims;
+    for (size_t i = 0; i < tflite_inputs.size(); i++) {
+        const TfLiteTensor* tflite_tensor = interpreter->tensor(tflite_inputs[i]);
+        int64_t ndim = inputs[i]->dl_tensor.ndim;
+        int64_t *shape = inputs[i]->dl_tensor.shape;
+        dims.resize(ndim);
+        for (size_t j=0; j < ndim; j++) {
+            dims[j] = shape[j];
+        }
+        if (!tflite::EqualArrayAndTfLiteIntArray(tflite_tensor->dims, dims.size(), dims.data())) {
+            if (interpreter->ResizeInputTensor(i, dims) != kTfLiteOk) {
+                _setError("Failed to resize input tensors", error);
+                return;
+            }
+            need_reallocation = true;
+        }
+    }
+
+    if (need_reallocation) {
+        if (interpreter->AllocateTensors() != kTfLiteOk) {
+            _setError("Failed to allocate tensors", error);
+            return;
+        }
     }
 
     try {
