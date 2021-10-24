@@ -12,4 +12,4 @@ This is a list of RedisAI sample projects that can be used as-is or as an inspir
 | ChatBotDemo | An example of using RedisAI and a Web App for Conversational AI (i.e. chatbot) | [RedisLabs](https://redislabs.com/) | Apache-2.0 | [git](https://github.com/RedisAI/ChatBotDemo) |
 | AnimalRecognitionDemo | An example of using Redis Streams, RedisGears and RedisAI for Realtime Video Analytics (i.e. filtering cats) | [RedisLabs](https://redislabs.com/) | BSD-3-Clause | [git](https://github.com/RedisGears/AnimalRecognitionDemo) |
 | EdgeRealtimeVideoAnalytics | An example of using Redis Streams, RedisGears, RedisAI and RedisTimeSeries for Realtime Video Analytics (i.e. counting people) | [RedisLabs](https://redislabs.com/) | Apache-2.0 | [git](https://github.com/RedisGears/EdgeRealtimeVideoAnalytics) |
-
+| demo-market-basket-analysis | An exmaple of prediciting shopping baskets on passed purchases | [RedisLabs](https://redislabs.com/) |  | [git](https://github.com/RedisLabs-Field-Engineering/demo-market-basket-analysis) |

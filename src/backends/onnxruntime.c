@@ -1,5 +1,4 @@
 #define REDISMODULE_MAIN
-#include <cuda_provider_factory.h>
 #include "backends/util.h"
 #include <stdatomic.h>
 #include <backends/onnx_timeout.h>
@@ -7,6 +6,7 @@
 #include "util/arr.h"
 #include "backends/onnxruntime.h"
 #include "redis_ai_objects/tensor.h"
+#include "onnx_allocator/onnx_allocator.h"
 
 #include "onnxruntime_c_api.h"
 #include "backends_api.h"
@@ -22,63 +22,7 @@ OrtEnv *env = NULL;
 // For model that run on GPU, onnx will not use the custom allocator (redis allocator), but
 // the onnx allocator for GPU. But for the auxiliary allocations of the input and output names,
 // we will use the custom global allocator for models that run on GPU as well.
-OrtMemoryInfo *mem_info = NULL;
 OrtAllocator *global_allocator = NULL;
-unsigned long long OnnxMemory = 0;
-unsigned long long OnnxMemoryAccessCounter = 0;
-
-const OrtMemoryInfo *AllocatorInfo(const OrtAllocator *allocator) {
-    (void)allocator;
-    const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    if (mem_info != NULL) {
-        return mem_info;
-    }
-    if (ort->CreateCpuMemoryInfo(OrtDeviceAllocator, OrtMemTypeDefault, &mem_info) != NULL) {
-        return NULL;
-    }
-    return mem_info;
-}
-
-// Allocate address with 64-byte alignment to cope with onnx optimizations.
-void *AllocatorAlloc(OrtAllocator *ptr, size_t size) {
-
-    (void)ptr;
-    // Allocate an additional 63 bytes to ensure that we can return an address which is
-    // 64-byte aligned, and an additional space in the size of a pointer to store
-    // the address that RedisModule_Alloc returns.
-    int offset = 63 + sizeof(void *);
-    void *allocated_address = (void *)RedisModule_Alloc(size + offset);
-    size_t allocated_size = RedisModule_MallocSize(allocated_address);
-    // Update the total number of bytes that onnx is using and the number of accesses
-    // that onnx made to the allocator.
-    atomic_fetch_add(&OnnxMemory, allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    // This operation guarantees that p2 is the closest 64-aligned address to (p1+size_t).
-    void **aligned_address = (void **)(((size_t)(allocated_address) + offset) & (~63));
-    // This stores the address p1 right before p2 (so we can retrieve it when we free).
-    aligned_address[-1] = allocated_address;
-    return aligned_address;
-}
-
-void AllocatorFree(OrtAllocator *ptr, void *aligned_address) {
-    (void)ptr;
-    if (aligned_address == NULL) {
-        return;
-    }
-    // Retrieve the address that we originally received from RedisModule_Alloc
-    // (this is the address that we need to sent to RedisModule_Free).
-    void *allocated_address = ((void **)aligned_address)[-1];
-    size_t allocated_size = RedisModule_MallocSize(allocated_address);
-    // Update the total number of bytes that onnx is using and the number of accesses
-    // that onnx made to the allocator.
-    atomic_fetch_sub(&OnnxMemory, allocated_size);
-    atomic_fetch_add(&OnnxMemoryAccessCounter, 1);
-    return RedisModule_Free(allocated_address);
-}
-
-unsigned long long RAI_GetMemoryInfoORT() { return OnnxMemory; }
-
-unsigned long long RAI_GetMemoryAccessORT() { return OnnxMemoryAccessCounter; }
 
 int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     // Export redis callbacks.
@@ -96,6 +40,7 @@ int RAI_InitBackendORT(int (*get_api_fn)(const char *, void **)) {
     get_api_fn("GetThreadId", ((void **)&RedisAI_GetThreadId));
     get_api_fn("GetNumThreadsPerQueue", ((void **)&RedisAI_GetNumThreadsPerQueue));
     get_api_fn("GetModelExecutionTimeout", ((void **)&RedisAI_GetModelExecutionTimeout));
+    get_api_fn("GetBackendMemoryLimit", ((void **)&RedisAI_GetMemoryLimit));
     get_api_fn("GetThreadsCount", ((void **)&RedisAI_GetThreadsCount));
 
     // Create a global array of onnx runSessions, with an entry for every working thread.
@@ -170,7 +115,13 @@ ONNXTensorElementDataType RAI_GetOrtDataTypeFromDL(DLDataType dtype) {
         switch (dtype.bits) {
         case 8:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL;
-            break;
+        default:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
+        }
+    } else if (dtype.code == kDLString) {
+        switch (dtype.bits) {
+        case 8:
+            return ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING;
         default:
             return ONNX_TENSOR_ELEMENT_DATA_TYPE_UNDEFINED;
         }
@@ -198,20 +149,22 @@ DLDataType RAI_GetDLDataTypeFromORT(ONNXTensorElementDataType dtype) {
         return (DLDataType){.code = kDLUInt, .bits = 16, .lanes = 1};
     case ONNX_TENSOR_ELEMENT_DATA_TYPE_BOOL:
         return (DLDataType){.code = kDLBool, .bits = 8, .lanes = 1};
+    case ONNX_TENSOR_ELEMENT_DATA_TYPE_STRING:
+        return (DLDataType){.code = kDLString, .bits = 8, .lanes = 1};
     default:
         return (DLDataType){.bits = 0};
     }
 }
 
-int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
+int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t batches_count, OrtValue **input,
                             OrtStatus **status_ptr) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
 
-    size_t batch_size = 0;
+    int64_t batch_size = 0;
     size_t batch_byte_size = 0;
 
-    for (size_t i = 0; i < count; i++) {
+    for (size_t i = 0; i < batches_count; i++) {
         batch_size += ts[i]->tensor.dl_tensor.shape[0];
         batch_byte_size += RAI_TensorByteSize(ts[i]);
     }
@@ -219,21 +172,38 @@ int RAI_OrtValueFromTensors(RAI_Tensor **ts, size_t count, OrtValue **input,
     RAI_Tensor *t0 = ts[0];
     const int ndim = t0->tensor.dl_tensor.ndim;
     int64_t batched_shape[ndim];
+    size_t batched_tensor_len = 1;
     for (size_t i = 1; i < ndim; i++) {
         batched_shape[i] = t0->tensor.dl_tensor.shape[i];
+        batched_tensor_len *= batched_shape[i];
     }
     batched_shape[0] = batch_size;
 
     OrtValue *out;
-    if (count > 1) {
+    if (t0->tensor.dl_tensor.dtype.code == kDLString) {
+        ONNX_VALIDATE_STATUS(ort->CreateTensorAsOrtValue(
+            global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
+            RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out));
+        size_t element_index = 0;
+        for (size_t i = 0; i < batches_count; i++) {
+            // go over all strings stored in the tensors' data from all tensors and set them in the
+            // ORT tensor.
+            size_t tensor_len = RAI_TensorLength(ts[i]);
+            uint64_t *offsets = RAI_TensorStringElementsOffsets(ts[i]);
+            for (size_t j = 0; j < tensor_len; j++) {
+                // send a pointer to the position of a string elements (null-terminated) in the blob
+                ONNX_VALIDATE_STATUS(ort->FillStringTensorElement(
+                    out, RAI_TensorData(ts[i]) + offsets[j], element_index++));
+            }
+        }
+    } else if (batches_count > 1) {
         ONNX_VALIDATE_STATUS(
             ort->CreateTensorAsOrtValue(global_allocator, batched_shape, t0->tensor.dl_tensor.ndim,
                                         RAI_GetOrtDataTypeFromDL(t0->tensor.dl_tensor.dtype), &out))
-
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(out, (void **)&ort_data))
         size_t offset = 0;
-        for (size_t i = 0; i < count; i++) {
+        for (size_t i = 0; i < batches_count; i++) {
             memcpy(ort_data + offset, RAI_TensorData(ts[i]), RAI_TensorByteSize(ts[i]));
             offset += RAI_TensorByteSize(ts[i]);
         }
@@ -255,99 +225,94 @@ RAI_Tensor *RAI_TensorCreateFromOrtValue(OrtValue *v, size_t batch_offset, long 
                                          RAI_Error *error) {
     OrtStatus *status = NULL;
     const OrtApi *ort = OrtGetApiBase()->GetApi(1);
-    RAI_Tensor *ret = NULL;
-    int64_t *shape = NULL;
-    int64_t *strides = NULL;
+    RAI_Tensor *output_tensor = NULL;
     OrtTensorTypeAndShapeInfo *info = NULL;
 
     int is_tensor;
     ONNX_VALIDATE_STATUS(ort->IsTensor(v, &is_tensor))
     if (!is_tensor) {
         // TODO: if not tensor, flatten the data structure (sequence or map) and store it in a
-        // tensor. If return value is string, emit warning.
+        // tensor.
         return NULL;
     }
 
-    ret = RAI_TensorNew();
-    // Default device is CPU (id -1 is default, means 'no index')
-    DLDevice device = (DLDevice){.device_type = kDLCPU, .device_id = -1};
-
+    // Create an empty RAI_Tensor based on the tensor's meat-data
     ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(v, &info))
-
+    ONNXTensorElementDataType ort_dtype;
+    ONNX_VALIDATE_STATUS(ort->GetTensorElementType(info, &ort_dtype))
+    DLDataType data_type = RAI_GetDLDataTypeFromORT(ort_dtype);
+    size_t data_type_size = data_type.bits / 8;
+    int64_t total_batch_size;
     {
-        size_t ndims;
-        ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
-        int64_t dims[ndims];
-        ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, ndims))
-        enum ONNXTensorElementDataType ort_dtype;
-        ONNX_VALIDATE_STATUS(ort->GetTensorElementType(info, &ort_dtype))
-        int64_t total_batch_size = dims[0];
-        total_batch_size = total_batch_size > 0 ? total_batch_size : 1;
+        size_t n_dims;
+        ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &n_dims))
+        int64_t dims[n_dims];
+        ONNX_VALIDATE_STATUS(ort->GetDimensions(info, dims, n_dims))
+        total_batch_size = dims[0];
 
-        shape = RedisModule_Calloc(ndims, sizeof(*shape));
-        strides = RedisModule_Calloc(ndims, sizeof(*strides));
-        for (int64_t i = 0; i < ndims; ++i) {
-            shape[i] = dims[i];
-            strides[i] = 1;
-        }
-        if (batch_size != -1) {
-            shape[0] = batch_size;
+        // if batch size is non-negative (meaning this tensor was a part of a larger batch),
+        // we restore the original first dimension of this particular tensor.
+        if (batch_size > 0) {
+            dims[0] = batch_size;
         } else {
-            batch_size = total_batch_size;
+            batch_size = total_batch_size; // = dims[0]
         }
-        for (int64_t i = ndims - 2; i >= 0; --i) {
-            strides[i] *= strides[i + 1] * shape[i + 1];
-        }
+        output_tensor = RAI_TensorNew(data_type, (const size_t *)dims, (int)n_dims);
+    }
 
-        DLDataType dtype = RAI_GetDLDataTypeFromORT(ort_dtype);
-#ifdef RAI_COPY_RUN_OUTPUT
+    size_t output_tensor_len = RAI_TensorLength(output_tensor);
+    size_t elem_count;
+    ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
+    RedisModule_Assert(elem_count / total_batch_size * batch_size == output_tensor_len);
+
+    if (data_type.code != kDLString) {
         char *ort_data;
         ONNX_VALIDATE_STATUS(ort->GetTensorMutableData(v, (void **)&ort_data))
-        size_t elem_count;
-        ONNX_VALIDATE_STATUS(ort->GetTensorShapeElementCount(info, &elem_count))
+        output_tensor->tensor.dl_tensor.data = RedisModule_Alloc(RAI_TensorByteSize(output_tensor));
+        size_t total_byte_size = elem_count * data_type_size;
+        size_t sample_byte_size = total_byte_size / total_batch_size;
+        memcpy(RAI_TensorData(output_tensor), ort_data + batch_offset * sample_byte_size,
+               RAI_TensorByteSize(output_tensor));
+    } else {
+        // Calculate the blob size for this tensor and allocate space for it
+        size_t element_index = batch_offset * (output_tensor_len / batch_size);
+        size_t blob_len = 0;
+        for (size_t i = 0; i < output_tensor_len; i++) {
+            size_t str_element_len;
+            ONNX_VALIDATE_STATUS(
+                ort->GetStringTensorElementLength(v, element_index++, &str_element_len));
+            blob_len +=
+                str_element_len + 1; // Add space for null character at the end of every string
+        }
+        output_tensor->blobSize = blob_len;
+        output_tensor->tensor.dl_tensor.data = RedisModule_Alloc(blob_len);
+        char *tensor_blob = RAI_TensorData(output_tensor);
 
-        const size_t len = dtype.bits * elem_count / 8;
-        const size_t total_bytesize = len * sizeof(char);
-        const size_t sample_bytesize = total_bytesize / total_batch_size;
-        const size_t batch_bytesize = sample_bytesize * batch_size;
-
-        char *data = RedisModule_Calloc(batch_bytesize, sizeof(*data));
-        memcpy(data, ort_data + batch_offset * sample_bytesize, batch_bytesize);
-#endif
-
-        ort->ReleaseTensorTypeAndShapeInfo(info);
-
-        // TODO: use manager_ctx to ensure ORT tensor doesn't get deallocated
-        // This applies to outputs
-
-        ret->tensor = (DLManagedTensor){.dl_tensor = (DLTensor){.device = device,
-#ifdef RAI_COPY_RUN_OUTPUT
-                                                                .data = data,
-#else
-#error zero-copy passing output memory from ORT not currently supported
-#endif
-                                                                .ndim = ndims,
-                                                                .dtype = dtype,
-                                                                .shape = shape,
-                                                                .strides = strides,
-                                                                .byte_offset = 0},
-                                        .manager_ctx = NULL,
-                                        .deleter = NULL};
-
-        return ret;
+        // Go over again and set tensor data elements one by one
+        element_index = batch_offset * (output_tensor_len / batch_size);
+        uint64_t *offsets = RAI_TensorStringElementsOffsets(output_tensor);
+        offsets[0] = 0;
+        for (size_t i = 0; i < output_tensor_len; i++) {
+            size_t str_element_len;
+            ONNX_VALIDATE_STATUS(
+                ort->GetStringTensorElementLength(v, element_index, &str_element_len));
+            ONNX_VALIDATE_STATUS(ort->GetStringTensorElement(v, str_element_len, element_index++,
+                                                             tensor_blob + offsets[i]));
+            *(tensor_blob + offsets[i] + str_element_len) = '\0';
+            if (i < output_tensor_len - 1) {
+                offsets[i + 1] = offsets[i] + str_element_len + 1;
+            }
+        }
     }
+
+    ort->ReleaseTensorTypeAndShapeInfo(info);
+    return output_tensor;
 
 error:
     RAI_SetError(error, RAI_EMODELCREATE, ort->GetErrorMessage(status));
     ort->ReleaseStatus(status);
-    if (shape != NULL) {
-        RedisModule_Free(shape);
-    }
-    if (strides != NULL) {
-        RedisModule_Free(shape);
-    }
-    if (ret != NULL) {
-        RedisModule_Free(ret);
+    if (output_tensor != NULL) {
+        RAI_TensorFree(output_tensor);
     }
     if (info != NULL) {
         ort->ReleaseTensorTypeAndShapeInfo(info);
@@ -370,10 +335,9 @@ RAI_Model *RAI_ModelCreateORT(RAI_Backend backend, const char *devicestr, RAI_Mo
     // allocating buffers when creating and running models that run on CPU, and for allocations of
     // models inputs and outputs names (for both models that run on CPU and GPU)
     if (env == NULL) {
-        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "test", &env))
-        ONNX_VALIDATE_STATUS(ort->CreateCustomDeviceAllocator(
-            ORT_API_VERSION, AllocatorAlloc, AllocatorFree, AllocatorInfo, &global_allocator))
-        ONNX_VALIDATE_STATUS(ort->RegisterCustomDeviceAllocator(env, global_allocator))
+        ONNX_VALIDATE_STATUS(ort->CreateEnv(ORT_LOGGING_LEVEL_WARNING, "RedisAI", &env))
+        global_allocator = CreateCustomAllocator(RedisAI_GetMemoryLimit());
+        ONNX_VALIDATE_STATUS(ort->RegisterAllocator(env, global_allocator))
     }
 
     ONNX_VALIDATE_STATUS(ort->CreateSessionOptions(&session_options))
@@ -505,24 +469,24 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
         return REDISMODULE_ERR;
     }
 
-    const size_t nbatches = array_len(ectxs);
-    if (nbatches == 0) {
+    const size_t n_batches = array_len(ectxs);
+    if (n_batches == 0) {
         RAI_SetError(error, RAI_EMODELRUN, "ERR No batches to run");
         return REDISMODULE_ERR;
     }
 
-    size_t batch_sizes[nbatches];
-    size_t batch_offsets[nbatches];
+    size_t batch_sizes[n_batches];
+    size_t batch_offsets[n_batches];
     size_t total_batch_size = 0;
-    const size_t ninputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
-    const size_t noutputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
-    if (ninputs > 0) {
-        for (size_t b = 0; b < nbatches; ++b) {
+    const size_t n_inputs = RAI_ExecutionCtx_NumInputs(ectxs[0]);
+    const size_t n_outputs = RAI_ExecutionCtx_NumOutputs(ectxs[0]);
+    if (n_batches > 0) {
+        for (size_t b = 0; b < n_batches; ++b) {
             batch_sizes[b] = RAI_TensorDim(RAI_ExecutionCtx_GetInput(ectxs[b], 0), 0);
             total_batch_size += batch_sizes[b];
         }
         batch_offsets[0] = 0;
-        for (size_t b = 1; b < nbatches; ++b) {
+        for (size_t b = 1; b < n_batches; ++b) {
             batch_offsets[b] = batch_offsets[b - 1] + batch_sizes[b - 1];
         }
     }
@@ -541,16 +505,16 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
         ONNX_VALIDATE_STATUS(ort->SessionGetInputCount(session, &n_input_nodes))
         ONNX_VALIDATE_STATUS(ort->SessionGetOutputCount(session, &n_output_nodes))
 
-        if (ninputs != n_input_nodes) {
+        if (n_inputs != n_input_nodes) {
             char msg[70];
-            sprintf(msg, "ERR Expected %li inputs but got %li", n_input_nodes, ninputs);
+            sprintf(msg, "ERR Expected %li inputs but got %li", n_input_nodes, n_inputs);
             RAI_SetError(error, RAI_EMODELRUN, msg);
             return REDISMODULE_ERR;
         }
 
-        if (noutputs != n_output_nodes) {
+        if (n_outputs != n_output_nodes) {
             char msg[70];
-            sprintf(msg, "ERR Expected %li outputs but got %li", n_output_nodes, noutputs);
+            sprintf(msg, "ERR Expected %li outputs but got %li", n_output_nodes, n_outputs);
             RAI_SetError(error, RAI_EMODELRUN, msg);
             return REDISMODULE_ERR;
         }
@@ -561,12 +525,12 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
                 ort->SessionGetInputName(session, i, global_allocator, &input_name))
             input_names = array_append(input_names, input_name);
 
-            RAI_Tensor *batched_input_tensors[nbatches];
-            for (size_t b = 0; b < nbatches; b++) {
+            RAI_Tensor *batched_input_tensors[n_batches];
+            for (size_t b = 0; b < n_batches; b++) {
                 batched_input_tensors[b] = RAI_ExecutionCtx_GetInput(ectxs[b], i);
             }
             OrtValue *input;
-            if (RAI_OrtValueFromTensors(batched_input_tensors, nbatches, &input, &status) !=
+            if (RAI_OrtValueFromTensors(batched_input_tensors, n_batches, &input, &status) !=
                 REDISMODULE_OK) {
                 goto error;
             }
@@ -599,17 +563,17 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
         RAI_ResetRunSessionCtxORT(run_session_index);
         run_options = NULL;
 
-        for (uint32_t i = 0; i < ninputs; i++) {
+        for (uint32_t i = 0; i < n_inputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)input_names[i]);
         }
         array_free(input_names);
-        for (uint32_t i = 0; i < noutputs; i++) {
+        for (uint32_t i = 0; i < n_outputs; i++) {
             status = ort->AllocatorFree(global_allocator, (void *)output_names[i]);
         }
         array_free(output_names);
 
         for (size_t i = 0; i < n_output_nodes; i++) {
-            if (nbatches > 1) {
+            if (n_batches > 1) {
                 ONNX_VALIDATE_STATUS(ort->GetTensorTypeAndShape(outputs[i], &info))
                 size_t ndims;
                 ONNX_VALIDATE_STATUS(ort->GetDimensionsCount(info, &ndims))
@@ -622,7 +586,7 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
                     goto error;
                 }
 
-                for (size_t b = 0; b < nbatches; b++) {
+                for (size_t b = 0; b < n_batches; b++) {
                     RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(
                         outputs[i], batch_offsets[b], batch_sizes[b], error);
                     if (error->code != RAI_OK) {
@@ -638,7 +602,8 @@ int RAI_ModelRunORT(RAI_Model *model, RAI_ExecutionCtx **ectxs, RAI_Error *error
                 }
             } else {
                 RAI_Tensor *output_tensor = RAI_TensorCreateFromOrtValue(outputs[i], 0, -1, error);
-                if (error->code != RAI_OK) {
+                if (RAI_GetErrorCode(error) != RAI_OK) {
+                    ort->ReleaseValue(outputs[i]);
                     goto error;
                 }
                 if (output_tensor) {

@@ -236,3 +236,52 @@ def test_dag_crossslot_violation_errors(env):
             'OUTPUTS', 1, 'resultTensor:{1}',
         )
         check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
+
+
+def test_dag_tensorget_tensorset_errors(env):
+    con = get_connection(env, '{1}')
+
+    # ERR insufficient args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGEXECUTE ROUTING a{1} |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET")
+
+    # ERR too many args for tensor get
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORGET' command",
+                        "AI.DAGEXECUTE ROUTING a{1} |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORGET a{1} META BLOB extra")
+
+    # ERR insufficient args for tensor set
+    check_error_message(env, con, "wrong number of arguments for 'AI.TENSORSET' command",
+                        "AI.DAGEXECUTE ROUTING a{1} |> AI.TENSORSET a{1} FLOAT 1 |> AI.TENSORSET")
+
+
+def test_dag_error_before_tensorget_op(env):
+    if not TEST_TF:
+        return
+
+    con = get_connection(env, '{1}')
+    tf_model = load_file_content('graph.pb')
+    ret = con.execute_command('AI.MODELSTORE', 'tf_model{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b',
+                              'OUTPUTS', 1, 'mul',
+                              'BLOB', tf_model)
+    env.assertEqual(b'OK', ret)
+
+    # Run the model from DAG context, where MODELEXECUTE op fails due to dim mismatch in one of the tensors inputs:
+    # the input tensor 'b' is considered as tensor with dim 2X2X3 initialized with zeros, while the model expects that
+    # both inputs to node 'mul' will be with dim 2.
+    ret = con.execute_command('AI.DAGEXECUTE_RO', 'ROUTING', '{1}',
+                              '|>', 'AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3,
+                              '|>', 'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 3,
+                              '|>', 'AI.MODELEXECUTE', 'tf_model{1}', 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'tD',
+                              '|>', 'AI.TENSORGET', 'tD', 'VALUES')
+
+    # Expect that the MODELEXECUTE op will raise an error, and the last TENSORGET op will not be executed
+    env.assertEqual(ret[0], b'OK')
+    env.assertEqual(ret[1], b'OK')
+    env.assertEqual(ret[3], b'NA')
+    env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
+    expected_error_msg = 'Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]'
+    if DEVICE != 'CPU':
+        expected_error_msg = 'Invalid argument: required broadcastable shapes' \
+                             ' 	 [[{{node mul}}]]'
+    env.assertContains(expected_error_msg, str(ret[2]))

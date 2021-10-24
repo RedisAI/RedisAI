@@ -165,6 +165,10 @@ torch::Tensor fromDLPack(const DLTensor *src) {
                             torch::device(device).dtype(stype));
 }
 
+extern "C" void torchRegisterRedisOps(void) {
+    registerRedisOps();
+}
+
 extern "C" void torchTensorFromRAITensor(RAI_Tensor *src, void *torch_tensor) {
     DLTensor *dl_tensor = RedisAI_TensorGetDLTensor(src);
     at::DeviceType device_type = getATenDeviceType(dl_tensor->device.device_type);
@@ -198,7 +202,7 @@ void deleter(DLManagedTensor *arg) {
 }
 
 DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
-    ATenDLMTensor *atDLMTensor(new ATenDLMTensor);
+    auto *atDLMTensor(new ATenDLMTensor);
     atDLMTensor->handle = src_;
     auto &src = atDLMTensor->handle;
     atDLMTensor->tensor.manager_ctx = atDLMTensor;
@@ -213,6 +217,7 @@ DLManagedTensor *toManagedDLPack(const torch::Tensor &src_) {
     atDLMTensor->tensor.dl_tensor.dtype = getDLDataType(src);
     atDLMTensor->tensor.dl_tensor.shape = const_cast<int64_t *>(src.sizes().data());
     atDLMTensor->tensor.dl_tensor.strides = const_cast<int64_t *>(src.strides().data());
+    atDLMTensor->tensor.dl_tensor.elements_length = nullptr;
     atDLMTensor->tensor.dl_tensor.byte_offset = 0;
     return &(atDLMTensor->tensor);
 }

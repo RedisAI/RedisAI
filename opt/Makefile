@@ -41,10 +41,7 @@ make clean      # remove build artifacts
   ALL=1           # remove entire artifacts directory
 make install    # create ready-to-run scheme (module and engines)
 
-make test        # run test suites (flow an unit)
-				 # same as running make unit_tests flow_tests
-
-make unit_tests  # run unit test
+make test        # run test suites (flow)
 
 make flow_tests  # run flow test
   TEST=test        # run only test `test` with Redis output
@@ -242,13 +239,6 @@ export GEN ?= 1
 export SLAVES ?= 1
 export CLUSTER ?= 1
 
-define UNIT_TESTS
-$(SHOW)echo Running unit tests ...
-$(SHOW)\
-BINDIR=$(realpath $(BINDIR)) \
-$(ROOT)/tests/unit/tests.sh
-endef
-
 define FLOW_TESTS
 $(SHOW)echo Running flow tests ...
 $(SHOW)\
@@ -259,11 +249,6 @@ GEN=$(GEN) SLAVES=$(SLAVES) \
 VALGRIND=$(VALGRIND) \
 $(ROOT)/tests/flow/tests_setup/tests.sh
 endef
-
-unit_tests: build
-	$(COVERAGE_RESET)
-	$(UNIT_TESTS)
-	$(COVERAGE_COLLECT_REPORT)
 
 flow_tests: build
 	$(COVERAGE_RESET)
@@ -280,10 +265,6 @@ flow_tests: build
 
 test: build
 	$(COVERAGE_RESET)
-	$(UNIT_TESTS)
-	$(SHOW)\
-		BINDIR=$(realpath $(BINDIR)) \
-		$(ROOT)/tests/unit/tests.sh
 	$(SHOW)\
 		DEVICE=$(DEVICE) \
 		MODULE=$(realpath $(INSTALLED_TARGET)) \
@@ -306,7 +287,7 @@ callgrind:
 #----------------------------------------------------------------------------------------------
 
 docker:
-	$(SHOW)docker build -t redisai --build-arg TEST=1 --build-arg PACK=1 ..
+	${MAKE} -C $(ROOT)/opt/build/docker
 
 docker-gpu-test:
 	$(SHOW)set -e ;\

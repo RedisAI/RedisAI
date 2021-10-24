@@ -57,6 +57,10 @@ commands:
             fi
 
   relocate-docker-storage:
+    description: >-
+      If this runs in parallel it can slaughter docker builds due to behaviour in the overlay2
+      tree having missing bits. This mitigates that by ensuring we run it only once. This could
+      have parallelization consequences if everything lines up.
     steps:
       - run:
           name: Relocate docker overlay2 dir
@@ -91,6 +95,25 @@ commands:
           name: Checkout submodules
           command: git submodule update --init --recursive
 
+  docker-build-steps:
+    parameters:
+      lite:  # LITE value during make
+        type: string
+      osnick:  # OSNICK value for the base platform of the docker
+        type: string
+      target:  # CPU|GPU
+        type: string
+    steps:
+      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
+      - run:
+          name: Build for platform
+          command: |
+            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
+            pushd opt/build/docker
+            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
+            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
+          no_output_timeout: 40m
+
   build-steps:
     parameters:
       platform:
@@ -101,7 +124,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - v1-dependencies-{{ checksum "get_deps.sh" }}
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -112,15 +135,10 @@ commands:
       - save_cache:
           paths:
             - deps
-          key: build-dependencies-{{ checksum "get_deps.sh" }}
+          key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
       - run:
           name: Build
           command: make -C opt all SHOW=1
-      - run:
-          name: Unit Tests
-          command: |
-            make -C opt unit_tests SHOW=1
-          no_output_timeout: 5m
       - run:
           name: Test
           command: |
@@ -151,7 +169,7 @@ commands:
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -176,6 +194,9 @@ commands:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
+      - restore_cache:
+          keys:
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
       - relocate-docker-storage
       - run:
           name: Build
@@ -183,6 +204,10 @@ commands:
             pip3 install --user jinja2
             pushd opt/build/docker
             make DOCKER_SUFFIX=".gpu-test" DOCKER_ARGS="-s dockerfile-gpu-test.tmpl" DOCKER_OPTS=--no-cache DEFAULT_TAG="redisai-gpu:latest-test"
+      - save_cache:
+          paths:
+            - deps
+          key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
       - run:
           name: Test
           command: |
@@ -208,44 +233,77 @@ jobs:
 
   build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - build-steps:
           platform: debian
 
-  platforms-build:
+  platforms-build-cpu:
+    docker:
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     parameters:
       lite:  # LITE value during make
         type: string
       osnick:  # OSNICK value for the base platform of the docker
         type: string
-      target:  # CPU|GPU
+      target:  # OSNICK value for the base platform of the docker
         type: string
-    docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+        default: "CPU=1"
     steps:
       - abort_for_docs
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - setup_remote_docker
       - checkout-all
+      - restore_cache:
+          keys:
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - setup-automation
+      - docker-build-steps:
+          lite: "<<parameters.lite>>"
+          osnick: "<<parameters.osnick>>"
+          target: "<<parameters.target>>"
+      - save_cache:
+          paths:
+            - deps
+          key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+      - persist_to_workspace:
+          root: bin/
+          paths:
+            - artifacts/*
 
-      # since we run in parallel, we need to generate docker files with different suffixes hence the DOCKER_SUFFIX
-      - run:
-          name: Build for platform
-          command: |
-            bash <(curl -fsSL https://raw.githubusercontent.com/docker/docker-install/master/install.sh)
-            pushd opt/build/docker
-            docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-            make build DOCKER_SUFFIX="$$" <<parameters.target>> OSNICK=<<parameters.osnick>> PACK=1 VERBOSE=1 <<parameters.lite>>
-            popd > /dev/null
-            logstar=bin/artifacts/tests-logs-cpu.tgz
-            logsdir=tests/logs/cpu
-            mkdir -p $logsdir
-            if [[ -e $logstar ]]; then tar -C $logsdir -xzf $logstar; fi
-            # (cd bin/artifacts; tar -cf snapshots.tar snapshots/)
-          no_output_timeout: 40m
+
+  platforms-build-gpu:
+    machine:
+      enabled: true
+      resource_class: medium
+      image: ubuntu-2004:202107-02
+    parameters:
+      lite:  # LITE value during make
+        type: string
+      osnick:  # OSNICK value for the base platform of the docker
+        type: string
+      target:  # OSNICK value for the base platform of the docker
+        type: string
+        default: "GPU=1"
+    steps:
+      - abort_for_docs
+      - abort_for_noci
+      - early_return_for_forked_pull_requests
+      - checkout-all
+      - relocate-docker-storage
+      - restore_cache:
+          keys:
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
+      - setup-automation
+      - docker-build-steps:
+          lite: "<<parameters.lite>>"
+          osnick: "<<parameters.osnick>>"
+          target: "<<parameters.target>>"
+      - save_cache:
+          paths:
+            - deps
+          key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
       - persist_to_workspace:
           root: bin/
           paths:
@@ -253,14 +311,14 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -287,14 +345,14 @@ jobs:
         type: string
         default: "CLUSTER=0"
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
       - checkout-all
       - restore_cache:
           keys:
-          - build-dependencies-{{ checksum "get_deps.sh" }}
+          - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
       - setup-build-system
       - run:
@@ -316,55 +374,16 @@ jobs:
 
   valgrind-general-for-forked-prs:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - only_run_if_forked_pull_request
       - valgrind-general-steps
 
   valgrind-general:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - valgrind-general-steps
-
-#  build-macos:
-#    macos:
-#      xcode: 11.3.0
-#    steps:
-#      - abort_for_docs
-#      - run:
-#          name: Fix macOS Python installation
-#          command: |
-#            brew reinstall -f python2
-#      - build-steps:
-#          platform: macos
-#
-#  build-multiarch-docker:
-#    machine:
-#      enabled: true
-#      image: cimg/base:2020.01
-#    steps:
-#      - abort_for_docs
-#      - checkout-all
-#      - run:
-#          name: Checkout LFS
-#          command: |
-#            curl -s https://packagecloud.io/install/repositories/github/git-lfs/script.deb.sh | sudo bash
-#            sudo apt-get install -y git-lfs
-#            git lfs install
-#            git lfs pull
-#      - run:
-#          name: Setup Docker client experimental features
-#          command: |
-#            sudo ./opt/readies/bin/getdocker --just-enable-exp
-#            docker version
-#      - run:
-#          name: Build
-#          command: |
-#            sudo docker login -u redisfab -p $DOCKER_REDISFAB_PWD
-#            cd opt/build/docker
-#            make build
-#            sudo make publish
 
   # internal PRs execute build-and-test either in a workflow or
   # via a github action trigger
@@ -373,7 +392,7 @@ jobs:
       enabled: true
       docker_layer_caching: true
       resource_class: gpu.nvidia.small
-      image: ubuntu-1604-cuda-11.1:202012-01
+      image: ubuntu-2004-cuda-11.2:202103-01
 
     steps:
       - build-and-test-gpu-steps
@@ -385,7 +404,7 @@ jobs:
       enabled: true
       docker_layer_caching: true
       resource_class: gpu.nvidia.small
-      image: ubuntu-1604-cuda-11.1:202012-01
+      image: ubuntu-2004-cuda-11.2:202103-01
 
     steps:
       - only_run_if_forked_pull_request
@@ -396,7 +415,7 @@ jobs:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -414,7 +433,7 @@ jobs:
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -431,7 +450,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -449,7 +468,7 @@ jobs:
 
   release-automation:
     docker:
-      - image: redisfab/rmbuilder:6.2.1-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - checkout
       - setup-automation
@@ -463,7 +482,7 @@ jobs:
 
   #nightly-automation:
   #  docker:
-  #    - image: redisfab/rmbuilder:6.2.1-x64-buster
+  #    - image: redisfab/rmbuilder:6.2.5-x64-buster
   #  steps:
   #    - checkout
   #    - setup-automation
@@ -544,7 +563,8 @@ after-build-and-test: &after-build-and-test
 
 after-platform-builds: &after-platform-builds
   requires:
-    - platforms-build
+    - platforms-build-gpu
+    - platforms-build-cpu
 
 #### define workflows
 workflows:
@@ -563,7 +583,7 @@ workflows:
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
           <<: *after-linter
-      - platforms-build:
+      - platforms-build-cpu:
           context: common
           <<: *after-build-and-test
           <<: *on-master-version-tags-and-dockertests
@@ -572,12 +592,24 @@ workflows:
               osnick:
                 - xenial
                 - bionic
+                - centos8
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
-              target:
-                - "CPU=1"
-                - "GPU=1"
+
+      - platforms-build-gpu:
+          context: common
+          <<: *after-build-and-test
+          <<: *on-master-version-tags-and-dockertests
+          matrix:
+            parameters:
+              osnick:
+                - xenial
+                - bionic
+                - centos8
+              lite:
+                - "REDISAI_LITE=0 PUBLISH=1"
+                - "REDISAI_LITE=1"
       - coverage:
           context: common
           <<: *on-dev-branches

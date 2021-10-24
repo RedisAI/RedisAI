@@ -3,7 +3,6 @@ PROJECT(RedisAI)
 
 # CMake modules should be included in ${PROJECT_SOURCE_DIR}/opt/cmake/modules
 list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/cmake/modules)
-list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/opt/GoogleTest)
 
 # Set a default build type if none was specified
 set(default_build_type "Release")
@@ -50,7 +49,6 @@ set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}"
 
 #----------------------------------------------------------------------------------------------
 
-option(PACKAGE_UNIT_TESTS "Build unit tests" ON)
 option(BUILD_TF "Build the TensorFlow backend" ON)
 option(BUILD_TFLITE "Build the TensorFlow Lite backend" ON)
 option(BUILD_ORT "Build the ONNXRuntime backend" ON)
@@ -160,6 +158,7 @@ ENDIF()
 IF(BUILD_ORT)
     FIND_LIBRARY(ORT_LIBRARIES NAMES onnxruntime
             PATHS ${depsAbs}/onnxruntime/lib)
+    ADD_SUBDIRECTORY(src/backends/onnx_allocator)
     MESSAGE(STATUS "Found ONNXRuntime Libraries: \"${ORT_LIBRARIES}\")")
     IF (NOT ORT_LIBRARIES)
         MESSAGE(FATAL_ERROR "Could not find ONNXRuntime")
@@ -293,6 +292,7 @@ ENDIF()
 
 IF(BUILD_ORT)
     ADD_LIBRARY(redisai_onnxruntime SHARED $<TARGET_OBJECTS:redisai_onnxruntime_obj>)
+    TARGET_LINK_LIBRARIES(redisai_onnxruntime onnx_allocator ${ORT_LIBRARIES})
     TARGET_LINK_LIBRARIES(redisai_onnxruntime ${ORT_LIBRARIES})
     SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES PREFIX "")
     SET_TARGET_PROPERTIES(redisai_onnxruntime PROPERTIES SUFFIX ".so")
@@ -319,10 +319,3 @@ ENDIF()
 IF (NOT ${installAbs} STREQUAL ${CMAKE_SOURCE_DIR}/install-${DEVICE})
     INSTALL_SYMLINK(${installAbs} ${CMAKE_SOURCE_DIR}/install-${DEVICE})
 ENDIF()
-
-
-if(PACKAGE_UNIT_TESTS)
-    enable_testing()
-    include(GoogleTest)
-    add_subdirectory(tests/unit)
-endif()
