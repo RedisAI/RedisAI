@@ -220,7 +220,7 @@ commands:
 jobs:
   lint:
     docker:
-      - image: redislabsmodules/llvm-toolset:latest
+      - image: redisfab/rmbuilder:6.2.5-x64-buster
     steps:
       - abort_for_docs
       - abort_for_noci
