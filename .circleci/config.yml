@@ -79,6 +79,7 @@ commands:
           command: |
             git submodule update --init opt/readies
             ./opt/readies/bin/getpy3
+            ./opt/readies/bin/getgcc --modern
 
   setup-build-system:
     steps:
