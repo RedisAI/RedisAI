@@ -222,7 +222,7 @@ commands:
 jobs:
   lint:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -235,14 +235,14 @@ jobs:
 
   build-and-test:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - build-steps:
           platform: debian
 
   platforms-build-cpu:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     parameters:
       lite:  # LITE value during make
         type: string
@@ -313,7 +313,7 @@ jobs:
 
   coverage:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -347,7 +347,7 @@ jobs:
         type: string
         default: "CLUSTER=0"
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -376,14 +376,14 @@ jobs:
 
   valgrind-general-for-forked-prs:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - only_run_if_forked_pull_request
       - valgrind-general-steps
 
   valgrind-general:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - valgrind-general-steps
 
@@ -417,7 +417,7 @@ jobs:
       location:
         type: string
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -435,7 +435,7 @@ jobs:
 
   deploy-snapshot:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -452,7 +452,7 @@ jobs:
 
   deploy-release:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
@@ -470,7 +470,7 @@ jobs:
 
   release-automation:
     docker:
-      - image: redisfab/rmbuilder:6.2.5-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - checkout
       - setup-automation
@@ -484,7 +484,7 @@ jobs:
 
   #nightly-automation:
   #  docker:
-  #    - image: redisfab/rmbuilder:6.2.5-x64-buster
+  #    - image: redisfab/rmbuilder:6.2.5-x64-bullseye
   #  steps:
   #    - checkout
   #    - setup-automation
