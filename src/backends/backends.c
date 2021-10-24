@@ -179,8 +179,8 @@ int RAI_LoadBackend_TensorFlow(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))((
-        unsigned long)dlsym(handle, "RAI_ModelSerializeTF"));
+    backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(
+        (unsigned long)dlsym(handle, "RAI_ModelSerializeTF"));
     if (!_ValidateFuncExists(ctx, backend.model_serialize, "RAI_ModelSerializeTF", "TF", path)) {
         goto error;
     }
@@ -244,9 +244,8 @@ int RAI_LoadBackend_TFLite(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_serialize =
-        (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(unsigned long)dlsym(
-            handle, "RAI_ModelSerializeTFLite");
+    backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(
+        unsigned long)dlsym(handle, "RAI_ModelSerializeTFLite");
     if (!_ValidateFuncExists(ctx, backend.model_serialize, "RAI_ModelSerializeTFLite", "TFLite",
                              path)) {
         goto error;
@@ -312,9 +311,8 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_serialize =
-        (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(unsigned long)dlsym(
-            handle, "RAI_ModelSerializeTorch");
+    backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(
+        unsigned long)dlsym(handle, "RAI_ModelSerializeTorch");
     if (!_ValidateFuncExists(ctx, backend.model_serialize, "RAI_ModelSerializeTorch", "TORCH",
                              path)) {
         goto error;
@@ -333,8 +331,8 @@ int RAI_LoadBackend_Torch(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.script_run = (int (*)(RAI_Script *, const char *, RAI_ExecutionCtx *,
-                                  RAI_Error *))(unsigned long)dlsym(handle, "RAI_ScriptRunTorch");
+    backend.script_run = (int (*)(RAI_Script *, const char *, RAI_ExecutionCtx *, RAI_Error *))(
+        unsigned long)dlsym(handle, "RAI_ScriptRunTorch");
     if (!_ValidateFuncExists(ctx, backend.script_run, "RAI_ScriptRunTorch", "TORCH", path)) {
         goto error;
     }
@@ -399,9 +397,8 @@ int RAI_LoadBackend_ONNXRuntime(RedisModuleCtx *ctx, const char *path) {
         goto error;
     }
 
-    backend.model_serialize =
-        (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(unsigned long)dlsym(
-            handle, "RAI_ModelSerializeORT");
+    backend.model_serialize = (int (*)(RAI_Model *, char **, size_t *, RAI_Error *))(
+        unsigned long)dlsym(handle, "RAI_ModelSerializeORT");
     if (!_ValidateFuncExists(ctx, backend.model_serialize, "RAI_ModelSerializeORT", "ONNX", path)) {
         goto error;
     }
