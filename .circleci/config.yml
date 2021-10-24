@@ -86,6 +86,7 @@ commands:
       - run:
           name: Setup build system
           command: |
+            clang-format --version
             ./opt/system-setup.py
 
   checkout-all:
