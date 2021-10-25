@@ -175,3 +175,13 @@
    fun:epoll_ctl
    ...
 }
+
+
+{
+   <_dl_catch_exception>
+   Memcheck:Addr8
+   fun:strncmp
+   ...
+   fun:_dl_catch_exception
+   ...
+}
