@@ -53,14 +53,12 @@ static DLDataType getDLDataType(const TfLiteTensor *tensor) {
     return dtype;
 }
 
-
 static DLDevice getDLDevice(const TfLiteTensor *tensor, const int64_t &device_id) {
     DLDevice device;
     device.device_id = device_id;
     device.device_type = DLDeviceType::kDLCPU;
     return device;
 }
-
 
 size_t dltensorBytes(DLManagedTensor *t) {
     int64_t *shape = t->dl_tensor.shape;
@@ -80,15 +78,15 @@ void copyToTfLiteTensor(std::shared_ptr<tflite::Interpreter> interpreter, int tf
     size_t nbytes = dltensorBytes(input);
     DLDataType dltensor_type = input->dl_tensor.dtype;
     const char *type_mismatch_msg = "Input tensor type doesn't match the type expected"
-                            " by the model definition";
+                                    " by the model definition";
 
     switch (tensor->type) {
     case kTfLiteUInt8:
-       if (dltensor_type.code != kDLUInt || dltensor_type.bits != 8) {
-           throw std::logic_error(type_mismatch_msg);
-       }
-       memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
-       break;
+        if (dltensor_type.code != kDLUInt || dltensor_type.bits != 8) {
+            throw std::logic_error(type_mismatch_msg);
+        }
+        memcpy(interpreter->typed_tensor<uint8_t>(tflite_input), input->dl_tensor.data, nbytes);
+        break;
     case kTfLiteInt64:
         if (dltensor_type.code != kDLInt || dltensor_type.bits != 64) {
             throw std::logic_error(type_mismatch_msg);
@@ -273,51 +271,47 @@ extern "C" void *tfliteLoadModel(const char *graph, size_t graphlen, DLDeviceTyp
     return ctx;
 }
 
-extern "C" size_t tfliteModelNumInputs(void* ctx, char** error) {
-    ModelContext *ctx_ = (ModelContext*) ctx;
+extern "C" size_t tfliteModelNumInputs(void *ctx, char **error) {
+    ModelContext *ctx_ = (ModelContext *)ctx;
     size_t ret = 0;
     try {
         auto interpreter = ctx_->interpreter;
-        ret =  interpreter->inputs().size();
-    }
-    catch(std::exception ex) {
+        ret = interpreter->inputs().size();
+    } catch (std::exception ex) {
         _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" const char* tfliteModelInputNameAtIndex(void* modelCtx, size_t index, char** error) {
-    ModelContext *ctx_ = (ModelContext*) modelCtx;
-    const char* ret = NULL;
+extern "C" const char *tfliteModelInputNameAtIndex(void *modelCtx, size_t index, char **error) {
+    ModelContext *ctx_ = (ModelContext *)modelCtx;
+    const char *ret = NULL;
     try {
         ret = ctx_->interpreter->GetInputName(index);
-    }
-    catch(std::exception ex) {
+    } catch (std::exception ex) {
         _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" size_t tfliteModelNumOutputs(void* ctx, char** error) {
-    ModelContext *ctx_ = (ModelContext*) ctx;
+extern "C" size_t tfliteModelNumOutputs(void *ctx, char **error) {
+    ModelContext *ctx_ = (ModelContext *)ctx;
     size_t ret = 0;
     try {
         auto interpreter = ctx_->interpreter;
-        ret =  interpreter->outputs().size();
-    }
-    catch(std::exception ex) {
+        ret = interpreter->outputs().size();
+    } catch (std::exception ex) {
         _setError(ex.what(), error);
     }
     return ret;
 }
 
-extern "C" const char* tfliteModelOutputNameAtIndex(void* modelCtx, size_t index, char** error) {
-    ModelContext *ctx_ = (ModelContext*) modelCtx;
-    const char* ret = NULL;
+extern "C" const char *tfliteModelOutputNameAtIndex(void *modelCtx, size_t index, char **error) {
+    ModelContext *ctx_ = (ModelContext *)modelCtx;
+    const char *ret = NULL;
     try {
         ret = ctx_->interpreter->GetOutputName(index);
-    }
-    catch(std::exception ex) {
+    } catch (std::exception ex) {
         _setError(ex.what(), error);
     }
     return ret;
@@ -352,11 +346,11 @@ extern "C" void tfliteRunModel(void *ctx, long n_inputs, DLManagedTensor **input
     bool need_reallocation = false;
     std::vector<int> dims;
     for (size_t i = 0; i < tflite_inputs.size(); i++) {
-        const TfLiteTensor* tflite_tensor = interpreter->tensor(tflite_inputs[i]);
+        const TfLiteTensor *tflite_tensor = interpreter->tensor(tflite_inputs[i]);
         int64_t ndim = inputs[i]->dl_tensor.ndim;
         int64_t *shape = inputs[i]->dl_tensor.shape;
         dims.resize(ndim);
-        for (size_t j=0; j < ndim; j++) {
+        for (size_t j = 0; j < ndim; j++) {
             dims[j] = shape[j];
         }
         if (!tflite::EqualArrayAndTfLiteIntArray(tflite_tensor->dims, dims.size(), dims.data())) {

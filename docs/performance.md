@@ -1,6 +1,7 @@
 # Performance
 
 To get an early sense of what RedisAI is capable of, you can test it with:
+
 - [`redis-benchmark`](https://redis.io/topics/benchmarks): Redis includes the redis-benchmark utility that simulates running commands done by N clients at the same time sending M total queries (it is similar to the Apache's ab utility).
 
 - [`memtier_benchmark`](https://github.com/RedisLabs/memtier_benchmark): from [Redis](https://redislabs.com/) is a NoSQL Redis and Memcache traffic generation and benchmarking tool.
