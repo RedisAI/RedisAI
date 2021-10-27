@@ -1,3 +1,4 @@
+import shutil
 import sys
 import os
 import subprocess
@@ -52,7 +53,7 @@ def test_onnx_modelrun_mnist(env):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
     check_error_message(env, con, "Number of keys given as INPUTS here does not match model definition",
-                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OTUPUTS', 'c{1}')
+                        'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 3, 'a{1}', 'b{1}', 'c{1}', 'OUTPUTS', 'c{1}')
 
     con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
 
@@ -66,6 +67,63 @@ def test_onnx_modelrun_mnist(env):
         con2 = env.getSlaveConnection()
         values2 = con2.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
         env.assertEqual(values2, values)
+
+
+def test_onnx_string_tensors(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    # Execute onnx model whose input is string tensor with shape [2,2], that outputs the input
+    string_tensor_blob = b'input11\0input12\0input21\0input22\0'
+    con.execute_command('AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob)
+    ret = con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'in_tensor{1}', 'OUTPUTS', 1, 'out_tensor{1}')
+    env.assertEqual(ret, b'OK')
+
+    _, tensor_dtype, _, tensor_dim, _, tensor_values = con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'META', 'VALUES')
+    env.assertEqual(tensor_dtype, b'STRING')
+    env.assertEqual(tensor_dim, [2, 2])
+    env.assertEqual(tensor_values, [b'input11', b'input12', b'input21', b'input22'])
+
+    if env.useSlaves:
+        ensureSlaveSynced(con, env)
+        slave_con = env.getSlaveConnection()
+        slave_tensor_values = slave_con.execute_command('AI.TENSORGET', 'out_tensor{1}', 'VALUES')
+        env.assertEqual(tensor_values, slave_tensor_values)
+
+
+def test_onnx_string_tensors_batching(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    con.execute_command('AI.TENSORSET', 'first_batch{1}', 'STRING', 1, 2, 'VALUES', 'this is\0', 'the first batch\0')
+    con.execute_command('AI.TENSORSET', 'second_batch{1}', 'STRING', 1, 2, 'VALUES', 'that is\0', 'the second batch\0')
+
+    def run():
+        con2 = get_connection(env, '{1}')
+        con2.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'first_batch{1}', 'OUTPUTS', 1, 'first_output{1}')
+
+    t = threading.Thread(target=run)
+    t.start()
+
+    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'second_batch{1}', 'OUTPUTS', 1, 'second_output{1}')
+    t.join()
+
+    out_values = con.execute_command('AI.TENSORGET', 'first_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'this is', b'the first batch'])
+    out_values = con.execute_command('AI.TENSORGET', 'second_batch{1}', 'VALUES')
+    env.assertEqual(out_values, [b'that is', b'the second batch'])
 
 
 def test_onnx_modelrun_batchdim_mismatch(env):
@@ -260,36 +318,6 @@ def test_onnx_modelrun_disconnect(env):
     env.assertEqual(ret, None)
 
 
-def test_onnx_model_rdb_save_load(env):
-    env.skipOnCluster()
-    if env.useAof or not TEST_ONNX:
-        env.debugPrint("skipping {}".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    linear_model = load_file_content('linear_iris.onnx')
-
-    con = get_connection(env, '{1}')
-    ret = con.execute_command('AI.MODELSTORE', 'linear{1}', 'ONNX', DEVICE, 'BLOB', linear_model)
-    env.assertEqual(ret, b'OK')
-
-    model_serialized_memory = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-
-    ensureSlaveSynced(con, env)
-    ret = con.execute_command('SAVE')
-    env.assertEqual(ret, True)
-
-    env.stop()
-    env.start()
-    con = get_connection(env, '{1}')
-    model_serialized_after_rdbload = con.execute_command('AI.MODELGET', 'linear{1}', 'BLOB')
-    env.assertEqual(len(model_serialized_memory), len(model_serialized_after_rdbload))
-    env.assertEqual(len(linear_model), len(model_serialized_after_rdbload))
-    # Assert in memory model binary is equal to loaded model binary
-    env.assertTrue(model_serialized_memory == model_serialized_after_rdbload)
-    # Assert input model binary is equal to loaded model binary
-    env.assertTrue(linear_model == model_serialized_after_rdbload)
-
-
 def tests_onnx_info(env):
     if not TEST_ONNX:
         env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
@@ -336,113 +364,128 @@ def test_parallelism():
     env.assertEqual(load_time_config["ai_intra_op_parallelism"], "2")
 
 
-def test_onnx_use_custom_allocator(env):
-    if not TEST_ONNX:
-        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
-        return
+class TestOnnxCustomAllocator:
+    def __init__(self):
+        self.env = Env()
+        if not TEST_ONNX:
+            self.env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+            return
+        self.allocator_access_counter = 0
 
-    con = get_connection(env, '{1}')
-    model_pb = load_file_content('mul_1.onnx')
+    def test_1_cpu_allocator(self):
+        con = get_connection(self.env, '{1}')
+        model_pb = load_file_content('mul_1.onnx')
 
-    # Expect using the allocator during model set for allocating the model, its input name and output name:
-    # overall 3 allocations. The model raw size is 130B ,and the names are 2B each. In practice we allocate
-    # more than 134B as Redis allocator will use additional memory for its internal management and for the
-    # 64-Byte alignment. When the test runs with valgrind, redis will use malloc for the allocations
-    # (hence will not use additional memory).
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-    backends_info = get_info_section(con, 'backends_info')
+        # Expect using the allocator during model set for allocating the model, its input name and output name:
+        # overall 3 allocations. The model raw size is 24B ,and the names are 2B each. In practice we allocate
+        # more than 28B as Redis allocator will use additional memory for its internal management and for the
+        # 64-Byte alignment. When the test runs with valgrind, redis will use malloc for the allocations
+        # (hence will not use additional memory).
+        ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
+        self.env.assertEqual(ret, b'OK')
+        self.allocator_access_counter += 3
+        backends_info = get_info_section(con, 'backends_info')
 
-    # Expect using at least 130+63+(size of an address) + 2*(2+63+(size of an address)) bytes.
-    model_allocation_bytes_used = int(backends_info["ai_onnxruntime_memory"])
-    env.assertTrue(model_allocation_bytes_used > 334)
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 3)
-    con.execute_command('AI.TENSORSET', 'a_mul{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+        # Expect using at least 24+63+(size of an address) + 2*(2+63+(size of an address)) (=241) bytes.
+        model_allocation_bytes_used = int(backends_info["ai_onnxruntime_memory"])
+        self.env.assertTrue(model_allocation_bytes_used >= 241)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
+        con.execute_command('AI.TENSORSET', 'a_mul{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
 
-    # Running the model should access the allocator 6 times: allocating+freeing input+output names,
-    # and allocating+freeing the output as OrtValue.
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a_mul{1}', 'OUTPUTS', 1, 'b{1}')
-    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
-    env.assertEqual(values, [b'1', b'4', b'9', b'16', b'25', b'36'])
-    backends_info = get_info_section(con, 'backends_info')
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 9)
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), model_allocation_bytes_used)
+        # Running the model should access the allocator 6 times: allocating+freeing input+output names,
+        # and allocating+freeing the output as OrtValue. Overall, there should be no change in the memory consumption.
+        con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a_mul{1}', 'OUTPUTS', 1, 'b{1}')
+        self.allocator_access_counter += 6
+        values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
+        self.env.assertEqual(values, [b'1', b'4', b'9', b'16', b'25', b'36'])
+        backends_info = get_info_section(con, 'backends_info')
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), model_allocation_bytes_used)
 
-    # Expect using the allocator free function 3 times: when releasing the model, input name and output name.
-    con.execute_command('AI.MODELDEL', 'm{1}')
-    env.assertFalse(con.execute_command('EXISTS', 'm{1}'))
-    backends_info = get_info_section(con, 'backends_info')
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), 0)
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 12)
+        # Expect using the allocator free function 3 times: when releasing the model, input name and output name.
+        con.execute_command('AI.MODELDEL', 'm{1}')
+        self.allocator_access_counter += 3
+        self.env.assertFalse(con.execute_command('EXISTS', 'm{1}'))
+        backends_info = get_info_section(con, 'backends_info')
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), 0)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-    # test the use of Redis allocator in model run op.
-    model_pb = load_file_content('mnist.onnx')
-    sample_raw = load_file_content('one.raw')
+    def test_2_with_gpu(self):
+        if DEVICE == 'CPU':
+            self.env.debugPrint("skipping {} since this test if for GPU only".format(sys._getframe().f_code.co_name), force=True)
+            return
+        con = get_connection(self.env, '{1}')
+        model_pb = load_file_content('mul_1.onnx')
 
-    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
+        # for GPU, expect using the allocator only for allocating input and output names (not the model itself).
+        ret = con.execute_command('AI.MODELSTORE', 'm_gpu{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+        self.env.assertEqual(ret, b'OK')
+        self.allocator_access_counter += 2
 
-    # Expect 18 allocator's access from onnx during the run (in addition to the allocations that were made while
-    # creating the model).
-    backends_info = get_info_section(con, 'backends_info')
-    allocator_access_num_before = backends_info["ai_onnxruntime_memory_access_num"]
-    con.execute_command('AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-    backends_info = get_info_section(con, 'backends_info')
-    allocator_access_num_after = backends_info["ai_onnxruntime_memory_access_num"]
-    env.assertEqual(int(allocator_access_num_after) - int(allocator_access_num_before), 18)
+        # Expect using at least 2*(2+63+(size of an address))(=146) bytes by redis allocator, but no more than 240,
+        # as the model weights shouldn't be allocated by the allocator.
+        backends_info = get_info_section(con, 'backends_info')
+        model_allocation_bytes_used = int(backends_info["ai_onnxruntime_memory"])
+        self.env.assertTrue(model_allocation_bytes_used > 146)
+        self.env.assertTrue(model_allocation_bytes_used < 241)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
-    argmax = max(range(len(values)), key=lambda i: values[i])
-    env.assertEqual(argmax, 1)
+        # Make sure that allocator is not used for running and freeing the GPU model, except for
+        # the input and output names allocations (and deallocations).
+        con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+        con.execute_command('AI.MODELEXECUTE', 'm_gpu{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+        self.allocator_access_counter += 4
+        values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
+        self.env.assertEqual(values, [b'1', b'4', b'9', b'16', b'25', b'36'])
 
+        # Expect that memory usage didn't change, and for another 4 accesses to the allocator (input and output names
+        # allocation and free)
+        backends_info = get_info_section(con, 'backends_info')
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), model_allocation_bytes_used)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-def test_onnx_use_custom_allocator_with_GPU(env):
-    if not TEST_ONNX:
-        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-    if DEVICE == 'CPU':
-        env.debugPrint("skipping {} since this test if for GPU only".format(sys._getframe().f_code.co_name), force=True)
-        return
+        # Expect only 2 more accesses in delete - for deallocating input and output names
+        con.execute_command('AI.MODELDEL', 'm_gpu{1}')
+        self.allocator_access_counter += 2
+        self.env.assertFalse(con.execute_command('EXISTS', 'm_gpu{1}'))
+        backends_info = get_info_section(con, 'backends_info')
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), 0)
+        self.env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), self.allocator_access_counter)
 
-    con = get_connection(env, '{1}')
-    model_pb = load_file_content('mul_1.onnx')
+    def test_3_memory_limit(self):
+        self.env = Env(moduleArgs='THREADS_PER_QUEUE 8 BACKEND_MEMORY_LIMIT 1')
+        self.allocator_access_counter = 0
+        con = get_connection(self.env, '{1}')
 
-    # Expect using the allocator during model set for allocating the model, its input name and output name:
-    # overall 3 allocations. The model raw size is 130B ,and the names are 2B each. In practice we allocate
-    # more than 134B as Redis allocator will use additional memory for its internal management and for the
-    # 64-Byte alignment. When the test runs with valgrind, redis will use malloc for the allocations.
-    ret = con.execute_command('AI.MODELSTORE', 'm_gpu{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
+        # Try to allocate a model whose size exceeds the memory limit
+        inception_pb = load_file_content('inception-v2-9.onnx')
+        check_error_message(self.env, con, "Exception during initialization: Onnxruntime memory limit exceeded,"
+                                           " memory allocation failed.",
+                            'AI.MODELSTORE', 'inception{1}', 'ONNX', 'CPU', 'BLOB', inception_pb)
 
-    # but for GPU, expect using the allocator only for allocating input and output names (not the model itself).
-    ret = con.execute_command('AI.MODELSTORE', 'm_cpu{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
-    env.assertEqual(ret, b'OK')
-    backends_info = get_info_section(con, 'backends_info')
+        mnist_pb = load_file_content('mnist.onnx')
+        sample_raw = load_file_content('one.raw')
 
-    # Expect using at least 130+63+(size of an address) + 4*(2+63+(size of an address)) bytes.
-    model_allocation_bytes_used = int(backends_info["ai_onnxruntime_memory"])
-    env.assertTrue(model_allocation_bytes_used > 472)
-    env.assertTrue(model_allocation_bytes_used < 705)
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 5)
+        # Create 25 different sessions of mnist model, the size of each session in onnx is ~31KB, overall ~770KB
+        for i in range(25):
+            ret = con.execute_command('AI.MODELSTORE', 'mnist_'+str(i)+'{1}', 'ONNX', 'CPU', 'BLOB', mnist_pb)
+            self.env.assertEqual(ret, b'OK')
+        con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-    # Make sure that allocator is not used for running and freeing the GPU model, except for
-    # the input and output names allocations (and deallocations).
-    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
-    con.execute_command('AI.MODELEXECUTE', 'm_gpu{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
-    values = con.execute_command('AI.TENSORGET', 'b{1}', 'VALUES')
-    env.assertEqual(values, [b'1', b'4', b'9', b'16', b'25', b'36'])
-    # Expect that memory usage didn't change, and for another 4 accesses to the allocator (input and output names
-    # allocation and free)
-    backends_info = get_info_section(con, 'backends_info')
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory"]), model_allocation_bytes_used)
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 9)
+        # As onnx memory consumption is about 0.77MB at this point, and executing mnist session requires an additional
+        # 500KB of memory, we are expected to exceed the memory limit here in some operation. Note that the exact
+        # memory consumption here changes whether we are using libc allocator or jemalloc (jemalloc will be greater)
+        check_error_message(self.env, con, "Onnxruntime memory limit exceeded, memory allocation failed.",
+                            'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}',
+                            error_msg_is_substr=True)
 
-    # Expect only 2 more accesses in delete - for deallocating input and output names
-    con.execute_command('AI.MODELDEL', 'm_gpu{1}')
-    env.assertFalse(con.execute_command('EXISTS', 'm_gpu{1}'))
-    backends_info = get_info_section(con, 'backends_info')
-    env.assertEqual(int(backends_info["ai_onnxruntime_memory_access_num"]), 11)
+        def run_parallel_onnx_sessions(con):
+            check_error_message(self.env, con, "Onnxruntime memory limit exceeded, memory allocation failed.",
+                                'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}',
+                                error_msg_is_substr=True)
+
+        # We run sessions in parallel, all of them should fail. Note that here.
+        run_test_multiproc(self.env, '{1}', 50, run_parallel_onnx_sessions)
 
 
 class TestOnnxKillSwitch:
@@ -510,3 +553,20 @@ class TestOnnxKillSwitch:
         backends_info = get_info_section(con, 'backends_info')
         self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
                              str(len(devices)*self.threads_per_queue))
+
+
+def test_forbidden_external_initializers(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    con = get_connection(env, '{1}')
+
+    # move the external initializer to the redis' current dir (tests/flow/logs)
+    external_initializer_model = load_file_content("model_with_external_initializers.onnx")
+    shutil.copy(ROOT+"/tests/flow/test_data/Pads.bin", ROOT+"/tests/flow/logs")
+    check_error_message(env, con, "Initializer tensors with external data is not allowed.",
+                        'AI.MODELSTORE', 'ext_initializers_model{1}', 'ONNX', DEVICE,
+                        'BLOB', external_initializer_model)
+
+    os.remove(ROOT+"/tests/flow/logs/Pads.bin")

@@ -1,8 +1,8 @@
 # Feel free to change these
 PRODUCT=redisai
 DOCKER_ORG=redislabs
-REDIS_VERSION=6.2.4
-REDIS_CUDA_VERSION=11.0-cudnn8
+REDIS_VERSION=6.2.5
+REDIS_CUDA_VERSION=11.2.2-cudnn8
 REDISAI_LITE=0
 
 PACK=1 # to fetch the artifacts
@@ -30,16 +30,19 @@ endif
 
 # remap ubuntu versions because of nvidia cuda
 ifeq ($(OSNICK),xenial)
-REDIS_CUDA_UBUNTUVERSION=16.04
+REDIS_CUDA_MAPVERSION=ubuntu16.04
 endif
 ifeq ($(OSNICK),bionic)
-REDIS_CUDA_UBUNTUVERSION=18.04
+REDIS_CUDA_MAPVERSION=ubuntu18.04
+endif
+ifeq ($(OSNICK),centos8)
+REDIS_CUDA_MAPVERSION=centos8
 endif
 
 DOCKERWRAPPER_EXTRA_VARS=\
 	REDISAI_LITE=${REDISAI_LITE} \
 	REDIS_CUDA_VERSION=${REDIS_CUDA_VERSION} \
-	REDIS_CUDA_UBUNTUVERSION=${REDIS_CUDA_UBUNTUVERSION}
+	REDIS_CUDA_MAPVERSION=${REDIS_CUDA_MAPVERSION}
 
 ### Defaults ###
 ROOT=../../..
@@ -61,6 +64,7 @@ make build		# build and optionally publish the docker, from a template file
 	DOCKER_SOURCES=/a/path				# append paths to the template generator
 	PUBLISH=1					# if set, push to dockerhub (requires docker login)
 	DOCKER_OPTS=XXX					# Options to pass to the docker build command
+	GPU=1						# if set, build the GPU docker
 endef
 #------------------------------------------------------------------------------
 

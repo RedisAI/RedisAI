@@ -1,6 +1,3 @@
 [submodule "opt/readies"]
 	path = opt/readies
 	url = https://github.com/RedisLabsModules/readies.git
-[submodule "opt/googletest"]
-	path = opt/googletest
-	url = https://github.com/google/googletest.git

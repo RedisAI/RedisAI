@@ -34,6 +34,7 @@ ADD_LIBRARY(redisai_obj OBJECT
         execution/command_parser.c
         execution/parsing/deprecated.c
         execution/parsing/dag_parser.c
+        execution/parsing/tensor_commands_parsing.c
         execution/parsing/model_commands_parser.c
         execution/parsing/script_commands_parser.c
         execution/parsing/parse_utils.c

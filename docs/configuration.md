@@ -34,6 +34,56 @@ Some configuration options may be set at runtime via the [`AI.CONFIG` command](c
 
 Refer to each option's description for its runtime configurability.
 
+### MODEL_CHUNK_SIZE
+The **MODEL_CHUNK_SIZE** configuration option sets the size of chunks (in bytes) in which model payloads (blobs) are split for serialization, replication and MODELGET. Note that Redis protocol supports strings up to 512MB, so blobs for very large models need to be chunked.
+
+_Expected Value_
+
+An Integer greater than zero.
+
+_Default Value_
+
+511 * 1024 * 1024
+
+_Runtime Configurability_
+
+Supported.
+
+**Examples**
+
+To set the model chunk size to one megabyte from the command line use the following:
+
+```
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               MODEL_CHUNK_SIZE 1048576
+```
+
+### MODEL_EXECUTION_TIMEOUT
+_Supported for ONNXRuntime backend only!_
+
+The **MODEL_EXECUTION_TIMEOUT** configuration defines the maximum time (in milliseconds) that a model is allowed to run. RedisAI checks periodically if a running session has reached its timeout, and if so, the execution will be terminated immediately with an appropriate error message.    
+
+_Expected Value_
+
+An Integer equal or greater than 1000.
+
+_Default Value_
+
+5000
+
+_Runtime Configurability_
+
+Not supported.
+
+**Examples**
+
+To set the model execution timeout to 1 second from the command line use the following:
+
+```
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               MODEL_EXECUTION_TIMEOUT 1000
+```
+
 ## Backend
 By default RedisAI doesn't load any of its backend libraries when it is initialized. Backend libraries are then loaded lazily when models that require them are loaded.
 
@@ -113,6 +163,34 @@ To set the number of threads used within an individual operation to 1, when load
 redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
                INTRA_OP_PARALLELISM 1
 ```
+
+### BACKEND_MEMORY_LIMIT
+_Supported for ONNXRuntime backend only!_
+
+The **BACKEND_MEMORY_LIMIT** configuration option sets the maximum amount of memory in MB that a backend can consume for creating and running inference sessions. By default, 0 means that there will be no memory limit enforcement.
+
+_Expected Value_
+
+An Integer greater or equal than zero.
+
+_Default Value_
+
+0
+
+_Runtime Configurability_
+
+Not supported.
+
+**Examples**
+
+To set the backend memory limit to 50MB, when loading the module from command line use the following:
+
+```sh
+redis-server --loadmodule /usr/lib/redis/modules/redisai.so \
+               BACKEND_MEMORY_LIMIT 50
+```
+
+
 
 ### TF, TFLITE, TORCH and ONNX
 The **TF**, **TFLITE**, **TORCH** and **ONNX** configuration options load the TensorFlow, TensorFlow Lite, PyTorch and ONNXRuntime backend libraries, respectively.

@@ -28,6 +28,13 @@
 
 {
    ignore_unversioned_libs
+   Memcheck:Overlap
+   ...
+   obj:*/libonnxruntime.so*
+}
+
+{
+   ignore_unversioned_libs
    Memcheck:Leak
    ...
    obj:*/libtorch.so*
@@ -166,5 +173,15 @@
    Memcheck:Param
    epoll_ctl(event)
    fun:epoll_ctl
+   ...
+}
+
+
+{
+   <_dl_catch_exception>
+   Memcheck:Addr8
+   fun:strncmp
+   ...
+   fun:_dl_catch_exception
    ...
 }

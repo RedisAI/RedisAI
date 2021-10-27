@@ -102,10 +102,14 @@ def test_dag_build_and_run(env):
     env.assertEqual(ret, b'DAG run success')
 
     # Run the DAG LLAPI test again with multi process test to ensure that there are no dead-locks
+    executions_num = 500
+    if VALGRIND:
+        executions_num = 10
+
     def run_dag_llapi(con):
         con.execute_command("RAI_llapi.DAGrun")
 
-    run_test_multiproc(env, '{1}', 500, run_dag_llapi)
+    run_test_multiproc(env, '{1}', executions_num, run_dag_llapi)
 
 
 @with_test_module
@@ -150,3 +154,14 @@ def test_dagrun_multidevice_resnet(env):
 
     ret = con.execute_command("RAI_llapi.DAG_resnet")
     env.assertEqual(ret, b'DAG resnet success')
+
+
+@with_test_module
+def test_tensor_create(env):
+    con = get_connection(env, '{1}')
+    ret = con.execute_command("RAI_llapi.CreateTensor")
+    env.assertEqual(ret, b'create tensor test success')
+    ret = con.execute_command("RAI_llapi.ConcatenateTensors")
+    env.assertEqual(ret, b'concatenate tensors test success')
+    ret = con.execute_command("RAI_llapi.SliceTensor")
+    env.assertEqual(ret, b'slice tensor test success')

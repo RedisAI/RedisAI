@@ -231,30 +231,21 @@ def test_dag_with_timeout(env):
     env.assertEqual(b'TIMEDOUT', res)
 
 
-def test_dag_with_error(env):
-    if not TEST_TF:
+def test_dag_with_string_tensor(env):
+    if not TEST_ONNX:
+        env.debugPrint("skipping {} since TEST_ONNX=0".format(sys._getframe().f_code.co_name), force=True)
         return
 
     con = get_connection(env, '{1}')
-    tf_model = load_file_content('graph.pb')
-    ret = con.execute_command('AI.MODELSTORE', 'tf_model{1}', 'TF', DEVICE,
-                        'INPUTS', 2, 'a', 'b',
-                        'OUTPUTS', 1, 'mul',
-                        'BLOB', tf_model)
-    env.assertEqual(b'OK', ret)
+    model_pb = load_file_content('identity_string.onnx')
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'ONNX', DEVICE, 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
 
-    # Run the model from DAG context, where MODELEXECUTE op fails due to dim mismatch in one of the tensors inputs:
-    # the input tensor 'b' is considered as tensor with dim 2X2X3 initialized with zeros, while the model expects that
-    # both inputs to node 'mul' will be with dim 2.
-    ret = con.execute_command('AI.DAGEXECUTE_RO', 'ROUTING', '{1}',
-                              '|>', 'AI.TENSORSET', 'a', 'FLOAT', 2, 'VALUES', 2, 3,
-                              '|>', 'AI.TENSORSET', 'b', 'FLOAT', 2, 2, 3,
-                              '|>', 'AI.MODELEXECUTE', 'tf_model{1}', 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'tD',
-                              '|>', 'AI.TENSORGET', 'tD', 'VALUES')
+    # Execute onnx model whose input is string tensor with shape [2,2], that outputs the input
+    string_tensor_blob = b'input11\0input12\0input21\0input22\0'
+    ret = con.execute_command('AI.DAGEXECUTE', 'ROUTING', '{1}',
+                              '|>', 'AI.TENSORSET', 'in_tensor{1}', 'STRING', 2, 2, 'BLOB', string_tensor_blob,
+                              '|>', 'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 1, 'in_tensor{1}', 'OUTPUTS', 1, 'out_tensor{1}',
+                              '|>', 'AI.TENSORGET', 'out_tensor{1}', 'VALUES')
 
-    # Expect that the MODELEXECUTE op will raise an error, and the last TENSORGET op will not be executed
-    env.assertEqual(ret[0], b'OK')
-    env.assertEqual(ret[1], b'OK')
-    env.assertEqual(ret[3], b'NA')
-    env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
-    env.assertTrue(str(ret[2]).find('Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]') >= 0)
+    env.assertEqual(ret, [b'OK', b'OK', [b'input11', b'input12', b'input21', b'input22']])
