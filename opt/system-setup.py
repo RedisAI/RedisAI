@@ -26,7 +26,7 @@ class RedisAISetup(paella.Setup):
 
     def debian_compat(self):
         self.run("%s/bin/enable-utf8" % READIES)
-        self.run("%s/bin/getgcc --modern" % READIES)
+        self.run("%s/bin/getgcc" % READIES)
         self.install("gawk")
         self.install("libssl-dev")
         self.install("python3-regex")
