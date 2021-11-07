@@ -594,6 +594,7 @@ workflows:
                 - xenial
                 - bionic
                 - centos8
+                - focal
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
@@ -608,6 +609,7 @@ workflows:
                 - xenial
                 - bionic
                 - centos8
+                - focal
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"

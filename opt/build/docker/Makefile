@@ -35,6 +35,9 @@ endif
 ifeq ($(OSNICK),bionic)
 REDIS_CUDA_MAPVERSION=ubuntu18.04
 endif
+ifeq ($(OSNICK),focal)
+REDIS_CUDA_MAPVERSION=ubuntu20.04
+endif
 ifeq ($(OSNICK),centos8)
 REDIS_CUDA_MAPVERSION=centos8
 endif
