@@ -151,7 +151,7 @@ static int _RAI_TensorParseStringsBlob(const char *tensor_blob, size_t blob_len,
                 offsets[elements_counter++] = i + 1;
             } else {
                 elements_counter++;
-                break;  // No need to continue if tensor_blob contains more elements than expected
+                break; // No need to continue if tensor_blob contains more elements than expected
             }
         }
     }
