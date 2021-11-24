@@ -147,7 +147,12 @@ static int _RAI_TensorParseStringsBlob(const char *tensor_blob, size_t blob_len,
     // if we encounter null-character, we set the next element offset to the next position
     for (size_t i = 0; i < blob_len - 1; i++) {
         if (tensor_blob[i] == '\0') {
-            offsets[elements_counter++] = i + 1;
+            if (elements_counter < tensor_len) {
+                offsets[elements_counter++] = i + 1;
+            } else {
+                elements_counter++;
+                break; // No need to continue if tensor_blob contains more elements than expected
+            }
         }
     }
     if (tensor_blob[blob_len - 1] != '\0' || elements_counter != tensor_len) {
