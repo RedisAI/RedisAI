@@ -7,7 +7,8 @@ RedisAI is a Redis module for executing Deep Learning/Machine Learning models an
 ## Where Next?
   * The [Introduction](intro.md) is the recommended starting point
   * The [Quickstart](quickstart.md) page provides information about building, installing and running RedisAI
-  * The [Commands](commands.md) page is a reference of the RedisAI API
+  * The [Commands](commands.md) page is a reference of the RedisAI API 
+  * The [RedisGears integration](https://oss.redis.com/redisgears/master/redisai.html) page is a reference of the built-in integration of [RedisGears](https://oss.redis.com/redisgears/) with RedisAI via a Python plugin.
   * The [Clients](clients.md) page lists RedisAI clients by programming language
   * The [Configuration](configuration.md) page explains how to configure RedisAI 
   * The [Performance](performance.md) page provides instructions for running benchmarks with RedisAI

@@ -349,9 +349,51 @@ The tensors that were stored under the given INPUTS names can be accessed from t
     ```
 Moreover, it is possible to run 'native' Redis commands from within a TorchScript in RedisAI, and even executing a model in RedisAI. These capabilities enable RedisAI users to run end-to-end processes with their data. Further details and examples can be found under [`AI.SCRIPTEXECUTE` command](commands.md#aiscriptexecute)  
 
+## Running AI flows via Python plugin
+
+[RedisGears](https://oss.redis.com/redisgears/) module has a built-in integration with RedisAI via a Python plugin that enables the registration of AI flows, and triggering it upon events.
+For example, we can store the following AI flow which sets tensors in Redis and executes `mymodel` over these tensors:
+
+```py
+import redisAI
+
+async def ModelRun(record):
+    tensor_a = redisAI.createTensorFromValues('FLOAT', [2,2], [1.0, 2.0, 3.0, 4.0])
+    tensor_b = redisAI.createTensorFromValues('FLOAT', [2,2], [2.0, 3.0, 2.0, 3.0])
+    redisAI.msetTensorsInKeyspace({'a{1}': tensor_a, 'b{1}': tensor_b})
+
+    # assuming 'mymodel' is a model stored in Redis
+    modelRunner = redisAI.createModelRunner('mymodel')     
+    redisAI.modelRunnerAddInput(modelRunner, 'a', tensor_a)
+    redisAI.modelRunnerAddInput(modelRunner, 'b', tensor_b)
+    redisAI.modelRunnerAddOutput(modelRunner, 'c')
+    
+    # run the model asynchronously in RedisAI
+    res = await redisAI.modelRunnerRunAsync(modelRunner)
+    redisAI.setTensorInKey('c{1}', res[0])
+    return "ModelRun_OK"
+
+GB("CommandReader").map(ModelRun).register(trigger="ModelRun")
+```
+
+Then, you can trigger this execution and get the results by running:
+
+```
+redis> RG.TRIGGER ModelRun
+1)  "ModelRun_OK"
+redis> AI.TENSORGET c{1} VALUES
+1) "2"
+2) "6"
+3) "6"
+4) "12"
+```
+
+The full reference page for the RedisGears-RedisAI-Python integration which also includes setup instructions and more detailed examples, can be found [here](https://oss.redis.com/redisgears/master/redisai.html).  
+
 ## Where Next?
 This covers the basics of RedisAI's data structures and capabilities. For more information refer to:
 
 * The [Commands page](commands.md) provides a reference of the RedisAI API
+* The [RedisGears integration](https://oss.redis.com/redisgears/master/redisai.html) page is a reference of the built-in integration of RedisGears with RedisAI.
 * The [Clients page](clients.md) lists RedisAI clients in several programming languages
 * The [Examples page](examples.md) showcases several examples that can be extended
