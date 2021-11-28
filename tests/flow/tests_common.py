@@ -117,6 +117,10 @@ def test_common_tensorset_error_replies(env):
 
     # ERR in string tensor blob - number of strings is not compatible with tensor meta data
     check_error_message(env, con, "Number of string elements in data blob does not match tensor length",
+                        'AI.TENSORSET', 'z{0}', 'STRING', 2, 'BLOB', 'one\0two\0three\0')
+
+    # ERR in string tensor blob - number of strings is not compatible with tensor meta data
+    check_error_message(env, con, "Number of string elements in data blob does not match tensor length",
                         'AI.TENSORSET', 'z{0}', 'STRING', 2, 'BLOB', 'C-string\0followed by a non C-string')
 
     # ERR in bool tensor blob - element is not 0/1
