@@ -287,7 +287,9 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
-    env.assertTrue(0 < financialNetRunInfo['duration'] <= total_time <= abs_time)
+    env.assertTrue(0 < financialNetRunInfo['duration'])
+    env.assertTrue(financialNetRunInfo['duration'] <= total_time)
+    env.assertTrue(total_time <= abs_time)
 
 
 def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
@@ -341,7 +343,9 @@ def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
-    env.assertTrue(0 < financialNetRunInfo['duration'] <= total_time <= abs_time)
+    env.assertTrue(0 < financialNetRunInfo['duration'])
+    env.assertTrue(financialNetRunInfo['duration'] <= total_time)
+    env.assertTrue(total_time <= abs_time)
 
 
 def test_dag_modelexecute_financialNet_no_writes(env):
