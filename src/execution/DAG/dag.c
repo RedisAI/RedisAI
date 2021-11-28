@@ -210,7 +210,6 @@ void RedisAI_BatchedDagRunSession_ModelRun_Step(RedisAI_RunInfo **batched_rinfo,
     }
 
     RAI_Error err = {0};
-    RAI_Model *model = RAI_ModelRunCtxGetModel((RAI_ModelRunCtx *)ectxs[0]);
     const long long start = ustime();
     int result = RAI_ModelRun((RAI_ModelRunCtx **)ectxs, n_rinfo, &err);
     const long long end = ustime();
@@ -686,6 +685,7 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client) {
+        RedisModule_BlockedClientMeasureTimeEnd(rinfo->client);
         RedisModule_UnblockClient(rinfo->client, rinfo);
     }
 }

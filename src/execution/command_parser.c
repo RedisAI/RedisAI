@@ -71,5 +71,6 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RedisModule_UnblockClient(rinfo->client, rinfo);
         return REDISMODULE_ERR;
     }
+    RedisModule_BlockedClientMeasureTimeStart(rinfo->client);
     return REDISMODULE_OK;
 }
