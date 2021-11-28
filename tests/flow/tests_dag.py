@@ -264,7 +264,7 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
 
             t = threading.Thread(target=run)
 
-            start = time.time_ns()
+            start = time.time()
             t.start()
 
             ret = con.execute_command(
@@ -279,11 +279,11 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
 
             t.join()
             ensureSlaveSynced(con, env)
-            end = time.time_ns()
-            abs_time += (end - start)//1000
+            end = time.time()
+            abs_time += (end - start)*1000000
             curr_time = con.execute_command('SLOWLOG', 'GET', 1)[0][2]
             total_time += curr_time
-            env.assertTrue((end - start)//1000 >= curr_time)
+            env.assertTrue((end - start)*1000000 >= curr_time)
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
@@ -323,7 +323,7 @@ def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
             ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
             env.assertEqual(ret, 1)
 
-            start = time.time_ns()
+            start = time.time()
             ret = con.execute_command(
                 'AI.DAGEXECUTE', 'LOAD', '1', reference_tensor_keyname, '|>',
                 'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
@@ -333,11 +333,11 @@ def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
                 'AI.TENSORGET',result_tensor_keyname, 'META',  '|>',
                 'AI.TENSORGET', result_tensor_keyname, 'VALUES'
             )
-            end = time.time_ns()
-            abs_time += (end - start)//1000
+            end = time.time()
+            abs_time += (end - start)*1000000
             curr_time = con.execute_command('SLOWLOG', 'GET', 1)[0][2]
             total_time += curr_time
-            env.assertTrue((end - start)//1000 >= curr_time)
+            env.assertTrue((end - start)*1000000 >= curr_time)
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
