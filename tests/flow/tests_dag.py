@@ -281,9 +281,13 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
             ensureSlaveSynced(con, env)
             end = time.time()
             abs_time += (end - start)*1000000
-            curr_time = con.execute_command('SLOWLOG', 'GET', 1)[0][2]
-            total_time += curr_time
-            env.assertTrue((end - start)*1000000 >= curr_time)
+            prev_total = total_time
+            for command in con.execute_command('SLOWLOG', 'GET', 10):
+                if command[3][0] == b"AI.DAGEXECUTE":
+                    total_time += command[2]
+                    env.assertTrue((end - start)*1000000 >= command[2])
+                    break
+            env.assertNotEqual(total_time, prev_total)
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
@@ -337,9 +341,13 @@ def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
             )
             end = time.time()
             abs_time += (end - start)*1000000
-            curr_time = con.execute_command('SLOWLOG', 'GET', 1)[0][2]
-            total_time += curr_time
-            env.assertTrue((end - start)*1000000 >= curr_time)
+            prev_total = total_time
+            for command in con.execute_command('SLOWLOG', 'GET', 10):
+                if command[3][0] == b"AI.DAGEXECUTE":
+                    total_time += command[2]
+                    env.assertTrue((end - start)*1000000 >= command[2])
+                    break
+            env.assertNotEqual(total_time, prev_total)
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
