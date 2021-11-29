@@ -71,7 +71,8 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RedisModule_UnblockClient(rinfo->client, rinfo);
         return REDISMODULE_ERR;
     }
-    if (RedisModule_GetServerVersion() >= 0x060200) { // The following command is supported only from redis 6.2
+    if (RedisModule_GetServerVersion() >=
+        0x060200) { // The following command is supported only from redis 6.2
         RedisModule_BlockedClientMeasureTimeStart(rinfo->client);
     }
     return REDISMODULE_OK;

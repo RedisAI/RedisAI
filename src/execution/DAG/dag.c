@@ -685,7 +685,8 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client) {
-        if (RedisModule_GetServerVersion() >= 0x060200) { // The following command is supported only from redis 6.2
+        if (RedisModule_GetServerVersion() >=
+            0x060200) { // The following command is supported only from redis 6.2
             RedisModule_BlockedClientMeasureTimeEnd(rinfo->client);
         }
         RedisModule_UnblockClient(rinfo->client, rinfo);
