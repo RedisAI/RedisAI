@@ -359,7 +359,7 @@ jobs:
       - run:
           name: Install dependencies
           command: |
-            ./opt/readies/bin/getredis -v 6.0 --valgrind --force
+            ./opt/readies/bin/getredis -v 6.2 --valgrind --force
             ./get_deps.sh cpu
       - run:
           name: Build for valgrind
