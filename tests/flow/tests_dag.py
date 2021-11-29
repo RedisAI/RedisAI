@@ -8,6 +8,23 @@ import time
 python -m RLTest --test tests_dag.py --module path/to/redisai.so
 '''
 
+
+def skip_if_not_version(major: int = 0, minor: int = 0):
+    def skipper(f):
+        @wraps(f)
+        def wrapper(env, *args, **kwargs):
+            con = get_connection(env, '{1}')
+            info = con.execute_command('INFO', 'SERVER')
+            M, m, _ = info['redis_version'].split(".")
+            if int(M) < major or (int(M) == major and int(m) < minor):
+                env.debugPrint("skipping {0} since this test is for version {1}.{2}.0 and above".format(
+                    sys._getframe().f_code.co_name, major, minor), force=True)
+                return
+            return f(env, *args, **kwargs)
+        return wrapper
+    return skipper
+
+
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
@@ -216,6 +233,7 @@ def test_dag_modelexecute_financialNet_autobatch(env):
             env.assertEqual(ret, 1)
 
 
+@skip_if_not_version(6, 2)
 def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
     if not TEST_TF:
         return
@@ -224,9 +242,10 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
     model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
         env)
     model_name = 'financialNet{1}'
+    batchsize = 2
 
     ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', 'CPU',
-                              'BATCHSIZE', 2, 'MINBATCHSIZE', 2,
+                              'BATCHSIZE', batchsize, 'MINBATCHSIZE', batchsize,
                               'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output',
                               'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
@@ -282,20 +301,34 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
             end = time.time()
             abs_time += (end - start)*1000000
             prev_total = total_time
+            first = 0
             for command in con.execute_command('SLOWLOG', 'GET', 10):
-                if command[3][0] == b"AI.DAGEXECUTE":
-                    total_time += command[2]
-                    env.assertTrue((end - start)*1000000 >= command[2])
+                if command[3][0] == b"AI.DAGEXECUTE" and first == 0:
+                    first = command[2]
+                elif command[3][0] == b"AI.DAGEXECUTE":
+                    if first > command[2]:
+                        total_time += first
+                        env.assertTrue((end - start)*1000000 >= first)
+                    else:
+                        total_time += command[2]
+                        env.assertTrue((end - start)*1000000 >= command[2])
                     break
-            env.assertNotEqual(total_time, prev_total)
+                elif command[3][0] == b"SLOWLOG":
+                    break
+            if total_time == prev_total and first != 0:
+                total_time += first
+                env.assertTrue((end - start)*1000000 >= first)
+            else:
+                env.assertNotEqual(total_time, prev_total)
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
     env.assertTrue(0 < financialNetRunInfo['duration'])
-    env.assertTrue(financialNetRunInfo['duration'] <= total_time)
+    env.assertTrue(financialNetRunInfo['duration']//batchsize <= total_time)
     env.assertTrue(total_time <= abs_time)
 
 
+@skip_if_not_version(6, 2)
 def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
     if not TEST_TF:
         return
