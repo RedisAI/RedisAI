@@ -9,16 +9,19 @@ python -m RLTest --test tests_dag.py --module path/to/redisai.so
 '''
 
 
-def skip_if_not_version(major: int = 0, minor: int = 0):
+def skip_if_not_version(major: int = 0, minor: int = 0, patch: int = 0):
     def skipper(f):
         @wraps(f)
         def wrapper(env, *args, **kwargs):
             con = get_connection(env, '{1}')
             info = con.execute_command('INFO', 'SERVER')
-            M, m, _ = info['redis_version'].split(".")
-            if int(M) < major or (int(M) == major and int(m) < minor):
-                env.debugPrint("skipping {0} since this test is for version {1}.{2}.0 and above".format(
-                    sys._getframe().f_code.co_name, major, minor), force=True)
+            M, m, p = info['redis_version'].split(".")
+            M = int(M)
+            m = int(m)
+            p = int(p)
+            if (M < major) or (M == major and m < minor) or (M == major and m == minor and p < patch):
+                env.debugPrint("skipping {0} since this test is for version {1}.{2}.{3} and above".format(
+                    sys._getframe().f_code.co_name, major, minor, patch), force=True)
                 return
             return f(env, *args, **kwargs)
         return wrapper
@@ -233,7 +236,7 @@ def test_dag_modelexecute_financialNet_autobatch(env):
             env.assertEqual(ret, 1)
 
 
-@skip_if_not_version(6, 2)
+@skip_if_not_version(6, 2, 0)
 def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
     if not TEST_TF:
         return
@@ -302,10 +305,10 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
             abs_time += (end - start)*1000000
             prev_total = total_time
             first = 0
-            for command in con.execute_command('SLOWLOG', 'GET', 10):
-                if command[3][0] == b"AI.DAGEXECUTE" and first == 0:
+            for command in con.execute_command('SLOWLOG', 'GET', 10):       # Look for "AI.DAGEXECUTE" commands in the last 10 commands.
+                if command[3][0] == b"AI.DAGEXECUTE" and first == 0:        # Mark the first command found.
                     first = command[2]
-                elif command[3][0] == b"AI.DAGEXECUTE":
+                elif command[3][0] == b"AI.DAGEXECUTE":                     # Found second command. add the slower time to total_time.
                     if first > command[2]:
                         total_time += first
                         env.assertTrue((end - start)*1000000 >= first)
@@ -313,13 +316,11 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
                         total_time += command[2]
                         env.assertTrue((end - start)*1000000 >= command[2])
                     break
-                elif command[3][0] == b"SLOWLOG":
+                elif command[3][0] == b"SLOWLOG":                           # The "SLOWLOG" is used as a mark for the previus iteration.
+                    total_time += first                                     # Try adding 'first'. The next assert test if first was not zero.
+                    env.assertTrue((end - start)*1000000 >= first)
                     break
-            if total_time == prev_total and first != 0:
-                total_time += first
-                env.assertTrue((end - start)*1000000 >= first)
-            else:
-                env.assertNotEqual(total_time, prev_total)
+            env.assertNotEqual(total_time, prev_total)                      # if somehow we didn't find any "AI.DAGEXECUTE" command, assert
 
     info = con.execute_command('AI.INFO', model_name)
     financialNetRunInfo = info_to_dict(info)
@@ -328,7 +329,7 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
     env.assertTrue(total_time <= abs_time)
 
 
-@skip_if_not_version(6, 2)
+@skip_if_not_version(6, 2, 0)
 def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
     if not TEST_TF:
         return
