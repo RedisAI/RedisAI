@@ -1,21 +1,24 @@
+#include <stdlib.h>
+#include <errno.h>
 #include "backends/util.h"
 
-int parseDeviceStr(const char *devicestr, RAI_Device *device, int64_t *deviceid) {
-    // if (strcasecmp(devicestr, "CPU") == 0) {
-    if (strncasecmp(devicestr, "CPU", 3) == 0) {
+int parseDeviceStr(const char *device_str, RAI_Device *device, int64_t *device_id) {
+    if (strncasecmp(device_str, "CPU", 3) == 0) {
         *device = RAI_DEVICE_CPU;
-        *deviceid = -1;
-    } else if (strcasecmp(devicestr, "GPU") == 0) {
+        *device_id = -1;
+    } else if (strcasecmp(device_str, "GPU") == 0) {
         *device = RAI_DEVICE_GPU;
-        *deviceid = -1;
-    } else if (strncasecmp(devicestr, "GPU:", 4) == 0) {
+        *device_id = -1;
+    } else if (strncasecmp(device_str, "GPU:", 4) == 0) {
         *device = RAI_DEVICE_GPU;
-        long long id;
-        sscanf(devicestr, "GPU:%lld", &id);
-        *deviceid = id;
+        // Convert the id string into a number, returns zero if no valid conversion could be
+        // preformed, and sets errno in case of overflow.
+        long long id = strtoll(device_str + 4, NULL, 0);
+        if (errno == ERANGE)
+            return 0;
+        *device_id = id;
     } else {
         return 0;
     }
-
     return 1;
 }
