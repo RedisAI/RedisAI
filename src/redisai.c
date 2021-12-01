@@ -173,12 +173,14 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
     const char *devicestr;
     AC_GetString(&ac, &devicestr, NULL, 0);
     bool valid_device = false;
+    size_t device_prefix_len = strlen("GPU:"); // can also be "CPU:"
     if (strcasecmp(devicestr, "CPU") == 0 || strcasecmp(devicestr, "GPU") == 0) {
         valid_device = true;
-    } else if ((strncasecmp(devicestr, "GPU:", 4) == 0 || strncasecmp(devicestr, "CPU:", 4) == 0) &&
-               strlen(devicestr) <= 10) {
+    } else if ((strncasecmp(devicestr, "GPU:", device_prefix_len) == 0 ||
+                strncasecmp(devicestr, "CPU:", device_prefix_len) == 0) &&
+               strlen(devicestr) < 10) {
         bool digits_only = true;
-        for (size_t i = 5; i < strlen(devicestr); i++) {
+        for (size_t i = device_prefix_len; i < strlen(devicestr); i++) {
             if (devicestr[i] < '0' || devicestr[i] > '9') {
                 digits_only = false;
                 break;

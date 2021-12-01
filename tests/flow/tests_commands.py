@@ -19,13 +19,22 @@ def test_modelstore_errors(env):
     con = get_connection(env, '{1}')
     model_pb = load_file_content('pt-minimal.pt')
 
-    # Check that the basic arguments are valid (model's key, device, backend, blob)
+    # Check the validity of backend name and number of arguments
     check_error_message(env, con, "wrong number of arguments for 'AI.MODELSTORE' command",
                         'AI.MODELSTORE', 'm{1}', 'TORCH', 'BLOB', model_pb)
     check_error_message(env, con, "unsupported backend",
                         'AI.MODELSTORE', 'm{1}', 'PORCH', DEVICE, 'BLOB', model_pb)
+
+    # Check for valid device argument (should only be "CPU:<n>" or "GPU:<n>, where <n> is a number
+    # (contains digits only, up to 5).
     check_error_message(env, con, "Invalid DEVICE",
                         'AI.MODELSTORE', 'm{1}', 'TORCH', 'bad_device', 'BLOB', model_pb)
+    check_error_message(env, con, "Invalid DEVICE",
+                        'AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU::', 'BLOB', model_pb)
+    check_error_message(env, con, "Invalid DEVICE",
+                        'AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU:1.8', 'BLOB', model_pb)
+    check_error_message(env, con, "Invalid DEVICE",
+                        'AI.MODELSTORE', 'm{1}', 'TORCH', 'CPU:123456', 'BLOB', model_pb)
 
     # Check for validity of batching arguments.
     check_error_message(env, con, "Invalid argument for BATCHSIZE",
