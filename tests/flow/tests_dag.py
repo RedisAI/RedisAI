@@ -8,6 +8,26 @@ import time
 python -m RLTest --test tests_dag.py --module path/to/redisai.so
 '''
 
+
+def skip_if_not_version(major: int = 0, minor: int = 0, patch: int = 0):
+    def skipper(f):
+        @wraps(f)
+        def wrapper(env, *args, **kwargs):
+            con = get_connection(env, '{1}')
+            info = con.execute_command('INFO', 'SERVER')
+            M, m, p = info['redis_version'].split(".")
+            M = int(M)
+            m = int(m)
+            p = int(p)
+            if (M < major) or (M == major and m < minor) or (M == major and m == minor and p < patch):
+                env.debugPrint("skipping {0} since this test is for version {1}.{2}.{3} and above".format(
+                    sys._getframe().f_code.co_name, major, minor, patch), force=True)
+                return
+            return f(env, *args, **kwargs)
+        return wrapper
+    return skipper
+
+
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
@@ -214,6 +234,160 @@ def test_dag_modelexecute_financialNet_autobatch(env):
             # assert that result tensor exists
             ret = con.execute_command("EXISTS {}".format(result_tensor_keyname))
             env.assertEqual(ret, 1)
+
+
+@skip_if_not_version(6, 2, 0)
+def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
+    if not TEST_TF:
+        return
+    con = get_connection(env, '{1}')
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
+        env)
+    model_name = 'financialNet{1}'
+    batchsize = 2
+
+    ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', 'CPU',
+                              'BATCHSIZE', batchsize, 'MINBATCHSIZE', batchsize,
+                              'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1, 'output',
+                              'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('CONFIG', 'SET', 'slowlog-log-slower-than', '1')
+    env.assertEqual(ret, b'OK')
+    total_time = 0
+    abs_time = 0
+
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
+
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
+
+            def run():
+                con = get_connection(env, '{1}')
+                ret = con.execute_command(
+                    'AI.DAGEXECUTE', 'LOAD', '1', reference_tensor_keyname, '|>',
+                    'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                    'AI.MODELEXECUTE', model_name,
+                                'INPUTS', 2, transaction_tensor_keyname, reference_tensor_keyname,
+                                'OUTPUTS', 1, result_tensor_keyname
+                )
+                ensureSlaveSynced(con, env)
+
+            t = threading.Thread(target=run)
+
+            start = time.time()
+            t.start()
+
+            ret = con.execute_command(
+                'AI.DAGEXECUTE', 'LOAD', '1', reference_tensor_keyname,
+                            'PERSIST', '1', result_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELEXECUTE', model_name,
+                            'INPUTS', 2, transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', 1, result_tensor_keyname, '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'META',
+            )
+
+            t.join()
+            ensureSlaveSynced(con, env)
+            end = time.time()
+            abs_time += (end - start)*1000000
+            prev_total = total_time
+            first = 0
+            for command in con.execute_command('SLOWLOG', 'GET', 10):       # Look for "AI.DAGEXECUTE" commands in the last 10 commands.
+                if command[3][0] == b"AI.DAGEXECUTE" and first == 0:        # Mark the first command found.
+                    first = command[2]
+                elif command[3][0] == b"AI.DAGEXECUTE":                     # Found second command. add the slower time to total_time.
+                    if first > command[2]:
+                        total_time += first
+                        env.assertTrue((end - start)*1000000 >= first)
+                    else:
+                        total_time += command[2]
+                        env.assertTrue((end - start)*1000000 >= command[2])
+                    break
+                elif command[3][0] == b"SLOWLOG":                           # The "SLOWLOG" is used as a mark for the previus iteration.
+                    total_time += first                                     # Try adding 'first'. The next assert test if first was not zero.
+                    env.assertTrue((end - start)*1000000 >= first)
+                    break
+            env.assertNotEqual(total_time, prev_total)                      # if somehow we didn't find any "AI.DAGEXECUTE" command, assert
+
+    info = con.execute_command('AI.INFO', model_name)
+    financialNetRunInfo = info_to_dict(info)
+    env.assertTrue(0 < financialNetRunInfo['duration'])
+    env.assertTrue(financialNetRunInfo['duration']//batchsize <= total_time)
+    env.assertTrue(total_time <= abs_time)
+
+
+@skip_if_not_version(6, 2, 0)
+def test_slowlog_time_dag_modelexecute_financialNet_no_writes(env):
+    if not TEST_TF:
+        return
+    con = get_connection(env, '{1}')
+
+    model_pb, creditcard_transactions, creditcard_referencedata = load_creditcardfraud_data(
+        env)
+    model_name = 'financialNet{1}'
+
+    ret = con.execute_command('AI.MODELSTORE', model_name, 'TF', "CPU",
+                              'INPUTS', 2, 'transaction', 'reference', 'OUTPUTS', 1,'output', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    ret = con.execute_command('CONFIG', 'SET', 'slowlog-log-slower-than', '1')
+    env.assertEqual(ret, b'OK')
+    total_time = 0
+    abs_time = 0
+
+    for tensor_number in range(1,MAX_TRANSACTIONS):
+        for repetition in range(1,10):
+            reference_tensor = creditcard_referencedata[tensor_number]
+            transaction_tensor = creditcard_transactions[tensor_number]
+            result_tensor_keyname = 'resultTensor{{1}}{}'.format(tensor_number)
+            reference_tensor_keyname = 'referenceTensor{{1}}{}'.format(tensor_number)
+            transaction_tensor_keyname = 'transactionTensor{{1}}{}'.format(tensor_number)
+            
+            ret = con.execute_command('AI.TENSORSET', reference_tensor_keyname,
+                                    'FLOAT', 1, 256,
+                                    'BLOB', reference_tensor.tobytes())
+            env.assertEqual(ret, b'OK')
+            ret = con.execute_command("EXISTS {}".format(reference_tensor_keyname))
+            env.assertEqual(ret, 1)
+
+            start = time.time()
+            ret = con.execute_command(
+                'AI.DAGEXECUTE', 'LOAD', '1', reference_tensor_keyname, '|>',
+                'AI.TENSORSET', transaction_tensor_keyname, 'FLOAT', 1, 30,'BLOB', transaction_tensor.tobytes(), '|>',
+                'AI.MODELEXECUTE', model_name,
+                            'INPUTS', 2, transaction_tensor_keyname, reference_tensor_keyname,
+                            'OUTPUTS', 1, result_tensor_keyname, '|>',
+                'AI.TENSORGET',result_tensor_keyname, 'META',  '|>',
+                'AI.TENSORGET', result_tensor_keyname, 'VALUES'
+            )
+            end = time.time()
+            abs_time += (end - start)*1000000
+            prev_total = total_time
+            for command in con.execute_command('SLOWLOG', 'GET', 10):
+                if command[3][0] == b"AI.DAGEXECUTE":
+                    total_time += command[2]
+                    env.assertTrue((end - start)*1000000 >= command[2])
+                    break
+            env.assertNotEqual(total_time, prev_total)
+
+    info = con.execute_command('AI.INFO', model_name)
+    financialNetRunInfo = info_to_dict(info)
+    env.assertTrue(0 < financialNetRunInfo['duration'])
+    env.assertTrue(financialNetRunInfo['duration'] <= total_time)
+    env.assertTrue(total_time <= abs_time)
 
 
 def test_dag_modelexecute_financialNet_no_writes(env):
