@@ -6,4 +6,4 @@
 
 #include "config/config.h"
 
-int parseDeviceStr(const char *devicestr, RAI_Device *device, int64_t *deviceid);
+int parseDeviceStr(const char *device_str, RAI_Device *device, int64_t *device_id);
