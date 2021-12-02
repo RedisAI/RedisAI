@@ -21,7 +21,7 @@ def skip_if_not_version(major: int = 0, minor: int = 0, patch: int = 0):
             p = int(p)
             if (M < major) or (M == major and m < minor) or (M == major and m == minor and p < patch):
                 env.debugPrint("skipping {0} since this test is for version {1}.{2}.{3} and above".format(
-                    sys._getframe().f_code.co_name, major, minor, patch), force=True)
+                    f.__name__, major, minor, patch), force=True)
                 return
             return f(env, *args, **kwargs)
         return wrapper
