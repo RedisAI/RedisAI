@@ -346,7 +346,7 @@ jobs:
         type: string
         default: "CLUSTER=0"
     docker:
-      - image: redisfab/rmbuilder:6.0.9-x64-buster
+      - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
       - abort_for_noci
