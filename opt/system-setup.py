@@ -30,7 +30,7 @@ class RedisAISetup(paella.Setup):
         self.install("gawk")
         self.install("libssl-dev")
         self.install("python3-regex")
-        self.install("python3-networkx python3-numpy")
+        self.install("python3-networkx")
         if self.platform.is_arm():
             self.install("python3-dev") # python3-skimage
         self.install("libmpich-dev libopenblas-dev") # for libtorch
