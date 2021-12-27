@@ -92,13 +92,14 @@ def test_run_tflite_model_autobatch(env):
 
     ensureSlaveSynced(con, env)
 
-    values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
-    idx = np.argmax(values)
-    env.assertEqual(idx, 112)
+    c_values = np.array(con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES'), dtype=np.float32)
+    c_idx = np.argmax(c_values)
+    d_values = np.array(con.execute_command('AI.TENSORGET', 'd{1}', 'VALUES'), dtype=np.float32)
+    d_idx = np.argmax(d_values)
+    env.assertEqual(c_idx, d_idx)
+    env.assertFalse(np.isnan(c_values[c_idx]))
+    env.assertFalse(np.isinf(c_values[c_idx]))
 
-    values = con.execute_command('AI.TENSORGET', 'd{1}', 'VALUES')
-    idx = np.argmax(values)
-    env.assertEqual(idx, 112)
 
 
 def test_run_tflite_errors(env):
