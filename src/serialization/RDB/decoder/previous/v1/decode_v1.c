@@ -1,5 +1,6 @@
 #include "decode_v1.h"
 #include "../v0/decode_v0.h"
+#include "execution/run_queue_info.h"
 
 /**
  * In case of IO errors, the default return values are:
@@ -114,6 +115,10 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     RedisModule_FreeString(NULL, stats_keystr);
     RedisModule_FreeString(NULL, tag);
 
+    if (!RunQueue_IsExists(model->devicestr)) {
+        RunQueue_Create(model->devicestr);
+    }
+
     return model;
 
 cleanup:
@@ -187,6 +192,11 @@ void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
     RedisModule_FreeString(NULL, tag);
     RedisModule_Free(devicestr);
     RedisModule_Free(scriptdef);
+
+    if (!RunQueue_IsExists(script->devicestr)) {
+        RunQueue_Create(script->devicestr);
+    }
+
     return script;
 cleanup:
     if (devicestr)
