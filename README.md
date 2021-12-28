@@ -24,7 +24,7 @@ docker run -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
 ```
 
 ### On a GPU machine
-For GPU support you will need a machine you'll need a machine that has Nvidia driver (CUDA 11.2 and cuDNN 8.1), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
+For GPU support you will need a machine you'll need a machine that has Nvidia driver (CUDA 11.3 and cuDNN 8.1), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
 
 ```
 docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu-x64-bionic
@@ -37,7 +37,7 @@ You can compile and build the module from its source code. The [Developer](https
 ### Prerequisites
 * Packages: git, python3, make, wget, g++/clang, & unzip
 * CMake 3.0 or higher needs to be installed.
-* CUDA 11.2 and cuDNN 8.1 or higher needs to be installed if GPU support is required.
+* CUDA 11.3 and cuDNN 8.1 or higher needs to be installed if GPU support is required.
 * Redis v6.0.0 or greater.
 
 ### Get the Source Code
@@ -90,7 +90,7 @@ RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), Tenso
 |:--------|:-------:|:----------:|:------:|:-------------:|
 | 1.0.3   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
 | 1.2.5   | 1.9.0   | 2.6.0      | 2.0.0  | 1.9.0         |
-| master  | 1.9.0   | 2.6.0      | 2.0.0  | 1.9.0         |
+| master  | 1.10.1  | 2.6.0      | 2.0.0  | 1.9.0        |
 
 Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/tests/flow/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x.
 

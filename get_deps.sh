@@ -6,7 +6,7 @@ ORT_VERSION="1.9.0"
 DLPACK_VERSION="v0.5_RAI"
 TF_VERSION="2.6.0"
 TFLITE_VERSION="2.0.0"
-PT_VERSION="1.9.0"
+PT_VERSION="1.10.1"
 
 ###### END VERSIONS ######
 
@@ -184,7 +184,7 @@ PT_BUILD=cpu
 if [[ $OS == linux ]]; then
     PT_OS=linux
     if [[ $GPU == 1 ]]; then
-        PT_BUILD=cu111
+        PT_BUILD=cu113
     fi
     if [[ $ARCH == x64 ]]; then
         PT_ARCH=x86_64
