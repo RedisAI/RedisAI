@@ -591,7 +591,6 @@ workflows:
           matrix:
             parameters:
               osnick:
-                - xenial
                 - bionic
                 - centos8
               lite:
@@ -605,7 +604,6 @@ workflows:
           matrix:
             parameters:
               osnick:
-                - xenial
                 - bionic
                 - centos8
               lite:
