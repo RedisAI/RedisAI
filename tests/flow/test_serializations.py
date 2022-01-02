@@ -31,7 +31,7 @@ def test_tf_model_serialization(env):
                             'minbatchtimeout', 1000, 'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
 
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout\
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -42,7 +42,7 @@ def test_tf_model_serialization(env):
         con.execute_command('AI.MODELSTORE', key_name, 'TF', DEVICE, 'TAG', 'TF_GRAPH1', 'batchsize', 4, 'minbatchsize', 2,
                             'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout\
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -52,7 +52,7 @@ def test_tf_model_serialization(env):
         con.execute_command('AI.MODELSTORE', key_name, 'TF', DEVICE, 'TAG', 'TF_GRAPH2', 'batchsize', 4,
                             'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -62,7 +62,7 @@ def test_tf_model_serialization(env):
         con.execute_command('AI.MODELSTORE', key_name, 'TF', DEVICE, 'TAG', 'TF_GRAPH3',
                             'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', tf_model)
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -89,7 +89,7 @@ def test_torch_model_serialization(env):
                             'minbatchtimeout', 1000, 'BLOB', torch_model)
 
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout\
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -99,7 +99,7 @@ def test_torch_model_serialization(env):
         # Reinsert the model (without minbatchtimeout)
         con.execute_command('AI.MODELSTORE', key_name, 'TORCH', DEVICE, 'TAG', 'PT_MINIMAL1', 'batchsize', 4, 'minbatchsize', 2,
                             'BLOB', torch_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -108,7 +108,7 @@ def test_torch_model_serialization(env):
         # Reinsert the model (without minbatch)
         con.execute_command('AI.MODELSTORE', key_name, 'TORCH', DEVICE, 'TAG', 'PT_MINIMAL2', 'batchsize', 4,
                             'BLOB', torch_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -117,7 +117,7 @@ def test_torch_model_serialization(env):
         # Reinsert the model (without batching)
         con.execute_command('AI.MODELSTORE', key_name, 'TORCH', DEVICE, 'TAG', 'PT_MINIMAL3',
                             'BLOB', torch_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -144,7 +144,7 @@ def test_torch_script_serialization(env):
         con.execute_command('AI.SCRIPTSTORE', key_name, DEVICE, 'TAG', 'TORCH_SCRIPT', 'ENTRY_POINTS', 2, 'bar', 'bar_variadic', 'SOURCE', torch_script)
 
         # Redis should save the stored script by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, device, _, tag, _, entry_points = con.execute_command("AI.SCRIPTGET", key_name, "META")
         env.assertEqual([device, tag, entry_points], [DEVICE.encode(), b"TORCH_SCRIPT", [b'bar', b'bar_variadic']])
         torch_script_run(env, key_name)
@@ -165,7 +165,7 @@ def test_onnx_serialization(env):
         con.execute_command('AI.MODELSTORE', key_name, 'ONNX', DEVICE, 'TAG', 'ONNX_LINEAR_IRIS', 'batchsize', 4, 'minbatchsize', 2,
                             'minbatchtimeout', 1000, 'BLOB', onnx_model)
         # Redis should save the stored model by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout\
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -175,7 +175,7 @@ def test_onnx_serialization(env):
         # Reinsert the model (without minbatchtimeout)
         con.execute_command('AI.MODELSTORE', key_name, 'ONNX', DEVICE, 'TAG', 'ONNX_LINEAR_IRIS1', 'batchsize', 4,
                             'minbatchsize', 2, 'BLOB', onnx_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -184,7 +184,7 @@ def test_onnx_serialization(env):
         # Reinsert the model (without minbatch)
         con.execute_command('AI.MODELSTORE', key_name, 'ONNX', DEVICE, 'TAG', 'ONNX_LINEAR_IRIS2', 'batchsize', 4,
                             'BLOB', onnx_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -193,7 +193,7 @@ def test_onnx_serialization(env):
         # Reinsert the model (without batching)
         con.execute_command('AI.MODELSTORE', key_name, 'ONNX', DEVICE, 'TAG', 'ONNX_LINEAR_IRIS3',
                             'BLOB', onnx_model)
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, backend, _, device, _, tag, _, batchsize, _, minbatchsize, _ , inputs, _, outputs, _, minbatchtimeout \
             = con.execute_command("AI.MODELGET", key_name, "META")
         env.assertEqual([backend, device, tag, batchsize, minbatchsize, minbatchtimeout, inputs, outputs],
@@ -205,7 +205,7 @@ def test_tensor_serialization(env):
         con = get_connection(env, key_name)
         con.execute_command('AI.TENSORSET', key_name, 'INT32', 2, 1, 'VALUES', 1, 2)
         # Redis should save the stored tensor by calling the AOF rewrite callback and then reload from AOF.
-        env.restartAndReload()
+        env.restartAndReload(timeout_sec=120)
         _, tensor_type, _, tensor_shape = con.execute_command('AI.TENSORGET', key_name, 'META')
         env.assertEqual([tensor_type, tensor_shape], [b"INT32", [2, 1]])
         values = con.execute_command('AI.TENSORGET', key_name, 'VALUES')
