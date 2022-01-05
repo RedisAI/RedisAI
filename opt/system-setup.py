@@ -27,13 +27,9 @@ class RedisAISetup(paella.Setup):
     def debian_compat(self):
         self.run("%s/bin/enable-utf8" % READIES)
         self.run("%s/bin/getgcc" % READIES)
-        self.install("gawk")
-        self.install("libssl-dev")
-        self.install("python3-regex")
-        self.install("python3-networkx python3-numpy")
+        self.install("gawk libssl-dev python3-regex python3-networkx libmpich-dev libopenblas-dev")
         if self.platform.is_arm():
             self.install("python3-dev") # python3-skimage
-        self.install("libmpich-dev libopenblas-dev") # for libtorch
         self.install_git_lfs_on_linux()
 
     def redhat_compat(self):
