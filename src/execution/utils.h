@@ -11,13 +11,12 @@ bool VerifyKeyInThisShard(RedisModuleCtx *ctx, RedisModuleString *key_str);
 /**
  * Use this function when loading the model. Stores the version in global variables.
  */
-void setRedisVersion();
+void RedisAI_SetRedisVersion();
 
 /**
- * Returns redis version in the pre-allocated version_holder array as following: (major, minor,
- * patch).
+ * Returns redis version in the major, minor, and patch placeholders.
  */
-void getRedisVersion(int *version_holder);
+void RedisAI_GetRedisVersion(int *major, int *minor, int *patch);
 
 /**
  * Returns true if Redis is running in enterprise mode.

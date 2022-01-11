@@ -72,10 +72,10 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RedisModule_UnblockClient(rinfo->client, rinfo);
         return REDISMODULE_ERR;
     }
-    int redis_version[3];
-    getRedisVersion(redis_version);
-    if (redis_version[0] >= 6 &&
-        redis_version[1] >= 2) { // The following command is supported only from redis 6.2
+    int major, minor, patch;
+    RedisAI_GetRedisVersion(&major, &minor, &patch);
+    // The following command is supported only from redis 6.2
+    if (major > 6 || (major == 6 && minor >= 2)) {
         RedisModule_BlockedClientMeasureTimeStart(rinfo->client);
     }
     return REDISMODULE_OK;

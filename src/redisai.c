@@ -1274,7 +1274,7 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 #endif
 
-    setRedisVersion();
+    RedisAI_SetRedisVersion();
     RedisModule_Log(ctx, "notice", "Redis version found by RedisAI: %d.%d.%d - %s",
                     redisMajorVersion, redisMinorVersion, redisPatchVersion,
                     IsEnterprise() ? "enterprise" : "oss");
