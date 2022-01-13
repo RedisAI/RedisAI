@@ -39,6 +39,7 @@
 #include "util/dict.h"
 #include "util/queue.h"
 #include "util/string_utils.h"
+#include "execution/utils.h"
 #include "execution/run_info.h"
 #include "execution/background_workers.h"
 #include "execution/parsing/dag_parser.h"
@@ -685,8 +686,10 @@ void DAG_ReplyAndUnblock(RedisAI_OnFinishCtx *ctx, void *private_data) {
 
     RedisAI_RunInfo *rinfo = (RedisAI_RunInfo *)ctx;
     if (rinfo->client) {
-        if (RedisModule_GetServerVersion() >=
-            0x060200) { // The following command is supported only from redis 6.2
+        int major, minor, patch;
+        RedisAI_GetRedisVersion(&major, &minor, &patch);
+        // The following command is supported only from redis 6.2
+        if (major > 6 || (major == 6 && minor >= 2)) {
             RedisModule_BlockedClientMeasureTimeEnd(rinfo->client);
         }
         RedisModule_UnblockClient(rinfo->client, rinfo);

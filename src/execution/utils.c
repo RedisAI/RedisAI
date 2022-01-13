@@ -10,7 +10,7 @@ int rlecMinorVersion;
 int rlecPatchVersion;
 int rlecBuild;
 
-void getRedisVersion() {
+void RedisAI_SetRedisVersion() {
     RedisModuleCtx *ctx = RedisModule_GetThreadSafeContext(NULL);
     RedisModuleCallReply *reply = RedisModule_Call(ctx, "info", "c", "server");
     assert(RedisModule_CallReplyType(reply) == REDISMODULE_REPLY_STRING);
@@ -37,6 +37,12 @@ void getRedisVersion() {
 
     RedisModule_FreeCallReply(reply);
     RedisModule_FreeThreadSafeContext(ctx);
+}
+
+void RedisAI_GetRedisVersion(int *major, int *minor, int *patch) {
+    *major = redisMajorVersion;
+    *minor = redisMinorVersion;
+    *patch = redisPatchVersion;
 }
 
 bool IsEnterprise() { return rlecMajorVersion != -1; }

@@ -1,5 +1,6 @@
 #include "command_parser.h"
 #include "redismodule.h"
+#include "execution/utils.h"
 #include "execution/run_info.h"
 #include "execution/DAG/dag.h"
 #include "execution/parsing/dag_parser.h"
@@ -71,8 +72,10 @@ int RedisAI_ExecuteCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int ar
         RedisModule_UnblockClient(rinfo->client, rinfo);
         return REDISMODULE_ERR;
     }
-    if (RedisModule_GetServerVersion() >=
-        0x060200) { // The following command is supported only from redis 6.2
+    int major, minor, patch;
+    RedisAI_GetRedisVersion(&major, &minor, &patch);
+    // The following command is supported only from redis 6.2
+    if (major > 6 || (major == 6 && minor >= 2)) {
         RedisModule_BlockedClientMeasureTimeStart(rinfo->client);
     }
     return REDISMODULE_OK;
