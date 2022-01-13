@@ -735,7 +735,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
             ctx, "ERR Insufficient arguments, missing script entry points");
     }
 
-    array_new_on_stack(const char *, nEntryPoints, entryPoints);
+    const char **entryPoints = array_new(const char *, nEntryPoints);
     for (size_t i = 0; i < nEntryPoints; i++) {
         const char *entryPoint;
         if (AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
@@ -775,7 +775,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
         script =
             RAI_ScriptCompile(devicestr, tag, scriptdef, entryPoints, (size_t)nEntryPoints, &err);
     }
-
+    array_free(entryPoints);
     if (err.code != RAI_OK) {
         int ret = RedisModule_ReplyWithError(ctx, err.detail_oneline);
         RAI_ClearError(&err);
