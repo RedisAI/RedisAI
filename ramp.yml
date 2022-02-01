@@ -18,6 +18,7 @@ capabilities:
     - clustering
     - backup_restore
     - intershard_tls
+    - intershard_tls_pass
 exclude_commands:
     - ai.modelstore
     - ai.modelset
