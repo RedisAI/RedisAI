@@ -15,7 +15,7 @@ FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{cuda_suffix_os}}
 {% if REDIS_OSNICK == "xenial" %}
 FROM ubuntu:xenial
 {% elif REDIS_OSNICK == "bionic" %}
-FROM ubuntu:bionic
+FROM ubuntu:18.04
 {% endif %}
 {% endif %}
 {% endif %}
