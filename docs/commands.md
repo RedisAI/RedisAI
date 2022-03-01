@@ -522,7 +522,7 @@ def addtwo(tensors: List[Tensor], keys: List[str], args: List[str]):
 It can be stored as a RedisAI script using the CPU device with [`redis-cli`](https://redis.io/topics/rediscli) as follows:
 
 ```
-$ cat addtwo.py | redis-cli -x AI.SCRIPTSET myscript CPU TAG myscript:v0.1 ENTRY_POINTS 1 addtwo SOURCE
+$ cat addtwo.py | redis-cli -x AI.SCRIPTSTORE myscript CPU TAG myscript:v0.1 ENTRY_POINTS 1 addtwo SOURCE
 OK
 ```
 
