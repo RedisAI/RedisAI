@@ -202,7 +202,7 @@ def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
     def tmpfn():
-        con = env.getConnectionByKey(routing_hint, None)
+        con = env.getConnectionByKey(routing_hint, 'SET')
         fn(con, *args)
         return 1
 
@@ -222,12 +222,12 @@ def load_file_content(file_name):
         return f.read()
 
 
-def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False):
+def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False, error_type=redis.exceptions.ResponseError):
     try:
         con.execute_command(*command)
         env.assertFalse(True, message=get_caller_pos())
     except Exception as exception:
-        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+        env.assertEqual(type(exception), error_type, message=get_caller_pos())
         if error_msg_is_substr:
             # We only verify that the given error_msg is a substring of the entire error message.
             env.assertTrue(str(exception).find(error_msg) >= 0, message=get_caller_pos())
@@ -235,13 +235,13 @@ def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False
             env.assertEqual(error_msg, str(exception), message=get_caller_pos())
 
 
-def check_error(env, con, *command):
+def check_error(env, con, *command, error_type=redis.exceptions.ResponseError):
     try:
         con.execute_command(*command)
         env.assertFalse(True, message=get_caller_pos())
     except Exception as e:
         exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+        env.assertTrue(issubclass(type(exception), error_type), message=get_caller_pos())
 
 
 # Returns a dict with all the fields of a certain section from INFO MODULES command
