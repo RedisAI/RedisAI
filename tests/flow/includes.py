@@ -253,4 +253,4 @@ def get_info_section(con, section):
 
 
 def get_connection(env, routing_hint):
-    return env.getConnectionByKey(routing_hint, None)
+    return env.getConnectionByKey(routing_hint, 'SET')
