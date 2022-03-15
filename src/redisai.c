@@ -739,6 +739,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     for (size_t i = 0; i < nEntryPoints; i++) {
         const char *entryPoint;
         if (AC_GetString(&ac, &entryPoint, NULL, 0) != AC_OK) {
+            array_free(entryPoints);
             return RedisModule_ReplyWithError(
                 ctx, "ERR Insufficient arguments, missing script entry points");
         }
@@ -753,6 +754,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     }
 
     if (scriptdef == NULL) {
+        array_free(entryPoints);
         return RedisModule_ReplyWithError(ctx, "ERR Insufficient arguments, missing script SOURCE");
     }
 
@@ -766,6 +768,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
                         "Backend TORCH not loaded, will try loading default backend");
         int ret = RAI_LoadDefaultBackend(ctx, RAI_BACKEND_TORCH);
         if (ret == REDISMODULE_ERR) {
+            array_free(entryPoints);
             RedisModule_Log(ctx, "warning", "Could not load TORCH default backend");
             int ret = RedisModule_ReplyWithError(ctx, "ERR Could not load backend");
             RAI_ClearError(&err);
