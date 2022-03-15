@@ -1,6 +1,6 @@
 numpy>=1.19
 scikit-image
 redisai
-redis>=4.1.4
-rltest>=0.5.0
-ramp-packer>=2.3.0
+redis~=4.1.4
+rltest~=0.5.0
+ramp-packer~=2.3.0
