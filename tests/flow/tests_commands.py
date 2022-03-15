@@ -147,10 +147,10 @@ def test_modelexecute_errors(env):
 
     # The following 2 commands should raise an error on cluster mode (keys are not on the same shard)
     if env.isCluster():
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot",
-                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b', 'OUTPUTS', 1, 'c{1}')
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot",
-                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c')
+        check_error_message(env, con, "Keys in request don't hash to the same slot",
+                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
+        check_error_message(env, con, "Keys in request don't hash to the same slot",
+                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c', error_type=redis.exceptions.ClusterCrossSlotError)
 
 
 def test_keys_syntax(env):
@@ -319,10 +319,10 @@ def test_pytorch_scriptexecute_errors(env):
 
     if env.isCluster():
         # cross shard
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        check_error_message(env, con, "Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
 
         # key doesn't exist
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}')
+        check_error_message(env, con, "Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
 
 
 def test_pytorch_scriptexecute_variadic_errors(env):

@@ -213,7 +213,7 @@ def test_dag_crossslot_violation_errors(env):
             'PERSIST', '1', 'resultTensor:{2}', '|>',
             'AI.TENSORSET', 'resultTensor:{2}', 'FLOAT', 1, 30,
         )
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
+        check_error_message(env, con, "Keys in request don't hash to the same slot", *command, error_type=redis.exceptions.ClusterCrossSlotError)
 
         # ERR CROSSSLOT violation (model key has a different hash tag than the LOAD and PERSIST tensors)
         command = (
@@ -224,7 +224,7 @@ def test_dag_crossslot_violation_errors(env):
             'INPUTS', 1, 'transactionTensor:{1}',
             'OUTPUTS', 1, 'resultTensor:{1}',
         )
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
+        check_error_message(env, con, "Keys in request don't hash to the same slot", *command, error_type=redis.exceptions.ClusterCrossSlotError)
 
         command = (
             'AI.DAGEXECUTE', 'LOAD', '1', 'referenceTensor:{1}',
@@ -235,7 +235,7 @@ def test_dag_crossslot_violation_errors(env):
             'INPUTS', 1, 'transactionTensor:{1}',
             'OUTPUTS', 1, 'resultTensor:{1}',
         )
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", *command)
+        check_error_message(env, con, "Keys in request don't hash to the same slot", *command, error_type=redis.exceptions.ClusterCrossSlotError)
 
 
 def test_dag_tensorget_tensorset_errors(env):
