@@ -18,7 +18,7 @@
 static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                       RAI_Model **model, RAI_Error *error,
                                       RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                      RedisModuleString **runkey, long long *timeout) {
+                                      long long *timeout) {
 
     if (argc < 6) {
         RAI_SetError(error, RAI_EMODELRUN,
@@ -30,8 +30,6 @@ static int _ModelRunCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModule
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    RAI_HoldString(argv[argpos]);
-    *runkey = argv[argpos];
     const char *arg_string = RedisModule_StringPtrLen(argv[++argpos], NULL);
 
     // Parse timeout arg if given and store it in timeout
@@ -87,8 +85,7 @@ int ParseModelRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisModu
     RAI_Model *model;
     long long timeout = 0;
     if (_ModelRunCommand_ParseArgs(ctx, argc, argv, &model, rinfo->err, &currentOp->inkeys,
-                                   &currentOp->outkeys, &currentOp->runkey,
-                                   &timeout) == REDISMODULE_ERR) {
+                                   &currentOp->outkeys, &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
 
@@ -305,7 +302,6 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
         return ret;
     }
 
-    // TODO: if backend loaded, make sure there's a queue
     if (!RunQueue_IsExists(devicestr)) {
         RunQueueInfo *run_queue_info = RunQueue_Create(devicestr);
         if (run_queue_info == NULL) {
@@ -332,12 +328,12 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
-    model->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_MODEL, backend, devicestr, tag);
+    RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_MODEL, backend, devicestr, tag);
+    RAI_StatsStore(keystr, stats);
+    model->info = stats;
 
     RedisModule_CloseKey(key);
-
     RedisModule_ReplyWithSimpleString(ctx, "OK");
-
     RedisModule_ReplicateVerbatim(ctx);
 
     return REDISMODULE_OK;
@@ -423,12 +419,12 @@ int ScriptSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
     RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
-    script->infokey = RAI_AddStatsEntry(ctx, keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
+    RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
+    RAI_StatsStore(keystr, stats);
+    script->info = stats;
 
     RedisModule_CloseKey(key);
-
     RedisModule_ReplyWithSimpleString(ctx, "OK");
-
     RedisModule_ReplicateVerbatim(ctx);
 
     return REDISMODULE_OK;
@@ -536,7 +532,6 @@ int ParseScriptRunCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, RedisMod
     if (!script) {
         goto cleanup;
     }
-    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(argv[1]));
 
     const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
     if (!func_name) {

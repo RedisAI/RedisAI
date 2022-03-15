@@ -2,9 +2,11 @@
 #include "redismodule.h"
 #include "util/arr.h"
 
-void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_ExecutionCtx_Free_fn freeFn) {
+void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_RunStats *run_stats,
+                           RAI_ExecutionCtx_Free_fn freeFn) {
     ctx->inputs = array_new(RAI_Tensor *, 10);
     ctx->outputs = array_new(RAI_Tensor *, 10);
+    ctx->runStats = run_stats;
     ctx->freeFn = freeFn;
 }
 void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
@@ -21,6 +23,7 @@ void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
 }
 
 inline size_t RAI_ExecutionCtx_NumInputs(RAI_ExecutionCtx *ctx) { return array_len(ctx->inputs); }
+
 inline void RAI_ExecutionCtx_AddInput(RAI_ExecutionCtx *ctx, RAI_Tensor *t) {
     if (t != NULL) {
         t = RAI_TensorGetShallowCopy(t);
@@ -35,7 +38,7 @@ inline RAI_Tensor *RAI_ExecutionCtx_GetInput(RAI_ExecutionCtx *ctx, size_t index
 
 inline size_t RAI_ExecutionCtx_NumOutputs(RAI_ExecutionCtx *ctx) { return array_len(ctx->outputs); }
 
-inline void RAI_ExecutionCtx_AddOuputPlaceholder(RAI_ExecutionCtx *ctx) {
+inline void RAI_ExecutionCtx_AddOutputPlaceholder(RAI_ExecutionCtx *ctx) {
     ctx->outputs = array_append(ctx->outputs, NULL);
 }
 
@@ -48,3 +51,5 @@ inline RAI_Tensor *RAI_ExecutionCtx_GetOutput(RAI_ExecutionCtx *ctx, size_t inde
     RedisModule_Assert(index < array_len(ctx->outputs));
     return ctx->outputs[index];
 }
+
+inline RAI_RunStats *RAI_ExecutionCtx_GetStats(RAI_ExecutionCtx *ctx) { return ctx->runStats; }

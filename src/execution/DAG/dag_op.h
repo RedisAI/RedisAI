@@ -18,7 +18,6 @@ typedef enum DAGCommand {
 
 typedef struct RAI_DagOp {
     DAGCommand commandType;
-    RedisModuleString *runkey;
     RedisModuleString **inkeys;
     RedisModuleString **outkeys;
     size_t *inkeys_indices;
@@ -48,12 +47,3 @@ int RAI_InitDagOp(RAI_DagOp **result);
  * @param RAI_DagOp context in which RedisAI command operates.
  */
 void RAI_FreeDagOp(RAI_DagOp *dagOp);
-
-/**
- * @brief Sets the key name of current dag op execution subject. The subject is either a model or a
- * script.
- *
- * @param dagOp Current op.
- * @param runkey Subject key name.
- */
-void RAI_DagOpSetRunKey(RAI_DagOp *dagOp, RedisModuleString *runkey);

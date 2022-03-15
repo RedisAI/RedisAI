@@ -2,6 +2,7 @@
 
 #include "config/config.h"
 #include "tensor_struct.h"
+#include "redis_ai_objects/stats.h"
 #include "util/dict.h"
 
 typedef enum {
@@ -26,6 +27,6 @@ typedef struct RAI_Script {
     char *devicestr;
     RedisModuleString *tag;
     long long refCount;
-    void *infokey;
+    RAI_RunStats *info;
     char **entryPoints;
 } RAI_Script;

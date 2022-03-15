@@ -13,19 +13,17 @@
 #include "redismodule.h"
 #include "util/dict.h"
 
-struct RedisAI_RunStats {
+typedef struct RAI_RunStats {
     RedisModuleString *key;
     RAI_RunType type;
     RAI_Backend backend;
-    char *devicestr;
+    char *device_str;
     RedisModuleString *tag;
-    long long duration_us;
-    long long samples;
-    long long calls;
-    long long nerrors;
-};
-
-AI_dict *run_stats;
+    unsigned long duration_us;
+    unsigned long samples;
+    unsigned long calls;
+    unsigned long n_errors;
+} RAI_RunStats;
 
 long long ustime(void);
 mstime_t mstime(void);
@@ -34,66 +32,69 @@ mstime_t mstime(void);
  * Adds an entry to the ephemeral run-time statistic. The statistics are not
  * saved to the keyspace, and on maximum live for the duration of the DB uptime.
  *
- * @param ctx Context in which Redis modules operate
- * @param keyName key name to use as unique stats identifier
+ * @param key key name to use as unique stats identifier
  * @param type type of stats identifier ( one of RAI_MODEL or RAI_SCRIPT )
  * @param backend backend identifier (one of RAI_BACKEND_TENSORFLOW,
  * RAI_BACKEND_TFLITE, RAI_BACKEND_TORCH, RAI_BACKEND_ONNXRUNTIME,)
- * @param devicestr
+ * @param device_str device to execute the model on (CPU, GPU, ...)
  * @param tag optional tag of Model/Script
- * @return
+ * @return A newly heap allocated RedisAI_RunStats object with the given fields.
  */
-void *RAI_AddStatsEntry(RedisModuleCtx *ctx, RedisModuleString *key, RAI_RunType type,
-                        RAI_Backend backend, const char *devicestr, RedisModuleString *tag);
+RAI_RunStats *RAI_StatsCreate(RedisModuleString *key, RAI_RunType type, RAI_Backend backend,
+                              const char *device_str, RedisModuleString *tag);
 
 /**
- * Removes the statistical entry with the provided unique stats identifier
+ * Adds an entry to the ephemeral run-time statistic. The statistics are not
+ * saved to the keyspace, and on maximum live for the duration of the DB uptime.
  *
- * @param infokey
+ * @param keyName key name to use as unique stats identifier.
+ * @param run_stats_entry RunStats entry pointer to store.
  */
-void RAI_RemoveStatsEntry(void *infokey);
+void RAI_StatsStore(RedisModuleString *key, RAI_RunStats *run_stats_entry);
+
+/**
+ * @brief: Removes the statistical entry with the provided unique stats identifier
+ * @param info_key
+ */
+void RAI_StatsRemoveEntry(void *info_key);
 
 /**
  * Returns a list of all statistical entries that match a specific RAI_RunType (
- * model or script )
- *
- * @param type type of stats identifier to provide the list for ( one of
- * RAI_MODEL or RAI_SCRIPT )
- * @param nkeys output variable containing the number of returned stats
- * @param keys output variable containing the list of returned keys
- * @param tags output variable containing the list of returned tags
+ * model or script).
+ * @param type type of stats identifier to provide the list for (one of
+ * RAI_MODEL or RAI_SCRIPT).
+ * @param nkeys output variable containing the number of returned stats.
+ * @param keys output variable containing the list of returned keys.
+ * @param tags output variable containing the list of returned tags.
  */
-void RAI_ListStatsEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,
-                          RedisModuleString ***tags);
+void RAI_StatsGetAllEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,
+                            RedisModuleString ***tags);
 
 /**
- *
- * @param rstats
- * @return 0 on success, or 1 if the reset failed
+ * @brief Reset atomically counters for a given run_stats of some model/script.
+ * @param run_stats entry to reset.
  */
-int RAI_ResetRunStats(struct RedisAI_RunStats *rstats);
+void RAI_StatsReset(RAI_RunStats *run_stats);
 
 /**
- * Safely add datapoint to the run stats. Protected against null pointer
- * runstats
- * @param rstats
- * @param duration
- * @param calls
- * @param errors
- * @param samples
- * @return 0 on success, or 1 if the addition failed
+ * Update atomically stats counters after execution.
+ * @param r_stats runStats entry that matches some model/script.
+ * @param duration execution runtime in us
+ * @param calls number of calls to the underline model/script operation.
+ * @param errors number of errors that had occurred.
+ * @param samples number of samples that the model execute (batch size)
  */
-int RAI_SafeAddDataPoint(struct RedisAI_RunStats *rstats, long long duration, long long calls,
-                         long long errors, long long samples);
+void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsigned long calls,
+                           unsigned long errors, unsigned long samples);
 
-void RAI_FreeRunStats(struct RedisAI_RunStats *rstats);
+void RAI_StatsFree(RAI_RunStats *r_stats);
 
 /**
- *
- * @param runkey
- * @param rstats
- * @return 0 on success, or 1 if the the run stats with runkey does not exist
+ * @brief Retrieve the run stats info of run_key from the global RunStat dictionary and set it in
+ * r_stats.
+ * @param run_key module/script key name
+ * @param run_stats Place-holder for the RAI_RunStats object that is associated with the key.
+ * @return REDISMODULE_OK on success, REDISMODULE_ERR if the the run stats with run_key does not
+ * exist.
  */
-int RAI_GetRunStats(RedisModuleString *runkey, struct RedisAI_RunStats **rstats);
-
-void RedisAI_FreeRunStats(RedisModuleCtx *ctx, struct RedisAI_RunStats *rstats);
+int RAI_StatsGetEntry(RedisModuleString *run_key, RAI_RunStats **r_stats);

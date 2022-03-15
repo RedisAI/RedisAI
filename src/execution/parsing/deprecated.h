@@ -6,7 +6,7 @@
 /**
  * @brief  Parse and validate MODELRUN command: create a modelRunCtx based on the model obtained
  * from the key space and save it in the op. The keys of the input and output tensors are stored in
- * the op's inkeys and outkeys arrays, the model key is saved in op's runkey, and the given timeout
+ * the op's inkeys and outkeys arrays, and the given timeout
  * is saved as well (if given, otherwise it is zero).
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */

@@ -100,7 +100,9 @@ void *RAI_RDBLoadModel_v1(RedisModuleIO *io) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
 
-    model->infokey = RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_MODEL, backend, devicestr, tag);
+    RAI_RunStats *stats = RAI_StatsCreate(stats_keystr, RAI_MODEL, backend, devicestr, tag);
+    RAI_StatsStore(stats_keystr, stats);
+    model->info = stats;
 
     for (size_t i = 0; i < ninputs; i++) {
         RedisModule_Free((void *)inputs[i]);
@@ -185,8 +187,10 @@ void *RAI_RDBLoadScript_v1(RedisModuleIO *io) {
     RedisModuleString *stats_keystr =
         RedisModule_CreateStringFromString(stats_ctx, RedisModule_GetKeyNameFromIO(io));
 
-    script->infokey =
-        RAI_AddStatsEntry(stats_ctx, stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
+    RAI_RunStats *stats =
+        RAI_StatsCreate(stats_keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
+    RAI_StatsStore(stats_keystr, stats);
+    script->info = stats;
 
     RedisModule_FreeString(NULL, stats_keystr);
     RedisModule_FreeString(NULL, tag);
