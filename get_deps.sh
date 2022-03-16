@@ -199,11 +199,8 @@ if [[ $OS == linux ]]; then
     else
         echo "Only x64 is supported currently"
     fi
-    if [[ $GPU != 1 ]]; then
-        LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-    else
-        LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-    fi
+    LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
+
 elif [[ $OS == macos ]]; then
     PT_OS=macos
     PT_ARCH=x86_64
