@@ -150,6 +150,9 @@ int RAI_llapi_modelRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     const char *keyNameStr = "m{1}";
     RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
+    if (!key) {
+        return RedisModule_ReplyWithError(ctx, "ERR model key is empty");
+    }
     RAI_Model *model = RedisModule_ModuleTypeGetValue(key);
     RAI_ModelRunCtx *mctx = RedisAI_ModelRunCtxCreate(model);
     RedisModule_FreeString(ctx, keyRedisStr);

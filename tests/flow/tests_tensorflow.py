@@ -630,7 +630,7 @@ def test_tensorflow_modelrun_financialNet_multiproc(env):
 
     t = time.time()
     run_test_multiproc(env, '{1}', 10,
-                       lambda env: functor_financialNet(env, MAX_TRANSACTIONS, 100) )
+                       lambda env, i: functor_financialNet(env, MAX_TRANSACTIONS, 100) )
     elapsed_time = time.time() - t
     total_ops = len(transaction_tensor)*100
     avg_ops_sec = total_ops/elapsed_time

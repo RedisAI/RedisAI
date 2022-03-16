@@ -3,6 +3,7 @@ import redis
 from includes import *
 import os
 from functools import wraps
+from RLTest import Env
 
 '''
 python -m RLTest --test tests_llapi.py --module path/to/redisai.so
@@ -11,6 +12,7 @@ python -m RLTest --test tests_llapi.py --module path/to/redisai.so
 def with_test_module(f):
     @wraps(f)
     def wrapper(env, *args, **kwargs):
+        env = Env(moduleArgs='THREADS_PER_QUEUE 8')
         con = get_connection(env, '{1}')
         modules = con.execute_command("MODULE", "LIST")
         if b'RAI_llapi' in [module[1] for module in modules]:
@@ -126,11 +128,11 @@ def test_dag_build_and_run(env):
     env.assertEqual(ret, b'DAG run success')
 
     # Run the DAG LLAPI test again with multiprocess test to ensure that there are no deadlocks
-    executions_num = 500
+    executions_num = 100
     if VALGRIND:
         executions_num = 10
 
-    def run_dag_llapi(con):
+    def run_dag_llapi(con, i):
         con.execute_command("RAI_llapi.DAGrun")
 
     run_test_multiproc(env, '{1}', executions_num, run_dag_llapi)
