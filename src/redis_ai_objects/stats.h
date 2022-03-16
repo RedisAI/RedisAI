@@ -80,7 +80,7 @@ void RAI_StatsStoreEntry(RedisModuleString *key, RAI_RunStats *run_stats_entry);
  * @brief: Removes the statistical entry with the provided unique stats identifier
  * @param info_key
  */
-void RAI_StatsRemoveEntry(void *info_key);
+void RAI_StatsRemoveEntry(RedisModuleString *info_key);
 
 /**
  * Returns a list of all statistical entries that match a specific RAI_RunType (
