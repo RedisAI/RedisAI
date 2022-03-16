@@ -349,7 +349,7 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(values, [b'2', b'3', b'2', b'3'])
 
     def test_modelexecute_op(self):
-        executions_num = 500
+        executions_num = 100
 
         if VALGRIND:
             executions_num = 10
