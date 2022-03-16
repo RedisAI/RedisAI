@@ -375,7 +375,7 @@ int RedisAI_ModelStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **arg
 
     RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
     RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_MODEL, backend, devicestr, tag);
-    RAI_StatsStore(keystr, stats);
+    RAI_StatsStoreEntry(keystr, stats);
     model->info = stats;
 
     RedisModule_CloseKey(key);
@@ -803,7 +803,7 @@ int RedisAI_ScriptStore_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **ar
     RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
     RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
-    RAI_StatsStore(keystr, stats);
+    RAI_StatsStoreEntry(keystr, stats);
     script->info = stats;
 
     RedisModule_CloseKey(key);

@@ -329,7 +329,7 @@ int ModelSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModule_ModuleTypeSetValue(key, RAI_ModelRedisType(), model);
 
     RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_MODEL, backend, devicestr, tag);
-    RAI_StatsStore(keystr, stats);
+    RAI_StatsStoreEntry(keystr, stats);
     model->info = stats;
 
     RedisModule_CloseKey(key);
@@ -420,7 +420,7 @@ int ScriptSetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     RedisModule_ModuleTypeSetValue(key, RAI_ScriptRedisType(), script);
 
     RAI_RunStats *stats = RAI_StatsCreate(keystr, RAI_SCRIPT, RAI_BACKEND_TORCH, devicestr, tag);
-    RAI_StatsStore(keystr, stats);
+    RAI_StatsStoreEntry(keystr, stats);
     script->info = stats;
 
     RedisModule_CloseKey(key);

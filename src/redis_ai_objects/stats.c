@@ -38,7 +38,41 @@ RAI_RunStats *RAI_StatsCreate(RedisModuleString *key, RAI_RunType type, RAI_Back
     return r_stats;
 }
 
-void RAI_StatsStore(RedisModuleString *key, RAI_RunStats *run_stats_entry) {
+void RAI_StatsReset(RAI_RunStats *r_stats) {
+    RedisModule_Assert(r_stats);
+    __atomic_store_n(&r_stats->duration_us, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&r_stats->samples, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&r_stats->calls, 0, __ATOMIC_RELAXED);
+    __atomic_store_n(&r_stats->n_errors, 0, __ATOMIC_RELAXED);
+}
+
+void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsigned long calls,
+                           unsigned long errors, unsigned long samples) {
+    RedisModule_Assert(r_stats);
+    __atomic_add_fetch(&r_stats->duration_us, duration, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&r_stats->calls, calls, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&r_stats->n_errors, errors, __ATOMIC_RELAXED);
+    __atomic_add_fetch(&r_stats->samples, samples, __ATOMIC_RELAXED);
+}
+
+void RAI_StatsFree(RAI_RunStats *r_stats) {
+    if (r_stats) {
+        if (r_stats->device_str) {
+            RedisModule_Free(r_stats->device_str);
+        }
+        if (r_stats->tag) {
+            RedisModule_FreeString(NULL, r_stats->tag);
+        }
+        if (r_stats->key) {
+            RedisModule_FreeString(NULL, r_stats->key);
+        }
+        RedisModule_Free(r_stats);
+    }
+}
+
+/************************************* Global RunStats dict API *********************************/
+
+void RAI_StatsStoreEntry(RedisModuleString *key, RAI_RunStats *run_stats_entry) {
     AI_dictAdd(RunStats, (void *)key, (void *)run_stats_entry);
 }
 
@@ -73,38 +107,6 @@ void RAI_StatsRemoveEntry(void *info_key) {
         RAI_RunStats *r_stats = AI_dictGetVal(stats_entry);
         AI_dictDelete(RunStats, info_key);
         RAI_StatsFree(r_stats);
-    }
-}
-
-void RAI_StatsReset(RAI_RunStats *r_stats) {
-    RedisModule_Assert(r_stats);
-    __atomic_store_n(&r_stats->duration_us, 0, __ATOMIC_RELAXED);
-    __atomic_store_n(&r_stats->samples, 0, __ATOMIC_RELAXED);
-    __atomic_store_n(&r_stats->calls, 0, __ATOMIC_RELAXED);
-    __atomic_store_n(&r_stats->n_errors, 0, __ATOMIC_RELAXED);
-}
-
-void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsigned long calls,
-                           unsigned long errors, unsigned long samples) {
-    RedisModule_Assert(r_stats);
-    __atomic_add_fetch(&r_stats->duration_us, duration, __ATOMIC_RELAXED);
-    __atomic_add_fetch(&r_stats->calls, calls, __ATOMIC_RELAXED);
-    __atomic_add_fetch(&r_stats->n_errors, errors, __ATOMIC_RELAXED);
-    __atomic_add_fetch(&r_stats->samples, samples, __ATOMIC_RELAXED);
-}
-
-void RAI_StatsFree(RAI_RunStats *r_stats) {
-    if (r_stats) {
-        if (r_stats->device_str) {
-            RedisModule_Free(r_stats->device_str);
-        }
-        if (r_stats->tag) {
-            RedisModule_FreeString(NULL, r_stats->tag);
-        }
-        if (r_stats->key) {
-            RedisModule_FreeString(NULL, r_stats->key);
-        }
-        RedisModule_Free(r_stats);
     }
 }
 
