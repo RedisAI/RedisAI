@@ -378,34 +378,39 @@ def test_ai_info_multiproc(env):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
-    # This routine will run in parallel - for 50 times this will store the model, get the
-    # current info status, run the model and delete it. Note that there may be a case where the model is deleted
-    # by another parallel client - then we will get a specific Response error message.
-    def run_parallel(con, id, cmd, expected_res, conns, iterations_num, with_delete):
+    # This routine will run in parallel - for 'iterations_num' times, execute a command and get the current info
+    # status. If 'multiple_models' is set, every parallel client will create, run and remove a different model
+    # (using a unique key), to test the proper synchronization of the global RunStats dict.
+    def run_parallel(con, id, cmd, expected_res, conns, iterations_num, multiple_models):
         my_conn = conns[id]
         total_success_num = 0
+        model_key_name = 'm{1}'
+        if multiple_models:
+            model_key_name = str(id)+'_m{1}'
+            cmd += ' '+model_key_name  # Append the model key name as the second arg to be sent to LLAPI module command
         # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution command,
         # where both read/write (atomically) to same counters and to the same RunStats entry.
         for i in range(iterations_num):
-            if with_delete:
-                ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+            if multiple_models:
+                ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
                                           'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
                 env.assertEqual(ret, b'OK')
             try:
                 env.assertEqual(con.execute_command(cmd), expected_res)
+                info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+                env.assertTrue(info['calls'] >= 1)
                 total_success_num += 1
-                if with_delete:
-                    info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+                if multiple_models:
                     env.assertEqual(info['calls'], 2*info['errors'])
-                    con.execute_command('AI.INFO', 'm{1}', 'RESETSTAT')
-                    ret = con.execute_command('AI.MODELDEL', 'm{1}')
+                    con.execute_command('AI.INFO', model_key_name, 'RESETSTAT')
+                    ret = con.execute_command('AI.MODELDEL', model_key_name)
                     env.assertEqual(ret, b'OK')
             except Exception as e:
                 env.assertEqual(type(e), redis.exceptions.ResponseError)
                 env.assertTrue("model key is empty" == str(e) or "cannot find run info for key" == str(e))
         my_conn.send(total_success_num)
 
-    def run_model_execute_multiproc(cmd, response, with_delete=False, num_clients=50, num_iterations=50):
+    def run_model_execute_multiproc(cmd, response, multiple_models=False, num_clients=50, num_iterations=50):
         parent_conns = []
         child_conns = []
 
@@ -417,21 +422,21 @@ def test_ai_info_multiproc(env):
 
         # This command in test module runs the model twice - onc run returns with an error and the second with success.
         run_test_multiproc(env, '{1}', num_clients, run_parallel,
-                           args=(cmd, response, child_conns, num_iterations, with_delete))
+                           args=(cmd, response, child_conns, num_iterations, multiple_models))
         total_success = 0
         for i in range(num_clients):
             total_success += parent_conns[i].recv()
 
-        # Expect for at least one successfull run for every client.
-        env.assertTrue(num_clients < total_success <= num_clients*num_iterations)
+        # Expect that all runs will be successful.
+        env.assertEqual(total_success, num_clients*num_iterations)
         return total_success
 
-    num_parallel_clients = 50
+    num_parallel_clients = 20
     num_iterations_per_client = 50
 
     # Run only from LLAPI, reset stats and delete model between runs to validate synchronization.
     run_model_execute_multiproc("RAI_llapi.modelRun",  b'Async run success',
-                                with_delete=True, num_clients=num_parallel_clients, num_iterations=num_iterations_per_client)
+                                multiple_models=True, num_clients=num_parallel_clients, num_iterations=num_iterations_per_client)
     # Reinsert the model
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)

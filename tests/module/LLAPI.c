@@ -142,12 +142,16 @@ static int _ExecuteScriptRunAsync(RedisModuleCtx *ctx, RAI_ScriptRunCtx *sctx) {
 int RAI_llapi_modelRun(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
     REDISMODULE_NOT_USED(argv);
 
-    if (argc > 1) {
+    if (argc > 2) {
         RedisModule_WrongArity(ctx);
         return REDISMODULE_OK;
     }
-    // The model m{1} should exist in key space.
+    // The model should exist in key space. The default name is `m{1}`, but it can also be
+    // overridden with argv[1].
     const char *keyNameStr = "m{1}";
+    if (argc == 2) {
+        keyNameStr = RedisModule_StringPtrLen(argv[1], NULL);
+    }
     RedisModuleString *keyRedisStr = RedisModule_CreateString(ctx, keyNameStr, strlen(keyNameStr));
     RedisModuleKey *key = RedisModule_OpenKey(ctx, keyRedisStr, REDISMODULE_READ);
     if (!key) {
