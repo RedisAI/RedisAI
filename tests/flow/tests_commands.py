@@ -362,6 +362,57 @@ def test_pytorch_scriptexecute_variadic_errors(env):
     check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 'OUTPUTS')
 
 
+def create_run_update_models_parallel(con, client_id,  # these are mandatory
+                                      env, model_pb, pipes, iterations_num, multiple_keys):
+    my_pipe = pipes[client_id]
+    total_success_num = 0
+    model_key_name = str(client_id)+'_m{1}' if multiple_keys else 'm{1}'
+    ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution command,
+    # where both read/write (atomically) to same counters and to the same RunStats entry.
+    for i in range(iterations_num):
+        try:
+            con.execute_command('AI.MODELDEL', model_key_name)
+            ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
+                                  'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+            env.assertEqual(ret, b'OK')
+            env.assertEqual(con.execute_command('AI.MODELEXECUTE', model_key_name,
+                                            'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), b'OK')
+            total_success_num += 1
+            info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+            if multiple_keys:
+                env.assertEqual(info['calls'], 1)
+                con.execute_command('AI.INFO', model_key_name, 'RESETSTAT')
+                info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+                env.assertEqual(info['calls'], 0)
+        except Exception as e:
+            env.assertEqual(type(e), redis.exceptions.ResponseError)
+            env.assertTrue("model key is empty" == str(e) or "cannot find run info for key" == str(e))
+    my_pipe.send(total_success_num)
+
+
+def run_model_execute_from_llapi_parallel(con, client_id,  # these are mandatory
+                                 env, model_pb, pipes, iterations_num):
+
+    my_pipe = pipes[client_id]
+    total_success_num = 0
+    model_key_name = str(client_id)+'_m{1}'
+
+    ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    for i in range(iterations_num):
+        # In every call, this commands runs hte model twice - once it returns with an error, and the other returns OK.
+        env.assertEqual(con.execute_command("RAI_llapi.modelRun", model_key_name), b'OK')
+        total_success_num += 1
+        info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+        env.assertEqual(info['calls'], 2*i)
+        env.assertEqual(info['errors'], i)
+    my_pipe.send(total_success_num)
+
+
 @with_test_module
 def test_ai_info_multiproc(env):
     if not TEST_TF:
@@ -378,83 +429,63 @@ def test_ai_info_multiproc(env):
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
-    # This routine will run in parallel - for 'iterations_num' times, execute a command and get the current info
-    # status. If 'multiple_models' is set, every parallel client will create, run and remove a different model
-    # (using a unique key), to test the proper synchronization of the global RunStats dict.
-    def run_parallel(con, id, cmd, expected_res, conns, iterations_num, multiple_models):
-        my_conn = conns[id]
-        total_success_num = 0
-        model_key_name = 'm{1}'
-        if multiple_models:
-            model_key_name = str(id)+'_m{1}'
-            cmd += ' '+model_key_name  # Append the model key name as the second arg to be sent to LLAPI module command
-        # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution command,
-        # where both read/write (atomically) to same counters and to the same RunStats entry.
-        for i in range(iterations_num):
-            if multiple_models:
-                ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
-                                          'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
-                env.assertEqual(ret, b'OK')
-            try:
-                env.assertEqual(con.execute_command(cmd), expected_res)
-                info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
-                env.assertTrue(info['calls'] >= 1)
-                total_success_num += 1
-                if multiple_models:
-                    env.assertEqual(info['calls'], 2*info['errors'])
-                    con.execute_command('AI.INFO', model_key_name, 'RESETSTAT')
-                    ret = con.execute_command('AI.MODELDEL', model_key_name)
-                    env.assertEqual(ret, b'OK')
-            except Exception as e:
-                env.assertEqual(type(e), redis.exceptions.ResponseError)
-                env.assertTrue("model key is empty" == str(e) or "cannot find run info for key" == str(e))
-        my_conn.send(total_success_num)
-
-    def run_model_execute_multiproc(cmd, response, multiple_models=False, num_clients=50, num_iterations=50):
-        parent_conns = []
-        child_conns = []
-
-        # Create a pipe for every child process, so it can report number of successful runs.
-        for i in range(num_clients):
-            parent_conn, child_conn = Pipe()
-            parent_conns.append(parent_conn)
-            child_conns.append(child_conn)
-
-        # This command in test module runs the model twice - onc run returns with an error and the second with success.
-        run_test_multiproc(env, '{1}', num_clients, run_parallel,
-                           args=(cmd, response, child_conns, num_iterations, multiple_models))
-        total_success = 0
-        for i in range(num_clients):
-            total_success += parent_conns[i].recv()
-
-        # Expect that all runs will be successful.
-        env.assertEqual(total_success, num_clients*num_iterations)
-        return total_success
-
-    num_parallel_clients = 20
+    num_parallel_clients = 1
     num_iterations_per_client = 50
 
-    # Run only from LLAPI, reset stats and delete model between runs to validate synchronization.
-    run_model_execute_multiproc("RAI_llapi.modelRun",  b'Async run success',
-                                multiple_models=True, num_clients=num_parallel_clients, num_iterations=num_iterations_per_client)
-    # Reinsert the model
+    # Create a pipe for every child process, so it can report number of successful runs.
+    parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+
+    # Run create_run_delete_models_parallel where every client uses a different model key.
+    # In every iteration, clients update the model key - which triggers deletion and insertion of the  model's stats
+    # to the global dict.
+    run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+                       args=(env, model_pb, children_end_pipes, num_iterations_per_client, True))
+    # Expect that every child will succeed in every model execution - and report it to the parent thorough the pipe.
+    env.assertEqual(sum([p.recv() for p in parent_end_pipes]), num_parallel_clients*num_iterations_per_client)
+
+    # Get the list of models in the system and verify that their stats were saved properly.
+    models = con.execute_command('AI._MODELSCAN')
+    env.assertEqual(len(models), num_parallel_clients)
+
+    # Now rerun create_run_delete_models_parallel, but this time over the same model key.
+    # Note that there may be cases where the model is deleted by some client while other clients
+    # try to access the model key.
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
+    parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+    run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+                       args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
 
-    # Run both from low-level API and from command.
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        future = executor.submit(run_model_execute_multiproc, "RAI_llapi.modelRun",  b'Async run success',
-                                                               False, num_parallel_clients, num_iterations_per_client)
-        cmd = 'AI.MODELEXECUTE m{1} INPUTS 2 a{1} b{1} OUTPUTS 1 c{1}'
-        executions = run_model_execute_multiproc(cmd, b'OK', False, num_parallel_clients, num_iterations_per_client)
-        executions += future.result()
-
-        # All executions flows are expected to succeed.
-        env.assertEqual(executions, 2 * num_iterations_per_client*num_parallel_clients)
+    # Expect that every client will succeed at least once.
+    num_success = sum([p.recv() for p in parent_end_pipes])
+    print("num successes: ", num_success)
+    env.assertGreaterEqual(num_success, num_parallel_clients)
+    env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
 
     info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
-    # Overall, there is one successful run of the model and one with an error from LLAPI for very execution flow,
-    # and from regular command - one successful run.
-    env.assertEqual(info['calls'], 3 * num_parallel_clients*num_iterations_per_client)
-    env.assertEqual(info['errors'], num_parallel_clients*num_iterations_per_client)
+    number_of_calls = info['calls']
+    print ("number of calls: ", number_of_calls)
+
+    # # This is just a wrapper that triggers the multi-proc test
+    # def run_model_execute_from_llapi():
+    #     parent_end_pipes_llapi, children_end_pipes_llapi = get_parent_children_pipes(num_parallel_clients)
+    #     run_test_multiproc(env, '{1}', num_parallel_clients, run_model_execute_from_llapi_parallel,
+    #                        args=(env, model_pb, children_end_pipes_llapi, num_iterations_per_client))
+    #     # Expect that every child will succeed in every model execution - and report it to the parent thorough the pipe.
+    #     env.assertEqual(sum([p.recv() for p in children_end_pipes_llapi]),
+    #                     num_parallel_clients*num_iterations_per_client)
+    #
+    # # Run models both from low-level API and from command.
+    # t = threading.Thread(target=run_model_execute_from_llapi)
+    # t.start()
+    #
+    # # Rerun - with single model key.
+    # parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+    # run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+    #                    args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
+    #
+    # t.join()
+    # info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+    # number_of_calls = info['calls']
+    # print("number of calls 2: ", number_of_calls)

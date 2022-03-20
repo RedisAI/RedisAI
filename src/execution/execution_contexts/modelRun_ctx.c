@@ -10,7 +10,8 @@ RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
     RAI_ExecutionCtx_Init((RAI_ExecutionCtx *)mctx, model->info,
                           (RAI_ExecutionCtx_Free_fn)RAI_ModelRunCtxFree);
-    mctx->model = RAI_ModelGetShallowCopy(model);
+    //mctx->model = RAI_ModelGetShallowCopy(model);
+    mctx->model = model;
     return mctx;
 }
 

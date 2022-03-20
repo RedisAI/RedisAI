@@ -3,7 +3,7 @@ import os
 import random
 import sys
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 import threading
 
 import redis
@@ -216,6 +216,18 @@ def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
 
     [p.join() for p in procs]
 
+
+def get_parent_children_pipes(num_children):
+    parent_end_pipes = []
+    children_end_pipes = []
+
+    # Create a pipe for every child process, so it can report number of successful runs.
+    for i in range(num_children):
+        parent_pipe, child_pipe = Pipe()
+        parent_end_pipes.append(parent_pipe)
+        children_end_pipes.append(child_pipe)
+
+    return parent_end_pipes, children_end_pipes
 
 # Load a model/script from a file located in test_data dir.
 def load_file_content(file_name):
