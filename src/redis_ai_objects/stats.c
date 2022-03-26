@@ -30,11 +30,12 @@ mstime_t mstime(void) { return ustime() / 1000; }
 RAI_RunStats *RAI_StatsCreate(RedisModuleString *key, RAI_RunType type, RAI_Backend backend,
                               const char *device_str, RedisModuleString *tag) {
     RAI_RunStats *r_stats = RedisModule_Calloc(1, sizeof(RAI_RunStats));
-    r_stats->key = RAI_HoldString(key);
+    r_stats->key = RedisModule_CreateStringFromString(NULL, key);
     r_stats->type = type;
     r_stats->backend = backend;
     r_stats->device_str = RedisModule_Strdup(device_str);
     r_stats->tag = RAI_HoldString(tag);
+    r_stats->ref_count = 1;
     return r_stats;
 }
 
@@ -49,14 +50,20 @@ void RAI_StatsReset(RAI_RunStats *r_stats) {
 void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsigned long calls,
                            unsigned long errors, unsigned long samples) {
     RedisModule_Assert(r_stats);
+
     __atomic_add_fetch(&r_stats->duration_us, duration, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->calls, calls, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->n_errors, errors, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->samples, samples, __ATOMIC_RELAXED);
 }
 
+RAI_RunStats *RAI_StatsGetShallowCopy(RAI_RunStats *r_stats) {
+    __atomic_fetch_add(&r_stats->ref_count, 1, __ATOMIC_RELAXED);
+    return r_stats;
+}
+
 void RAI_StatsFree(RAI_RunStats *r_stats) {
-    if (r_stats) {
+    if (__atomic_sub_fetch(&r_stats->ref_count, 1, __ATOMIC_RELAXED) == 0) {
         if (r_stats->device_str) {
             RedisModule_Free(r_stats->device_str);
         }
@@ -72,8 +79,15 @@ void RAI_StatsFree(RAI_RunStats *r_stats) {
 
 /************************************* Global RunStats dict API *********************************/
 
-void RAI_StatsStoreEntry(RedisModuleString *key, RAI_RunStats *run_stats_entry) {
-    AI_dictAdd(RunStats, (void *)key, (void *)run_stats_entry);
+void RAI_StatsStoreEntry(RedisModuleString *key, RAI_RunStats *new_stats_entry) {
+    AI_dictEntry *entry = AI_dictFind(RunStats, (void *)key);
+    // If we are overriding an existing key, decrease ref_count for old stats
+    // so that if there exist model run contexts in the background, they will not update it.
+    if (entry) {
+        RAI_RunStats *prev_stats = AI_dictGetVal(entry);
+        RAI_StatsFree(prev_stats);
+    }
+    AI_dictReplace(RunStats, (void *)key, (void *)new_stats_entry);
 }
 
 void RAI_StatsGetAllEntries(RAI_RunType type, long long *nkeys, RedisModuleString ***keys,

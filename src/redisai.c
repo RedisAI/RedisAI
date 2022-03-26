@@ -519,6 +519,7 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
+    RAI_StatsRemoveEntry(argv[1]);
     RedisModule_ReplicateVerbatim(ctx);
 
     return RedisModule_ReplyWithSimpleString(ctx, "OK");

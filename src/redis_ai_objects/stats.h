@@ -23,6 +23,7 @@ typedef struct RAI_RunStats {
     unsigned long samples;
     unsigned long calls;
     unsigned long n_errors;
+    unsigned long ref_count;
 } RAI_RunStats;
 
 long long ustime(void);
@@ -61,7 +62,13 @@ void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsign
                            unsigned long errors, unsigned long samples);
 
 /**
- * @brief Release RunStats struct.
+ * @brief Increase ref count for RunStats struct atomically.
+ * @param run_stats entry to shallow copy.
+ */
+RAI_RunStats *RAI_StatsGetShallowCopy(RAI_RunStats *r_stats);
+
+/**
+ * @brief Decrease ref count for RunStats struct, release it if ref count hits 0.
  * @param run_stats entry to remove.
  */
 void RAI_StatsFree(RAI_RunStats *r_stats);

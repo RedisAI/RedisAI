@@ -56,8 +56,6 @@ void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {
     }
 
     RedisModule_FreeString(NULL, script->tag);
-    RAI_StatsRemoveEntry(script->info->key);
-
     RAI_backends.torch.script_free(script, err);
 }
 

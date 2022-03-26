@@ -18,7 +18,6 @@ def with_test_module(f):
         if b'RAI_llapi' in [module[1] for module in modules]:
             return f(env, *args, **kwargs)
         try:
-            # TESTMOD_PATH = "/home/alon/Repositories/RedisAI/bin/linux-x64-debug/src/tests/module/testmod.so"
             ret = con.execute_command('MODULE', 'LOAD', TESTMOD_PATH)
             env.assertEqual(ret, b'OK')
         except Exception as e:

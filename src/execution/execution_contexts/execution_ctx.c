@@ -6,7 +6,7 @@ void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_RunStats *run_stats,
                            RAI_ExecutionCtx_Free_fn freeFn) {
     ctx->inputs = array_new(RAI_Tensor *, 10);
     ctx->outputs = array_new(RAI_Tensor *, 10);
-    ctx->runStats = run_stats;
+    ctx->runStats = RAI_StatsGetShallowCopy(run_stats);;
     ctx->freeFn = freeFn;
 }
 void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
@@ -20,6 +20,9 @@ void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
     }
     array_free(ctx->inputs);
     array_free(ctx->outputs);
+    // In case that the model/script was deleted while the execution took place in the background,
+    // and this is the last execution of this model - release the run stats structure.
+    RAI_StatsFree(ctx->runStats);
 }
 
 inline size_t RAI_ExecutionCtx_NumInputs(RAI_ExecutionCtx *ctx) { return array_len(ctx->inputs); }
