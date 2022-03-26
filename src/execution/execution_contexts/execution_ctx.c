@@ -6,7 +6,7 @@ void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_RunStats *run_stats,
                            RAI_ExecutionCtx_Free_fn freeFn) {
     ctx->inputs = array_new(RAI_Tensor *, 10);
     ctx->outputs = array_new(RAI_Tensor *, 10);
-    ctx->runStats = RAI_StatsGetShallowCopy(run_stats);;
+    ctx->runStats = RAI_StatsGetShallowCopy(run_stats);
     ctx->freeFn = freeFn;
 }
 void RAI_ExecutionCtx_Free(RAI_ExecutionCtx *ctx) {
