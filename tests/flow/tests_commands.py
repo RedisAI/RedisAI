@@ -460,10 +460,12 @@ def test_ai_info_multiproc(env):
     run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
                        args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
 
-    # Expect minimal number of success in running the models (without having it deleted by another client).
+    # Expect minimal number of success (one per client in average)
+    # in running the models (without having it deleted by another client).
     num_success = sum([p.recv() for p in parent_end_pipes])
     env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
-    env.assertGreaterEqual(num_success, num_parallel_clients/2)
+    # Valgrind impacts the timings, so number of success may be lower
+    env.assertGreaterEqual(num_success, 1 if VALGRIND else num_parallel_clients)
 
     # At the end, expect that every client ran the last created model at most once.
     info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
