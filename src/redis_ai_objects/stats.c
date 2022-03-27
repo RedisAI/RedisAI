@@ -35,7 +35,6 @@ RAI_RunStats *RAI_StatsCreate(RedisModuleString *key, RAI_RunType type, RAI_Back
     r_stats->backend = backend;
     r_stats->device_str = RedisModule_Strdup(device_str);
     r_stats->tag = RAI_HoldString(tag);
-    r_stats->ref_count = 1;
     return r_stats;
 }
 
@@ -50,20 +49,14 @@ void RAI_StatsReset(RAI_RunStats *r_stats) {
 void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsigned long calls,
                            unsigned long errors, unsigned long samples) {
     RedisModule_Assert(r_stats);
-
     __atomic_add_fetch(&r_stats->duration_us, duration, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->calls, calls, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->n_errors, errors, __ATOMIC_RELAXED);
     __atomic_add_fetch(&r_stats->samples, samples, __ATOMIC_RELAXED);
 }
 
-RAI_RunStats *RAI_StatsGetShallowCopy(RAI_RunStats *r_stats) {
-    __atomic_fetch_add(&r_stats->ref_count, 1, __ATOMIC_RELAXED);
-    return r_stats;
-}
-
 void RAI_StatsFree(RAI_RunStats *r_stats) {
-    if (__atomic_sub_fetch(&r_stats->ref_count, 1, __ATOMIC_RELAXED) == 0) {
+    if (r_stats) {
         if (r_stats->device_str) {
             RedisModule_Free(r_stats->device_str);
         }
@@ -80,13 +73,6 @@ void RAI_StatsFree(RAI_RunStats *r_stats) {
 /************************************* Global RunStats dict API *********************************/
 
 void RAI_StatsStoreEntry(RedisModuleString *key, RAI_RunStats *new_stats_entry) {
-    AI_dictEntry *entry = AI_dictFind(RunStats, (void *)key);
-    // If we are overriding an existing key, decrease ref_count for old stats
-    // so that if there exist model run contexts in the background, they will not update it.
-    if (entry) {
-        RAI_RunStats *prev_stats = AI_dictGetVal(entry);
-        RAI_StatsFree(prev_stats);
-    }
     AI_dictReplace(RunStats, (void *)key, (void *)new_stats_entry);
 }
 
@@ -124,14 +110,11 @@ void RAI_StatsRemoveEntry(RedisModuleString *info_key) {
     }
 }
 
-int RAI_StatsGetEntry(RedisModuleString *runkey, RAI_RunStats **rstats) {
-    if (RunStats == NULL) {
-        return REDISMODULE_ERR;
-    }
+RAI_RunStats *RAI_StatsGetEntry(RedisModuleString *runkey) {
+    RedisModule_Assert(RunStats);
     AI_dictEntry *entry = AI_dictFind(RunStats, runkey);
     if (!entry) {
-        return REDISMODULE_ERR;
+        return NULL;
     }
-    *rstats = AI_dictGetVal(entry);
-    return REDISMODULE_OK;
+    return AI_dictGetVal(entry);
 }

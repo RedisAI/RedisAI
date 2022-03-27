@@ -62,13 +62,7 @@ void RAI_StatsAddDataPoint(RAI_RunStats *r_stats, unsigned long duration, unsign
                            unsigned long errors, unsigned long samples);
 
 /**
- * @brief Increase ref count for RunStats struct atomically.
- * @param run_stats entry to shallow copy.
- */
-RAI_RunStats *RAI_StatsGetShallowCopy(RAI_RunStats *r_stats);
-
-/**
- * @brief Decrease ref count for RunStats struct, release it if ref count hits 0.
+ * @brief Release RunStats struct.
  * @param run_stats entry to remove.
  */
 void RAI_StatsFree(RAI_RunStats *r_stats);
@@ -77,6 +71,7 @@ void RAI_StatsFree(RAI_RunStats *r_stats);
 /**
  * Adds an entry to the ephemeral run-time statistic. The statistics are not
  * saved to the keyspace, and on maximum live for the duration of the DB uptime.
+ * If a run stats object already exists for this key, it will override it.
  *
  * @param keyName key name to use as unique stats identifier.
  * @param run_stats_entry RunStats entry pointer to store.
@@ -105,8 +100,6 @@ void RAI_StatsGetAllEntries(RAI_RunType type, long long *nkeys, RedisModuleStrin
  * @brief Retrieve the run stats info of run_key from the global RunStat dictionary and set it in
  * r_stats.
  * @param run_key module/script key name
- * @param run_stats Place-holder for the RAI_RunStats object that is associated with the key.
- * @return REDISMODULE_OK on success, REDISMODULE_ERR if the the run stats with run_key does not
- * exist.
+ * @return The RAI_RunStats object that is associated with the key, or NULL if it doesn't exist.
  */
-int RAI_StatsGetEntry(RedisModuleString *run_key, RAI_RunStats **r_stats);
+RAI_RunStats *RAI_StatsGetEntry(RedisModuleString *run_key);

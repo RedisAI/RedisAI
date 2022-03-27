@@ -519,7 +519,6 @@ int RedisAI_ModelDel_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv,
     RedisModuleKey *key = RedisModule_OpenKey(ctx, argv[1], REDISMODULE_WRITE);
     RedisModule_DeleteKey(key);
     RedisModule_CloseKey(key);
-    RAI_StatsRemoveEntry(argv[1]);
     RedisModule_ReplicateVerbatim(ctx);
 
     return RedisModule_ReplyWithSimpleString(ctx, "OK");
@@ -853,8 +852,8 @@ int RedisAI_Info_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int
         return RedisModule_WrongArity(ctx);
 
     RedisModuleString *runkey = argv[1];
-    RAI_RunStats *rstats = NULL;
-    if (RAI_StatsGetEntry(runkey, &rstats) == REDISMODULE_ERR) {
+    RAI_RunStats *rstats = RAI_StatsGetEntry(runkey);
+    if (!rstats) {
         return RedisModule_ReplyWithError(ctx, "ERR cannot find run info for key");
     }
 

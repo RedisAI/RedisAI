@@ -416,8 +416,7 @@ def run_model_execute_from_llapi_parallel(con, client_id,  # these are mandatory
     my_pipe.send(total_success_num)
 
 
-@with_test_module
-def test_ai_info_multiproc(env):
+def test_ai_info_multiproc_multi_keys(env):
     if not TEST_TF:
         env.debugPrint("Skipping test since TF is not available", force=True)
         return
@@ -450,7 +449,26 @@ def test_ai_info_multiproc(env):
     models = con.execute_command('AI._MODELSCAN')
     env.assertEqual(len(models), num_parallel_clients)
 
-    # Now rerun create_run_delete_models_parallel, but this time over the same model key.
+
+def test_ai_info_multiproc_single_key(env):
+    if not TEST_TF:
+        env.debugPrint("Skipping test since TF is not available", force=True)
+        return
+    con = get_connection(env, '{1}')
+
+    # Load model protobuf and store its input tensors.
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    num_parallel_clients = 20
+    num_iterations_per_client = 50
+
+    # Run create_run_delete_models_parallel, but this time over the same model key.
     # Note that there may be cases where the model is deleted by some client while other clients
     # try to access the model key.
     ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
@@ -472,6 +490,26 @@ def test_ai_info_multiproc(env):
     env.assertGreaterEqual(info['calls'], 0)
     env.assertGreaterEqual(num_parallel_clients, info['calls'])
 
+
+@with_test_module
+def test_ai_info_multiproc_with_llapi(env):
+    if not TEST_TF:
+        env.debugPrint("Skipping test since TF is not available", force=True)
+        return
+    con = get_connection(env, '{1}')
+
+    # Load model protobuf and store its input tensors.
+    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
+    model_filename = os.path.join(test_data_path, 'graph.pb')
+    with open(model_filename, 'rb') as f:
+        model_pb = f.read()
+
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    num_parallel_clients = 20
+    num_iterations_per_client = 50
+
     # This is just a wrapper that triggers the multi-proc test
     def run_model_execute_from_llapi():
         parent_end_pipes_llapi, children_end_pipes_llapi = get_parent_children_pipes(num_parallel_clients)
@@ -485,12 +523,16 @@ def test_ai_info_multiproc(env):
     t = threading.Thread(target=run_model_execute_from_llapi)
     t.start()
 
-    # Rerun - with single model key.
+    # Run with single model key.
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
     parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
     run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
                        args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
 
     t.join()
+
     # At the end, expect that every client ran the last created model at most once.
     info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
     env.assertGreaterEqual(info['calls'], 0)
