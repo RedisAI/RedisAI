@@ -214,7 +214,7 @@ commands:
           command: |
             mkdir -p $HOME/tests
             docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-test
-          no_output_timeout: 90m
+          no_output_timeout: 40m
       - store_artifacts:
           path: /home/circleci/tests
 
