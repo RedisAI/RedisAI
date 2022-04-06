@@ -110,9 +110,8 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
     RAI_RunStats *stats = RAI_StatsGetEntry(model->info->key);
     if (stats == model->info) {
         RAI_StatsRemoveEntry(stats->key);
-    } else {
-        RAI_StatsFree(model->info);
     }
+    RAI_StatsFree(model->info);
 
     RedisModule_Free(model);
 }

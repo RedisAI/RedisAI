@@ -1,7 +1,3 @@
-import concurrent
-from multiprocessing import Pipe
-
-import redis
 from includes import *
 from tests_llapi import with_test_module
 
@@ -370,8 +366,9 @@ def create_run_update_models_parallel(con, client_id,  # these are mandatory
     ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
                               'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
     env.assertEqual(ret, b'OK')
-    # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution command,
-    # where both read/write (atomically) to same counters and to the same RunStats entry.
+
+    # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution commands, which
+    # read and write (atomically) to same counters of a RunStats entry, and change the global RunStats dict.
     for i in range(iterations_num):
         try:
             con.execute_command('AI.MODELDEL', model_key_name)
@@ -385,6 +382,9 @@ def create_run_update_models_parallel(con, client_id,  # these are mandatory
             env.assertEqual(info['key'], model_key_name)
             env.assertEqual(info['device'], DEVICE)
             if multiple_keys:
+                # Calls number can be verified only in a multiple keys scenario, since when parallel clients use
+                # the same key, one might delete the key before another try to run the model
+                # (hence the try/catch structure of the test, which is relevant only for a single key scenario)
                 env.assertEqual(info['calls'], 1)
                 con.execute_command('AI.INFO', model_key_name, 'RESETSTAT')
                 info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
@@ -423,11 +423,7 @@ def test_ai_info_multiproc_multi_keys(env):
     con = get_connection(env, '{1}')
 
     # Load model protobuf and store its input tensors.
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
+    model_pb = load_file_content('graph.pb')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
@@ -445,7 +441,7 @@ def test_ai_info_multiproc_multi_keys(env):
     # Expect that every child will succeed in every model execution - and report it to the parent thorough the pipe.
     env.assertEqual(sum([p.recv() for p in parent_end_pipes]), num_parallel_clients*num_iterations_per_client)
 
-    # Get the list of models in the system and verify that their stats were saved properly.
+    # Get the list of models in the system and verify that every model appears once in the global dict.
     models = con.execute_command('AI._MODELSCAN')
     env.assertEqual(len(models), num_parallel_clients)
 
@@ -457,11 +453,7 @@ def test_ai_info_multiproc_single_key(env):
     con = get_connection(env, '{1}')
 
     # Load model protobuf and store its input tensors.
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
+    model_pb = load_file_content('graph.pb')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
@@ -482,7 +474,7 @@ def test_ai_info_multiproc_single_key(env):
     # in running the models (without having it deleted by another client).
     num_success = sum([p.recv() for p in parent_end_pipes])
     env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
-    # Valgrind impacts the timings, so number of success may be lower
+    # Valgrind impacts the timings, so number of success may be lower.
     env.assertGreaterEqual(num_success, 1 if VALGRIND else num_parallel_clients)
 
     # At the end, expect that every client ran the last created model at most once.
@@ -499,11 +491,7 @@ def test_ai_info_multiproc_with_llapi(env):
     con = get_connection(env, '{1}')
 
     # Load model protobuf and store its input tensors.
-    test_data_path = os.path.join(os.path.dirname(__file__), 'test_data')
-    model_filename = os.path.join(test_data_path, 'graph.pb')
-    with open(model_filename, 'rb') as f:
-        model_pb = f.read()
-
+    model_pb = load_file_content('graph.pb')
     con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
     con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
 
@@ -531,9 +519,20 @@ def test_ai_info_multiproc_with_llapi(env):
     run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
                        args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
 
-    t.join()
+    # Expect minimal number of success (one per five client in average)
+    # in running the models (without having it deleted by another client).
+    num_success = sum([p.recv() for p in parent_end_pipes])
+    env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
+    # Valgrind impacts the timings, so number of success may be lower.
+    env.assertGreaterEqual(num_success, 1 if VALGRIND else num_parallel_clients/5)
 
-    # At the end, expect that every client ran the last created model at most once.
+    t.join()
+    # Get the list of models in the system and verify that every model appears once in the global dict.
+    models = con.execute_command('AI._MODELSCAN')
+    # In LLAPI, every client used a distinct model name, while clients that ran via command line used a different name.
+    env.assertEqual(len(models), num_parallel_clients + 1)
+
+    # At the end, expect that every client (that didn't use the LLAPI) ran the last created model at most once.
     info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
     env.assertGreaterEqual(info['calls'], 0)
     env.assertGreaterEqual(num_parallel_clients, info['calls'])

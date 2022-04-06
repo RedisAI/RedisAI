@@ -104,9 +104,7 @@ void RAI_StatsRemoveEntry(RedisModuleString *info_key) {
     AI_dictEntry *stats_entry = AI_dictFind(RunStats, info_key);
 
     if (stats_entry) {
-        RAI_RunStats *r_stats = AI_dictGetVal(stats_entry);
         AI_dictDelete(RunStats, info_key);
-        RAI_StatsFree(r_stats);
     }
 }
 

@@ -100,6 +100,8 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         self.info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))   # Runtime stats reported by AI.INFO.
+        for stats_item in ['duration', 'samples', 'calls', 'errors']:
+            self.env.assertEqual(self.info[stats_item], 0)
 
     def test1_old_api(self):
         con = get_connection(self.env, '{1}')
@@ -121,7 +123,7 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         self.env.assertEqual(self.info['type'], 'MODEL')
         self.env.assertEqual(self.info['backend'], 'TF')
         self.env.assertEqual(self.info['device'], DEVICE)
-        self.env.assertTrue(self.info['duration'] > 0)
+        self.env.assertGreater(self.info['duration'], 0)
         self.env.assertEqual(self.info['samples'], 2)
         self.env.assertEqual(self.info['calls'], 1)
         self.env.assertEqual(self.info['errors'], 0)
@@ -142,7 +144,7 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
         info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
         self.env.assertEqual(info['calls'], 3)
         self.env.assertEqual(info['errors'], 1)
-        self.env.assertTrue(info['duration'] > self.info['duration'])
+        self.env.assertGreater(info['duration'], self.info['duration'])
 
 
 class TestScriptExecuteFromGears:
@@ -208,6 +210,8 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         self.env.assertEqual(ret, b'OK')
         self.info = info_to_dict(con.execute_command('AI.INFO', 'myscript{1}'))   # Runtime stats reported by AI.INFO.
+        for stats_item in ['duration', 'calls', 'errors']:
+            self.env.assertEqual(self.info[stats_item], 0)
 
     def test1_old_api(self):
         con = get_connection(self.env, '{1}')
@@ -230,7 +234,7 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(self.info['backend'], 'TORCH')
         self.env.assertEqual(self.info['tag'], 'version1')
         self.env.assertEqual(self.info['device'], DEVICE)
-        self.env.assertTrue(self.info['duration'] > 0)
+        self.env.assertGreater(self.info['duration'], 0)
         self.env.assertEqual(self.info['calls'], 1)
         self.env.assertEqual(self.info['errors'], 0)
 
