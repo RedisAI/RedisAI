@@ -519,12 +519,12 @@ def test_ai_info_multiproc_with_llapi(env):
     run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
                        args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
 
-    # Expect minimal number of success (one per client in average)
+    # Expect minimal number of success (one per five clients in average)
     # in running the models (without having it deleted by another client).
     num_success = sum([p.recv() for p in parent_end_pipes])
     env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
     # Valgrind impacts the timings, so number of success may be lower.
-    env.assertGreaterEqual(num_success, 1 if VALGRIND or DEVICE == "GPU" else num_parallel_clients)
+    env.assertGreaterEqual(num_success, 1 if VALGRIND or DEVICE == "GPU" else num_parallel_clients/5)
 
     t.join()
     # Get the list of models in the system and verify that every model appears once in the global dict.
