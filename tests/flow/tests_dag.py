@@ -311,14 +311,14 @@ def test_slowlog_time_dag_modelexecute_financialNet_autobatch(env):
                 elif command[3][0] == b"AI.DAGEXECUTE":                     # Found second command. add the slower time to total_time.
                     if first > command[2]:
                         total_time += first
-                        env.assertTrue((end - start)*1000000 >= first)
+                        env.assertGreaterEqual((end - start)*1000000, first)
                     else:
                         total_time += command[2]
-                        env.assertTrue((end - start)*1000000 >= command[2])
+                        env.assertGreaterEqual((end - start)*1000000, command[2])
                     break
                 elif command[3][0] == b"SLOWLOG":                           # The "SLOWLOG" is used as a mark for the previus iteration.
                     total_time += first                                     # Try adding 'first'. The next assert test if first was not zero.
-                    env.assertTrue((end - start)*1000000 >= first)
+                    env.assertGreaterEqual((end - start)*1000000, first)
                     break
             env.assertNotEqual(total_time, prev_total)                      # if somehow we didn't find any "AI.DAGEXECUTE" command, assert
 

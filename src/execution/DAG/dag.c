@@ -72,7 +72,7 @@ static void Dag_LoadInputsToCurrentOp(RedisAI_RunInfo *rinfo, RAI_DagOp *current
     }
 
     for (uint i = 0; i < n_outkeys; i++) {
-        RAI_ExecutionCtx_AddOuputPlaceholder(currentOp->ectx);
+        RAI_ExecutionCtx_AddOutputPlaceholder(currentOp->ectx);
     }
 }
 
@@ -260,7 +260,7 @@ void RedisAI_DagRunSession_ScriptRun_Step(RedisAI_RunInfo *rinfo, RAI_DagOp *cur
             RAI_ExecutionCtx_AddInput(currentOp->ectx, inputTensors[i]);
         }
         for (uint i = 0; i < n_outkeys; i++) {
-            RAI_ExecutionCtx_AddOuputPlaceholder(currentOp->ectx);
+            RAI_ExecutionCtx_AddOutputPlaceholder(currentOp->ectx);
         }
     }
 
@@ -574,44 +574,15 @@ int RedisAI_DagRun_Reply(RedisModuleCtx *ctx, RedisModuleString **argv, int argc
             break;
         }
 
-        case REDISAI_DAG_CMD_MODELRUN: {
-            rinfo->dagReplyLength++;
-            struct RedisAI_RunStats *rstats = NULL;
-            RAI_GetRunStats(currentOp->runkey, &rstats);
-            if (currentOp->result == REDISMODULE_ERR) {
-                RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
-                RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
-                dag_error = 1;
-            } else if (currentOp->result == -1) {
-                RedisModule_ReplyWithSimpleString(ctx, "NA");
-            } else {
-                RAI_Tensor *t = NULL;
-                if (RAI_ExecutionCtx_NumOutputs(currentOp->ectx) > 0) {
-                    t = RAI_ExecutionCtx_GetOutput(currentOp->ectx, 0);
-                }
-                int batch_size = 0;
-                if (t) {
-                    batch_size = RAI_TensorDim(t, 0);
-                }
-                RAI_SafeAddDataPoint(rstats, currentOp->duration_us, 1, 0, batch_size);
-                RedisModule_ReplyWithSimpleString(ctx, "OK");
-            }
-            break;
-        }
-
+        case REDISAI_DAG_CMD_MODELRUN:
         case REDISAI_DAG_CMD_SCRIPTRUN: {
             rinfo->dagReplyLength++;
-            struct RedisAI_RunStats *rstats = NULL;
-            RAI_GetRunStats(currentOp->runkey, &rstats);
             if (currentOp->result == REDISMODULE_ERR) {
-                RAI_SafeAddDataPoint(rstats, 0, 1, 1, 0);
                 RedisModule_ReplyWithError(ctx, currentOp->err->detail_oneline);
                 dag_error = 1;
             } else if (currentOp->result == -1) {
                 RedisModule_ReplyWithSimpleString(ctx, "NA");
             } else {
-                int batch_size = 1;
-                RAI_SafeAddDataPoint(rstats, currentOp->duration_us, 1, 0, batch_size);
                 RedisModule_ReplyWithSimpleString(ctx, "OK");
             }
             break;

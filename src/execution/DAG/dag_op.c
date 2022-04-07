@@ -13,7 +13,6 @@ int RAI_InitDagOp(RAI_DagOp **result) {
     dagOp = (RAI_DagOp *)RedisModule_Calloc(1, sizeof(RAI_DagOp));
 
     dagOp->commandType = REDISAI_DAG_CMD_NONE;
-    dagOp->runkey = NULL;
     dagOp->inkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
     dagOp->outkeys = (RedisModuleString **)array_new(RedisModuleString *, 1);
     dagOp->inkeys_indices = array_new(size_t, 1);
@@ -31,13 +30,9 @@ int RAI_InitDagOp(RAI_DagOp **result) {
     return REDISMODULE_OK;
 }
 
-void RAI_DagOpSetRunKey(RAI_DagOp *dagOp, RedisModuleString *runkey) { dagOp->runkey = runkey; }
-
 void RAI_FreeDagOp(RAI_DagOp *dagOp) {
 
     RAI_FreeError(dagOp->err);
-    if (dagOp->runkey)
-        RedisModule_FreeString(NULL, dagOp->runkey);
 
     if (dagOp->outTensor)
         RAI_TensorFree(dagOp->outTensor);

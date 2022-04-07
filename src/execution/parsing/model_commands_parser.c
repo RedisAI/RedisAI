@@ -7,7 +7,7 @@
 static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisModuleString **argv,
                                           RAI_Model **model, RAI_Error *error,
                                           RedisModuleString ***inkeys, RedisModuleString ***outkeys,
-                                          RedisModuleString **runkey, long long *timeout) {
+                                          long long *timeout) {
 
     if (argc < 8) {
         RAI_SetError(error, RAI_EMODELRUN,
@@ -15,11 +15,11 @@ static int _ModelExecuteCommand_ParseArgs(RedisModuleCtx *ctx, int argc, RedisMo
         return REDISMODULE_ERR;
     }
     size_t arg_pos = 1;
-    const int status = RAI_GetModelFromKeyspace(ctx, argv[arg_pos], model, REDISMODULE_READ, error);
+    const int status =
+        RAI_GetModelFromKeyspace(ctx, argv[arg_pos++], model, REDISMODULE_READ, error);
     if (status == REDISMODULE_ERR) {
         return REDISMODULE_ERR;
     }
-    *runkey = RAI_HoldString(argv[arg_pos++]);
     const char *arg_string = RedisModule_StringPtrLen(argv[arg_pos++], NULL);
 
     if (strcasecmp(arg_string, "INPUTS") != 0) {
@@ -128,8 +128,7 @@ int ParseModelExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp, Redis
     RAI_Model *model;
     long long timeout = 0;
     if (_ModelExecuteCommand_ParseArgs(ctx, argc, argv, &model, rinfo->err, &currentOp->inkeys,
-                                       &currentOp->outkeys, &currentOp->runkey,
-                                       &timeout) == REDISMODULE_ERR) {
+                                       &currentOp->outkeys, &timeout) == REDISMODULE_ERR) {
         goto cleanup;
     }
 

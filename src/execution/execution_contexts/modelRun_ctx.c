@@ -8,7 +8,8 @@
 
 RAI_ModelRunCtx *RAI_ModelRunCtxCreate(RAI_Model *model) {
     RAI_ModelRunCtx *mctx = RedisModule_Calloc(1, sizeof(*mctx));
-    RAI_ExecutionCtx_Init((RAI_ExecutionCtx *)mctx, (RAI_ExecutionCtx_Free_fn)RAI_ModelRunCtxFree);
+    RAI_ExecutionCtx_Init((RAI_ExecutionCtx *)mctx, model->info,
+                          (RAI_ExecutionCtx_Free_fn)RAI_ModelRunCtxFree);
     mctx->model = RAI_ModelGetShallowCopy(model);
     return mctx;
 }
@@ -19,7 +20,7 @@ int RAI_ModelRunCtxAddInput(RAI_ModelRunCtx *mctx, const char *inputName, RAI_Te
 }
 
 int RAI_ModelRunCtxAddOutput(RAI_ModelRunCtx *mctx, const char *outputName) {
-    RAI_ExecutionCtx_AddOuputPlaceholder((RAI_ExecutionCtx *)mctx);
+    RAI_ExecutionCtx_AddOutputPlaceholder((RAI_ExecutionCtx *)mctx);
 }
 
 inline size_t RAI_ModelRunCtxNumInputs(RAI_ModelRunCtx *mctx) {

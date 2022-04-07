@@ -9,7 +9,8 @@
 RAI_ScriptRunCtx *RAI_ScriptRunCtxCreate(RAI_Script *script, const char *fnname) {
 #define PARAM_INITIAL_SIZE 10
     RAI_ScriptRunCtx *sctx = RedisModule_Calloc(1, sizeof(*sctx));
-    RAI_ExecutionCtx_Init(&sctx->base, (RAI_ExecutionCtx_Free_fn)RAI_ScriptRunCtxFree);
+    RAI_ExecutionCtx_Init(&sctx->base, script->info,
+                          (RAI_ExecutionCtx_Free_fn)RAI_ScriptRunCtxFree);
     sctx->script = RAI_ScriptGetShallowCopy(script);
     sctx->fnname = RedisModule_Strdup(fnname);
     sctx->keys = array_new(RedisModuleString *, PARAM_INITIAL_SIZE);
@@ -58,7 +59,7 @@ int RAI_ScriptRunCtxAddArgInput(RAI_ScriptRunCtx *sctx, RedisModuleString *arg) 
 }
 
 inline int RAI_ScriptRunCtxAddOutput(RAI_ScriptRunCtx *sctx) {
-    RAI_ExecutionCtx_AddOuputPlaceholder(&sctx->base);
+    RAI_ExecutionCtx_AddOutputPlaceholder(&sctx->base);
     return 1;
 }
 

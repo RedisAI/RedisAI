@@ -64,7 +64,7 @@ def run_benchmark(env, num_runs_mnist, num_runs_inception, num_runs_bert, num_pa
     ret = con.execute_command('AI.TENSORSET', 'bert_in{1}', 'INT64', 10, 100, 'BLOB', bert_in_data.tobytes())
     env.assertEqual(ret, b'OK')
 
-    def run_parallel_onnx_sessions(con, model, input, num_runs):
+    def run_parallel_onnx_sessions(con, i, model, input, num_runs):
         for _ in range(num_runs):
             if terminate_flag == 1:
                 return
