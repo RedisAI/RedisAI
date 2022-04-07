@@ -71,7 +71,7 @@ class RedisAISetup(paella.Setup):
         else:
             self.run("%s/bin/getcmake" % READIES)
 
-        self.pip_install("-r %s/tests/flow/tests_setup/test_requirements.txt" % ROOT)
+        self.pip_install("--ignore-installed PyYAML -r %s/tests/flow/tests_setup/test_requirements.txt" % ROOT)
 
         self.pip_install("awscli")
         self.pip_install("mkdocs mkdocs-material mkdocs-extensions")

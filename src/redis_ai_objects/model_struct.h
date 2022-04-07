@@ -2,6 +2,7 @@
 
 #include "config/config.h"
 #include "tensor_struct.h"
+#include "redis_ai_objects/stats.h"
 
 typedef struct RAI_ModelOpts {
     size_t batchsize;
@@ -30,5 +31,5 @@ typedef struct RAI_Model {
     long long refCount;
     char *data;
     long long datalen;
-    void *infokey;
+    RAI_RunStats *info;
 } RAI_Model;

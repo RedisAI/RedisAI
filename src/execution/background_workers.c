@@ -54,10 +54,40 @@ static void _BGThread_Wait(RunQueueInfo *run_queue_info) {
                            &absTimeout);
 }
 
+static void _BGThread_SaveStats(RedisAI_RunInfo *rinfo) {
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        RAI_DagOp *currentOp = rinfo->dagOps[i];
+
+        if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN ||
+            currentOp->commandType == REDISAI_DAG_CMD_SCRIPTRUN) {
+            if (currentOp->result == REDISMODULE_ERR) {
+                RAI_StatsAddDataPoint(RAI_ExecutionCtx_GetStats(currentOp->ectx), 0, 1, 1, 0);
+            } else if (currentOp->result == REDISMODULE_OK) {
+                unsigned long batch_size = 1;
+                if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
+                    RAI_Tensor *t = NULL;
+                    if (RAI_ExecutionCtx_NumOutputs(currentOp->ectx) > 0) {
+                        t = RAI_ExecutionCtx_GetOutput(currentOp->ectx, 0);
+                    }
+                    if (t) {
+                        batch_size = RAI_TensorDim(t, 0);
+                    } else {
+                        batch_size = 0;
+                    }
+                }
+                RAI_StatsAddDataPoint(RAI_ExecutionCtx_GetStats(currentOp->ectx),
+                                      currentOp->duration_us, 1, 0, batch_size);
+            }
+        }
+    }
+}
+
 static void _BGThread_RinfoFinish(RedisAI_RunInfo *rinfo) {
     RedisAI_RunInfo *orig = rinfo->orig_copy;
     uint dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
     if (dagRefCount == 0) {
+        // Save stats for every DAG execute operation.
+        _BGThread_SaveStats(orig);
         RedisAI_OnFinishCtx *finish_ctx = orig;
         orig->OnFinish(finish_ctx, orig->private_data);
     }

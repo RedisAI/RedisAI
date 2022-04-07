@@ -3,7 +3,7 @@ import os
 import random
 import sys
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 import threading
 
 import redis
@@ -30,6 +30,9 @@ VALGRIND = os.environ.get("VALGRIND") == "1"
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
+
+def get_connection(env, routing_hint):
+    return env.getConnectionByKey(routing_hint, 'SET')
 
 # returns the test name and line number from which a helper function within this file was called.
 # For example, if an assertion fails in check_error_message function, and the caller function to check_error_message
@@ -188,7 +191,7 @@ def load_creditcardfraud_data(env,max_tensors=10000):
     return model_pb, creditcard_transactions, creditcard_referencedata
 
 
-def run_mobilenet(con, img, input_var, output_var):
+def run_mobilenet(con, i, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
     con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -201,18 +204,30 @@ def run_mobilenet(con, img, input_var, output_var):
 def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
-    def tmpfn():
-        con = env.getConnectionByKey(routing_hint, 'SET')
-        fn(con, *args)
+    def tmpfn(i):
+        con = get_connection(env, routing_hint)
+        fn(con, i, *args)
         return 1
 
-    for _ in range(n_procs):
-        p = Process(target=tmpfn)
+    for i in range(n_procs):
+        p = Process(target=tmpfn, args=(i, ))
         p.start()
         procs.append(p)
 
     [p.join() for p in procs]
 
+
+def get_parent_children_pipes(num_children):
+    parent_end_pipes = []
+    children_end_pipes = []
+
+    # Create a pipe for every child process, so it can report number of successful runs.
+    for i in range(num_children):
+        parent_pipe, child_pipe = Pipe()
+        parent_end_pipes.append(parent_pipe)
+        children_end_pipes.append(child_pipe)
+
+    return parent_end_pipes, children_end_pipes
 
 # Load a model/script from a file located in test_data dir.
 def load_file_content(file_name):
@@ -250,7 +265,3 @@ def get_info_section(con, section):
     section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
     return {k.split(":")[0]: k.split(":")[1]
             for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
-
-
-def get_connection(env, routing_hint):
-    return env.getConnectionByKey(routing_hint, 'SET')

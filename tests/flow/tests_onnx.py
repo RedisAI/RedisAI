@@ -479,7 +479,7 @@ class TestOnnxCustomAllocator:
                             'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}',
                             error_msg_is_substr=True)
 
-        def run_parallel_onnx_sessions(con):
+        def run_parallel_onnx_sessions(con, i):
             check_error_message(self.env, con, "Onnxruntime memory limit exceeded, memory allocation failed.",
                                 'AI.MODELEXECUTE', 'mnist_0{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}',
                                 error_msg_is_substr=True)
@@ -523,7 +523,7 @@ class TestOnnxKillSwitch:
         self.env.assertEqual(ret, b'OK')
         con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 1, 1, 28, 28, 'BLOB', sample_raw)
 
-        def run_parallel_onnx_sessions(con):
+        def run_parallel_onnx_sessions(con, i):
             ret = con.execute_command('AI.MODELEXECUTE', 'mnist{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
             self.env.assertEqual(ret, b'OK')
             check_error_message(self.env, con, "Exiting due to terminate flag being set to true",
