@@ -15,6 +15,10 @@ int RAI_InitBackendTF(int (*get_api_fn)(const char *, void *)) {
     get_api_fn("RedisModule_Realloc", ((void **)&RedisModule_Realloc));
     get_api_fn("RedisModule_Strdup", ((void **)&RedisModule_Strdup));
 
+    // Set min logging level to 3 (out of 5) - this is workaround since if TF is writing extensively
+    // log messages that to stderr, it may cause the system to be stuck.
+    RedisModule_Assert(putenv("TF_CPP_MIN_LOG_LEVEL=3") == 0);
+
     return REDISMODULE_OK;
 }
 

@@ -61,7 +61,6 @@ RAI_DAGRunOp *RAI_DAGCreateModelRunOp(RAI_Model *model) {
     op->commandType = REDISAI_DAG_CMD_MODELRUN;
     op->ectx = (RAI_ExecutionCtx *)mctx;
     op->devicestr = model->devicestr;
-    op->runkey = RAI_HoldString((RedisModuleString *)model->infokey);
     return (RAI_DAGRunOp *)op;
 }
 
@@ -73,7 +72,6 @@ RAI_DAGRunOp *RAI_DAGCreateScriptRunOp(RAI_Script *script, const char *func_name
     op->commandType = REDISAI_DAG_CMD_SCRIPTRUN;
     op->ectx = (RAI_ExecutionCtx *)sctx;
     op->devicestr = script->devicestr;
-    op->runkey = RAI_HoldString((RedisModuleString *)script->infokey);
     return (RAI_DAGRunOp *)op;
 }
 

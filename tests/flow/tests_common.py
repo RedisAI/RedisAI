@@ -224,7 +224,7 @@ def test_common_tensorget_error_replies(env):
 
 def test_common_tensorset_multiproc(env):
     run_test_multiproc(env, 'x', 10,
-                       lambda env: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
+                       lambda env, i: env.execute_command('AI.TENSORSET', 'x', 'FLOAT', 2, 'VALUES', 2, 3))
 
     con = get_connection(env, 'x')
     ensureSlaveSynced(con, env)
@@ -258,7 +258,7 @@ def test_common_tensorset_multiproc_blob(env):
     tensor_blob = tested_datatypes_map["FLOAT"]
     t = time.time()
     run_test_multiproc(env, '{0}', 10,
-                       lambda env: funcname(env,tensor_blob,MAX_TRANSACTIONS,10) )
+                       lambda env, i: funcname(env,tensor_blob,MAX_TRANSACTIONS,10) )
     elapsed_time = time.time() - t
     avg_ops_sec = 100000*10/elapsed_time
     # env.debugPrint("AI.TENSORSET elapsed time(sec) {:6.2f}\tAvg. ops/sec {:10.2f}".format(elapsed_time, avg_ops_sec), True)
