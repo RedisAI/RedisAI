@@ -185,3 +185,10 @@
    fun:_dl_catch_exception
    ...
 }
+
+{
+   <ignore_torch_cond_jump>
+   Memcheck:Cond
+   ...
+   obj:*/libtorch_cpu.so*
+}
