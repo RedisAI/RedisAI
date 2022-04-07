@@ -24,6 +24,13 @@ RUN echo "Building for {{REDIS_OSNICK}} ({{REDIS_OS}}) for {{REDIS_ARCH}} [with 
 {% include "templates/gpu.yml" %}
 {% endif %}
 
+# centos8 specific integration until a move to rocky or similar
+{% if REDIS_OSNICK == "centos8" %}
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+{% endif %}
+
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
