@@ -168,18 +168,6 @@ IF(BUILD_ORT)
     ENDIF()
 ENDIF()
 
-#----------------------------------------------------------------------------------------------
-
-IF (APPLE)
-    FIND_LIBRARY(MKL_LIBRARIES NAMES mklml
-            PATHS ${depsAbs}/mkl/lib)
-    IF (NOT MKL_LIBRARIES)
-        MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
-    ENDIF()
-    SET(platDeps "${MKL_LIBRARIES}")
-ENDIF()
-
-#----------------------------------------------------------------------------------------------
 
 IF(BUILD_TFLITE)
     # Find TensorFlow Lite stuff and build our wrapper
@@ -307,14 +295,6 @@ IF(BUILD_ORT)
             FILES_MATCHING PATTERN ${LIB_PATTERN})
 ENDIF()
 
-#----------------------------------------------------------------------------------------------
-
-IF (APPLE)
-    INSTALL(DIRECTORY ${depsAbs}/mkl/lib DESTINATION ${installAbs}/backends/redisai_torch
-            FILES_MATCHING PATTERN ${LIB_PATTERN})
-ENDIF()
-
-#----------------------------------------------------------------------------------------------
 
 IF (NOT ${installAbs} STREQUAL ${CMAKE_SOURCE_DIR}/install-${DEVICE})
     INSTALL_SYMLINK(${installAbs} ${CMAKE_SOURCE_DIR}/install-${DEVICE})
