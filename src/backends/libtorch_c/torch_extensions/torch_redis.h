@@ -7,7 +7,7 @@ namespace jit {
 namespace script {
 struct RedisResolver : public Resolver {
 
-    std::shared_ptr<SugaredValue> resolveValue(const std::string &name, Function &m,
+    std::shared_ptr<SugaredValue> resolveValue(const std::string &name, GraphFunction &m,
                                                const SourceRange &loc) override {
         if (strcasecmp(name.c_str(), "torch") == 0) {
             return std::make_shared<BuiltinModule>("aten");
