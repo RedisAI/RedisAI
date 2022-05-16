@@ -282,6 +282,6 @@ def test_dag_error_before_tensorget_op(env):
     env.assertEqual(type(ret[2]), redis.exceptions.ResponseError)
     expected_error_msg = 'Incompatible shapes: [2] vs. [2,2,3] \t [[{{node mul}}]]'
     if DEVICE != 'CPU':
-        expected_error_msg = 'Invalid argument: required broadcastable shapes' \
+        expected_error_msg = 'required broadcastable shapes' \
                              ' 	 [[{{node mul}}]]'
     env.assertContains(expected_error_msg, str(ret[2]))
