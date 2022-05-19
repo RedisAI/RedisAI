@@ -1,6 +1,4 @@
-{% if REDIS_OSNICK == "xenial" %}
-{% set cuda_suffix_os = "ubuntu16.04" %}
-{% elif REDIS_OSNICK == "bionic" %}
+{% if REDIS_OSNICK == "bionic" %}
 {% set cuda_suffix_os = "ubuntu18.04" %}
 {% endif %}
 
@@ -12,9 +10,7 @@ FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
 {% if REDIS_GPU is defined %}
 FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{cuda_suffix_os}}
 {% else %}
-{% if REDIS_OSNICK == "xenial" %}
-FROM ubuntu:xenial
-{% elif REDIS_OSNICK == "bionic" %}
+{% if REDIS_OSNICK == "bionic" %}
 FROM ubuntu:bionic
 {% endif %}
 {% endif %}
