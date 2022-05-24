@@ -536,3 +536,17 @@ def test_ai_info_multiproc_with_llapi(env):
     info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
     env.assertGreaterEqual(info['calls'], 0)
     env.assertGreaterEqual(num_parallel_clients, info['calls'])
+
+
+def test_ai_config(env):
+    con = get_connection(env, '{1}')
+
+    # Get the default configs.
+    res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
+    env.assertEqual(res, None)
+    res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
+    env.assertEqual(res, 511*1024*1024)
+
+    # Change the default configuration and validate the change.
+    print(ROOT)
+    res = con.execute_command('AI.CONFIG', 'BACKENDSPATH', ROOT+"/install-cpu/backends")
