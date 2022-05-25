@@ -588,3 +588,19 @@ def test_ai_config(env):
     model3 = con.execute_command('AI.MODELGET', 'm1{1}', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
     env.assertEqual(len(model3), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
+
+
+def test_ai_config_errors(env):
+    con = get_connection(env, '{1}')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG')
+    check_error_message(env, con, 'unsupported subcommand', 'AI.CONFIG', "bad_subcommand")
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'LOADBACKEND')
+    check_error_message(env, con, 'unsupported backend', 'AI.CONFIG', 'LOADBACKEND', 'bad_backend', "backends/redisai_torch/redisai_torch.so")
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'LOADBACKEND', "TORCH")
+
+    check_error_message(env, con, 'BACKENDSPATH: missing path argument', 'AI.CONFIG', 'BACKENDSPATH')
+    check_error_message(env, con, 'MODEL_CHUNK_SIZE: missing chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'GET')
+    env.assertEqual(con.execute_command('AI.CONFIG', 'GET', 'bad_config'), None)
