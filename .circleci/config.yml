@@ -139,16 +139,16 @@ commands:
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
       - run:
           name: Build
-          command: make -C opt all SHOW=1 DEBUG=1
+          command: make -C opt all SHOW=1
       - run:
           name: Test
           command: |
-            make -C opt test SHOW=1 DEBUG=1
+            make -C opt test SHOW=1
           no_output_timeout: 20m
       - run:
           name: Package
           command: |
-            make -C opt pack SHOW=1 DEBUG=1
+            make -C opt pack SHOW=1
             (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
       - persist_to_workspace:
           root: bin/
@@ -579,7 +579,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
-          <<: *on-any-branch
+          <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
@@ -587,7 +587,7 @@ workflows:
       - platforms-build-cpu:
           context: common
           <<: *after-build-and-test
-          <<: *on-any-branch
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -600,7 +600,7 @@ workflows:
       - platforms-build-gpu:
           context: common
           <<: *after-build-and-test
-          <<: *on-any-branch
+          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -624,7 +624,7 @@ workflows:
       - deploy-snapshot:
           context: common
           <<: *after-platform-builds
-          <<: *on-any-branch
+          <<: *on-master-version-tags-and-dockertests
       - deploy-release:
           context: common
           <<: *after-platform-builds
