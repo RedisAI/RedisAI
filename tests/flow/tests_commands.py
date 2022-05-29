@@ -542,29 +542,35 @@ def test_ai_config(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
         return
-    con = get_connection(env, '{1}')
+
+    conns = env.getOSSMasterNodesConnectionList()
+    if env.isCluster():
+        env.assertEqual(len(conns), env.shardsCount)
+
     model = load_file_content('pt-minimal.pt')
 
-    # Get the default configs.
-    res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
-    env.assertEqual(res, None)
-    res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
-    env.assertEqual(res, 511*1024*1024)
+    for con in conns:
+        # Get the default configs.
+        res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
+        env.assertEqual(res, None)
+        res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
+        env.assertEqual(res, 511*1024*1024)
 
-    # Change the default backends path and load backend.
-    con.execute_command('AI.CONFIG', 'BACKENDSPATH', ROOT+"/install-cpu")
-    res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
-    env.assertEqual(res, f'{ROOT}/install-cpu'.encode())
-    be_info = get_info_section(con, "backends_info")
-    env.assertEqual(len(be_info), 0)  # no backends are loaded.
-    check_error_message(env, con, 'error loading backend', 'AI.CONFIG', 'LOADBACKEND', 'TORCH', ".")
+        # Change the default backends path and load backend.
+        con.execute_command('AI.CONFIG', 'BACKENDSPATH', ROOT+"/install-cpu")
+        res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
+        env.assertEqual(res, f'{ROOT}/install-cpu'.encode())
+        be_info = get_info_section(con, "backends_info")
+        env.assertEqual(len(be_info), 0)  # no backends are loaded.
+        check_error_message(env, con, 'error loading backend', 'AI.CONFIG', 'LOADBACKEND', 'TORCH', ".")
 
-    res = con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', "backends/redisai_torch/redisai_torch.so")
-    env.assertEqual(res, b'OK')
-    be_info = get_info_section(con, "backends_info")
-    env.assertEqual(len(be_info), 1)  # one backend is loaded now - torch.
+        res = con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', "backends/redisai_torch/redisai_torch.so")
+        env.assertEqual(res, b'OK')
+        be_info = get_info_section(con, "backends_info")
+        env.assertEqual(len(be_info), 1)  # one backend is loaded now - torch.
 
-    # Set the same model twice - with and without chunks, and assert equality.
+    # Set the same model twice on some shard - with and without chunks, and assert equality.
+    con = get_connection(env, '{1}')
     chunk_size = len(model) // 3
     model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
     con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'BLOB', model)
@@ -573,13 +579,15 @@ def test_ai_config(env):
     model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
     env.assertEqual(model1, model2)
 
-    # Change the default model_chunk_size.
-    ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
-    env.assertEqual(ret, b'OK')
-    res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
-    env.assertEqual(res, chunk_size)
+    for con in conns:
+        # Change the default model_chunk_size.
+        ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
+        env.assertEqual(ret, b'OK')
+        res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
+        env.assertEqual(res, chunk_size)
 
     # Verify that AI.MODELGET returns the model's blob in chunks, with or without the META arg.
+    con = get_connection(env, '{1}')
     model2 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
     env.assertEqual(len(model2), len(model_chunks))
     env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
