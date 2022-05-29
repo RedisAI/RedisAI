@@ -139,16 +139,16 @@ commands:
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
       - run:
           name: Build
-          command: make -C opt all SHOW=1
+          command: make -C opt all SHOW=1 DEBUG=1
       - run:
           name: Test
           command: |
-            make -C opt test SHOW=1
+            make -C opt test SHOW=1 DEBUG=1
           no_output_timeout: 20m
       - run:
           name: Package
           command: |
-            make -C opt pack SHOW=1
+            make -C opt pack SHOW=1 DEBUG=1
             (cd bin/artifacts; tar -cf snapshots-<<parameters.platform>>.tar snapshots/)
       - persist_to_workspace:
           root: bin/
@@ -586,8 +586,8 @@ workflows:
           <<: *after-linter
       - platforms-build-cpu:
           context: common
+          <<: *on-any-branch
           <<: *after-build-and-test
-          <<: *on-master-version-tags-and-dockertests
           matrix:
             parameters:
               osnick:
@@ -624,7 +624,7 @@ workflows:
       - deploy-snapshot:
           context: common
           <<: *after-platform-builds
-          <<: *on-master-version-tags-and-dockertests
+          <<: *on-any-branch
       - deploy-release:
           context: common
           <<: *after-platform-builds
