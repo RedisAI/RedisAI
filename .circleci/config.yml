@@ -586,7 +586,7 @@ workflows:
           <<: *after-linter
       - platforms-build-cpu:
           context: common
-          <<: *on-any-branch
+          <<: *on-dev-branches
           <<: *after-build-and-test
           matrix:
             parameters:
