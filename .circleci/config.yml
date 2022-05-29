@@ -586,8 +586,8 @@ workflows:
           <<: *after-linter
       - platforms-build-cpu:
           context: common
-          <<: *on-dev-branches
           <<: *after-build-and-test
+          <<: *on-any-branch
           matrix:
             parameters:
               osnick:
@@ -600,7 +600,7 @@ workflows:
       - platforms-build-gpu:
           context: common
           <<: *after-build-and-test
-          <<: *on-master-version-tags-and-dockertests
+          <<: *on-any-branch
           matrix:
             parameters:
               osnick:
