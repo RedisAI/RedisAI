@@ -560,7 +560,7 @@ def test_ai_config(env):
         path = f'{ROOT}/install-{DEVICE.lower()}'
         con.execute_command('AI.CONFIG', 'BACKENDSPATH', path)
         res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
-        env.assertEqual(res, f'{ROOT}/install-cpu'.encode())
+        env.assertEqual(res, path.encode())
         be_info = get_info_section(con, "backends_info")
         env.assertEqual(len(be_info), 0)  # no backends are loaded.
         check_error_message(env, con, 'error loading backend', 'AI.CONFIG', 'LOADBACKEND', 'TORCH', ".")
