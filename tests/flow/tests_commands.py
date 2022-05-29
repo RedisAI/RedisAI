@@ -557,7 +557,8 @@ def test_ai_config(env):
         env.assertEqual(res, 511*1024*1024)
 
         # Change the default backends path and load backend.
-        con.execute_command('AI.CONFIG', 'BACKENDSPATH', ROOT+"/install-cpu")
+        path = f'{ROOT}/install-{DEVICE.lower()}'
+        con.execute_command('AI.CONFIG', 'BACKENDSPATH', path)
         res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
         env.assertEqual(res, f'{ROOT}/install-cpu'.encode())
         be_info = get_info_section(con, "backends_info")
