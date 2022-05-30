@@ -34,7 +34,10 @@ class RedisAISetup(paella.Setup):
 
     def redhat_compat(self):
         self.run("%s/bin/enable-utf8" % READIES)
-        self.run("%s/bin/getepel" % READIES)
+        self.install("epel-release")
+        if self.osnick == "centos8":
+            self.run("dnf install -qy dnf-plugins-core")
+            self.run("dnf config-manager -qy --set-enabled powertools")
         self.install("redhat-lsb-core")
 
         self.run("%s/bin/getgcc --modern" % READIES)
