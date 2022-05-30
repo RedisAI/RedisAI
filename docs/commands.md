@@ -1144,7 +1144,7 @@ The **AI.CONFIG** command sets the value of configuration directives at run-time
 
 **Redis API**
 ```
-AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>>
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>> | <GET <BACKENDSPATH | MODEL_CHUNK_SIZE>> 
 ```
 
 _Arguments_
@@ -1156,6 +1156,7 @@ _Arguments_
     * **TORCH**: The PyTorch backend
     * **ONNX**: ONNXRuntime backend
 * **MODEL_CHUNK_SIZE**: Sets the size of chunks (in bytes) in which model payloads are split for serialization, replication and `MODELGET`. Default is `511 * 1024 * 1024`.
+* **GET**: Retrieve the current value of the `BACKENDSPATH / MODEL_CHUNK_SIZE` configurations. Note that additional information about the module's runtime configuration can be retrieved as part of Redis' info report via `INFO MODULES` command.  
 
 _Return_
 
@@ -1189,4 +1190,11 @@ This sets model chunk size to one megabyte (not recommended):
 ```
 redis> AI.CONFIG MODEL_CHUNK_SIZE 1048576
 OK
+```
+
+This returns the current model chunk size configuration:
+
+```
+redis> AI.CONFIG GET MODEL_CHUNK_SIZE
+1048576
 ```
