@@ -939,7 +939,20 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
             return RedisModule_ReplyWithError(ctx, "ERR MODEL_CHUNK_SIZE: missing chunk size");
         }
     }
-
+    if (!strcasecmp(subcommand, "GET")) {
+        if (argc > 2) {
+            const char *config = RedisModule_StringPtrLen(argv[2], NULL);
+            if (!strcasecmp(config, "BACKENDSPATH")) {
+                return RedisModule_ReplyWithCString(ctx, Config_GetBackendsPath());
+            } else if (!strcasecmp(config, "MODEL_CHUNK_SIZE")) {
+                return RedisModule_ReplyWithLongLong(ctx, Config_GetModelChunkSize());
+            } else {
+                return RedisModule_ReplyWithNull(ctx);
+            }
+        } else {
+            return RedisModule_WrongArity(ctx);
+        }
+    }
     return RedisModule_ReplyWithError(ctx, "ERR unsupported subcommand");
 }
 
