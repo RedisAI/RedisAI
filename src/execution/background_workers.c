@@ -21,9 +21,9 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-uintptr_t LastThreadId;       // Last number given as thread id for BG threads running currently.
-pthread_key_t ThreadIdKey;    // Key to hold thread id in its local storage.
-unsigned int BGWorkersCount;  // Total number of BG threads spawned.
+uintptr_t LastThreadId;      // Last number given as thread id for BG threads running currently.
+pthread_key_t ThreadIdKey;   // Key to hold thread id in its local storage.
+unsigned int BGWorkersCount; // Total number of BG threads spawned.
 
 /**
  * @brief Save the id for some working thread in thread local storage.
