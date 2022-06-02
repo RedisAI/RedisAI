@@ -567,7 +567,7 @@ class TestOnnxKillSwitch:
 
         def launch_redis_and_run_onnx(con, proc_id, pipes):
             my_pipe = pipes[proc_id]
-            port = 6380 + proc_id  # Let every subprocess run on a fresh port.
+            port = 6380 + 30*proc_id  # Let every subprocess run on a fresh port (safe distance for RLTEST parallelism).
             redis_server = subprocess.Popen(['redis-server', '--port', str(port),
                                              '--loadmodule', f'{ROOT}/install-{DEVICE.lower()}/redisai.so',
                                              '--logfile', f'{self.env.logDir}/test_onnx_kill_switch_synchronization-{port}.log',

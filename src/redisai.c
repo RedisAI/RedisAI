@@ -921,8 +921,11 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
 
     if (!strcasecmp(subcommand, "BACKENDSPATH")) {
         if (argc > 2) {
-            Config_SetBackendsPath(RedisModule_StringPtrLen(argv[2], NULL));
-            return RedisModule_ReplyWithSimpleString(ctx, "OK");
+            if (Config_SetBackendsPath(RedisModule_StringPtrLen(argv[2], NULL)) == REDISMODULE_OK) {
+                return RedisModule_ReplyWithSimpleString(ctx, "OK");
+            } else {
+                return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: path exceeds 1023 chars");
+            }
         } else {
             return RedisModule_ReplyWithError(ctx, "ERR BACKENDSPATH: missing path argument");
         }

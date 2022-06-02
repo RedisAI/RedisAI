@@ -112,6 +112,7 @@ int RAI_LoadDefaultBackend(RedisModuleCtx *ctx, int backend);
 const char *RAI_GetBackendName(RAI_Backend backend);
 
 /**
- * @brief Returns the default backends as string which is <module_path>/backends.
+ * @brief Set the default backends path (<module_path>/backends) in backends_path.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if path is too long.
  */
-char *RAI_GetBackendsDefaultPath(void);
+int RAI_SetBackendsDefaultPath(char *backends_path);

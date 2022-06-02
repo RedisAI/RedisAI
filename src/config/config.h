@@ -28,6 +28,9 @@ typedef enum { RAI_DEVICE_CPU = 0, RAI_DEVICE_GPU = 1 } RAI_Device;
 #define REDISAI_INFOMSG_MODEL_EXECUTION_TIMEOUT "Setting MODEL_EXECUTION_TIMEOUT parameter to"
 #define REDISAI_INFOMSG_BACKEND_MEMORY_LIMIT    "Setting BACKEND_MEMORY_LIMIT parameter to"
 
+#define REDISAI_BACKENDS_PATH_MAX_LEN    1023
+#define REDISAI_DEFAULT_MODEL_CHUNK_SIZE (511 * 1024 * 1024)
+
 /**
  * Get number of threads used for parallelism between independent operations, by
  * backend.
@@ -81,11 +84,11 @@ char *Config_GetBackendsPath(void);
 int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc);
 
 /**
- * Helper method for AI.CONFIG BACKENDSPATH
- * <default_location_of_backend_libraries>
- * @param path string containing backend path
+ * Helper method for AI.CONFIG BACKENDSPATH <default_location_of_backend_libraries>
+ * @param path string containing backend path.
+ * @return REDISMODULE_OK on success, or REDISMODULE_ERR if path is too long.
  */
-void Config_SetBackendsPath(const char *path);
+int Config_SetBackendsPath(const char *path);
 
 /**
  * Set number of threads used for parallelism between RedisAI independent

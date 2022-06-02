@@ -92,31 +92,19 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
     return REDISMODULE_OK;
 }
 
-RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
-    Dl_info info;
-    RedisModuleString *module_path = NULL;
-    if (dladdr(RAI_GetModulePath, &info)) {
-        char *dli_fname = RedisModule_Strdup(info.dli_fname);
-        const char *dli_dirname = dirname(dli_fname);
-        module_path = RedisModule_CreateString(ctx, dli_dirname, strlen(dli_dirname));
-        RedisModule_Free(dli_fname);
-    }
-
-    return module_path;
-}
-
-char *RAI_GetBackendsDefaultPath() {
+int RAI_SetBackendsDefaultPath(char *backends_path) {
     Dl_info info;
     // Retrieve the info about the module's dynamic library, and extract the .so file dir name.
-    RedisModule_Assert(dladdr(RAI_GetBackendsDefaultPath, &info) != 0);
-    char *dyn_lib_name = RedisModule_Strdup(info.dli_fname);
-    const char *dyn_lib_dir_name = dirname(dyn_lib_name);
+    RedisModule_Assert(dladdr(RAI_SetBackendsDefaultPath, &info) != 0);
+    const char *dyn_lib_dir_name = dirname((char *)info.dli_fname);
 
-    // Allocate and populate a string containing the default backends path.
-    char *backends_default_path = RedisModule_Alloc(strlen(dyn_lib_dir_name)+strlen("/backends"));
-    RedisModule_Assert(sprintf(backends_default_path, "%s/backends", dyn_lib_dir_name) > 0);
-
-    return backends_default_path;
+    // Populate backends_path global string with the default path.
+    size_t backends_default_path_len = strlen(dyn_lib_dir_name) + strlen("/backends");
+    if (backends_default_path_len > REDISAI_BACKENDS_PATH_MAX_LEN) {
+        return REDISMODULE_ERR;
+    }
+    RedisModule_Assert(sprintf(backends_path, "%s/backends", dyn_lib_dir_name) > 0);
+    return REDISMODULE_OK;
 }
 
 const char *RAI_GetBackendName(RAI_Backend backend) {
