@@ -21,15 +21,16 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-uintptr_t BGWorkersCounter; // Total number of BG threads running currently.
-pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
+uintptr_t LastThreadId;      // Last number given as thread id for BG threads running currently.
+pthread_key_t ThreadIdKey;   // Key to hold thread id in its local storage.
+unsigned int BGWorkersCount; // Total number of BG threads spawned.
 
 /**
  * @brief Save the id for some working thread in thread local storage.
  */
 static void _BGWorker_SaveThreadId() {
     // Let the current thread have the next available id, and increase the counter.
-    long id_value = __atomic_add_fetch(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
+    long id_value = __atomic_add_fetch(&LastThreadId, 1, __ATOMIC_RELAXED);
     // Convert the id value to a pointer and store it the thread local storage.
     // First id is 1, so we won't confuse with NULL (which is the error return value)
     pthread_setspecific(ThreadIdKey, (const void *)id_value);
@@ -291,7 +292,7 @@ long BGWorker_GetThreadId() {
     return (long)(thread_id)-1;
 }
 
-uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
+uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCount; }
 
 void *BGWorker_ThreadMain(void *arg) {
     _BGWorker_SaveThreadId();

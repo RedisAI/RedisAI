@@ -3,6 +3,8 @@
 #include "backends/backends.h"
 #include "background_workers.h"
 
+extern unsigned int BGWorkersCount;
+
 RunQueueInfo *RunQueue_Create(const char *device_str) {
 
     size_t device_str_len = strlen(device_str);
@@ -22,7 +24,7 @@ RunQueueInfo *RunQueue_Create(const char *device_str) {
         return NULL;
     }
 
-    // Create worker threads.
+    // Create worker threads, update the global counter.
     for (int i = 0; i < Config_GetNumThreadsPerQueue(); i++) {
         pthread_t thread;
         if (pthread_create(&thread, NULL, BGWorker_ThreadMain, run_queue_info) != 0) {
@@ -32,6 +34,7 @@ RunQueueInfo *RunQueue_Create(const char *device_str) {
         }
         run_queue_info->threads = array_append(run_queue_info->threads, thread);
     }
+    BGWorkersCount += Config_GetNumThreadsPerQueue();
 
     // Add the new device worker threads to onnx run sessions tracking.
     if (RAI_backends.onnx.add_new_device_cb) {
