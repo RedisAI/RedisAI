@@ -105,20 +105,18 @@ RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
     return module_path;
 }
 
-RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
+char *RAI_GetBackendsDefaultPath() {
     Dl_info info;
-    RedisModuleString *backends_path = NULL;
-    if (Config_GetBackendsPath() != NULL) {
-        backends_path = RedisModule_CreateString(ctx, Config_GetBackendsPath(),
-                                                 strlen(Config_GetBackendsPath()));
-    } else {
-        RedisModuleString *module_path = RAI_GetModulePath(ctx);
-        backends_path = RedisModule_CreateStringPrintf(ctx, "%s/backends",
-                                                       RedisModule_StringPtrLen(module_path, NULL));
-        RedisModule_FreeString(ctx, module_path);
-    }
+    // Retrieve the info about the module's dynamic library, and extract the .so file dir name.
+    RedisModule_Assert(dladdr(RAI_GetBackendsDefaultPath, &info) != 0);
+    char *dyn_lib_name = RedisModule_Strdup(info.dli_fname);
+    const char *dyn_lib_dir_name = dirname(dyn_lib_name);
 
-    return backends_path;
+    // Allocate and populate a string containing the default backends path.
+    char *backends_default_path = RedisModule_Alloc(strlen(dyn_lib_dir_name)+strlen("/backends"));
+    RedisModule_Assert(sprintf(backends_default_path, "%s/backends", dyn_lib_dir_name) > 0);
+
+    return backends_default_path;
 }
 
 const char *RAI_GetBackendName(RAI_Backend backend) {
@@ -460,10 +458,8 @@ int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path) {
     if (path[0] == '/') {
         fullpath = RedisModule_CreateString(ctx, path, strlen(path));
     } else {
-        RedisModuleString *backends_path = RAI_GetBackendsPath(ctx);
-        fullpath = RedisModule_CreateStringPrintf(
-            ctx, "%s/%s", RedisModule_StringPtrLen(backends_path, NULL), path);
-        RedisModule_FreeString(ctx, backends_path);
+        const char *backends_path = Config_GetBackendsPath();
+        fullpath = RedisModule_CreateStringPrintf(ctx, "%s/%s", backends_path, path);
     }
 
     int ret;

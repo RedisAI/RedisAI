@@ -552,7 +552,7 @@ def test_ai_config(env):
     for con in conns:
         # Get the default configs.
         res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
-        env.assertEqual(res, None)
+        env.assertEqual(res.decode(), f'{"/".join(MODULE.split("/")[:-1])}/backends')  # <path_to_module_dir>/backends
         res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
         env.assertEqual(res, 511*1024*1024)
 

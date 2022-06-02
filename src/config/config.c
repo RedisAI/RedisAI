@@ -3,9 +3,9 @@
 #include "redismodule.h"
 #include "backends/backends.h"
 
-// Default configs
-char *BackendsPath = NULL; //  Path to backends dir.
-
+// Default configs:
+char *BackendsPath;                       //  Path to backends dir. Default value is set when
+                                          //  parsing load_time configs.
 long long BackendsIntraOpParallelism = 0; //  number of threads used within an
                                           //  individual op for parallelism.
 long long BackendsInterOpParallelism = 0; //  number of threads used for parallelism
@@ -186,8 +186,8 @@ int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv
                         "provide arguments as KEY VAL pairs");
         return REDISMODULE_ERR;
     }
-
-    // need BACKENDSPATH set up before loading specific backends
+    // need BACKENDSPATH set up before loading specific backends.
+    BackendsPath = RAI_GetBackendsDefaultPath();
     for (int i = 0; i < argc / 2; i++) {
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
