@@ -94,7 +94,7 @@ The **BACKENDSPATH** configuration option sets the default base path that RedisA
 
 _Expected Value_
 
-A String that is an absolute path.
+A String that is an absolute path of up to `1024` characters.
 
 _Default Value_
 

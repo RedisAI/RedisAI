@@ -1149,7 +1149,7 @@ AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_
 
 _Arguments_
 
-* **BACKENDSPATH**: Specifies the default base backends path to `path`. The backends path is used when dynamically loading a backend (default: '{module_path}/backends', where `module_path` is the module's path).
+* **BACKENDSPATH**: Specifies the default base backends path to `path`. The backends path is used when dynamically loading a backend (default: `'{module_path}/backends'`, where `module_path` is the module's path). Note that the length of `path` is restricted to 1024 characters.
 * **LOADBACKEND**: Loads the DL/ML backend specified by the `backend` identifier from `path`. If `path` is relative, it is resolved by prefixing the `BACKENDSPATH` to it. If `path` is absolute then it is used as is. The `backend` can be one of:
     * **TF**: the TensorFlow backend
     * **TFLITE**: The TensorFlow Lite backend
