@@ -90,7 +90,7 @@ get_tests_data() {
 	local TEST_DATA_PATH=$ROOT/tests/flow/test_data
 	if [ ! "$(ls -A $TEST_DATA_PATH)" ]; then
 	  echo "Downloading tests data from s3:"
-	  aws s3 cp --recursive s3://dev.cto.redis/RedisAI/test_data/ $ROOT/tests/flow/test_data
+	  aws s3 sync s3://dev.cto.redis/RedisAI/test_data/ $ROOT/tests/flow/test_data
 	  echo "Done"
 	fi
 }
