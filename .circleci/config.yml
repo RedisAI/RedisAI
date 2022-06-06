@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  aws-s3: circleci/aws-s3@3.0.0
 
 commands:
 
@@ -127,9 +129,6 @@ commands:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
-      - restore_cache:
-          keys:
-          - v1.2.5-tests_data
       - setup-build-system
       - run:
           name: Install dependencies
@@ -140,6 +139,16 @@ commands:
           paths:
             - deps
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
+      - restore_cache:
+          keys:
+            - v1.2.5-tests_data
+      - aws-s3/sync:
+          arguments: |
+            --recursive
+          aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
+          from: s3://dev.cto.redis/RedisAI/test_data/
+          to: tests/flow/test_data
       - save_cache:
           paths:
             - tests/flow/tests/test_data
