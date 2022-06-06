@@ -142,8 +142,7 @@ commands:
       - restore_cache:
           keys:
             - v1.2.5-tests_data
-      - aws-s3/copy:
-          arguments: --recursive
+      - aws-s3/synk:
           aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
           aws-region: AWS_REGION_TEST_DATA
@@ -356,8 +355,7 @@ jobs:
       - restore_cache:
           keys:
             - v1.2.5-tests_data
-      - aws-s3/copy:
-          arguments: --recursive
+      - aws-s3/synk:
           aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
           aws-region: AWS_REGION_TEST_DATA
