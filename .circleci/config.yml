@@ -127,6 +127,9 @@ commands:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
           # If no exact match is found will get dependencies from source
+      - restore_cache:
+          keys:
+          - v1.2.5-tests_data
       - setup-build-system
       - run:
           name: Install dependencies
@@ -137,6 +140,10 @@ commands:
           paths:
             - deps
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
+      - save_cache:
+          paths:
+            - tests/flow/tests/test_data
+          key: v1.2.5-tests_data
       - run:
           name: Build
           command: make -C opt all SHOW=1
