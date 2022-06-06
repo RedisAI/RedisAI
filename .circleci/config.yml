@@ -198,6 +198,9 @@ commands:
           name: Build for valgrind
           command: |
             make -C opt all VALGRIND=1 SHOW=1
+      - restore_cache:
+          keys:
+            - v1.2.5-tests_data
       - run:
           name: Test with valgrind
           command: |
@@ -225,6 +228,9 @@ commands:
           paths:
             - deps
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
+      - restore_cache:
+          keys:
+            - v1.2.5-tests_data
       - run:
           name: Test
           command: |
@@ -347,6 +353,16 @@ jobs:
           name: Build for coverage
           command: |
             make -C opt all COV=1 SHOW=1
+      - restore_cache:
+          keys:
+            - v1.2.5-tests_data
+      - aws-s3/sync:
+          arguments: --source-region eu-west-1
+          aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
+          aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
+          aws-region: AWS_REGION_TEST_DATA
+          from: s3://dev.cto.redis/RedisAI/test_data/
+          to: tests/flow/test_data
       - run:
           name: Test with coverage
           command: |
@@ -592,6 +608,7 @@ workflows:
       - lint:
           <<: *on-any-branch
       - build-and-test:
+          context: common
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
