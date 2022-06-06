@@ -145,6 +145,7 @@ commands:
       - aws-s3/sync:
           aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
+          aws-region: eu-west-1
           from: s3://dev.cto.redis/RedisAI/test_data/
           to: tests/flow/test_data
       - save_cache:
