@@ -143,7 +143,7 @@ commands:
           keys:
             - v1.2.5-tests_data
       - aws-s3/sync:
-          arguments: --source-region us-west-1
+          arguments: --source-region eu-west-1
           aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
           aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
           aws-region: AWS_REGION_TEST_DATA
