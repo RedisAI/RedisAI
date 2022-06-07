@@ -144,8 +144,8 @@ commands:
           name: Set S3 cradentials
           command: |
             aws configure --profile test_data set aws_access_key_id AWS_ACCESS_KEY_TEST_DATA
-            aws configure --profile test_data set aws-secret-access-key AWS_SECRET_ACCESS_KEY_TEST_DATA
-            aws configure --profile test_data set aws-region AWS_REGION_TEST_DATA
+            aws configure --profile test_data set aws_secret_access_key AWS_SECRET_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws_region AWS_REGION_TEST_DATA
       - run:
           name: Fetch test data from S3
           command: |
@@ -361,8 +361,8 @@ jobs:
           name: Set S3 cradentials
           command: |
             aws configure --profile test_data set aws_access_key_id AWS_ACCESS_KEY_TEST_DATA
-            aws configure --profile test_data set aws-secret-access-key AWS_SECRET_ACCESS_KEY_TEST_DATA
-            aws configure --profile test_data set aws-region AWS_REGION_TEST_DATA
+            aws configure --profile test_data set aws_secret_access_key AWS_SECRET_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws_region AWS_REGION_TEST_DATA
       - run:
           name: Fetch test data from S3
           command: |
