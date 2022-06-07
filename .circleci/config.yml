@@ -218,6 +218,9 @@ commands:
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
+      - restore_cache:
+          keys:
+            - v1.2-tests_data
       - relocate-docker-storage
       - run:
           name: Build
@@ -229,9 +232,6 @@ commands:
           paths:
             - deps
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
-      - restore_cache:
-          keys:
-            - v1.2-tests_data
       - run:
           name: Test
           command: |
