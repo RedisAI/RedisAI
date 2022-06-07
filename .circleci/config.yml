@@ -1,6 +1,4 @@
 version: 2.1
-orbs:
-  aws-s3: circleci/aws-s3@3.0.0
 
 commands:
 
@@ -142,12 +140,16 @@ commands:
       - restore_cache:
           keys:
             - v1.2.5-tests_data
-      - aws-s3/sync:
-          aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
-          aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
-          aws-region: AWS_REGION_TEST_DATA
-          from: s3://dev.cto.redis/RedisAI/test_data/
-          to: tests/flow/test_data
+      - run:
+          name: Set S3 cradentials
+          command: |
+            aws configure --profile test_data set aws_access_key_id AWS_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws-secret-access-key AWS_SECRET_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws-region AWS_REGION_TEST_DATA
+      - run:
+          name: Fetch test data from S3
+          command: |
+            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
       - save_cache:
           paths:
             - tests/flow/tests/test_data
@@ -355,12 +357,16 @@ jobs:
       - restore_cache:
           keys:
             - v1.2.5-tests_data
-      - aws-s3/sync:
-          aws-access-key-id: AWS_ACCESS_KEY_TEST_DATA
-          aws-secret-access-key: AWS_SECRET_ACCESS_KEY_TEST_DATA
-          aws-region: AWS_REGION_TEST_DATA
-          from: s3://dev.cto.redis/RedisAI/test_data/
-          to: tests/flow/test_data
+      - run:
+          name: Set S3 cradentials
+          command: |
+            aws configure --profile test_data set aws_access_key_id AWS_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws-secret-access-key AWS_SECRET_ACCESS_KEY_TEST_DATA
+            aws configure --profile test_data set aws-region AWS_REGION_TEST_DATA
+      - run:
+          name: Fetch test data from S3
+          command: |
+            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
       - run:
           name: Test with coverage
           command: |
