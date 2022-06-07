@@ -5,7 +5,7 @@
 
 /* Default configs: */
 // Path to backends dir. Default value is set when parsing load_time configs.
-char BackendsPath[REDISAI_BACKENDS_PATH_MAX_LEN];
+char *BackendsPath;
 // Number of threads used within an individual op for parallelism.
 long long BackendsIntraOpParallelism = 0;
 // Number of threads used for parallelism between independent operations.
@@ -110,12 +110,10 @@ int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
     return RedisModule_ReplyWithError(ctx, "ERR error loading backend");
 }
 
-int Config_SetBackendsPath(const char *path) {
-    if (strlen(path) > REDISAI_BACKENDS_PATH_MAX_LEN) {
-        return REDISMODULE_ERR;
-    }
-    strcpy(BackendsPath, path);
-    return REDISMODULE_OK;
+void Config_SetBackendsPath(const char *path) {
+    RedisModule_Assert(BackendsPath != NULL && path != NULL);
+    RedisModule_Free(BackendsPath);
+    BackendsPath = RedisModule_Strdup(path);
 }
 
 int Config_SetQueueThreadsNum(RedisModuleString *num_threads_string) {
@@ -187,19 +185,22 @@ int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv
                         "provide arguments as KEY VAL pairs");
         return REDISMODULE_ERR;
     }
-    // need BACKENDSPATH set up before loading specific backends.
-    int ret = RAI_SetBackendsDefaultPath(BackendsPath);
-    const char *key;
-    const char *val;
+
+    // need BACKENDSPATH set up before loading specific backends
+    RAI_SetBackendsDefaultPath(&BackendsPath);
     for (int i = 0; i < argc / 2; i++) {
-        key = RedisModule_StringPtrLen(argv[2 * i], NULL);
-        val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
+        const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
+        const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
         if (strcasecmp(key, "BACKENDSPATH") == 0) {
-            ret = Config_SetBackendsPath(val);
+            Config_SetBackendsPath(val);
         }
     }
 
     for (int i = 0; i < argc / 2; i++) {
+        const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
+        const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
+        int ret = _Config_LoadTimeParamParse(ctx, key, val, argv[2 * i + 1]);
+
         if (ret == REDISMODULE_ERR) {
             char *buffer = RedisModule_Alloc(
                 (4 + strlen(REDISAI_ERRORMSG_PROCESSING_ARG) + strlen(key) + strlen(val)) *
@@ -209,9 +210,6 @@ int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv
             RedisModule_Free(buffer);
             return ret;
         }
-        key = RedisModule_StringPtrLen(argv[2 * i], NULL);
-        val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);
-        ret = _Config_LoadTimeParamParse(ctx, key, val, argv[2 * i + 1]);
     }
     return REDISMODULE_OK;
 }
