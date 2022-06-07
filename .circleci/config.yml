@@ -220,7 +220,21 @@ commands:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
       - restore_cache:
           keys:
-            - v1.2-tests_data
+            - v1.2-tests_data-gpu
+      - run:
+          name: Set S3 cradentials
+          command: |
+            aws configure --profile test_data set aws_access_key_id ${AWS_ACCESS_KEY_TEST_DATA}
+            aws configure --profile test_data set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY_TEST_DATA}
+            aws configure --profile test_data set aws_region ${AWS_REGION_TEST_DATA}
+      - run:
+          name: Fetch test data from S3
+          command: |
+            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
+      - save_cache:
+          paths:
+            - tests/flow/test_data
+          key: v1.2-tests_data-gpu
       - relocate-docker-storage
       - run:
           name: Build
