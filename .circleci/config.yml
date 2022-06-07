@@ -630,6 +630,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
+          context: common
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
