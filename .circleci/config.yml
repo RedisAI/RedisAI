@@ -139,7 +139,7 @@ commands:
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
       - restore_cache:
           keys:
-            - v1.2.5-tests_data
+            - v1.2.6-tests_data
       - run:
           name: Set S3 cradentials
           command: |
@@ -153,7 +153,7 @@ commands:
       - save_cache:
           paths:
             - tests/flow/tests/test_data
-          key: v1.2.5-tests_data
+          key: v1.2.6-tests_data
       - run:
           name: Build
           command: make -C opt all SHOW=1
@@ -201,7 +201,7 @@ commands:
             make -C opt all VALGRIND=1 SHOW=1
       - restore_cache:
           keys:
-            - v1.2.5-tests_data
+            - v1.2.6-tests_data
       - run:
           name: Test with valgrind
           command: |
@@ -231,7 +231,7 @@ commands:
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-gpu
       - restore_cache:
           keys:
-            - v1.2.5-tests_data
+            - v1.2.6-tests_data
       - run:
           name: Test
           command: |
@@ -356,7 +356,7 @@ jobs:
             make -C opt all COV=1 SHOW=1
       - restore_cache:
           keys:
-            - v1.2.5-tests_data
+            - v1.2.6-tests_data
       - run:
           name: Set S3 cradentials
           command: |
