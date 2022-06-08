@@ -137,31 +137,21 @@ commands:
           paths:
             - deps
           key: v1.2.5-deps-{{ checksum "get_deps.sh" }}-cpu
-      - restore_cache:
-          keys:
-            - v1.2-tests_data
-      - run:
-          name: Set S3 cradentials
-          command: |
-            aws configure --profile test_data set aws_access_key_id ${AWS_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_region ${AWS_REGION_TEST_DATA}
-      - run:
-          name: Fetch test data from S3
-          command: |
-            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
-      - save_cache:
-          paths:
-            - tests/flow/test_data
-          key: v1.2-tests_data
       - run:
           name: Build
           command: make -C opt all SHOW=1
+      - restore_cache:
+          keys:
+            - v1.2-tests_data
       - run:
           name: Test
           command: |
             make -C opt test SHOW=1
           no_output_timeout: 20m
+      - save_cache:
+          paths:
+            - tests/flow/test_data
+          key: v1.2-tests_data
       - run:
           name: Package
           command: |
@@ -221,20 +211,6 @@ commands:
       - restore_cache:
           keys:
             - v1.2-tests_data-gpu
-      - run:
-          name: Set S3 cradentials
-          command: |
-            aws configure --profile test_data set aws_access_key_id ${AWS_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_region ${AWS_REGION_TEST_DATA}
-      - run:
-          name: Fetch test data from S3
-          command: |
-            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
-      - save_cache:
-          paths:
-            - tests/flow/test_data
-          key: v1.2-tests_data-gpu
       - relocate-docker-storage
       - run:
           name: Build
@@ -252,6 +228,10 @@ commands:
             mkdir -p $HOME/tests
             docker run --gpus all -v $HOME/tests:/build/tests/flow/logs -it --rm redisai-gpu:latest-test
           no_output_timeout: 40m
+      - save_cache:
+          paths:
+            - tests/flow/test_data
+          key: v1.2-tests_data-gpu
       - store_artifacts:
           path: /home/circleci/tests
 
@@ -371,16 +351,6 @@ jobs:
       - restore_cache:
           keys:
             - v1.2-tests_data
-      - run:
-          name: Set S3 cradentials
-          command: |
-            aws configure --profile test_data set aws_access_key_id ${AWS_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_secret_access_key ${AWS_SECRET_ACCESS_KEY_TEST_DATA}
-            aws configure --profile test_data set aws_region ${AWS_REGION_TEST_DATA}
-      - run:
-          name: Fetch test data from S3
-          command: |
-            aws --profile test_data s3 sync s3://dev.cto.redis/RedisAI/test_data/ tests/flow/test_data
       - run:
           name: Test with coverage
           command: |
@@ -626,11 +596,9 @@ workflows:
       - lint:
           <<: *on-any-branch
       - build-and-test:
-          context: common
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
-          context: common
           <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
