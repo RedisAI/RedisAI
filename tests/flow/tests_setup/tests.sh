@@ -90,7 +90,7 @@ get_tests_data() {
 	local TEST_DATA_PATH=$ROOT/tests/flow/test_data
 	if [ ! -d ${TEST_DATA_PATH} ]; then
 	  echo "Downloading tests data from s3..."
-	  wget -x -nH --cut-dirs=2 -i $ROOT/tests/flow/test_data_files.txt -P $ROOT/tests/flow/test_data
+	  wget -q -x -nH --cut-dirs=2 -i $ROOT/tests/flow/test_data_files.txt -P $ROOT/tests/flow/test_data
 	  echo "Done"
 	fi
 }
