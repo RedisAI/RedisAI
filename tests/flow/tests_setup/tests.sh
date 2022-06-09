@@ -46,14 +46,6 @@ help() {
 
 #----------------------------------------------------------------------------------------------
 
-install_git_lfs() {
-	[[ $NO_LFS == 1 ]] && return
-	[[ $(git lfs env > /dev/null 2>&1 ; echo $?) != 0 ]] && git lfs install
-	git lfs pull
-}
-
-#----------------------------------------------------------------------------------------------
-
 check_redis_server() {
 	if ! command -v redis-server > /dev/null; then
 		echo "Cannot find redis-server. Aborting."
@@ -89,6 +81,17 @@ valgrind_summary() {
 		exit 1
 	else
 		echo Valgrind test ok
+	fi
+}
+
+#----------------------------------------------------------------------------------------------
+
+get_tests_data() {
+	local TEST_DATA_PATH=$ROOT/tests/flow/test_data
+	if [ ! -d ${TEST_DATA_PATH} ]; then
+	  echo "Downloading tests data from s3..."
+	  wget -q -x -nH --cut-dirs=2 -i $ROOT/tests/flow/test_data_files.txt -P $ROOT/tests/flow/test_data
+	  echo "Done"
 	fi
 }
 
@@ -137,9 +140,9 @@ fi
 
 cd $ROOT/tests/flow/tests_setup
 
-install_git_lfs
 check_redis_server
 ./Install_RedisGears.sh
+get_tests_data
 
 [[ ! -z $REDIS ]] && RL_TEST_ARGS+=" --env exiting-env --existing-env-addr $REDIS" run_tests "redis-server: $REDIS"
 [[ $GEN == 1 ]]    && run_tests
