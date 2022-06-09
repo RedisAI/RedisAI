@@ -149,7 +149,7 @@ int Config_SetIntraOperationParallelism(RedisModuleString *num_threads_string) {
 int Config_SetModelChunkSize(RedisModuleString *chunk_size_string) {
     long long val;
     int result = RedisModule_StringToLongLong(chunk_size_string, &val);
-    if (result != REDISMODULE_OK || val <= 0 || val > REDISAI_DEFAULT_MODEL_CHUNK_SIZE) {
+    if (result != REDISMODULE_OK || val <= 0) {
         return REDISMODULE_ERR;
     }
     ModelChunkSize = val;

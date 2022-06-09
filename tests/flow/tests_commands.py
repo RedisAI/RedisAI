@@ -610,7 +610,6 @@ def test_ai_config_errors(env):
     check_error_message(env, con, 'BACKENDSPATH: missing path argument', 'AI.CONFIG', 'BACKENDSPATH')
     check_error_message(env, con, 'MODEL_CHUNK_SIZE: missing chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE')
     check_error_message(env, con, 'MODEL_CHUNK_SIZE: invalid chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE', 'not_number')
-    check_error_message(env, con, 'MODEL_CHUNK_SIZE: invalid chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE', 512*1024*1024)
 
     check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'GET')
     env.assertEqual(con.execute_command('AI.CONFIG', 'GET', 'bad_config'), None)
