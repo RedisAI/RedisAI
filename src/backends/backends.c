@@ -92,33 +92,17 @@ int RAI_ExportFunc(const char *func_name, void **targetFuncPtr) {
     return REDISMODULE_OK;
 }
 
-RedisModuleString *RAI_GetModulePath(RedisModuleCtx *ctx) {
+void RAI_SetBackendsDefaultPath(char **backends_path) {
+    RedisModule_Assert(*backends_path == NULL);
     Dl_info info;
-    RedisModuleString *module_path = NULL;
-    if (dladdr(RAI_GetModulePath, &info)) {
-        char *dli_fname = RedisModule_Strdup(info.dli_fname);
-        const char *dli_dirname = dirname(dli_fname);
-        module_path = RedisModule_CreateString(ctx, dli_dirname, strlen(dli_dirname));
-        RedisModule_Free(dli_fname);
-    }
+    // Retrieve the info about the module's dynamic library, and extract the .so file dir name.
+    RedisModule_Assert(dladdr(RAI_SetBackendsDefaultPath, &info) != 0);
+    const char *dyn_lib_dir_name = dirname((char *)info.dli_fname);
 
-    return module_path;
-}
-
-RedisModuleString *RAI_GetBackendsPath(RedisModuleCtx *ctx) {
-    Dl_info info;
-    RedisModuleString *backends_path = NULL;
-    if (Config_GetBackendsPath() != NULL) {
-        backends_path = RedisModule_CreateString(ctx, Config_GetBackendsPath(),
-                                                 strlen(Config_GetBackendsPath()));
-    } else {
-        RedisModuleString *module_path = RAI_GetModulePath(ctx);
-        backends_path = RedisModule_CreateStringPrintf(ctx, "%s/backends",
-                                                       RedisModule_StringPtrLen(module_path, NULL));
-        RedisModule_FreeString(ctx, module_path);
-    }
-
-    return backends_path;
+    // Populate backends_path global string with the default path.
+    size_t backends_default_path_len = strlen(dyn_lib_dir_name) + strlen("/backends");
+    *backends_path = RedisModule_Alloc(backends_default_path_len + 1);
+    RedisModule_Assert(sprintf(*backends_path, "%s/backends", dyn_lib_dir_name) > 0);
 }
 
 const char *RAI_GetBackendName(RAI_Backend backend) {
@@ -460,10 +444,8 @@ int RAI_LoadBackend(RedisModuleCtx *ctx, int backend, const char *path) {
     if (path[0] == '/') {
         fullpath = RedisModule_CreateString(ctx, path, strlen(path));
     } else {
-        RedisModuleString *backends_path = RAI_GetBackendsPath(ctx);
-        fullpath = RedisModule_CreateStringPrintf(
-            ctx, "%s/%s", RedisModule_StringPtrLen(backends_path, NULL), path);
-        RedisModule_FreeString(ctx, backends_path);
+        const char *backends_path = Config_GetBackendsPath();
+        fullpath = RedisModule_CreateStringPrintf(ctx, "%s/%s", backends_path, path);
     }
 
     int ret;
