@@ -138,3 +138,6 @@ dkms.conf
 
 # docs site
 site/
+
+# test data
+tests/flow/test_data
