@@ -9,37 +9,6 @@ python -m RLTest --test tests_pytorch.py --module path/to/redisai.so
 '''
 
 
-def test_pytorch_chunked_modelstore(env):
-    if not TEST_PT:
-        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
-        return
-
-    con = get_connection(env, '{1}')
-    model = load_file_content('pt-minimal.pt')
-
-    chunk_size = len(model) // 3
-
-    model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
-
-    ret = con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'BLOB', model)
-    ret = con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', *model_chunks)
-
-    model1 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
-    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
-
-    env.assertEqual(model1, model2)
-
-    ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
-
-    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
-    env.assertEqual(len(model2), len(model_chunks))
-    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
-
-    model3 = con.execute_command('AI.MODELGET', 'm2{1}', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
-    env.assertEqual(len(model3), len(model_chunks))
-    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
-
-
 def test_pytorch_modelrun(env):
     if not TEST_PT:
         env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)

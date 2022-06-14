@@ -13,15 +13,15 @@
     "cycle_environments_setup": [
       {
         "teardown": true,
-        "name": "xenial-amd64-aws",
-        "concurrency": 1,
-		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_LC}}/{{RS_MODULE_FILE_PREFIX}}.linux-xenial-x64.{{MODULE_VERSION}}{{VARIANT}}.zip"
-      },
-      {
-        "teardown": true,
         "name": "bionic-amd64-aws",
         "concurrency": 1,
 		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_LC}}/{{RS_MODULE_FILE_PREFIX}}.linux-bionic-x64.{{MODULE_VERSION}}{{VARIANT}}.zip"
+      },
+      {
+        "teardown": true,
+        "name": "rhel8.5-x86_64-aws",
+        "concurrency": 1,
+		"module_url": "http://redismodules.s3.amazonaws.com/{{RS_MODULE_FILE_PREFIX}}/{{RS_MODULE_FILE_PREFIX}}.Linux-rhel8-x86_64.{{MODULE_VERSION}}.zip"
       }
     ]
   }

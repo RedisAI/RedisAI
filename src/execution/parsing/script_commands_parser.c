@@ -280,8 +280,6 @@ int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
         goto cleanup;
     }
 
-    RAI_DagOpSetRunKey(currentOp, RAI_HoldString(argv[1]));
-
     const char *func_name = ScriptCommand_GetFunctionName(argv[2]);
     if (!func_name) {
         RAI_SetError(rinfo->err, RAI_ESCRIPTRUN, "ERR function name not specified");

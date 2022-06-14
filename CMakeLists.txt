@@ -22,9 +22,9 @@ ENDIF()
 
 #----------------------------------------------------------------------------------------------
 
-SET(CMAKE_CC_COMMON_FLAGS "-fPIC -fcommon")
+SET(CMAKE_CC_COMMON_FLAGS "-fPIC -fcommon -g -ggdb")
 IF (USE_PROFILE)
-    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -g -ggdb -fno-omit-frame-pointer")
+    SET(CMAKE_CC_COMMON_FLAGS "${CMAKE_CC_COMMON_FLAGS} -fno-omit-frame-pointer")
 ENDIF()
 
 IF (USE_COVERAGE)
@@ -42,7 +42,7 @@ set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 
 # Add -fno-omit-frame-pointer to avoid seeing incomplete stack traces
-set(CMAKE_COMMON_FLAGS_DEBUG "-g -ggdb -fno-omit-frame-pointer -D_DEBUG -DVALGRIND -include \
+set(CMAKE_COMMON_FLAGS_DEBUG "-fno-omit-frame-pointer -D_DEBUG -DVALGRIND -include \
     ${CMAKE_CURRENT_SOURCE_DIR}/src/config/gdb_config.h -I${CMAKE_CURRENT_SOURCE_DIR}/opt")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${CMAKE_COMMON_FLAGS_DEBUG}")
@@ -168,18 +168,6 @@ IF(BUILD_ORT)
     ENDIF()
 ENDIF()
 
-#----------------------------------------------------------------------------------------------
-
-IF (APPLE)
-    FIND_LIBRARY(MKL_LIBRARIES NAMES mklml
-            PATHS ${depsAbs}/mkl/lib)
-    IF (NOT MKL_LIBRARIES)
-        MESSAGE(FATAL_ERROR "Could not find MKL for Mac")
-    ENDIF()
-    SET(platDeps "${MKL_LIBRARIES}")
-ENDIF()
-
-#----------------------------------------------------------------------------------------------
 
 IF(BUILD_TFLITE)
     # Find TensorFlow Lite stuff and build our wrapper
@@ -307,14 +295,6 @@ IF(BUILD_ORT)
             FILES_MATCHING PATTERN ${LIB_PATTERN})
 ENDIF()
 
-#----------------------------------------------------------------------------------------------
-
-IF (APPLE)
-    INSTALL(DIRECTORY ${depsAbs}/mkl/lib DESTINATION ${installAbs}/backends/redisai_torch
-            FILES_MATCHING PATTERN ${LIB_PATTERN})
-ENDIF()
-
-#----------------------------------------------------------------------------------------------
 
 IF (NOT ${installAbs} STREQUAL ${CMAKE_SOURCE_DIR}/install-${DEVICE})
     INSTALL_SYMLINK(${installAbs} ${CMAKE_SOURCE_DIR}/install-${DEVICE})

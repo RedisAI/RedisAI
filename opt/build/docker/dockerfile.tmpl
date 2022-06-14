@@ -24,13 +24,19 @@ RUN echo "Building for {{REDIS_OSNICK}} ({{REDIS_OS}}) for {{REDIS_ARCH}} [with 
 {% include "templates/gpu.yml" %}
 {% endif %}
 
+# centos8 specific integration until a move to rocky or similar
+{% if REDIS_OSNICK == "centos8" %}
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+{% endif %}
+
 WORKDIR /build
 COPY --from=redis /usr/local/ /usr/local/
 
 COPY ./opt/ opt/
 ADD ./tests/flow/ tests/flow/
 
-RUN ./opt/readies/bin/getupdates
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y git; fi
 RUN if [ ! -z $(command -v yum) ]; then yum install -y git; fi
 RUN FORCE=1 ./opt/readies/bin/getpy3
@@ -69,6 +75,12 @@ FROM redisfab/redis:{{REDIS_VERSION}}-{{REDIS_ARCH}}-{{REDIS_OSNICK}}
 {% endif %}
 
 ARG PACK
+# centos8 specific integration until a move to rocky or similar
+{% if REDIS_OSNICK == "centos8" %}
+RUN cd /etc/yum.repos.d/
+RUN sed -i 's/mirrorlist/#mirrorlist/g' /etc/yum.repos.d/CentOS-*
+RUN sed -i 's|#baseurl=http://mirror.centos.org|baseurl=http://vault.centos.org|g' /etc/yum.repos.d/CentOS-*
+{% endif %}
 
 RUN if [ ! -z $(command -v apt-get) ]; then apt-get -qq update; apt-get -q install -y libgomp1; fi
 RUN if [ ! -z $(command -v yum) ]; then yum install -y libgomp; fi

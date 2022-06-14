@@ -2,11 +2,11 @@
 
 ###### SET VERSIONS ######
 
-ORT_VERSION="1.9.0"
+ORT_VERSION="1.11.1"
 DLPACK_VERSION="v0.5_RAI"
-TF_VERSION="2.6.0"
+TF_VERSION="2.8.0"
 TFLITE_VERSION="2.0.0"
-PT_VERSION="1.10.1"
+PT_VERSION="1.11.0"
 
 ###### END VERSIONS ######
 
@@ -144,8 +144,16 @@ if [[ $OS == linux ]]; then
     else
         echo "Only x64 is supported currently"
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+    TF_OS=darwin
+    TF_BUILD=cpu
+    TF_ARCH=x86_64
+    if [[ $WITH_TF == S3 ]]; then
+        LIBTF_URL_BASE=https://s3.amazonaws.com/redismodules/tensorflow
+    else
+        LIBTF_URL_BASE=https://storage.googleapis.com/tensorflow/libtensorflow
+    fi
+
 fi
 
 LIBTF_ARCHIVE=libtensorflow-${TF_BUILD}-${TF_OS}-${TF_ARCH}-${TF_VERSION}.tar.gz
@@ -163,11 +171,11 @@ if [[ $OS == linux ]]; then
     TFLITE_OS="linux"
     if [[ $ARCH == x64 ]]; then
         TFLITE_ARCH=x86_64
-    else
-        echo "Only x64 is supported currently"
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+        TFLITE_OS=darwin
+        # TFLITE_BUILD=cpu
+        TFLITE_ARCH=x86_64
 fi
 
 LIBTFLITE_ARCHIVE=libtensorflowlite-${TFLITE_OS}-${TFLITE_ARCH}-${TFLITE_VERSION}.tar.gz
@@ -191,15 +199,17 @@ if [[ $OS == linux ]]; then
     else
         echo "Only x64 is supported currently"
     fi
-else
-    echo "Only Linux OS is supported currently"
+    LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
+
+elif [[ $OS == macos ]]; then
+    PT_OS=macos
+    PT_ARCH=x86_64
+    PT_BUILD=cpu
+    PT_REPACK=1
+    LIBTORCH_ARCHIVE=libtorch-macos-${PT_VERSION}.zip
 fi
 
-if [[ $GPU != 1 ]]; then
-  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-else
-  LIBTORCH_ARCHIVE=libtorch-cxx11-abi-shared-with-deps-${PT_VERSION}%2B${PT_BUILD}.zip
-fi
+
 LIBTORCH_URL=https://download.pytorch.org/libtorch/$PT_BUILD/$LIBTORCH_ARCHIVE
 
 if [[ $WITH_PT != 0 ]]; then
@@ -222,8 +232,11 @@ if [[ $OS == linux ]]; then
     else
         echo "Only x64 is supported currently"
     fi
-else
-    echo "Only Linux OS is supported currently"
+elif [[ $OS == macos ]]; then
+    ORT_OS=osx
+    ORT_ARCH=x64
+    ORT_BUILD=""
+    ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 fi
 
 ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz

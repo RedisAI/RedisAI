@@ -21,15 +21,16 @@ int pthread_setname_np(const char *name);
 #endif
 #endif
 
-uintptr_t BGWorkersCounter; // Total number of BG threads running currently.
-pthread_key_t ThreadIdKey;  // Key to hold thread id in its local storage.
+uintptr_t LastThreadId;      // Last number given as thread id for BG threads running currently.
+pthread_key_t ThreadIdKey;   // Key to hold thread id in its local storage.
+unsigned int BGWorkersCount; // Total number of BG threads spawned.
 
 /**
  * @brief Save the id for some working thread in thread local storage.
  */
 static void _BGWorker_SaveThreadId() {
     // Let the current thread have the next available id, and increase the counter.
-    long id_value = __atomic_add_fetch(&BGWorkersCounter, 1, __ATOMIC_RELAXED);
+    long id_value = __atomic_add_fetch(&LastThreadId, 1, __ATOMIC_RELAXED);
     // Convert the id value to a pointer and store it the thread local storage.
     // First id is 1, so we won't confuse with NULL (which is the error return value)
     pthread_setspecific(ThreadIdKey, (const void *)id_value);
@@ -54,10 +55,40 @@ static void _BGThread_Wait(RunQueueInfo *run_queue_info) {
                            &absTimeout);
 }
 
+static void _BGThread_SaveStats(RedisAI_RunInfo *rinfo) {
+    for (size_t i = 0; i < rinfo->dagOpCount; i++) {
+        RAI_DagOp *currentOp = rinfo->dagOps[i];
+
+        if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN ||
+            currentOp->commandType == REDISAI_DAG_CMD_SCRIPTRUN) {
+            if (currentOp->result == REDISMODULE_ERR) {
+                RAI_StatsAddDataPoint(RAI_ExecutionCtx_GetStats(currentOp->ectx), 0, 1, 1, 0);
+            } else if (currentOp->result == REDISMODULE_OK) {
+                unsigned long batch_size = 1;
+                if (currentOp->commandType == REDISAI_DAG_CMD_MODELRUN) {
+                    RAI_Tensor *t = NULL;
+                    if (RAI_ExecutionCtx_NumOutputs(currentOp->ectx) > 0) {
+                        t = RAI_ExecutionCtx_GetOutput(currentOp->ectx, 0);
+                    }
+                    if (t) {
+                        batch_size = RAI_TensorDim(t, 0);
+                    } else {
+                        batch_size = 0;
+                    }
+                }
+                RAI_StatsAddDataPoint(RAI_ExecutionCtx_GetStats(currentOp->ectx),
+                                      currentOp->duration_us, 1, 0, batch_size);
+            }
+        }
+    }
+}
+
 static void _BGThread_RinfoFinish(RedisAI_RunInfo *rinfo) {
     RedisAI_RunInfo *orig = rinfo->orig_copy;
     uint dagRefCount = RAI_DagRunInfoFreeShallowCopy(rinfo);
     if (dagRefCount == 0) {
+        // Save stats for every DAG execute operation.
+        _BGThread_SaveStats(orig);
         RedisAI_OnFinishCtx *finish_ctx = orig;
         orig->OnFinish(finish_ctx, orig->private_data);
     }
@@ -261,7 +292,7 @@ long BGWorker_GetThreadId() {
     return (long)(thread_id)-1;
 }
 
-uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCounter; }
+uintptr_t BGWorker_GetThreadsCount() { return BGWorkersCount; }
 
 void *BGWorker_ThreadMain(void *arg) {
     _BGWorker_SaveThreadId();

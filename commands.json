@@ -67,7 +67,7 @@
         "since": "1.2.5",
         "group": "tensor"
     },
-    "AI.MODELSETORE":
+    "AI.MODELSTORE":
     {
         "summary": "stores a model as the value of a key",
         "complexity": "O(1)",

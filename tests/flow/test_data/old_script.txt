@@ -1,5 +1,0 @@
-def bar(a, b):
-    return a + b
-
-def bar_variadic(a, args : List[Tensor]):
-    return args[0] + args[1]

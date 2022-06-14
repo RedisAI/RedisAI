@@ -1,5 +1,6 @@
 #pragma once
 
+#include <redis_ai_objects/stats.h>
 #include "redis_ai_objects/tensor.h"
 
 // Pre decleration
@@ -15,6 +16,7 @@ typedef void (*RAI_ExecutionCtx_Free_fn)(RAI_ExecutionCtx *ctx);
 typedef struct RAI_ExecutionCtx {
     RAI_Tensor **inputs;             // DAG op input tensors.
     RAI_Tensor **outputs;            // DAG op output tensors.
+    RAI_RunStats *runStats;          // The underline op's (Model/Script) stats entry.
     RAI_ExecutionCtx_Free_fn freeFn; // Inheriting execution context free function.
 } RAI_ExecutionCtx;
 
@@ -24,7 +26,8 @@ typedef struct RAI_ExecutionCtx {
  * @param ctx - Execution context to initialize.
  * @param freeFn - Specific free function for inheriting execution contexts (script or model)
  */
-void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_ExecutionCtx_Free_fn freeFn);
+void RAI_ExecutionCtx_Init(RAI_ExecutionCtx *ctx, RAI_RunStats *run_stats,
+                           RAI_ExecutionCtx_Free_fn freeFn);
 
 /**
  * @brief Frees the execution context internal structures. To be used from an inhereting execution
@@ -72,7 +75,7 @@ size_t RAI_ExecutionCtx_NumOutputs(RAI_ExecutionCtx *ctx);
  *
  * @param ctx - Execution context.
  */
-void RAI_ExecutionCtx_AddOuputPlaceholder(RAI_ExecutionCtx *ctx);
+void RAI_ExecutionCtx_AddOutputPlaceholder(RAI_ExecutionCtx *ctx);
 
 /**
  * @brief Sets an output tensor in a specfic index, populated before by a placeholder.
@@ -91,3 +94,10 @@ void RAI_ExecutionCtx_SetOutput(RAI_ExecutionCtx *ctx, RAI_Tensor *t, size_t ind
  * @return RAI_Tensor* - Output tensor.
  */
 RAI_Tensor *RAI_ExecutionCtx_GetOutput(RAI_ExecutionCtx *ctx, size_t index);
+
+/**
+ * @brief Returns the RunStats object for underline object.
+ * @param ctx - Execution context.
+ * @return RAI_RunStats
+ */
+RAI_RunStats *RAI_ExecutionCtx_GetStats(RAI_ExecutionCtx *ctx);

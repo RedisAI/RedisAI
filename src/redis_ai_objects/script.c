@@ -57,7 +57,14 @@ void RAI_ScriptFree(RAI_Script *script, RAI_Error *err) {
 
     RedisModule_FreeString(NULL, script->tag);
 
-    RAI_RemoveStatsEntry(script->infokey);
+    // If the run stats which is stored under this key is the same one that the script holds a
+    // reference to, remove the entry from the global statistics dictionary as well. Otherwise,
+    // this key has been overwritten - just release the old run stats.
+    RAI_RunStats *stats = RAI_StatsGetEntry(script->info->key);
+    if (stats == script->info) {
+        RAI_StatsRemoveEntry(stats->key);
+    }
+    RAI_StatsFree(script->info);
 
     RAI_backends.torch.script_free(script, err);
 }

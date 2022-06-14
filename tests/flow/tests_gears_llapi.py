@@ -99,33 +99,52 @@ GB("CommandReader").map(ModelRun_AsyncRunError).register(trigger="ModelRun_Async
 
         con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+        self.info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))   # Runtime stats reported by AI.INFO.
+        for stats_item in ['duration', 'samples', 'calls', 'errors']:
+            self.env.assertEqual(self.info[stats_item], 0)
 
-    def test_old_api(self):
+    def test1_old_api(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ModelRun_oldAPI_OK')
         values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    def test_async_run(self):
+    def test2_async_run(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test2')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    def test_tf_ignore_inputs_names(self):
+        # Check that statistics were saved properly. Note that in test1 (old API) stats are not saved.
+        self.info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+        self.env.assertEqual(self.info['key'], 'm{1}')
+        self.env.assertEqual(self.info['type'], 'MODEL')
+        self.env.assertEqual(self.info['backend'], 'TF')
+        self.env.assertEqual(self.info['device'], DEVICE)
+        self.env.assertGreater(self.info['duration'], 0)
+        self.env.assertEqual(self.info['samples'], 2)
+        self.env.assertEqual(self.info['calls'], 1)
+        self.env.assertEqual(self.info['errors'], 0)
+
+    def test3_tf_ignore_inputs_names(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_Async_test3')
         self.env.assertEqual(ret[0], b'ModelRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_2{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'9', b'4', b'9'])
 
-    def test_runtime_error(self):
+    def test4_runtime_error(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ModelRun_AsyncRunError_test4')
         # This should raise an exception
         self.env.assertEqual(str(ret[0]), "b'Must specify at least one target to fetch or execute.'")
+
+        info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+        self.env.assertEqual(info['calls'], 3)
+        self.env.assertEqual(info['errors'], 1)
+        self.env.assertGreater(info['duration'], self.info['duration'])
 
 
 class TestScriptExecuteFromGears:
@@ -190,26 +209,45 @@ GB("CommandReader").map(ScriptRun_AsyncRunError).register(trigger="ScriptRun_Asy
         self.env.assertEqual(ret, b'OK')
         ret = con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
         self.env.assertEqual(ret, b'OK')
+        self.info = info_to_dict(con.execute_command('AI.INFO', 'myscript{1}'))   # Runtime stats reported by AI.INFO.
+        for stats_item in ['duration', 'calls', 'errors']:
+            self.env.assertEqual(self.info[stats_item], 0)
 
-    def test_old_api(self):
+    def test1_old_api(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_oldAPI_test1')
         self.env.assertEqual(ret[0], b'ScriptRun_oldAPI_OK')
         values = con.execute_command('AI.TENSORGET', 'c{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
-    def test_async_execution(self):
+    def test2_async_execution(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_Async_test2')
         self.env.assertEqual(ret[0], b'ScriptRun_Async_OK')
         values = con.execute_command('AI.TENSORGET', 'c_1{1}', 'VALUES')
         self.env.assertEqual(values, [b'4', b'6', b'4', b'6'])
 
-    def test_runtime_error(self):
+        # Check that statistics were saved properly. Note that in test1 (old API) stats are not saved.
+        self.info = info_to_dict(con.execute_command('AI.INFO', 'myscript{1}'))
+        self.env.assertEqual(self.info['key'], 'myscript{1}')
+        self.env.assertEqual(self.info['type'], 'SCRIPT')
+        self.env.assertEqual(self.info['backend'], 'TORCH')
+        self.env.assertEqual(self.info['tag'], 'version1')
+        self.env.assertEqual(self.info['device'], DEVICE)
+        self.env.assertGreater(self.info['duration'], 0)
+        self.env.assertEqual(self.info['calls'], 1)
+        self.env.assertEqual(self.info['errors'], 0)
+
+    def test3_runtime_error(self):
         con = get_connection(self.env, '{1}')
         ret = con.execute_command('rg.trigger', 'ScriptRun_AsyncRunError_test3')
         # This should raise an exception
         self.env.assertTrue(str(ret[0]).startswith("b'Function does not exist:"))
+
+        info = info_to_dict(con.execute_command('AI.INFO', 'myscript{1}'))
+        self.env.assertEqual(info['calls'], 2)
+        self.env.assertEqual(info['errors'], 1)
+        self.env.assertEqual(info['duration'], self.info['duration'])
 
 
 class TestDAGRunExecution:
@@ -315,12 +353,12 @@ GB("CommandReader").map(DAGRun_addOpsFromString).register(trigger="DAGRun_test5"
         self.env.assertEqual(values, [b'2', b'3', b'2', b'3'])
 
     def test_modelexecute_op(self):
-        executions_num = 500
+        executions_num = 100
 
         if VALGRIND:
             executions_num = 10
 
-        def multiple_executions(con):
+        def multiple_executions(con, i):
             ret = con.execute_command('rg.trigger', 'DAGRun_test2')
             self.env.assertEqual(ret[0], b'test2_OK')
             values = con.execute_command('AI.TENSORGET', 'test2_res{1}', 'VALUES')

@@ -1,6 +1,5 @@
-import redis
-
 from includes import *
+from tests_llapi import with_test_module
 
 '''
 python -m RLTest --test tests_commands.py --module path/to/redisai.so
@@ -147,10 +146,10 @@ def test_modelexecute_errors(env):
 
     # The following 2 commands should raise an error on cluster mode (keys are not on the same shard)
     if env.isCluster():
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot",
-                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b', 'OUTPUTS', 1, 'c{1}')
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot",
-                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c')
+        check_error_message(env, con, "Keys in request don't hash to the same slot",
+                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
+        check_error_message(env, con, "Keys in request don't hash to the same slot",
+                            'AI.MODELEXECUTE', 'm{1}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c', error_type=redis.exceptions.ClusterCrossSlotError)
 
 
 def test_keys_syntax(env):
@@ -319,10 +318,10 @@ def test_pytorch_scriptexecute_errors(env):
 
     if env.isCluster():
         # cross shard
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}')
+        check_error_message(env, con, "Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{2}', 'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
 
         # key doesn't exist
-        check_error_message(env, con, "CROSSSLOT Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}')
+        check_error_message(env, con, "Keys in request don't hash to the same slot", 'AI.SCRIPTEXECUTE', 'ket{1}', 'bar', 'KEYS', 1 , '{1}', 'INPUTS', 2, 'a{1}', 'b{2}', 'OUTPUTS', 1, 'c{1}', error_type=redis.exceptions.ClusterCrossSlotError)
 
 
 def test_pytorch_scriptexecute_variadic_errors(env):
@@ -358,3 +357,259 @@ def test_pytorch_scriptexecute_variadic_errors(env):
 
     check_error(env, con, 'AI.SCRIPTEXECUTE', 'ket{$}', 'bar_variadic', 'KEYS', 1 , '{$}', 'INPUTS', 'OUTPUTS')
 
+
+def create_run_update_models_parallel(con, client_id,  # these are mandatory
+                                      env, model_pb, pipes, iterations_num, multiple_keys):
+    my_pipe = pipes[client_id]
+    total_success_num = 0
+    model_key_name = str(client_id)+'_m{1}' if multiple_keys else 'm{1}'
+    ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+
+    # Sanity test to verify that AI.INFO command can run safely in parallel with write and execution commands, which
+    # read and write (atomically) to same counters of a RunStats entry, and change the global RunStats dict.
+    for i in range(iterations_num):
+        try:
+            con.execute_command('AI.MODELDEL', model_key_name)
+            ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', DEVICE,
+                                  'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+            env.assertEqual(ret, b'OK')
+            env.assertEqual(con.execute_command('AI.MODELEXECUTE', model_key_name,
+                                            'INPUTS', 2, 'a{1}', 'b{1}', 'OUTPUTS', 1, 'c{1}'), b'OK')
+            total_success_num += 1
+            info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+            env.assertEqual(info['key'], model_key_name)
+            env.assertEqual(info['device'], DEVICE)
+            if multiple_keys:
+                # Calls number can be verified only in a multiple keys scenario, since when parallel clients use
+                # the same key, one might delete the key before another try to run the model
+                # (hence the try/catch structure of the test, which is relevant only for a single key scenario)
+                env.assertEqual(info['calls'], 1)
+                con.execute_command('AI.INFO', model_key_name, 'RESETSTAT')
+                info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+                env.assertEqual(info['calls'], 0)
+        except Exception as e:
+            env.assertEqual(type(e), redis.exceptions.ResponseError)
+            env.assertTrue("model key is empty" == str(e) or "cannot find run info for key" == str(e))
+    my_pipe.send(total_success_num)
+
+
+def run_model_execute_from_llapi_parallel(con, client_id,  # these are mandatory
+                                 env, model_pb, pipes, iterations_num):
+
+    my_pipe = pipes[client_id]
+    total_success_num = 0
+    model_key_name = str(client_id)+'_m{1}'
+
+    # Use a different device than the one that is run from command API, to test also multi-device scenario.
+    ret = con.execute_command('AI.MODELSTORE', model_key_name, 'TF', 'CPU:1',
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    for i in range(1, iterations_num+1):
+        # In every call, this commands runs the model twice - once it returns with an error, and the other returns OK.
+        env.assertEqual(con.execute_command("RAI_llapi.modelRun", model_key_name), b'Async run success')
+        total_success_num += 1
+        info = info_to_dict(con.execute_command('AI.INFO', model_key_name))
+        env.assertEqual(info['calls'], 2*i)
+        env.assertEqual(info['errors'], i)
+    my_pipe.send(total_success_num)
+
+
+def test_ai_info_multiproc_multi_keys(env):
+    if not TEST_TF:
+        env.debugPrint("Skipping test since TF is not available", force=True)
+        return
+    con = get_connection(env, '{1}')
+
+    # Load model protobuf and store its input tensors.
+    model_pb = load_file_content('graph.pb')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    num_parallel_clients = 20
+    num_iterations_per_client = 50
+
+    # Create a pipe for every child process, so it can report number of successful runs.
+    parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+
+    # Run create_run_delete_models_parallel where every client uses a different model key.
+    # In every iteration, clients update the model key - which triggers deletion and insertion of the  model's stats
+    # to the global dict.
+    run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+                       args=(env, model_pb, children_end_pipes, num_iterations_per_client, True))
+    # Expect that every child will succeed in every model execution - and report it to the parent thorough the pipe.
+    env.assertEqual(sum([p.recv() for p in parent_end_pipes]), num_parallel_clients*num_iterations_per_client)
+
+    # Get the list of models in the system and verify that every model appears once in the global dict.
+    models = con.execute_command('AI._MODELSCAN')
+    env.assertEqual(len(models), num_parallel_clients)
+
+
+def test_ai_info_multiproc_single_key(env):
+    if not TEST_TF:
+        env.debugPrint("Skipping test since TF is not available", force=True)
+        return
+    con = get_connection(env, '{1}')
+
+    # Load model protobuf and store its input tensors.
+    model_pb = load_file_content('graph.pb')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    num_parallel_clients = 20
+    num_iterations_per_client = 50
+
+    # Run create_run_delete_models_parallel, but this time over the same model key.
+    # Note that there may be cases where the model is deleted by some client while other clients
+    # try to access the model key.
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+    run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+                       args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
+
+    # Expect minimal number of success (one per client in average)
+    # in running the models (without having it deleted by another client).
+    num_success = sum([p.recv() for p in parent_end_pipes])
+    env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
+    # Valgrind impacts the timings, so number of success may be lower.
+    env.assertGreaterEqual(num_success, 1 if VALGRIND or DEVICE == "GPU" else num_parallel_clients)
+
+    # At the end, expect that every client ran the last created model at most once.
+    info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+    env.assertGreaterEqual(info['calls'], 0)
+    env.assertGreaterEqual(num_parallel_clients, info['calls'])
+
+
+@with_test_module
+def test_ai_info_multiproc_with_llapi(env):
+    if not TEST_TF:
+        env.debugPrint("Skipping test since TF is not available", force=True)
+        return
+    con = get_connection(env, '{1}')
+
+    # Load model protobuf and store its input tensors.
+    model_pb = load_file_content('graph.pb')
+    con.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+    con.execute_command('AI.TENSORSET', 'b{1}', 'FLOAT', 2, 2, 'VALUES', 2, 3, 2, 3)
+
+    num_parallel_clients = 20
+    num_iterations_per_client = 50
+
+    # This is just a wrapper that triggers the multi-proc test
+    def run_model_execute_from_llapi():
+        parent_end_pipes_llapi, children_end_pipes_llapi = get_parent_children_pipes(num_parallel_clients)
+        run_test_multiproc(env, '{1}', num_parallel_clients, run_model_execute_from_llapi_parallel,
+                           args=(env, model_pb, children_end_pipes_llapi, num_iterations_per_client))
+        # Expect that every child will succeed in every model execution - and report it to the parent thorough the pipe.
+        env.assertEqual(sum([p.recv() for p in parent_end_pipes_llapi]),
+                        num_parallel_clients*num_iterations_per_client)
+
+    # Run models both from low-level API and from command.
+    t = threading.Thread(target=run_model_execute_from_llapi)
+    t.start()
+
+    # Run with single model key.
+    ret = con.execute_command('AI.MODELSTORE', 'm{1}', 'TF', DEVICE,
+                              'INPUTS', 2, 'a', 'b', 'OUTPUTS', 1, 'mul', 'BLOB', model_pb)
+    env.assertEqual(ret, b'OK')
+    parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+    run_test_multiproc(env, '{1}', num_parallel_clients, create_run_update_models_parallel,
+                       args=(env, model_pb, children_end_pipes, num_iterations_per_client, False))
+
+    # Expect minimal number of success (one per five clients in average)
+    # in running the models (without having it deleted by another client).
+    num_success = sum([p.recv() for p in parent_end_pipes])
+    env.assertGreaterEqual(num_parallel_clients*num_iterations_per_client, num_success)
+    # Valgrind impacts the timings, so number of success may be lower.
+    env.assertGreaterEqual(num_success, 1 if VALGRIND or DEVICE == "GPU" else num_parallel_clients/5)
+
+    t.join()
+    # Get the list of models in the system and verify that every model appears once in the global dict.
+    models = con.execute_command('AI._MODELSCAN')
+    # In LLAPI, every client used a distinct model name, while clients that ran via command line used a different name.
+    env.assertEqual(len(models), num_parallel_clients + 1)
+
+    # At the end, expect that every client (that didn't use the LLAPI) ran the last created model at most once.
+    info = info_to_dict(con.execute_command('AI.INFO', 'm{1}'))
+    env.assertGreaterEqual(info['calls'], 0)
+    env.assertGreaterEqual(num_parallel_clients, info['calls'])
+
+
+def test_ai_config(env):
+    if not TEST_PT:
+        env.debugPrint("skipping {} since TEST_PT=0".format(sys._getframe().f_code.co_name), force=True)
+        return
+
+    conns = env.getOSSMasterNodesConnectionList()
+    if env.isCluster():
+        env.assertEqual(len(conns), env.shardsCount)
+
+    model = load_file_content('pt-minimal.pt')
+
+    for con in conns:
+        # Get the default configs.
+        res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
+        env.assertEqual(res.decode(), f'{"/".join(MODULE.split("/")[:-1])}/backends')  # <path_to_module_dir>/backends
+        res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
+        env.assertEqual(res, 511*1024*1024)
+
+        # Change the default backends path and load backend.
+        path = f'{ROOT}/install-{DEVICE.lower()}'
+        con.execute_command('AI.CONFIG', 'BACKENDSPATH', path)
+        res = con.execute_command('AI.CONFIG', 'GET', 'BACKENDSPATH')
+        env.assertEqual(res, path.encode())
+        be_info = get_info_section(con, "backends_info")
+        env.assertEqual(len(be_info), 0)  # no backends are loaded.
+        check_error_message(env, con, 'error loading backend', 'AI.CONFIG', 'LOADBACKEND', 'TORCH', ".")
+
+        res = con.execute_command('AI.CONFIG', 'LOADBACKEND', 'TORCH', "backends/redisai_torch/redisai_torch.so")
+        env.assertEqual(res, b'OK')
+        be_info = get_info_section(con, "backends_info")
+        env.assertEqual(len(be_info), 1)  # one backend is loaded now - torch.
+
+    # Set the same model twice on some shard - with and without chunks, and assert equality.
+    con = get_connection(env, '{1}')
+    chunk_size = len(model) // 3
+    model_chunks = [model[i:i + chunk_size] for i in range(0, len(model), chunk_size)]
+    con.execute_command('AI.MODELSTORE', 'm1{1}', 'TORCH', DEVICE, 'BLOB', model)
+    con.execute_command('AI.MODELSTORE', 'm2{1}', 'TORCH', DEVICE, 'BLOB', *model_chunks)
+    model1 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
+    model2 = con.execute_command('AI.MODELGET', 'm2{1}', 'BLOB')
+    env.assertEqual(model1, model2)
+
+    for con in conns:
+        # Change the default model_chunk_size.
+        ret = con.execute_command('AI.CONFIG', 'MODEL_CHUNK_SIZE', chunk_size)
+        env.assertEqual(ret, b'OK')
+        res = con.execute_command('AI.CONFIG', 'GET', 'MODEL_CHUNK_SIZE')
+        env.assertEqual(res, chunk_size)
+
+    # Verify that AI.MODELGET returns the model's blob in chunks, with or without the META arg.
+    con = get_connection(env, '{1}')
+    model2 = con.execute_command('AI.MODELGET', 'm1{1}', 'BLOB')
+    env.assertEqual(len(model2), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model2, model_chunks)]))
+
+    model3 = con.execute_command('AI.MODELGET', 'm1{1}', 'META', 'BLOB')[-1]  # Extract the BLOB list from the result
+    env.assertEqual(len(model3), len(model_chunks))
+    env.assertTrue(all([el1 == el2 for el1, el2 in zip(model3, model_chunks)]))
+
+
+def test_ai_config_errors(env):
+    con = get_connection(env, '{1}')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG')
+    check_error_message(env, con, 'unsupported subcommand', 'AI.CONFIG', "bad_subcommand")
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'LOADBACKEND')
+    check_error_message(env, con, 'unsupported backend', 'AI.CONFIG', 'LOADBACKEND', 'bad_backend', "backends/redisai_torch/redisai_torch.so")
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'LOADBACKEND', "TORCH")
+
+    check_error_message(env, con, 'BACKENDSPATH: missing path argument', 'AI.CONFIG', 'BACKENDSPATH')
+    check_error_message(env, con, 'MODEL_CHUNK_SIZE: missing chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE')
+    check_error_message(env, con, 'MODEL_CHUNK_SIZE: invalid chunk size', 'AI.CONFIG', 'MODEL_CHUNK_SIZE', 'not_number')
+
+    check_error_message(env, con, "wrong number of arguments for 'AI.CONFIG' command", 'AI.CONFIG', 'GET')
+    env.assertEqual(con.execute_command('AI.CONFIG', 'GET', 'bad_config'), None)

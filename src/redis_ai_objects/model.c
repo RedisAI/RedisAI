@@ -103,7 +103,15 @@ void RAI_ModelFree(RAI_Model *model, RAI_Error *err) {
     }
 
     RedisModule_FreeString(NULL, model->tag);
-    RAI_RemoveStatsEntry(model->infokey);
+
+    // If the run stats which is stored under this key is the same one that the model holds a
+    // reference to, remove the entry from the global statistics dictionary as well. Otherwise,
+    // this key has been overwritten - just release the old run stats.
+    RAI_RunStats *stats = RAI_StatsGetEntry(model->info->key);
+    if (stats == model->info) {
+        RAI_StatsRemoveEntry(stats->key);
+    }
+    RAI_StatsFree(model->info);
 
     RedisModule_Free(model);
 }

@@ -3,7 +3,7 @@ import os
 import random
 import sys
 import time
-from multiprocessing import Process
+from multiprocessing import Process, Pipe
 import threading
 
 import redis
@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "../../opt/readies"))
 import paella
 
 ROOT = os.environ.get("ROOT", None)
+MODULE = os.environ.get("MODULE", None)
 TESTMOD_PATH = os.environ.get("TESTMOD", None)
 MAX_ITERATIONS = 2 if os.environ.get("MAX_ITERATIONS") == None else os.environ.get("MAX_ITERATIONS")
 TEST_TF = os.environ.get("TEST_TF") != "0" and os.environ.get("WITH_TF") != "0"
@@ -30,6 +31,9 @@ VALGRIND = os.environ.get("VALGRIND") == "1"
 # change this to make inference tests longer
 MAX_TRANSACTIONS=100
 
+
+def get_connection(env, routing_hint):
+    return env.getConnectionByKey(routing_hint, 'SET')
 
 # returns the test name and line number from which a helper function within this file was called.
 # For example, if an assertion fails in check_error_message function, and the caller function to check_error_message
@@ -188,7 +192,7 @@ def load_creditcardfraud_data(env,max_tensors=10000):
     return model_pb, creditcard_transactions, creditcard_referencedata
 
 
-def run_mobilenet(con, img, input_var, output_var):
+def run_mobilenet(con, i, img, input_var, output_var):
     time.sleep(0.5 * random.randint(0, 10))
     con.execute_command('AI.TENSORSET', 'input{1}',
                         'FLOAT', 1, img.shape[1], img.shape[0], img.shape[2],
@@ -201,18 +205,30 @@ def run_mobilenet(con, img, input_var, output_var):
 def run_test_multiproc(env, routing_hint, n_procs, fn, args=tuple()):
     procs = []
 
-    def tmpfn():
-        con = env.getConnectionByKey(routing_hint, None)
-        fn(con, *args)
+    def tmpfn(i):
+        con = get_connection(env, routing_hint)
+        fn(con, i, *args)
         return 1
 
-    for _ in range(n_procs):
-        p = Process(target=tmpfn)
+    for i in range(n_procs):
+        p = Process(target=tmpfn, args=(i, ))
         p.start()
         procs.append(p)
 
     [p.join() for p in procs]
 
+
+def get_parent_children_pipes(num_children):
+    parent_end_pipes = []
+    children_end_pipes = []
+
+    # Create a pipe for every child process, so it can report number of successful runs.
+    for i in range(num_children):
+        parent_pipe, child_pipe = Pipe()
+        parent_end_pipes.append(parent_pipe)
+        children_end_pipes.append(child_pipe)
+
+    return parent_end_pipes, children_end_pipes
 
 # Load a model/script from a file located in test_data dir.
 def load_file_content(file_name):
@@ -222,12 +238,12 @@ def load_file_content(file_name):
         return f.read()
 
 
-def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False):
+def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False, error_type=redis.exceptions.ResponseError):
     try:
         con.execute_command(*command)
         env.assertFalse(True, message=get_caller_pos())
     except Exception as exception:
-        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+        env.assertEqual(type(exception), error_type, message=get_caller_pos())
         if error_msg_is_substr:
             # We only verify that the given error_msg is a substring of the entire error message.
             env.assertTrue(str(exception).find(error_msg) >= 0, message=get_caller_pos())
@@ -235,13 +251,13 @@ def check_error_message(env, con, error_msg, *command, error_msg_is_substr=False
             env.assertEqual(error_msg, str(exception), message=get_caller_pos())
 
 
-def check_error(env, con, *command):
+def check_error(env, con, *command, error_type=redis.exceptions.ResponseError):
     try:
         con.execute_command(*command)
         env.assertFalse(True, message=get_caller_pos())
     except Exception as e:
         exception = e
-        env.assertEqual(type(exception), redis.exceptions.ResponseError, message=get_caller_pos())
+        env.assertTrue(issubclass(type(exception), error_type), message=get_caller_pos())
 
 
 # Returns a dict with all the fields of a certain section from INFO MODULES command
@@ -250,7 +266,3 @@ def get_info_section(con, section):
     section_ind = [i for i in range(len(sections)) if sections[i] == 'ai_'+section][0]
     return {k.split(":")[0]: k.split(":")[1]
             for k in con.execute_command("INFO MODULES").decode().split("#")[section_ind+2].split()[1:]}
-
-
-def get_connection(env, routing_hint):
-    return env.getConnectionByKey(routing_hint, None)

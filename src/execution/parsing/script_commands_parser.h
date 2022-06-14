@@ -5,8 +5,8 @@
 /**
  * @brief  Parse and validate SCRIPTEXECUTE command: create a scriptRunCtx based on the script
  * obtained from the key space and the function name given, and save it in the op. The keys of the
- * input and output tensors are stored in the op's inkeys and outkeys arrays, the script key is
- * saved in op's runkey, and the given timeout is saved as well (if given, otherwise it is zero).
+ * input and output tensors are stored in the op's inkeys and outkeys arrays,
+ * and the given timeout is saved as well (if given, otherwise it is zero).
  * @return Returns REDISMODULE_OK if the command is valid, REDISMODULE_ERR otherwise.
  */
 int ParseScriptExecuteCommand(RedisAI_RunInfo *rinfo, RAI_DagOp *currentOp,
