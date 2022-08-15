@@ -86,13 +86,14 @@ make -C opt GPU=1
 RedisAI currently supports PyTorch (libtorch), Tensorflow (libtensorflow), TensorFlow Lite, and ONNXRuntime as backends. This section shows the version map between RedisAI and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given RedisAI version, check with the backend documentation about incompatible features between the version of your backend and the version RedisAI is built with.
 
 
-| RedisAI | PyTorch | TensorFlow | TFLite | ONNXRuntime   |
-|:--------|:-------:|:----------:|:------:|:-------------:|
-| 1.0.3   | 1.5.0   | 1.15.0     | 2.0.0  | 1.2.0         |
-| 1.2.5   | 1.9.0   | 2.6.0      | 2.0.0  | 1.9.0         |
-| master  | 1.10.1  | 2.6.0      | 2.0.0  | 1.9.0        |
+| RedisAI | PyTorch  | TensorFlow | TFLite | ONNXRuntime |
+|:--------|:--------:|:----------:|:------:|:-----------:|
+| 1.0.3   |  1.5.0   |   1.15.0   | 2.0.0  |    1.2.0    |
+| 1.2.7   |  1.11.0  |   2.8.0    | 2.0.0  |   1.11.1    |
+| master  |  1.11.0  |   2.8.0    | 2.0.0  |   1.11.1    |
 
-Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](https://github.com/RedisAI/RedisAI/blob/master/tests/flow/test_data/tf2-minimal.py) to see how to export a frozen graph from Keras and TensorFlow 2.x.
+Note: Keras and TensorFlow 2.x are supported through graph freezing. See [this script](http://dev.cto.redis.s3.amazonaws.com/RedisAI/test_data/tf2-minimal.py
+) to see how to export a frozen graph from Keras and TensorFlow 2.x.
 
 ## Loading the Module
 To load the module upon starting the Redis server, simply use the `--loadmodule` command line switch, the `loadmodule` configuration directive or the [Redis `MODULE LOAD` command](https://redis.io/commands/module-load) with the path to module's library.

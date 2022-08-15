@@ -3,21 +3,21 @@
 #include "redismodule.h"
 #include "backends/backends.h"
 
-// Default configs
-char *BackendsPath = NULL; //  Path to backends dir.
-
-long long BackendsIntraOpParallelism = 0; //  number of threads used within an
-                                          //  individual op for parallelism.
-long long BackendsInterOpParallelism = 0; //  number of threads used for parallelism
-                                          //  between independent operations.
-long long ModelChunkSize = 535822336;     //  size of chunks used to break up model payloads.
-                                          //  default is 511 * 1024 * 1024
-long long ThreadPoolSizePerQueue = 1;     //  Number of working threads for device.
-
-long long ModelExecutionTimeout = 5000; //  The maximum time in milliseconds
-                                        //  before killing onnx run session.
-long long BackendMemoryLimit = 0;       //  The maximum amount of memory in MB
-                                        //  that backend is allowed to consume.
+/* Default configs: */
+// Path to backends dir. Default value is set when parsing load_time configs.
+char *BackendsPath;
+// Number of threads used within an individual op for parallelism.
+long long BackendsIntraOpParallelism = 0;
+// Number of threads used for parallelism between independent operations.
+long long BackendsInterOpParallelism = 0;
+// Size of chunks used to break up model payloads. Default is 511 * 1024 * 1024
+long long ModelChunkSize = REDISAI_DEFAULT_MODEL_CHUNK_SIZE;
+// Number of working threads for device.
+long long ThreadPoolSizePerQueue = 1;
+// The maximum time in milliseconds before killing onnx run session.
+long long ModelExecutionTimeout = 5000;
+// The maximum amount of memory in MB that backend is allowed to consume.
+long long BackendMemoryLimit = 0;
 
 static int _Config_LoadTimeParamParse(RedisModuleCtx *ctx, const char *key, const char *val,
                                       RedisModuleString *rsval) {
@@ -111,9 +111,8 @@ int Config_LoadBackend(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
 }
 
 void Config_SetBackendsPath(const char *path) {
-    if (BackendsPath != NULL) {
-        RedisModule_Free(BackendsPath);
-    }
+    RedisModule_Assert(BackendsPath != NULL && path != NULL);
+    RedisModule_Free(BackendsPath);
     BackendsPath = RedisModule_Strdup(path);
 }
 
@@ -188,6 +187,7 @@ int Config_SetLoadTimeParams(RedisModuleCtx *ctx, RedisModuleString *const *argv
     }
 
     // need BACKENDSPATH set up before loading specific backends
+    RAI_SetBackendsDefaultPath(&BackendsPath);
     for (int i = 0; i < argc / 2; i++) {
         const char *key = RedisModule_StringPtrLen(argv[2 * i], NULL);
         const char *val = RedisModule_StringPtrLen(argv[2 * i + 1], NULL);

@@ -2,6 +2,7 @@ import shutil
 import sys
 import os
 import subprocess
+import psutil
 import redis
 from includes import *
 from RLTest import Env
@@ -553,6 +554,45 @@ class TestOnnxKillSwitch:
         backends_info = get_info_section(con, 'backends_info')
         self.env.assertEqual(backends_info['ai_onnxruntime_maximum_run_sessions_number'],
                              str(len(devices)*self.threads_per_queue))
+
+    # Stress test to validate that we have no race condition between the creation of the onnx global array (from
+    # the main threads) that contains an entry for every worker thread, and the background thread that runs the
+    # session and access this global array.
+    def test_synchronization(self):
+        if self.env.isCluster() or self.env.useSlaves or VALGRIND == 1:
+            self.env.debugPrint("skipping {} on cluster/slaves/valgrind modes".format(sys._getframe().f_code.co_name), force=True)
+            return
+
+        model_pb = load_file_content('mul_1.onnx')
+
+        def launch_redis_and_run_onnx(con, proc_id, pipes):
+            my_pipe = pipes[proc_id]
+            port = 6380 + 30*proc_id  # Let every subprocess run on a fresh port (safe distance for RLTEST parallelism).
+            redis_server = subprocess.Popen(['redis-server', '--port', str(port),
+                                             '--loadmodule', f'{ROOT}/install-{DEVICE.lower()}/redisai.so',
+                                             '--logfile', f'{self.env.logDir}/test_onnx_kill_switch_synchronization-{port}.log',
+                                             '--dir', f'{self.env.logDir}',
+                                             '--dbfilename', f'test_onnx_kill_switch_synchronization-{port}.rdb'])
+            # Wait until redis-server is up and ready to accept connections.
+            while len([c for c in psutil.net_connections("tcp")
+                       if c.pid == redis_server.pid and c.laddr.port == port]) == 0:
+                time.sleep(1)
+            # Create a connection to Redis that immediately loads and execute onnx model. This is for testing that
+            # there was a proper synchronization - otherwise, execution might cause a server crash.
+            r = redis.Redis(host='localhost', port=port)
+            r.flushall()
+            r.execute_command('AI.MODELSTORE', 'mul{1}', 'ONNX', 'CPU', 'BLOB', model_pb)
+            r.execute_command('AI.TENSORSET', 'a{1}', 'FLOAT', 3, 2, 'VALUES', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0)
+            r.execute_command('AI.MODELEXECUTE', 'mul{1}', 'INPUTS', 1, 'a{1}', 'OUTPUTS', 1, 'b{1}')
+            my_pipe.send(1)  # To indicate that the flow was executed with success.
+            redis_server.kill()
+
+        num_parallel_clients = 50
+        parent_end_pipes, children_end_pipes = get_parent_children_pipes(num_parallel_clients)
+        run_test_multiproc(self.env, '{1}', num_parallel_clients, launch_redis_and_run_onnx,
+                           args=(children_end_pipes, ))
+        # Assert that all sub-processes have finished successfully.
+        self.env.assertEqual(sum([p.recv() for p in parent_end_pipes]), num_parallel_clients)
 
 
 def test_forbidden_external_initializers(env):

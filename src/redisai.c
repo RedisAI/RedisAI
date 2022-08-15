@@ -939,7 +939,20 @@ int RedisAI_Config_RedisCommand(RedisModuleCtx *ctx, RedisModuleString **argv, i
             return RedisModule_ReplyWithError(ctx, "ERR MODEL_CHUNK_SIZE: missing chunk size");
         }
     }
-
+    if (!strcasecmp(subcommand, "GET")) {
+        if (argc > 2) {
+            const char *config = RedisModule_StringPtrLen(argv[2], NULL);
+            if (!strcasecmp(config, "BACKENDSPATH")) {
+                return RedisModule_ReplyWithCString(ctx, Config_GetBackendsPath());
+            } else if (!strcasecmp(config, "MODEL_CHUNK_SIZE")) {
+                return RedisModule_ReplyWithLongLong(ctx, Config_GetModelChunkSize());
+            } else {
+                return RedisModule_ReplyWithNull(ctx);
+            }
+        } else {
+            return RedisModule_WrongArity(ctx);
+        }
+    }
     return RedisModule_ReplyWithError(ctx, "ERR unsupported subcommand");
 }
 
@@ -1266,6 +1279,11 @@ void RAI_moduleInfoFunc(RedisModuleInfoCtx *ctx, int for_crash_report) {
     AI_dictReleaseIterator(iter);
 }
 
+void RAI_CleanupModule(RedisModuleCtx *ctx, RedisModuleEvent eid, uint64_t subevent, void *data) {
+    RedisModule_Log(ctx, "notice", "%s", "Clearing resources on shutdown");
+    RedisModule_Free(Config_GetBackendsPath());
+}
+
 int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
 #ifndef REDISAI_LITE
@@ -1410,6 +1428,8 @@ int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) 
         return REDISMODULE_ERR;
 
     RedisModule_SetModuleOptions(ctx, REDISMODULE_OPTIONS_HANDLE_IO_ERRORS);
+
+    RedisModule_SubscribeToServerEvent(ctx, RedisModuleEvent_Shutdown, RAI_CleanupModule);
 
     if (Config_SetLoadTimeParams(ctx, argv, argc) != REDISMODULE_OK) {
         return REDISMODULE_ERR;
