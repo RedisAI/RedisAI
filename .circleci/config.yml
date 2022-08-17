@@ -19,6 +19,17 @@ commands:
               circleci step halt
             fi
 
+  abort_for_spelling:
+    steps:
+      - run:
+          name: Avoid tests for things marked spelling
+          command: |
+            if [[ $CIRCLE_BRANCH == *spelling ]]; then
+              echo "Identifies as spelling PR, no testing required"
+              circleci step halt
+            fi
+
+
   abort_for_noci:
     steps:
       - run:
@@ -121,6 +132,7 @@ commands:
         type: string
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - restore_cache:
@@ -173,6 +185,7 @@ commands:
         default: "CLUSTER=0 AOF=0"
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - restore_cache:
@@ -203,6 +216,7 @@ commands:
   build-and-test-gpu-steps:
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - restore_cache:
@@ -241,6 +255,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - setup-build-system
@@ -269,6 +284,7 @@ jobs:
         default: "CPU=1"
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - setup_remote_docker
@@ -306,6 +322,7 @@ jobs:
         default: "GPU=1"
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
@@ -332,6 +349,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - restore_cache:
@@ -369,6 +387,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - checkout-all
       - restore_cache:
@@ -439,6 +458,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
@@ -457,6 +477,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
@@ -474,6 +495,7 @@ jobs:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
     steps:
       - abort_for_docs
+      - abort_for_spelling
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - attach_workspace:
