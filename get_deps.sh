@@ -234,7 +234,7 @@ if [[ $OS == linux ]]; then
     fi
 elif [[ $OS == macos ]]; then
     ORT_OS=osx
-    ORT_ARCH=x64
+    ORT_ARCH=x86_64
     ORT_BUILD=""
     ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 fi
