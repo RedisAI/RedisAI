@@ -4,7 +4,6 @@
  *the Server Side Public License v1 (SSPLv1).
  */
 
-
 /* SDS allocator selection.
  *
  * This file is used in order to change the SDS allocator at compile time.
