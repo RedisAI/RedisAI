@@ -1,3 +1,9 @@
+/*
+ *Copyright Redis Ltd. 2018 - present
+ *Licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or
+ *the Server Side Public License v1 (SSPLv1).
+ */
+
 #include "torch/jit.h"
 #include "torch/script.h"
 #include "torch/csrc/jit/frontend/resolver.h"
