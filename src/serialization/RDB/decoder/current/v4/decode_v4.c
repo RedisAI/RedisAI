@@ -1,3 +1,9 @@
+/*
+ *Copyright Redis Ltd. 2018 - present
+ *Licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or
+ *the Server Side Public License v1 (SSPLv1).
+ */
+
 #include "decode_v4.h"
 #include "../../previous/v3/decode_v3.h"
 #include "assert.h"

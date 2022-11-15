@@ -31,6 +31,12 @@ static bool _ValidateFuncExists(RedisModuleCtx *ctx, void *func_ptr, const char 
     return true;
 }
 
+/*
+ *Copyright Redis Ltd. 2018 - present
+ *Licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or
+ *the Server Side Public License v1 (SSPLv1).
+ */
+
 /**
  * @brief Export a function from RedisAI to a backend. This will set a pointer
  * to a function that has been declared in the backend to use the corresponding
