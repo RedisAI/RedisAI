@@ -1,7 +1,7 @@
 # Feel free to change these
 PRODUCT=redisai
 DOCKER_ORG=redislabs
-REDIS_VERSION=6.2.5
+REDIS_VERSION=6.2.7
 REDIS_CUDA_VERSION=11.3.1-cudnn8
 REDISAI_LITE=0
 
