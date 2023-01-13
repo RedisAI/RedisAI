@@ -209,7 +209,7 @@ commands:
       - restore_cache:
           keys:
             - v1.2-tests_data-gpu
-      - relocate-docker-storage
+      - relocate-docker-data-root
       - run:
           name: Build
           command: |
@@ -307,7 +307,7 @@ jobs:
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
-      - relocate-docker-storage
+      - relocate-docker-data-root
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
