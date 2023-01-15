@@ -1,7 +1,6 @@
 version: 2.1
 
 commands:
-
   abort_for_valgrind:
     steps:
       - run:
@@ -523,6 +522,13 @@ on-any-branch-but-tags: &on-any-branch-but-tags
     tags:
       ignore: /.*/
 
+always: &always
+  filters:
+    branches:
+      only: /.*/
+    tags:
+      only: /.*/
+
 never: &never
   filters:
     branches:
@@ -590,14 +596,14 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-
       - lint:
           <<: *on-any-branch
       - build-and-test:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
-          <<: *on-integ-branch
+          #@@<<: *on-integ-branch
+          <<: *always
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
@@ -614,7 +620,6 @@ workflows:
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
-
       - platforms-build-gpu:
           context: common
           <<: *after-build-and-test
