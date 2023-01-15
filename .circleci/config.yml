@@ -58,7 +58,6 @@ commands:
   relocate-docker-data-root:
     description: >-
       Relocates docker data root from /var/lib/docker/ cause it allocated in a partition too small to contain the redisai-gpu image.
-      This could have parallelization consequences if everything lines up.
     steps:
       - run:
           name: Relocate docker data root dir
@@ -66,7 +65,6 @@ commands:
             sudo systemctl stop docker
             sudo mkdir -p /var2/lib/docker
             echo '{ "data-root": "/var2/lib/docker" }' | sudo tee /etc/docker/daemon.json
-            sudo cp -axT /var/lib/docker /var2/lib/docker
             sudo systemctl start docker
 
   setup-automation:
@@ -233,14 +231,6 @@ commands:
           path: /home/circleci/tests
 
 jobs:
-  docker-purge:
-    docker:  
-      - image: cimg/base:2020.01  
-    parallelism: 50
-    steps:
-      - setup_remote_docker
-      - run: docker system prune --all -f
-
   lint:
     docker:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
@@ -416,7 +406,6 @@ jobs:
   build-and-test-gpu:
     machine:
       enabled: true
-      docker_layer_caching: true
       resource_class: gpu.nvidia.small
       image: ubuntu-2004-cuda-11.2:202103-01
 
@@ -428,7 +417,6 @@ jobs:
   build-and-test-gpu-for-forked-prs:
     machine:
       enabled: true
-      docker_layer_caching: true
       resource_class: gpu.nvidia.small
       image: ubuntu-2004-cuda-11.2:202103-01
 
