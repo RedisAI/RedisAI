@@ -239,7 +239,7 @@ jobs:
     parallelism: 50
     steps:
       - setup_remote_docker
-      - run: docker volume prune -f
+      - run: docker system prune --all -f
 
   lint:
     docker:
