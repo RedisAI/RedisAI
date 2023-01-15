@@ -604,6 +604,8 @@ workflows:
   version: 2
   build_and_package:
     jobs:
+      - docker-purge:
+          <<: *on-any-branch
       - lint:
           <<: *on-any-branch
       - build-and-test:
