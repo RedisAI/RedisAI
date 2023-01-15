@@ -233,6 +233,14 @@ commands:
           path: /home/circleci/tests
 
 jobs:
+  docker-purge:
+    docker:  
+      - image: cimg/base:2020.01  
+    parallelism: 50
+    steps:
+      - setup_remote_docker
+      - run: docker volume prune -f
+
   lint:
     docker:
       - image: redisfab/rmbuilder:6.2.5-x64-bullseye
