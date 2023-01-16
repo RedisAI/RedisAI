@@ -1,7 +1,6 @@
 version: 2.1
 
 commands:
-
   abort_for_valgrind:
     steps:
       - run:
@@ -56,20 +55,16 @@ commands:
               circleci step halt
             fi
 
-  relocate-docker-storage:
+  relocate-docker-data-root:
     description: >-
-      If this runs in parallel it can slaughter docker builds due to behaviour in the overlay2
-      tree having missing bits. This mitigates that by ensuring we run it only once. This could
-      have parallelization consequences if everything lines up.
+      Relocates docker data root from /var/lib/docker/ cause it allocated in a partition too small to contain the redisai-gpu image.
     steps:
       - run:
-          name: Relocate docker overlay2 dir
+          name: Relocate docker data root dir
           command: |
             sudo systemctl stop docker
             sudo mkdir -p /var2/lib/docker
-            sudo mv /var/lib/docker/overlay2 /var2/lib/docker
-            sudo mkdir /var/lib/docker/overlay2
-            sudo mount --bind /var2/lib/docker/overlay2 /var/lib/docker/overlay2
+            echo '{ "data-root": "/var2/lib/docker" }' | sudo tee /etc/docker/daemon.json
             sudo systemctl start docker
 
   setup-automation:
@@ -211,7 +206,7 @@ commands:
       - restore_cache:
           keys:
             - v1.2-tests_data-gpu
-      - relocate-docker-storage
+      - relocate-docker-data-root
       - run:
           name: Build
           command: |
@@ -309,7 +304,7 @@ jobs:
       - abort_for_noci
       - early_return_for_forked_pull_requests
       - checkout-all
-      - relocate-docker-storage
+      - relocate-docker-data-root
       - restore_cache:
           keys:
           - v1.2.5-deps-{{ checksum "get_deps.sh" }}-<<parameters.osnick>>-<<parameters.target>>
@@ -411,7 +406,6 @@ jobs:
   build-and-test-gpu:
     machine:
       enabled: true
-      docker_layer_caching: true
       resource_class: gpu.nvidia.small
       image: ubuntu-2004-cuda-11.2:202103-01
 
@@ -423,7 +417,6 @@ jobs:
   build-and-test-gpu-for-forked-prs:
     machine:
       enabled: true
-      docker_layer_caching: true
       resource_class: gpu.nvidia.small
       image: ubuntu-2004-cuda-11.2:202103-01
 
@@ -525,6 +518,13 @@ on-any-branch-but-tags: &on-any-branch-but-tags
     tags:
       ignore: /.*/
 
+always: &always
+  filters:
+    branches:
+      only: /.*/
+    tags:
+      only: /.*/
+
 never: &never
   filters:
     branches:
@@ -592,7 +592,6 @@ workflows:
   version: 2
   build_and_package:
     jobs:
-
       - lint:
           <<: *on-any-branch
       - build-and-test:
@@ -616,7 +615,6 @@ workflows:
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
-
       - platforms-build-gpu:
           context: common
           <<: *after-build-and-test
