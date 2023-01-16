@@ -598,8 +598,7 @@ workflows:
           <<: *on-any-branch
           <<: *after-linter
       - build-and-test-gpu:
-          #@@<<: *on-integ-branch
-          <<: *always
+          <<: *on-integ-branch
           <<: *after-linter
       - build-and-test-gpu-for-forked-prs:
           <<: *on-any-branch
