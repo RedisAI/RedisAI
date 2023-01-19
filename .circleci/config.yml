@@ -611,7 +611,7 @@ workflows:
             parameters:
               osnick:
                 - bionic
-                - centos8
+                - rocky8
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"
@@ -623,7 +623,7 @@ workflows:
             parameters:
               osnick:
                 - bionic
-                - centos8
+                - rocky8
               lite:
                 - "REDISAI_LITE=0 PUBLISH=1"
                 - "REDISAI_LITE=1"

@@ -35,8 +35,8 @@ endif
 ifeq ($(OSNICK),bionic)
 REDIS_CUDA_MAPVERSION=ubuntu18.04
 endif
-ifeq ($(OSNICK),centos8)
-REDIS_CUDA_MAPVERSION=centos8
+ifeq ($(OSNICK),rocky8)
+REDIS_CUDA_MAPVERSION=rocky8
 endif
 
 DOCKERWRAPPER_EXTRA_VARS=\
