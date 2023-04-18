@@ -11,7 +11,7 @@ FROM nvcr.io/nvidia/deepstream-l4t:5.1-21.02-base
 FROM nvidia/cuda:{{REDIS_CUDA_VERSION}}-devel-{{cuda_suffix_os}}
 {% else %}
 {% if REDIS_OSNICK == "bionic" %}
-FROM ubuntu:bionic
+FROM ubuntu:18.04
 {% endif %}
 {% endif %}
 {% endif %}
