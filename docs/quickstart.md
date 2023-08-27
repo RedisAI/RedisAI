@@ -8,13 +8,13 @@ The quickest way to try RedisAI is by launching its official Docker container im
 
 ### On a CPU only machine
 ```
-docker run -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
+docker run -p 6379:6379 redislabs/redisai:1.2.7-cpu-bionic
 ```
 
 ### On a GPU machine
 For GPU support you will need a machine you'll need a machine that has Nvidia driver (CUDA 11.2 and cuDNN 8.1), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker) 
 ```
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:latest-gpu-x64-bionic
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:1.2.7-gpu-bionic
 ```
 
 
