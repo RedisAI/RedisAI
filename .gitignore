@@ -15,8 +15,9 @@ venv*/
 *.tgz
 *.tar.gz
 /VARIANT
+wordlist.dic
 
-# Docs API reference 
+# Docs API reference
 docs/api_reference.md
 
 ### Cmake auto tools

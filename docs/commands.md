@@ -56,7 +56,7 @@ OK
     While it is possible to set the tensor using binary data or numerical values, it is recommended that you use the `BLOB` option. It requires fewer resources and performs better compared to specifying the values discretely.
 
 ###Boolean Tensors
-The possible values for a tensor of type `BOOL` are `0` and `1`. The size of every bool element in a blob should be 1 byte.   
+The possible values for a tensor of type `BOOL` are `0` and `1`. The size of every bool element in a blob should be 1 byte.
 
 **Examples**
 
@@ -70,7 +70,7 @@ OK
 
 ###String Tensors
 String tensors are tensors in which every element is a single utf-8 string (may or may not be null-terminated). A string element can be at any length, and it cannot contain another null character except for the last one if it is a null-terminated string.
-A string tensor blob contains the encoded string elements concatenated, where the null character serves as a delimiter. Note that the size of string tensor blob equals to the total size of its elements, and it is not determined given the tensor's shapes (unlike in the rest of tensor types) 
+A string tensor blob contains the encoded string elements concatenated, where the null character serves as a delimiter. Note that the size of string tensor blob equals to the total size of its elements, and it is not determined given the tensor's shapes (unlike in the rest of tensor types)
 
 **Examples**
 
@@ -108,7 +108,7 @@ Depending on the specified reply format:
     1. The tensor's shape as an Array consisting of an item per dimension
  * **BLOB**: the tensor's binary data as a String. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
  * **VALUES**: Array containing the values of the tensor's data. If used together with the **META** option, the binary data string will put after the metadata in the array reply.
-* Default: **META** and **BLOB** are returned by default, in case that none of the arguments above is specified. 
+* Default: **META** and **BLOB** are returned by default, in case that none of the arguments above is specified.
 
 
 **Examples**
@@ -248,7 +248,7 @@ _Arguments_
 * **MINBATCHSIZE**: when provided with an `m` that is greater than 0, the engine will postpone calls to `AI.MODELEXECUTE` until the batch's size had reached `m`. In this case, note that requests for which `m` is not reached will hang indefinitely (default value: 0), unless `MINBATCHTIMEOUT` is provided.
 * **MINBATCHTIMEOUT**: when provided with a `t` (expressed in milliseconds) that is greater than 0, the engine will trigger a run even though `MINBATCHSIZE` has not been reached after `t` milliseconds from the time a `MODELEXECUTE` (or the enclosing `DAGEXECUTE`) is enqueued. This only applies to cases where both `BATCHSIZE` and `MINBATCHSIZE` are greater than 0.
 * **INPUTS**: denotes that one or more names of the model's input nodes are following, applicable only for TensorFlow models (specifying INPUTS for other backends will cause an error)
-* **input_count**: a positive number that indicates the number of following input nodes (also applicable only for TensorFlow) 
+* **input_count**: a positive number that indicates the number of following input nodes (also applicable only for TensorFlow)
 * **OUTPUTS**: denotes that one or more names of the model's output nodes are following, applicable only for TensorFlow models (specifying OUTPUTS for other backends will cause an error)
 * **output_count**: a positive number that indicates the number of following input nodes (also applicable only for TensorFlow)
 * **model**: the Protobuf-serialized model. Since Redis supports strings up to 512MB, blobs for very large models need to be chunked, e.g. `BLOB chunk1 chunk2 ...`.
@@ -268,7 +268,7 @@ OK
 
 ## AI.MODELSET
 _This command is deprecated and will not be available in future versions. consider using AI.MODELSTORE command instead._
-The **`AI.MODELSET`** command stores a model as the value of a key. The command's arguments and effect are both exactly the same as `AI.MODELEXECUTE` command, except that `<input_count>` and `<output_count>` arguments should not be specified for TF backend. 
+The **`AI.MODELSET`** command stores a model as the value of a key. The command's arguments and effect are both exactly the same as `AI.MODELEXECUTE` command, except that `<input_count>` and `<output_count>` arguments should not be specified for TF backend.
 
 **Redis API**
 
@@ -389,7 +389,7 @@ _Arguments_
 
 * **key**: the model's key name
 * **INPUTS**: denotes the beginning of the input tensors keys' list, followed by the number of inputs and one or more key names
-* **input_count**: a positive number that indicates the number of following input keys. 
+* **input_count**: a positive number that indicates the number of following input keys.
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by the number of outputs one or more key names
 * **output_count**: a positive number that indicates the number of output keys to follow.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
@@ -409,7 +409,7 @@ OK
 
 ## AI.MODELRUN
 
-_This command is deprecated and will not be available in future versions. consider using `AI.MODELEXECUTE` command instead._   
+_This command is deprecated and will not be available in future versions. consider using `AI.MODELEXECUTE` command instead._
 
 The **`AI.MODELRUN`** command runs a model stored as a key's value using its specified backend and device. It accepts one or more input tensors and store output tensors.
 
@@ -447,7 +447,7 @@ OK
 ```
 
 ## AI._MODELSCAN
-The **AI._MODELSCAN** command returns all the models in the database. When using Redis open source cluster, the command shall return all the models that are stored in the local shard. 
+The **AI._MODELSCAN** command returns all the models in the database. When using Redis open source cluster, the command shall return all the models that are stored in the local shard.
 
 !!! warning "Experimental API"
     `AI._MODELSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -590,7 +590,7 @@ An array with alternating entries that represent the following key-value pairs:
 !!!!The command returns a list of key-value strings, namely `DEVICE device TAG tag ENTRY_POINTS [entry_point ...] SOURCE source`.
 
 1. **DEVICE**: the script's device as a String
-2. **TAG**: the scripts's tag as a String
+2. **TAG**: the script's tag as a String
 3. **SOURCE**: the script's source code as a String
 4. **ENTRY_POINTS** will return an array containing the script entry point functions
 
@@ -653,7 +653,7 @@ A `TIMEOUT t` argument can be specified to cause a request to be removed from th
 **Redis API**
 
 ```
-AI.SCRIPTEXECUTE <key> <function> 
+AI.SCRIPTEXECUTE <key> <function>
 [KEYS <keys_count> <key> [keys...]]
 [INPUTS <input_count> <input> [input ...]]
 [ARGS <args_count> <arg> [arg...]]
@@ -667,7 +667,7 @@ _Arguments_
 * **function**: the name of the entry point function to run.
 * **KEYS**: Denotes the beginning of a list of Redis key names that the script will access to during its execution, for both read and/or write operations.
 * **INPUTS**: Denotes the beginning of the input tensors list, followed by its length and one or more input tensors.
-* **ARGS**: Denotes the beginning of a list of additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`. 
+* **ARGS**: Denotes the beginning of a list of additional arguments that a user can send to the script. All args are sent as strings, but can be casted to other types supported by torch script, such as `int`, or `float`.
 * **OUTPUTS**: denotes the beginning of the output tensors keys' list, followed by its length and one or more key names.
 * **TIMEOUT**: the time (in ms) after which the client is unblocked and a `TIMEDOUT` string is returned
 
@@ -740,7 +740,7 @@ redis> AI.TENSORGET y{1} VALUES
 ```
 
 ### RedisAI model execution support.
-RedisAI TorchScript also supports executing models which are stored in RedisAI by calling `redisAI.model_execute` command. 
+RedisAI TorchScript also supports executing models which are stored in RedisAI by calling `redisAI.model_execute` command.
 The command receives 3 inputs:
 * model name (string)
 * model inputs (List of torch.Tensor)
@@ -769,7 +769,7 @@ redis> AI.TENSORGET y{1} VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI.SCRIPTRUN
-_This command is deprecated and will not be available in future versions. consider using AI.SCRIPTEXECUTE command instead._   
+_This command is deprecated and will not be available in future versions. consider using AI.SCRIPTEXECUTE command instead._
 
 The **`AI.SCRIPTRUN`** command runs a script stored as a key's value on its specified device. It accepts one or more input tensors and store output tensors.
 
@@ -844,7 +844,7 @@ redis> AI.TENSORGET result VALUES
     The execution of scripts may generate intermediate tensors that are not allocated by the Redis allocator, but by whatever allocator is used in the backends (which may act on main memory or GPU memory, depending on the device), thus not being limited by `maxmemory` configuration settings of Redis.
 
 ## AI._SCRIPTSCAN
-The **AI._SCRIPTSCAN** command returns all the scripts in the database. When using Redis open source cluster, the command shall return all the scripts that are stored in the local shard. 
+The **AI._SCRIPTSCAN** command returns all the scripts in the database. When using Redis open source cluster, the command shall return all the scripts that are stored in the local shard.
 
 !!! warning "Experimental API"
     `AI._SCRIPTSCAN` is an EXPERIMENTAL command that may be removed in future versions.
@@ -881,7 +881,7 @@ It accepts one or more operations, split by the pipe-forward operator (`|>`).
 
 By default, the DAG execution context is local, meaning that tensor keys appearing in the DAG only live in the scope of the command. That is, setting a tensor with `TENSORSET` will store it in local memory and not set it to an actual database key. One can refer to that key in subsequent commands within the DAG, but that key won't be visible outside the DAG or to other clients - no keys are open at the database level.
 
-Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify a tag or key which will assist for the routing of the DAG execution on the right shard in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `ROUTING`.  
+Loading and persisting tensors from/to keyspace should be done explicitly. The user should specify which key tensors to load from keyspace using the `LOAD` keyword, and which command outputs to persist to the keyspace using the `PERSIST` keyspace. The user can also specify a tag or key which will assist for the routing of the DAG execution on the right shard in Redis that are going to be accessed for read/write operations (for example, from within `AI.SCRIPTEXECUTE` command), by using the keyword `ROUTING`.
 
 As an example, if `command 1` sets a tensor, it can be referenced by any further command on the chaining.
 
@@ -939,16 +939,16 @@ redis> AI.DAGEXECUTE PERSIST 1 predictions{tag} |>
    2) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
-A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+A common pattern is enqueuing multiple SCRIPTEXECUTE and MODELEXECUTE commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function.
 
 To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
 
 ```
-redis> AI.DAGEXECUTE ROUTING {tag} |> 
-            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
-            AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |> 
-            AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |> 
-            AI.SCRIPTEXECUTE imagenet_script{tag} post_process INPUTS 1 temp_key2 OUTPUTS 1 output |> 
+redis> AI.DAGEXECUTE ROUTING {tag} |>
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |>
+            AI.SCRIPTEXECUTE imagenet_script{tag} pre_process_3ch INPUTS 1 image OUTPUTS 1 temp_key1 |>
+            AI.MODELEXECUTE imagenet_model{tag} INPUTS 1 temp_key1 OUTPUTS 1 temp_key2 |>
+            AI.SCRIPTEXECUTE imagenet_script{tag} post_process INPUTS 1 temp_key2 OUTPUTS 1 output |>
             AI.TENSORGET output VALUES
 1) OK
 2) OK
@@ -957,7 +957,7 @@ redis> AI.DAGEXECUTE ROUTING {tag} |>
 5) 1) 1) (integer) 111
 ```
 
-As visible on the array reply, the label position with higher classification was 111. 
+As visible on the array reply, the label position with higher classification was 111.
 
 By combining DAG with multiple SCRIPTEXECUTE and MODELEXECUTE commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
 
@@ -1036,16 +1036,16 @@ redis> AI.DAGRUN PERSIST 1 predictions |>
    3) "\x00\x00\x80?\x00\x00\x00@\x00\x00@@\x00\x00\x80@"
 ```
 
-A common pattern is enqueuing multiple SCRIPTRUN and MODELRUN commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function. 
+A common pattern is enqueuing multiple SCRIPTRUN and MODELRUN commands within a DAG. The following example uses ResNet-50,to classify images into 1000 object categories. Given that our input tensor contains each color represented as a 8-bit integer and that neural networks usually work with floating-point tensors as their input we need to cast a tensor to floating-point and normalize the values of the pixels - for that we will use `pre_process_3ch` function.
 
 To optimize the classification process we can use a post process script to return only the category position with the maximum classification - for that we will use `post_process` script. Using the DAG capabilities we've removed the necessity of storing the intermediate tensors in the keyspace. You can even run the entire process without storing the output tensor, as follows:
 
 ```
-redis> AI.DAGRUN_RO |> 
-            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |> 
-            AI.SCRIPTRUN imagenet_script pre_process_3ch INPUTS image OUTPUTS temp_key1 |> 
-            AI.MODELRUN imagenet_model INPUTS temp_key1 OUTPUTS temp_key2 |> 
-            AI.SCRIPTRUN imagenet_script post_process INPUTS temp_key2 OUTPUTS output |> 
+redis> AI.DAGRUN_RO |>
+            AI.TENSORSET image UINT8 224 224 3 BLOB b'\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00....' |>
+            AI.SCRIPTRUN imagenet_script pre_process_3ch INPUTS image OUTPUTS temp_key1 |>
+            AI.MODELRUN imagenet_model INPUTS temp_key1 OUTPUTS temp_key2 |>
+            AI.SCRIPTRUN imagenet_script post_process INPUTS temp_key2 OUTPUTS output |>
             AI.TENSORGET output VALUES
 1) OK
 2) OK
@@ -1054,7 +1054,7 @@ redis> AI.DAGRUN_RO |>
 5) 1) 1) (integer) 111
 ```
 
-As visible on the array reply, the label position with higher classification was 111. 
+As visible on the array reply, the label position with higher classification was 111.
 
 By combining DAG with multiple SCRIPTRUN and MODELRUN commands we've substantially removed the overall required bandwith and network RX ( we're now returning a tensor with 1000 times less elements per classification ).
 
@@ -1144,7 +1144,7 @@ The **AI.CONFIG** command sets the value of configuration directives at run-time
 
 **Redis API**
 ```
-AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>> | <GET <BACKENDSPATH | MODEL_CHUNK_SIZE>> 
+AI.CONFIG <BACKENDSPATH <path>> | <LOADBACKEND <backend> <path>> | <MODEL_CHUNK_SIZE <chunk_size>> | <GET <BACKENDSPATH | MODEL_CHUNK_SIZE>>
 ```
 
 _Arguments_
@@ -1156,7 +1156,7 @@ _Arguments_
     * **TORCH**: The PyTorch backend
     * **ONNX**: ONNXRuntime backend
 * **MODEL_CHUNK_SIZE**: Sets the size of chunks (in bytes) in which model payloads are split for serialization, replication and `MODELGET`. Default is `511 * 1024 * 1024`.
-* **GET**: Retrieve the current value of the `BACKENDSPATH / MODEL_CHUNK_SIZE` configurations. Note that additional information about the module's runtime configuration can be retrieved as part of Redis' info report via `INFO MODULES` command.  
+* **GET**: Retrieve the current value of the `BACKENDSPATH / MODEL_CHUNK_SIZE` configurations. Note that additional information about the module's runtime configuration can be retrieved as part of Redis' info report via `INFO MODULES` command.
 
 _Return_
 
