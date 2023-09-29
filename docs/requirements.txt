@@ -5,3 +5,5 @@ mkdocs-material==6.2.2
 -e git+https://github.com/RedisLabs/mkdocs-modules-template.git#egg=mkdocs-modules-template
 # uncomment requirement to build LL API
 # -e git+https://github.com/matusnovak/doxybook.git#egg=doxybook
+pygments>=2.15.0 # not directly required, pinned by Snyk to avoid a vulnerability
+pymdown-extensions>=10.0 # not directly required, pinned by Snyk to avoid a vulnerability
