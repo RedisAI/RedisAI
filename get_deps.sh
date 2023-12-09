@@ -220,7 +220,7 @@ fi # WITH_PT
 
 ############################################################################# ONNX
 
-ORT_URL_BASE=https://s3.amazonaws.com/redismodules/onnxruntime
+ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 ORT_BUILD=""
 if [[ $OS == linux ]]; then
     ORT_OS=linux
@@ -236,7 +236,6 @@ elif [[ $OS == macos ]]; then
     ORT_OS=osx
     ORT_ARCH=x86_64
     ORT_BUILD=""
-    ORT_URL_BASE=https://github.com/microsoft/onnxruntime/releases/download/v${ORT_VERSION}
 fi
 
 ORT_ARCHIVE=onnxruntime-${ORT_OS}-${ORT_ARCH}${ORT_BUILD}-${ORT_VERSION}.tgz
