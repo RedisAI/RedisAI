@@ -124,7 +124,7 @@ Backend libraries are dynamically loaded as needed, but can also be loaded durin
 The easiest way to get a standalone Redis server with RedisAI bootstrapped locally is to use the official RedisAI Docker container image (to run on cpu in x64 machine with ubuntu 18 in following example):
 
 ```
-docker run -d --name redisai -p 6379:6379 redislabs/redisai:latest-cpu-x64-bionic
+docker run -d --name redisai -p 6379:6379 redislabs/redisai:latest
 ```
 
 ??? info "Further reference"
