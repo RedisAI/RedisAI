@@ -21,7 +21,7 @@ class RedisAISetup(paella.Setup):
         self.pip_install("wheel")
 
         self.install("git unzip")
-        if self.osnick != 'centos8':
+        if self.osnick != 'rocky8':
             self.install("coreutils") # for realpath
 
     def debian_compat(self):
@@ -35,7 +35,7 @@ class RedisAISetup(paella.Setup):
     def redhat_compat(self):
         self.run("%s/bin/enable-utf8" % READIES)
         self.install("epel-release")
-        if self.osnick == "centos8":
+        if self.osnick == "rocky8":
             self.run("dnf install -qy dnf-plugins-core")
             self.run("dnf config-manager -qy --set-enabled powertools")
         self.install("redhat-lsb-core")
