@@ -7,12 +7,12 @@
 [![Discord](https://img.shields.io/discord/697882427875393627?style=flat-square)](https://discord.gg/rTQm7UZ)
 
 > [!CAUTION]
-> **redis-inference-optimization is no longer actively maintained or supported.**
+> **Redis-inference-optimization is no longer actively maintained or supported.**
 >
 > We are grateful to the redis-inference-optimization community for their interest and support.
 > Previously, redis-inference-optimization was named RedisAI, but was renamed in Jan 2025 to reduce confusion around Redis' other AI offerings.
 
-# redis-inference-optimization
+# Redis-inference-optimization
 Redis-inference-optimization is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **Redis-inference-optimization both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
 To see redis-inference-optimization in action, visit the [demos page](https://oss.redis.com/redis-inference-optimization/examples/). 
