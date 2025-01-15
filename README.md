@@ -50,7 +50,7 @@ You can compile and build the module from its source code.
 You can obtain the module's source code by cloning the project's repository using git like so:
 
 ```sh
-git clone --recursive https://github.com/redis-inference-optimization/redis-inference-optimization
+git clone --recursive https://github.com/RedisAI/redis-inference-optimization
 ```
 
 Switch to the project's directory with:
