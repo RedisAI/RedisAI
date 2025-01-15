@@ -15,8 +15,6 @@
 # Redis-inference-optimization
 Redis-inference-optimization is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **Redis-inference-optimization both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
-To see redis-inference-optimization in action, visit the [demos page](https://oss.redis.com/redis-inference-optimization/examples/). 
-
 # Quickstart
 redis-inference-optimization is a Redis module. To run it you'll need a Redis server (v6.0.0 or greater), the module's shared library, and its dependencies.
 
