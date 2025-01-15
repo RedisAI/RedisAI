@@ -137,7 +137,7 @@ The full documentation for redis-inference-optimization's API can be found at th
 If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
 
 * [Forum](https://forum.redis.com/c/modules/redis-inference-optimization)
-* [Repository](https://github.com/redis-inference-optimization/redis-inference-optimization/issues)
+* [Repository](https://github.com/RedisAI/redis-inference-optimization/issues)
 
 ## License
 redis-inference-optimization is licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or the Server Side Public License v1 (SSPLv1).
