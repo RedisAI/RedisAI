@@ -1,22 +1,14 @@
-[![GitHub issues](https://img.shields.io/github/release/redis-inference-optimization/redis-inference-optimization.svg?sort=semver)](https://github.com/redis-inference-optimization/redis-inference-optimization/releases/latest)
-[![CircleCI](https://circleci.com/gh/redis-inference-optimization/redis-inference-optimization/tree/master.svg?style=svg)](https://circleci.com/gh/redis-inference-optimization/redis-inference-optimization/tree/master)
-[![Dockerhub](https://img.shields.io/badge/dockerhub-redislabs%2Fredis-inference-optimization-blue)](https://hub.docker.com/r/redislabs/redis-inference-optimization/tags/)
-[![codecov](https://codecov.io/gh/redis-inference-optimization/redis-inference-optimization/branch/master/graph/badge.svg)](https://codecov.io/gh/redis-inference-optimization/redis-inference-optimization)
-[![Total alerts](https://img.shields.io/lgtm/alerts/g/redis-inference-optimization/redis-inference-optimization.svg?logo=lgtm&logoWidth=18)](https://lgtm.com/projects/g/redis-inference-optimization/redis-inference-optimization/alerts/)
-[![Forum](https://img.shields.io/badge/Forum-redis-inference-optimization-blue)](https://forum.redislabs.com/c/modules/redis-inference-optimization)
-[![Discord](https://img.shields.io/discord/697882427875393627?style=flat-square)](https://discord.gg/rTQm7UZ)
-
 > [!CAUTION]
 > **Redis-inference-optimization is no longer actively maintained or supported.**
 >
 > We are grateful to the redis-inference-optimization community for their interest and support.
-> Previously, redis-inference-optimization was named RedisAI, but was renamed in Jan 2025 to reduce confusion around Redis' other AI offerings.
+> Previously, redis-inference-optimization was named RedisAI, but was renamed in Jan 2025 to reduce confusion around Redis' other AI offerings. To learn more about Redis' current AI offerings, visit [the Redis website](https://redis.io/redis-for-ai).
 
 # Redis-inference-optimization
 Redis-inference-optimization is a Redis module for executing Deep Learning/Machine Learning models and managing their data. Its purpose is being a "workhorse" for model serving, by providing out-of-the-box support for popular DL/ML frameworks and unparalleled performance. **Redis-inference-optimization both maximizes computation throughput and reduces latency by adhering to the principle of data locality**, as well as simplifies the deployment and serving of graphs by leveraging on Redis' production-proven infrastructure.
 
 # Quickstart
-redis-inference-optimization is a Redis module. To run it you'll need a Redis server (v6.0.0 or greater), the module's shared library, and its dependencies.
+Redis-inference-optimization is a Redis module. To run it you'll need a Redis server (v6.0.0 or greater), the module's shared library, and its dependencies.
 
 The following sections describe how to get started with redis-inference-optimization.
 
@@ -24,14 +16,14 @@ The following sections describe how to get started with redis-inference-optimiza
 The quickest way to try redis-inference-optimization is by launching its official Docker container images.
 ### On a CPU only machine
 ```
-docker run -p 6379:6379 redislabs/redis-inference-optimization:1.2.7-cpu-bionic
+docker run -p 6379:6379 redislabs/redisai:1.2.7-cpu-bionic
 ```
 
 ### On a GPU machine
 For GPU support you will need a machine you'll need a machine that has Nvidia driver (CUDA 11.3 and cuDNN 8.1), nvidia-container-toolkit and Docker 19.03+ installed. For detailed information, checkout [nvidia-docker documentation](https://github.com/NVIDIA/nvidia-docker)
 
 ```
-docker run -p 6379:6379 --gpus all -it --rm redislabs/redis-inference-optimization:1.2.7-gpu-bionic
+docker run -p 6379:6379 --gpus all -it --rm redislabs/redisai:1.2.7-gpu-bionic
 ```
 
 
@@ -87,7 +79,7 @@ make -C opt GPU=1
 
 ### Backend Dependancy
 
-redis-inference-optimization currently supports PyTorch (libtorch), Tensorflow (libtensorflow), TensorFlow Lite, and ONNXRuntime as backends. This section shows the version map between redis-inference-optimization and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given redis-inference-optimization version, check with the backend documentation about incompatible features between the version of your backend and the version redis-inference-optimization is built with.
+Redis-inference-optimization currently supports PyTorch (libtorch), Tensorflow (libtensorflow), TensorFlow Lite, and ONNXRuntime as backends. This section shows the version map between redis-inference-optimization and supported backends. This extremely important since the serialization mechanism of one version might not match with another. For making sure your model will work with a given redis-inference-optimization version, check with the backend documentation about incompatible features between the version of your backend and the version redis-inference-optimization is built with.
 
 
 | redis-inference-optimization | PyTorch  | TensorFlow | TFLite | ONNXRuntime |
@@ -109,17 +101,17 @@ redis-server --loadmodule ./install-cpu/redis-inference-optimization.so
 
 ### Give it a try
 
-Once loaded, you can interact with redis-inference-optimization using redis-cli. Basic information and examples for using the module is described [here](https://oss.redis.com/redis-inference-optimization/intro/#getting-started).
+Once loaded, you can interact with redis-inference-optimization using redis-cli. 
 
 ### Client libraries
 Some languages already have client libraries that provide support for redis-inference-optimization's commands. The following table lists the known ones:
 
 | Project            | Language              | License      | Author                                           | URL                                                         |
 | -------            | --------              | -------      | ------                                           | ---                                                         |
-| Jredis-inference-optimization           | Java                  | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redis-inference-optimization/Jredis-inference-optimization)               |
-| redis-inference-optimization-py         | Python                | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redis-inference-optimization/redis-inference-optimization-py)             |
-| redis-inference-optimization-go         | Go                    | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redis-inference-optimization/redis-inference-optimization-go)             |
-| redis-inference-optimization-js         | Typescript/Javascript | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redis-inference-optimization/redis-inference-optimization-js)             |
+| JredisAI           | Java                  | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redis-inference-optimization/JRedisAI)               |
+| redisAI-py         | Python                | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redisAI/redisAI-py)             |
+| redisAI-go         | Go                    | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/RedisAI/redisAI-go)             |
+| redisAI-js         | Typescript/Javascript | BSD-3        | [RedisLabs](https://redislabs.com/)              | [Github](https://github.com/redisAI/redisAI-js)             |
 | redis-modules-sdk  | TypeScript            | BSD-3-Clause | [Dani Tseitlin](https://github.com/danitseitlin) | [Github](https://github.com/danitseitlin/redis-modules-sdk) |
 | redis-modules-java | Java                  | Apache-2.0   | [dengliming](https://github.com/dengliming)      | [Github](https://github.com/dengliming/redis-modules-java)  |
 | smartredis         | C++                   | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
@@ -127,15 +119,5 @@ Some languages already have client libraries that provide support for redis-infe
 | smartredis         | Fortran               | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
 | smartredis         | Python                | BSD-2-Clause | [Cray Labs](https://github.com/CrayLabs)         | [Github](https://github.com/CrayLabs/SmartRedis)            |
 
-
-
-The full documentation for redis-inference-optimization's API can be found at the [Commands page](commands.md).
-
-## Contact Us
-If you have questions, want to provide feedback or perhaps report an issue or [contribute some code](contrib.md), here's where we're listening to you:
-
-* [Forum](https://forum.redis.com/c/modules/redis-inference-optimization)
-* [Repository](https://github.com/RedisAI/redis-inference-optimization/issues)
-
 ## License
-redis-inference-optimization is licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or the Server Side Public License v1 (SSPLv1).
+Redis-inference-optimization is licensed under your choice of the Redis Source Available License 2.0 (RSALv2) or the Server Side Public License v1 (SSPLv1).
